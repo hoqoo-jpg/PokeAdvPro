@@ -1,540 +1,741 @@
 /**
  * ============================================================================
  * pokedex_data.js
- * 關都 151 隻寶可夢資料庫、招式目錄、屬性剋制表、狀態免疫與資源快取
+ * 關都地區 151 全圖鑑、屬性相剋、超武突破配方、攜帶物戰術詞綴、
+ * 怪獸體重擊退抗性階級、Boss 多重攻擊模式資料庫
  * ============================================================================
  */
 
-// 道具與圖示資源表
-const ITEM_SPRITES = {
-  pokeBall:     "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png",
-  healBall:     "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png",
-  masterBall:   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png",
-  potion:       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/super-potion.png",
-  rareCandy:    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png",
-  protein:      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/protein.png",
-  hpUp:         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hp-up.png",
-  carbos:       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png",
-  wideLens:     "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/wide-lens.png",
-  chest:        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/relic-gold.png",
-  charcoal:     "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
-  mysticWater:  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
-  miracleSeed:  "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
-  magnet:       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
-  spellTag:     "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
-  twistedSpoon: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
-  coin:         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png",
-  starPiece:    "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png"
+// 1. 屬性視覺與異常狀態設定
+const TYPE_COLORS = {
+  Normal: "#94A3B8", Fire: "#EF4444", Water: "#38BDF8", Grass: "#22C55E",
+  Electric: "#FACC15", Ice: "#67E8F9", Fighting: "#B91C1C", Poison: "#A855F7",
+  Ground: "#D97706", Flying: "#818CF8", Psychic: "#EC4899", Bug: "#84CC16",
+  Rock: "#78350F", Ghost: "#6B21A8", Dragon: "#4338CA", Steel: "#64748B"
 };
 
-// 屬性幾何徽章與異常狀態設定
+const TYPE_NAMES_ZH = {
+  Normal: "一般", Fire: "火", Water: "水", Grass: "草", Electric: "電",
+  Ice: "冰", Fighting: "格鬥", Poison: "毒", Ground: "地面", Flying: "飛行",
+  Psychic: "超能", Bug: "蟲", Rock: "岩石", Ghost: "幽靈", Dragon: "龍", Steel: "鋼"
+};
+
 const TYPE_META = {
-  Grass:    { zh: "草",   color: "#78C850", status: "Poison",    statusRate: 0.30, svg: `<path d="M12 3C7 3 4 7 4 12c0 3 2 6 5 7l-1-4c2 1 4 0 5-2 1-2 0-5-2-6 3 1 5 4 5 7 2-2 3-5 2-8-1-2-3-3-6-3z" fill="currentColor"/>` },
-  Fire:     { zh: "火",   color: "#F08030", status: "Burn",      statusRate: 0.34, svg: `<path d="M12 2c1 4-2 6-2 10 0 3 2 5 4 5-1-2 0-4 2-5 2 2 3 5 2 8-1 2-4 3-7 3-4 0-7-3-7-7 0-5 4-9 8-14z" fill="currentColor"/>` },
-  Water:    { zh: "水",   color: "#6890F0", status: null,        statusRate: 0,    svg: `<path d="M12 2.5S6 10 6 14.5C6 18.1 8.7 21 12 21s6-2.9 6-6.5C18 10 12 2.5 12 2.5z" fill="currentColor"/>` },
-  Electric: { zh: "電",   color: "#F8D030", status: "Paralysis", statusRate: 0.35, svg: `<polygon points="13 2 4 14 11 14 10 22 20 10 13 10" fill="currentColor"/>` },
-  Psychic:  { zh: "超能", color: "#F85888", status: "Confusion", statusRate: 0.32, svg: `<circle cx="12" cy="12" r="4" fill="currentColor"/><path d="M12 4a8 8 0 1 0 8 8" stroke="currentColor" stroke-width="2.5" fill="none"/>` },
-  Ghost:    { zh: "幽靈", color: "#705898", status: "Confusion", statusRate: 0.32, svg: `<path d="M12 3a8 8 0 0 0-8 8v9l3-2 2.5 2 2.5-2 2.5 2 2.5-2 3 2v-9a8 8 0 0 0-8-8z" fill="currentColor"/>` },
-  Ice:      { zh: "冰",   color: "#98D8D8", status: "Freeze",    statusRate: 0.42, svg: `<polygon points="12 2 15 9 22 12 15 15 12 22 9 15 2 12 9 9" fill="currentColor"/>` },
-  Poison:   { zh: "毒",   color: "#A040A0", status: "Poison",    statusRate: 0.42, svg: `<circle cx="12" cy="10" r="6" fill="currentColor"/><circle cx="8" cy="18" r="2.5" fill="currentColor"/><circle cx="16" cy="18" r="2.5" fill="currentColor"/>` },
-  Flying:   { zh: "飛行", color: "#A890F0", status: null,        statusRate: 0,    svg: `<path d="M3 16c6-1 11-5 17-12-1 6-5 11-11 13l6 2c-5 2-9 1-12-3z" fill="currentColor"/>` },
-  Bug:      { zh: "蟲",   color: "#A8B820", status: "Poison",    statusRate: 0.25, svg: `<ellipse cx="12" cy="13" rx="5" ry="7" fill="currentColor"/>` },
-  Normal:   { zh: "一般", color: "#A8A878", status: null,        statusRate: 0,    svg: `<circle cx="12" cy="12" r="6" fill="currentColor"/>` },
-  Fairy:    { zh: "妖精", color: "#EE99AC", status: "Confusion", statusRate: 0.30, svg: `<polygon points="12 2 14.5 9.5 22 12 14.5 14.5 12 22 9.5 14.5 2 12 9.5 9.5" fill="currentColor"/>` },
-  Fighting: { zh: "格鬥", color: "#C03028", status: null,        statusRate: 0,    svg: `<circle cx="12" cy="12" r="7" fill="currentColor"/>` },
-  Ground:   { zh: "地面", color: "#E0C068", status: null,        statusRate: 0,    svg: `<polygon points="3 18 9 8 15 18" fill="currentColor"/>` },
-  Rock:     { zh: "岩石", color: "#B8A038", status: null,        statusRate: 0,    svg: `<polygon points="12 3 20 9 17 19 7 19 4 9" fill="currentColor"/>` },
-  Steel:    { zh: "鋼",   color: "#B8B8D0", status: null,        statusRate: 0,    svg: `<polygon points="12 2 21 7 21 17 12 22 3 17 3 7" fill="currentColor"/>` },
-  Dragon:   { zh: "龍",   color: "#7038F8", status: "Burn",      statusRate: 0.28, svg: `<path d="M12 2L5 9l4 2-3 9 13-9-4-2 4-7z" fill="currentColor"/>` }
+  Fire: { color: "#EF4444", status: "Burn", statusRate: 0.28 },
+  Water: { color: "#38BDF8", status: null, statusRate: 0 },
+  Grass: { color: "#22C55E", status: null, statusRate: 0 },
+  Electric: { color: "#FACC15", status: "Paralysis", statusRate: 0.24 },
+  Ice: { color: "#67E8F9", status: "Freeze", statusRate: 0.22 },
+  Poison: { color: "#A855F7", status: "Poison", statusRate: 0.35 },
+  Psychic: { color: "#EC4899", status: "Confusion", statusRate: 0.20 },
+  Ground: { color: "#D97706", status: null, statusRate: 0 },
+  Fighting: { color: "#B91C1C", status: null, statusRate: 0 },
+  Flying: { color: "#818CF8", status: null, statusRate: 0 },
+  Bug: { color: "#84CC16", status: null, statusRate: 0 },
+  Rock: { color: "#78350F", status: null, statusRate: 0 },
+  Ghost: { color: "#6B21A8", status: "Confusion", statusRate: 0.20 },
+  Dragon: { color: "#4338CA", status: null, statusRate: 0 },
+  Normal: { color: "#94A3B8", status: null, statusRate: 0 }
 };
 
-// 正統 16 屬性剋制表
-const TYPE_EFFECTIVENESS = {
-  Grass:    { super: ["Water", "Ground", "Rock"],             weak: ["Fire", "Grass", "Poison", "Flying", "Bug", "Dragon"] },
-  Fire:     { super: ["Grass", "Ice", "Bug", "Steel"],        weak: ["Fire", "Water", "Rock", "Dragon"] },
-  Water:    { super: ["Fire", "Ground", "Rock"],              weak: ["Water", "Grass", "Dragon"] },
-  Electric: { super: ["Water", "Flying"],                     weak: ["Electric", "Grass", "Ground", "Dragon"] },
-  Ice:      { super: ["Grass", "Ground", "Flying", "Dragon"], weak: ["Fire", "Water", "Ice", "Steel"] },
-  Poison:   { super: ["Grass", "Fairy"],                      weak: ["Poison", "Ground", "Rock", "Ghost"] },
-  Flying:   { super: ["Grass", "Fighting", "Bug"],            weak: ["Electric", "Rock", "Steel"] },
-  Psychic:  { super: ["Fighting", "Poison"],                  weak: ["Psychic", "Steel"] },
-  Bug:      { super: ["Grass", "Psychic"],                    weak: ["Fire", "Fighting", "Poison", "Flying", "Ghost", "Fairy"] },
-  Ghost:    { super: ["Psychic", "Ghost"],                    weak: ["Normal"] },
-  Fairy:    { super: ["Fighting", "Dragon"],                  weak: ["Fire", "Poison", "Steel"] },
-  Fighting: { super: ["Normal", "Ice", "Rock", "Steel"],      weak: ["Poison", "Flying", "Psychic", "Bug", "Fairy"] },
-  Ground:   { super: ["Fire", "Electric", "Poison", "Rock", "Steel"], weak: ["Grass", "Bug", "Flying"] },
-  Rock:     { super: ["Fire", "Ice", "Flying", "Bug"],        weak: ["Fighting", "Ground", "Steel"] },
-  Dragon:   { super: ["Dragon"],                              weak: ["Steel", "Fairy"] },
-  Normal:   { super: [],                                      weak: ["Rock", "Steel", "Ghost"] }
+// 屬性相剋倍率表 (攻方 -> 守方)
+const TYPE_CHART = {
+  Fire:     { Grass: 1.5, Ice: 1.5, Bug: 1.5, Steel: 1.5, Water: 0.65, Fire: 0.65, Rock: 0.65, Dragon: 0.65 },
+  Water:    { Fire: 1.5, Ground: 1.5, Rock: 1.5, Water: 0.65, Grass: 0.65, Dragon: 0.65 },
+  Grass:    { Water: 1.5, Ground: 1.5, Rock: 1.5, Fire: 0.65, Grass: 0.65, Poison: 0.65, Flying: 0.65, Bug: 0.65, Dragon: 0.65 },
+  Electric: { Water: 1.5, Flying: 1.5, Electric: 0.65, Grass: 0.65, Dragon: 0.65, Ground: 0.1 },
+  Ice:      { Grass: 1.5, Ground: 1.5, Flying: 1.5, Dragon: 1.5, Fire: 0.65, Water: 0.65, Ice: 0.65 },
+  Fighting: { Normal: 1.5, Ice: 1.5, Rock: 1.5, Steel: 1.5, Poison: 0.65, Flying: 0.65, Psychic: 0.65, Bug: 0.65, Ghost: 0.1 },
+  Poison:   { Grass: 1.5, Poison: 0.65, Ground: 0.65, Rock: 0.65, Ghost: 0.65, Steel: 0.1 },
+  Ground:   { Fire: 1.5, Electric: 1.5, Poison: 1.5, Rock: 1.5, Steel: 1.5, Grass: 0.65, Bug: 0.65, Flying: 0.1 },
+  Flying:   { Grass: 1.5, Fighting: 1.5, Bug: 1.5, Electric: 0.65, Rock: 0.65, Steel: 0.65 },
+  Psychic:  { Fighting: 1.5, Poison: 1.5, Psychic: 0.65, Steel: 0.65 },
+  Bug:      { Grass: 1.5, Psychic: 1.5, Fire: 0.65, Fighting: 0.65, Poison: 0.65, Flying: 0.65, Ghost: 0.65, Steel: 0.65 },
+  Rock:     { Fire: 1.5, Ice: 1.5, Flying: 1.5, Bug: 1.5, Fighting: 0.65, Ground: 0.65, Steel: 0.65 },
+  Ghost:    { Psychic: 1.5, Ghost: 1.5, Normal: 0.1 },
+  Dragon:   { Dragon: 1.5, Steel: 0.65 },
+  Normal:   { Rock: 0.65, Steel: 0.65, Ghost: 0.1 }
 };
 
-function renderTypeBadgeHTML(typeKey) {
-  if (!typeKey || typeKey === "None" || !TYPE_META[typeKey]) return "";
-  const t = TYPE_META[typeKey];
-  return `<span style="background:${t.color};" class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black text-white shadow-sm border border-white/60 whitespace-nowrap"><svg class="w-2.5 h-2.5" viewBox="0 0 24 24">${t.svg}</svg>${t.zh}</span>`;
-}
-
-function calcTypeMultiplier(moveType, defType1, defType2) {
-  const chart = TYPE_EFFECTIVENESS[moveType];
-  if (!chart) return 1.0;
+function calcTypeMultiplier(atkType, defType1, defType2) {
   let mult = 1.0;
-  [defType1, defType2].forEach(dt => {
-    if (!dt || dt === "None") return;
-    if (chart.super.includes(dt)) mult *= 1.35;
-    else if (chart.weak.includes(dt)) mult *= 0.72;
-  });
-  return mult > 1.15 ? 1.5 : (mult < 0.85 ? 0.65 : 1.0);
+  if (TYPE_CHART[atkType]) {
+    if (TYPE_CHART[atkType][defType1] !== undefined) mult *= TYPE_CHART[atkType][defType1];
+    if (defType2 && TYPE_CHART[atkType][defType2] !== undefined) mult *= TYPE_CHART[atkType][defType2];
+  }
+  return mult;
 }
 
-function checkStatusImmunity(target, statusType) {
-  const types = [target.data.type1, target.data.type2];
-  if (statusType === "Burn" && types.includes("Fire")) return true;
-  if (statusType === "Freeze" && types.includes("Ice")) return true;
-  if (statusType === "Paralysis" && types.includes("Electric")) return true;
-  if (statusType === "Poison" && (types.includes("Poison") || types.includes("Steel"))) return true;
+function checkStatusImmunity(target, status) {
+  if (!status) return true;
+  if (status === "Burn" && (target.data.type1 === "Fire" || target.data.type2 === "Fire")) return true;
+  if (status === "Poison" && (target.data.type1 === "Poison" || target.data.type2 === "Poison" || target.data.type1 === "Steel" || target.data.type2 === "Steel")) return true;
+  if (status === "Freeze" && (target.data.type1 === "Ice" || target.data.type2 === "Ice")) return true;
+  if (status === "Paralysis" && (target.data.type1 === "Electric" || target.data.type2 === "Electric")) return true;
   return false;
 }
 
-// 關都 151 隻寶可夢完整原始數值庫 [id, 名稱, 屬性1, 屬性2, HP, ATK, SPD, 初始招式, 進化等級]
-const COMPACT_151 = [
-  [1,"妙蛙種子","Grass","Poison",120,12,2.2,"Vine Whip",16],[2,"妙蛙草","Grass","Poison",220,22,2.5,"Vine Whip",32],[3,"妙蛙花","Grass","Poison",400,38,2.8,"Seed Bomb",0],
-  [4,"小火龍","Fire","None",100,15,2.5,"Flamethrower",16],[5,"火恐龍","Fire","None",180,28,2.8,"Flamethrower",36],[6,"噴火龍","Fire","Flying",320,45,3.2,"Flamethrower",0],
-  [7,"傑尼龜","Water","None",140,10,2.0,"Water Gun",16],[8,"卡咪龜","Water","None",250,20,2.3,"Water Gun",36],[9,"水箭龜","Water","None",450,35,2.6,"Hydro Pump",0],
-  [10,"綠毛蟲","Bug","None",60,6,1.5,"Tackle",7],[11,"鐵甲蛹","Bug","None",100,4,1.0,"Tackle",10],[12,"巴大蝶","Bug","Flying",180,25,2.7,"Confusion",0],
-  [13,"獨角蟲","Bug","Poison",55,7,1.6,"Poison Sting",7],[14,"鐵殼蛹","Bug","Poison",95,5,1.0,"Poison Sting",10],[15,"大針蜂","Bug","Poison",190,30,3.0,"Twineedle",0],
-  [16,"波波","Normal","Flying",70,10,2.5,"Gust",18],[17,"比比鳥","Normal","Flying",150,22,3.0,"Gust",36],[18,"大比鳥","Normal","Flying",280,36,3.6,"Air Slash",0],
-  [19,"小拉達","Normal","None",50,9,2.8,"Tackle",20],[20,"拉達","Normal","None",160,26,3.2,"Hyper Fang",0],[21,"烈雀","Normal","Flying",65,11,2.7,"Drill Peck",20],
-  [22,"大嘴雀","Normal","Flying",210,32,3.5,"Drill Peck",0],[23,"阿柏蛇","Poison","None",65,10,2.1,"Poison Sting",22],[24,"阿柏怪","Poison","None",190,29,2.8,"Bite",0],
-  [25,"皮卡丘","Electric","None",110,18,3.2,"Thunderbolt",30],[26,"雷丘","Electric","None",260,38,3.8,"Thunderbolt",0],[27,"穿山鼠","Ground","None",90,13,1.8,"Scratch",22],
-  [28,"穿山王","Ground","None",240,33,2.6,"Earthquake",0],[29,"尼多蘭","Poison","None",85,9,1.8,"Poison Sting",16],[30,"尼多娜","Poison","None",170,19,2.2,"Bite",36],
-  [31,"尼多后","Poison","Ground",340,36,2.8,"Earthquake",0],[32,"尼多朗","Poison","None",80,11,2.0,"Horn Attack",16],[33,"尼多力諾","Poison","None",165,23,2.4,"Horn Attack",36],
-  [34,"尼多王","Poison","Ground",330,40,3.0,"Earthquake",0],[35,"皮皮","Fairy","None",140,12,1.6,"Moonblast",30],[36,"皮可西","Fairy","None",320,30,2.4,"Moonblast",0],
-  [37,"六尾","Fire","None",80,12,2.4,"Flamethrower",30],[38,"九尾","Fire","None",270,32,3.4,"Flamethrower",0],[39,"胖丁","Normal","Fairy",180,10,1.2,"Moonblast",30],
-  [40,"胖可丁","Normal","Fairy",420,26,2.0,"Moonblast",0],[41,"超音蝠","Poison","Flying",60,8,3.0,"Bite",22],[42,"大嘴蝠","Poison","Flying",180,25,3.5,"Bite",0],
-  [43,"走路草","Grass","Poison",75,11,1.7,"Vine Whip",21],[44,"臭臭花","Grass","Poison",160,22,2.0,"Vine Whip",36],[45,"霸王花","Grass","Poison",300,36,2.4,"Seed Bomb",0],
-  [46,"派拉斯","Bug","Grass",65,12,1.4,"Scratch",24],[47,"派拉斯特","Bug","Grass",190,31,1.6,"X-Scissor",0],[48,"毛球","Bug","Poison",85,11,2.0,"Confusion",31],
-  [49,"摩魯蛾","Bug","Poison",220,29,3.2,"Confusion",0],[50,"地鼠","Ground","None",40,11,3.2,"Earthquake",26],[51,"三地鼠","Ground","None",130,32,4.1,"Earthquake",0],
-  [52,"喵喵","Normal","None",75,10,3.2,"Scratch",28],[53,"貓老大","Normal","None",190,26,3.9,"Slash",0],[54,"可達鴨","Water","None",95,11,2.1,"Water Gun",33],
-  [55,"哥達鴨","Water","None",260,32,3.1,"Hydro Pump",0],[56,"猴怪","Fighting","None",75,15,2.8,"Karate Chop",28],[57,"火暴猴","Fighting","None",200,37,3.4,"Cross Chop",0],
-  [58,"卡蒂狗","Fire","None",100,15,2.3,"Flamethrower",30],[59,"風速狗","Fire","None",340,44,3.5,"Flamethrower",0],[60,"蚊香蝌蚪","Water","None",70,9,2.6,"Water Gun",25],
-  [61,"蚊香君","Water","None",180,21,3.0,"Water Gun",36],[62,"蚊香泳士","Water","Fighting",330,36,2.7,"Hydro Pump",0],[63,"凱西","Psychic","None",45,16,3.2,"Confusion",16],
-  [64,"勇基拉","Psychic","None",120,35,3.6,"Psystrike",36],[65,"胡地","Psychic","None",220,55,4.1,"Psystrike",0],[66,"腕力","Fighting","None",130,16,1.6,"Karate Chop",28],
-  [67,"豪力","Fighting","None",250,32,2.1,"Karate Chop",40],[68,"怪力","Fighting","None",380,50,2.4,"Cross Chop",0],[69,"喇叭芽","Grass","Poison",80,13,1.9,"Vine Whip",21],
-  [70,"口呆花","Grass","Poison",180,25,2.2,"Vine Whip",36],[71,"大食花","Grass","Poison",310,42,2.6,"Seed Bomb",0],[72,"瑪瑙水母","Water","Poison",80,9,2.6,"Poison Sting",30],
-  [73,"毒刺水母","Water","Poison",290,28,3.4,"Hydro Pump",0],[74,"小拳石","Rock","Ground",90,13,1.1,"Earthquake",25],[75,"隆隆石","Rock","Ground",190,27,1.4,"Earthquake",40],
-  [76,"隆隆岩","Rock","Ground",330,44,1.7,"Earthquake",0],[77,"小火馬","Fire","None",95,15,3.1,"Flamethrower",40],[78,"烈焰馬","Fire","None",240,36,3.7,"Flamethrower",0],
-  [79,"呆呆獸","Water","Psychic",160,11,0.8,"Water Gun",37],[80,"呆殼獸","Water","Psychic",380,32,1.2,"Psystrike",0],[81,"小磁怪","Electric","Steel",55,16,1.7,"Thunderbolt",30],
-  [82,"三合一磁怪","Electric","Steel",170,39,2.4,"Thunderbolt",0],[83,"大蔥鴨","Normal","Flying",150,25,2.3,"Slash",0],[84,"嘟嘟","Normal","Flying",75,15,2.9,"Drill Peck",31],
-  [85,"嘟嘟利","Normal","Flying",210,39,3.7,"Drill Peck",0],[86,"小海獅","Water","None",125,9,1.6,"Ice Beam",34],[87,"白海獅","Water","Ice",300,26,2.4,"Ice Beam",0],
-  [88,"臭泥","Poison","None",150,14,1.2,"Sludge Bomb",38],[89,"臭臭泥","Poison","None",360,38,1.7,"Sludge Bomb",0],[90,"大舌貝","Water","None",70,11,1.5,"Ice Beam",30],
-  [91,"刺甲貝","Water","Ice",210,36,2.4,"Ice Beam",0],[92,"鬼斯","Ghost","Poison",80,18,2.4,"Shadow Ball",25],[93,"鬼斯通","Ghost","Poison",170,32,2.9,"Shadow Ball",40],
-  [94,"耿鬼","Ghost","Poison",310,52,3.5,"Shadow Ball",0],[95,"大岩蛇","Rock","Ground",150,16,2.3,"Earthquake",0],[96,"催眠貘","Psychic","None",130,11,1.5,"Confusion",26],
-  [97,"引夢貘人","Psychic","None",290,25,2.3,"Psystrike",0],[98,"大鉗蟹","Water","None",70,18,1.8,"Water Gun",28],[99,"巨鉗蟹","Water","None",210,44,2.5,"Hydro Pump",0],
-  [100,"霹靂電球","Electric","None",80,11,3.3,"Thunderbolt",30],[101,"頑皮雷彈","Electric","None",210,25,4.5,"Thunderbolt",0],[102,"蛋蛋","Grass","Psychic",110,11,1.4,"Seed Bomb",30],
-  [103,"椰蛋樹","Grass","Psychic",340,42,1.9,"Seed Bomb",0],[104,"卡拉卡拉","Ground","None",100,11,1.4,"Earthquake",28],[105,"嘎啦嘎啦","Ground","None",230,28,2.0,"Earthquake",0],
-  [106,"飛腿郎","Fighting","None",200,44,2.9,"High Jump Kick",0],[107,"快拳郎","Fighting","None",200,39,2.7,"Karate Chop",0],[108,"大舌頭","Normal","None",320,19,1.2,"Body Slam",0],
-  [109,"瓦斯彈","Poison","None",85,13,1.4,"Sludge Bomb",35],[110,"雙彈瓦斯","Poison","None",240,31,2.0,"Sludge Bomb",0],[111,"獨角犀牛","Ground","Rock",160,18,1.0,"Horn Attack",42],
-  [112,"鑽角犀獸","Ground","Rock",380,46,1.4,"Earthquake",0],[113,"吉利蛋","Normal","None",800,10,1.8,"Body Slam",0],[114,"蔓藤怪","Grass","None",220,25,2.0,"Vine Whip",0],
-  [115,"袋獸","Normal","None",380,35,3.0,"Body Slam",0],[116,"墨海馬","Water","None",65,11,2.0,"Water Gun",32],[117,"海刺龍","Water","None",190,31,2.8,"Hydro Pump",0],
-  [118,"角金魚","Water","None",85,13,2.1,"Horn Attack",33],[119,"金魚王","Water","None",260,33,2.6,"Horn Attack",0],[120,"海星星","Water","None",65,12,2.8,"Water Gun",30],
-  [121,"寶石海星","Water","Psychic",220,36,3.8,"Hydro Pump",0],[122,"魔牆人偶","Psychic","Fairy",170,30,3.0,"Psystrike",0],[123,"飛天螳螂","Bug","Flying",250,40,3.6,"X-Scissor",0],
-  [124,"迷唇姐","Ice","Psychic",220,38,3.1,"Ice Beam",0],[125,"電擊獸","Electric","None",230,35,3.4,"Thunderbolt",0],[126,"鴨嘴火獸","Fire","None",230,38,3.1,"Flamethrower",0],
-  [127,"凱羅斯","Bug","None",240,44,2.9,"X-Scissor",0],[128,"肯泰羅","Normal","None",260,36,3.7,"Horn Attack",0],[129,"鯉魚王","Water","None",40,2,2.5,"Tackle",20],
-  [130,"暴鯉龍","Water","Flying",360,48,2.8,"Hydro Pump",0],[131,"拉普拉斯","Water","Ice",460,30,2.0,"Ice Beam",0],[132,"百變怪","Normal","None",150,18,1.8,"Metronome",0],
-  [133,"伊布","Normal","None",120,15,2.4,"Quick Attack",25],[134,"水伊布","Water","None",450,36,2.2,"Hydro Pump",0],[135,"雷伊布","Electric","None",220,38,4.3,"Thunderbolt",0],
-  [136,"火伊布","Fire","None",220,46,2.2,"Flamethrower",0],[137,"多邊獸","Normal","None",220,25,1.4,"Psystrike",0],[138,"菊石獸","Rock","Water",90,16,1.2,"Water Gun",40],
-  [139,"多刺菊石獸","Rock","Water",250,38,1.8,"Hydro Pump",0],[140,"化石盔","Rock","Water",75,17,1.8,"Scratch",40],[141,"鐮刀盔","Rock","Water",220,42,2.7,"Slash",0],
-  [142,"化石翼龍","Rock","Flying",280,38,4.2,"Air Slash",0],[143,"卡比獸","Normal","None",650,42,1.1,"Body Slam",0],[144,"急凍鳥","Ice","Flying",700,55,3.2,"Ice Beam",0],
-  [145,"閃電鳥","Electric","Flying",720,58,3.5,"Thunderbolt",0],[146,"火焰鳥","Fire","Flying",710,60,3.4,"Flamethrower",0],[147,"迷你龍","Dragon","None",90,15,1.7,"Dragon Rush",30],
-  [148,"哈克龍","Dragon","None",210,30,2.4,"Dragon Rush",55],[149,"快龍","Dragon","Flying",480,52,2.8,"Dragon Rush",0],[150,"超夢","Psychic","None",950,75,3.8,"Psystrike",0],
-  [151,"夢幻","Psychic","None",850,70,4.0,"Metronome",0]
+function renderTypeBadgeHTML(type) {
+  if (!type || type === "None") return "";
+  const bg = TYPE_COLORS[type] || "#94A3B8";
+  const zh = TYPE_NAMES_ZH[type] || type;
+  return `<span style="background-color:${bg}" class="px-1.5 py-0.2 text-[9px] font-black text-white rounded-md shadow-sm whitespace-nowrap mx-0.5">${zh}</span>`;
+}
+
+// 2. 招式資料庫 (新增擊退分層 knockback 數值)
+const SKILLS_CATALOG = {
+  Tackle: {
+    id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 24, baseCd: 1.05,
+    knockback: 8, isMelee: true, meleeStyle: "slam_wave", reqItem: "silk_scarf",
+    evolvedName: "終極衝擊", color: "#CBD5E1",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silk-scarf.png",
+    desc: "向身前施展猛烈衝撞，微幅擊退身周敵人。",
+    evoDesc: "【終極超武】全屏金白衝擊狂濤，造成 400% 毀滅巨損！"
+  },
+  Flamethrower: {
+    id: "Flamethrower", name: "噴射火焰", type: "Fire", baseDmg: 32, baseCd: 1.15,
+    knockback: 0, isMelee: false, vfx: "fire_stream", reqItem: "charcoal",
+    evolvedName: "大字爆炎", color: "#EF4444",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
+    desc: "朝前方噴吐高溫烈焰，無擊退，專注高頻灼傷輸出。",
+    evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
+  },
+  HydroPump: {
+    id: "Hydro Pump", name: "水炮", type: "Water", baseDmg: 38, baseCd: 1.45,
+    knockback: 42, isMelee: false, vfx: "water_beam", reqItem: "mystic_water",
+    evolvedName: "潮旋激流", color: "#38BDF8",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
+    desc: "噴發粗大高壓水柱，產生強力擊退，戰術破開怪潮包圍。",
+    evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
+  },
+  SeedBomb: {
+    id: "Seed Bomb", name: "種子炸彈", type: "Grass", baseDmg: 28, baseCd: 1.10,
+    knockback: 6, isMelee: false, vfx: "seed_cluster", reqItem: "miracle_seed",
+    evolvedName: "瘋狂植物", color: "#22C55E",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+    desc: "拋射多枚爆裂草籽，微幅擴散擊退。",
+    evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
+  },
+  Thunderbolt: {
+    id: "Thunderbolt", name: "十萬伏特", type: "Electric", baseDmg: 34, baseCd: 1.10,
+    knockback: 2, isMelee: false, vfx: "lightning_chain", reqItem: "magnet",
+    evolvedName: "打雷暴風雨", color: "#FACC15",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
+    desc: "釋放金白高頻電漿鏈，無擊退，極致電擊麻痺。",
+    evoDesc: "【終極超武】全屏降下 14 道高壓萬鈞雷霆，附帶全屏白閃！"
+  },
+  ShadowBall: {
+    id: "Shadow Ball", name: "暗影球", type: "Ghost", baseDmg: 30, baseCd: 1.05,
+    knockback: 0, isMelee: false, vfx: "shadow_orb", reqItem: "spell_tag",
+    evolvedName: "暗影死滅波", color: "#A855F7",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
+    desc: "凝縮幽靈黑核射線，純穿透打擊，無擊退。",
+    evoDesc: "【終極超武】全圖暗影鬼影奔襲撕咬，附帶混亂反向！"
+  },
+  Psystrike: {
+    id: "Psystrike", name: "精神擊破", type: "Psychic", baseDmg: 36, baseCd: 1.25,
+    knockback: 0, isMelee: false, vfx: "psychic_lance", reqItem: "twisted_spoon",
+    evolvedName: "精神強念領域", color: "#EC4899",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
+    desc: "高壓念力實體穿刺，無擊退，精準索敵。",
+    evoDesc: "【終極超武】釋放引力超能風暴，全屏崩解目標防禦！"
+  },
+  IceBeam: {
+    id: "Ice Beam", name: "冷凍光線", type: "Ice", baseDmg: 30, baseCd: 1.15,
+    knockback: 4, isMelee: false, vfx: "frost_beam", reqItem: "never_melt_ice",
+    evolvedName: "絕對零度", color: "#67E8F9",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
+    desc: "極低溫寒冰射線，微抖動擊退，高概率冰凍遲緩。",
+    evoDesc: "【終極超武】凍結全屏怪物 3 秒，並引發全屏冰爆碎裂！"
+  },
+  Earthquake: {
+    id: "Earthquake", name: "地震", type: "Ground", baseDmg: 40, baseCd: 1.65,
+    knockback: 38, isMelee: true, meleeStyle: "quake_wave", reqItem: "soft_sand",
+    evolvedName: "地裂斷層破", color: "#D97706",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soft-sand.png",
+    desc: "重踏地面激發環形地震波，大範圍強烈擊退。",
+    evoDesc: "【終極超武】全屏雙層地底深坑岩石爆裂，造成雙倍粉碎重創！"
+  },
+  KarateChop: {
+    id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85,
+    knockback: 8, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
+    evolvedName: "爆裂十字劈", color: "#B91C1C",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
+    desc: "高頻連續金色拳印，極微擊退，完美黏怪打滿連招。",
+    evoDesc: "【終極超武】向全方位轟出 10 道巨大氣勁武道金拳！"
+  },
+  AirSlash: {
+    id: "Air Slash", name: "空氣斬", type: "Flying", baseDmg: 28, baseCd: 0.95,
+    knockback: 6, isMelee: false, vfx: "wind_blade", reqItem: "sharp_beak",
+    evolvedName: "暴風驟雨", color: "#818CF8",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sharp-beak.png",
+    desc: "快速斬出高頻風刃，微弱擊退。",
+    evoDesc: "【終極超武】全屏生成穿透龍捲風，將怪物扯入風眼！"
+  },
+  SludgeBomb: {
+    id: "Sludge Bomb", name: "污泥炸彈", type: "Poison", baseDmg: 30, baseCd: 1.15,
+    knockback: 4, isMelee: false, vfx: "sludge_ball", reqItem: "poison_barb",
+    evolvedName: "劇毒沼澤", color: "#9333EA",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poison-barb.png",
+    desc: "投擲劇毒泥漿塊，微擊退，附帶高概率中毒。",
+    evoDesc: "【終極超武】全屏覆蓋腐蝕性毒霧，中毒扣血速率提升 100%！"
+  },
+  Moonblast: {
+    id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.20,
+    knockback: 0, isMelee: false, vfx: "moon_blast", reqItem: "twisted_spoon",
+    evolvedName: "創世極光", color: "#F472B6",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
+    desc: "汲取月光引力光球，無擊退，具備索敵追蹤能力。",
+    evoDesc: "【終極超武】神聖極光洗禮全屏，超大幅度降低敵人攻擊力！"
+  },
+  DragonRush: {
+    id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.80,
+    knockback: 32, isMelee: true, meleeStyle: "claw_slash", reqItem: "dragon_scale",
+    evolvedName: "天龍流星雨", color: "#4338CA",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dragon-scale.png",
+    desc: "釋放殺氣騰空俯衝，造成範圍擊退與高額物理爆發。",
+    evoDesc: "【終極超武】從九天召喚無數燃燒龍系流星砸碎地面！"
+  },
+  Metronome: {
+    id: "Metronome", name: "揮指功", type: "Normal", baseDmg: 30, baseCd: 1.30,
+    knockback: 10, isMelee: false, vfx: "star_shot", reqItem: "silk_scarf",
+    evolvedName: "天命百寶袋", color: "#F59E0B",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/metronome.png",
+    desc: "隨機搖出全圖鑑任意強力攻擊招式！",
+    evoDesc: "【終極超武】全場隨機觸發三重不同屬性超武同時轟炸！"
+  }
+};
+
+function getSkillNextLevelBonusDesc(nextLv) {
+  if (nextLv === 10) return "★ 滿級覺醒！攻擊力大幅躍升 +50%，解鎖超武進化前置！";
+  if (nextLv === 3 || nextLv === 6 || nextLv === 9) return `彈幕數量/打擊次數 +1！基礎傷害提升至 ${(1 + (nextLv-1)*0.25).toFixed(2)}x！`;
+  if (nextLv === 4 || nextLv === 8) return `冷卻時間縮短 -12%！範圍擴大 +15%！傷害大幅提升！`;
+  if (nextLv === 5) return `異常狀態觸發率提升 +30%！傷害提升至 ${(1 + (nextLv-1)*0.25).toFixed(2)}x！`;
+  return `基礎傷害提升至 ${(1 + (nextLv-1)*0.25).toFixed(2)}x！打擊硬直提升！`;
+}
+
+// 3. 攜帶道具資料庫 (擴充獨立戰術詞綴)
+const HELD_ITEMS = {
+  charcoal: {
+    id: "charcoal", name: "木炭", skillReq: "Flamethrower",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
+    desc: "火傷+20%，走過的路徑留下持續2秒的熔岩灼燒腳印！"
+  },
+  mystic_water: {
+    id: "mystic_water", name: "神秘水滴", skillReq: "Hydro Pump",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
+    desc: "水傷+20%，生命低於30%時自動釋放環形高壓水幕擊退身周敵人！"
+  },
+  miracle_seed: {
+    id: "miracle_seed", name: "奇蹟種子", skillReq: "Seed Bomb",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+    desc: "草傷+20%，站在草叢中每秒回復 1.5% 最大生命值！"
+  },
+  magnet: {
+    id: "magnet", name: "磁鐵", skillReq: "Thunderbolt",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
+    desc: "電傷+20%，拾取範圍+50%，每20秒自動吸取全場最近一顆經驗水晶！"
+  },
+  spell_tag: {
+    id: "spell_tag", name: "詛咒之符", skillReq: "Shadow Ball",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
+    desc: "幽靈傷+20%，擊敗敵人時 10% 機率將其靈魂轉化為跟隨自爆鬼火！"
+  },
+  twisted_spoon: {
+    id: "twisted_spoon", name: "彎曲湯匙", skillReq: "Psystrike",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
+    desc: "超能傷+20%，全技能冷卻縮減-8%，且攻擊有 15% 機率使敵人混亂！"
+  },
+  never_melt_ice: {
+    id: "never_melt_ice", name: "不融冰", skillReq: "Ice Beam",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
+    desc: "冰傷+20%，身周 80px 形成霜凍光環，踏入光環的怪獸移速-30%！"
+  },
+  soft_sand: {
+    id: "soft_sand", name: "柔軟沙子", skillReq: "Earthquake",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soft-sand.png",
+    desc: "地面傷+20%，受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！"
+  },
+  black_belt: {
+    id: "black_belt", name: "黑帶", skillReq: "Karate Chop",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
+    desc: "格鬥傷+20%，暴擊傷害從 1.65x 大幅躍升至 2.20x！"
+  },
+  sharp_beak: {
+    id: "sharp_beak", name: "銳利之喙", skillReq: "Air Slash",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sharp-beak.png",
+    desc: "飛行傷+20%，移動速度額外提升 +12%，免疫任何減速地形！"
+  },
+  silk_scarf: {
+    id: "silk_scarf", name: "絲綢圍巾", skillReq: "Tackle",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silk-scarf.png",
+    desc: "一般傷+20%，受創時獲得 0.35 秒額外無敵時間！"
+  },
+  poison_barb: {
+    id: "poison_barb", name: "毒針", skillReq: "Sludge Bomb",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poison-barb.png",
+    desc: "毒傷+20%，對處於中毒狀態的敵人造成全額傷害時額外暴擊+25%！"
+  },
+  dragon_scale: {
+    id: "dragon_scale", name: "龍之鱗片", skillReq: "Dragon Rush",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dragon-scale.png",
+    desc: "龍傷+20%，自身受到傷害永久減少 15%（硬質減傷）！"
+  }
+};
+
+// 4. Boss 與精英小王多重攻擊模式資料庫 (還原 3.1 多型態輪換)
+const BOSS_ATTACK_PATTERNS = {
+  145: { // 閃電鳥
+    name: "閃電鳥",
+    skills: [
+      { id: "zapdos_pillar", name: "天頂狂雷", shape: "multi_pillar", count: 4, radius: 46, delay: 0.85, dmgMult: 1.35, color: "#FACC15" },
+      { id: "zapdos_nova",   name: "電磁激波", shape: "ring", radius: 140, innerRadius: 50, delay: 0.90, dmgMult: 1.15, color: "#FDE047" },
+      { id: "zapdos_rush",   name: "疾風俯衝", shape: "line", width: 44, length: 320, delay: 0.75, dmgMult: 1.45, speed: 480, color: "#EAB308" }
+    ]
+  },
+  144: { // 急凍鳥
+    name: "急凍鳥",
+    skills: [
+      { id: "articuno_line",  name: "絕對零度冰錐線", shape: "line", width: 48, length: 340, delay: 0.80, dmgMult: 1.40, speed: 460, color: "#38BDF8" },
+      { id: "articuno_blizz", name: "極寒暴風雪",     shape: "ring", radius: 160, innerRadius: 40, delay: 0.95, dmgMult: 1.25, color: "#BAE6FD" },
+      { id: "articuno_nova",  name: "冰華落雨",       shape: "multi_pillar", count: 3, radius: 52, delay: 0.85, dmgMult: 1.30, color: "#67E8F9" }
+    ]
+  },
+  146: { // 火焰鳥
+    name: "火焰鳥",
+    skills: [
+      { id: "moltres_blast", name: "大字爆炎", shape: "circle", radius: 68, delay: 0.85, dmgMult: 1.50, color: "#EF4444" },
+      { id: "moltres_rush",  name: "烈焰衝鋒", shape: "line", width: 46, length: 320, delay: 0.75, dmgMult: 1.40, speed: 500, color: "#F97316" },
+      { id: "moltres_rain",  name: "天火燔祭", shape: "multi_pillar", count: 4, radius: 48, delay: 0.80, dmgMult: 1.30, color: "#DC2626" }
+    ]
+  },
+  150: { // 超夢
+    name: "超夢",
+    skills: [
+      { id: "mewtwo_well",  name: "精神擊破重力陷阱", shape: "circle", radius: 76, delay: 0.85, dmgMult: 1.55, isSuction: true, color: "#A855F7" },
+      { id: "mewtwo_dash",  name: "超能穿透突刺",     shape: "line", width: 52, length: 360, delay: 0.70, dmgMult: 1.60, speed: 520, color: "#C084FC" },
+      { id: "mewtwo_nova",  name: "念力巨星環",       shape: "ring", radius: 180, innerRadius: 60, delay: 0.90, dmgMult: 1.35, color: "#EC4899" }
+    ]
+  },
+  151: { // 始祖夢幻
+    name: "始祖夢幻",
+    skills: [
+      { id: "mew_metronome", name: "天命百寶引爆", shape: "circle", radius: 65, delay: 0.80, dmgMult: 1.40, color: "#F472B6" },
+      { id: "mew_rush",      name: "幻象瞬影衝鋒", shape: "line", width: 42, length: 300, delay: 0.65, dmgMult: 1.35, speed: 480, color: "#FDE047" },
+      { id: "mew_pillars",   name: "起源四象光陣", shape: "multi_pillar", count: 5, radius: 44, delay: 0.80, dmgMult: 1.30, color: "#38BDF8" }
+    ]
+  },
+  default_elite: { // 常規精英小王
+    name: "精英領主",
+    skills: [
+      { id: "elite_smash", name: "首領重踏", shape: "circle", radius: 48, delay: 0.85, dmgMult: 1.25, color: "#EF4444" },
+      { id: "elite_rush",  name: "野蠻衝撞", shape: "line", width: 36, length: 260, delay: 0.75, dmgMult: 1.30, speed: 420, color: "#F59E0B" }
+    ]
+  }
+};
+
+// 5. 關都 151 隻完整圖鑑資料庫 (包含 weightTier: "light"|"medium"|"heavy"|"boss" 與 kbResist 擊退抗性)
+const POKEMON_DB = [
+  { id: 1, name_zh: "妙蛙種子", type1: "Grass", type2: "Poison", hp: 120, atk: 49, speed: 45, skill: "Seed Bomb", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 2 },
+  { id: 2, name_zh: "妙蛙草", type1: "Grass", type2: "Poison", hp: 160, atk: 62, speed: 60, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 32, evo_to: 3 },
+  { id: 3, name_zh: "妙蛙花", type1: "Grass", type2: "Poison", hp: 220, atk: 82, speed: 80, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 4, name_zh: "小火龍", type1: "Fire", type2: "None", hp: 115, atk: 52, speed: 65, skill: "Flamethrower", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 5 },
+  { id: 5, name_zh: "火恐龍", type1: "Fire", type2: "None", hp: 155, atk: 64, speed: 80, skill: "Flamethrower", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 6 },
+  { id: 6, name_zh: "噴火龍", type1: "Fire", type2: "Flying", hp: 215, atk: 84, speed: 100, skill: "Flamethrower", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 7, name_zh: "傑尼龜", type1: "Water", type2: "None", hp: 133, atk: 48, speed: 43, skill: "Hydro Pump", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 8 },
+  { id: 8, name_zh: "卡咪龜", type1: "Water", type2: "None", hp: 170, atk: 63, speed: 58, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.40, evo_level: 36, evo_to: 9 },
+  { id: 9, name_zh: "水箭龜", type1: "Water", type2: "None", hp: 230, atk: 83, speed: 78, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.90, evo_level: "None", evo_to: null },
+  { id: 10, name_zh: "綠毛蟲", type1: "Bug", type2: "None", hp: 95, atk: 30, speed: 45, skill: "Tackle", weightTier: "light", kbResist: 0.0, evo_level: 7, evo_to: 11 },
+  { id: 11, name_zh: "鐵甲蛹", type1: "Bug", type2: "None", hp: 140, atk: 25, speed: 30, skill: "Tackle", weightTier: "medium", kbResist: 0.60, evo_level: 10, evo_to: 12 },
+  { id: 12, name_zh: "巴大蝶", type1: "Bug", type2: "Flying", hp: 160, atk: 45, speed: 70, skill: "Air Slash", weightTier: "light", kbResist: 0.10, evo_level: "None", evo_to: null },
+  { id: 13, name_zh: "獨角蟲", type1: "Bug", type2: "Poison", hp: 95, atk: 35, speed: 50, skill: "Tackle", weightTier: "light", kbResist: 0.0, evo_level: 7, evo_to: 14 },
+  { id: 14, name_zh: "鐵殼蛹", type1: "Bug", type2: "Poison", hp: 140, atk: 25, speed: 35, skill: "Tackle", weightTier: "medium", kbResist: 0.60, evo_level: 10, evo_to: 15 },
+  { id: 15, name_zh: "大針蜂", type1: "Bug", type2: "Poison", hp: 165, atk: 90, speed: 75, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.25, evo_level: "None", evo_to: null },
+  { id: 16, name_zh: "波波", type1: "Normal", type2: "Flying", hp: 100, atk: 45, speed: 56, skill: "Air Slash", weightTier: "light", kbResist: 0.0, evo_level: 18, evo_to: 17 },
+  { id: 17, name_zh: "比比鳥", type1: "Normal", type2: "Flying", hp: 150, atk: 60, speed: 71, skill: "Air Slash", weightTier: "medium", kbResist: 0.25, evo_level: 36, evo_to: 18 },
+  { id: 18, name_zh: "大比鳥", type1: "Normal", type2: "Flying", hp: 205, atk: 80, speed: 101, skill: "Air Slash", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 19, name_zh: "小拉達", type1: "Normal", type2: "None", hp: 90, atk: 56, speed: 72, skill: "Tackle", weightTier: "light", kbResist: 0.0, evo_level: 20, evo_to: 20 },
+  { id: 20, name_zh: "拉達", type1: "Normal", type2: "None", hp: 155, atk: 81, speed: 97, skill: "Tackle", weightTier: "medium", kbResist: 0.30, evo_level: "None", evo_to: null },
+  { id: 21, name_zh: "烈雀", type1: "Normal", type2: "Flying", hp: 100, atk: 60, speed: 70, skill: "Air Slash", weightTier: "light", kbResist: 0.0, evo_level: 20, evo_to: 22 },
+  { id: 22, name_zh: "大嘴雀", type1: "Normal", type2: "Flying", hp: 165, atk: 90, speed: 100, skill: "Air Slash", weightTier: "medium", kbResist: 0.35, evo_level: "None", evo_to: null },
+  { id: 23, name_zh: "阿柏蛇", type1: "Poison", type2: "None", hp: 105, atk: 60, speed: 55, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.15, evo_level: 22, evo_to: 24 },
+  { id: 24, name_zh: "阿柏怪", type1: "Poison", type2: "None", hp: 160, atk: 95, speed: 80, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 25, name_zh: "皮卡丘", type1: "Electric", type2: "None", hp: 102, atk: 55, speed: 90, skill: "Thunderbolt", weightTier: "light", kbResist: 0.10, evo_level: 22, evo_to: 26 },
+  { id: 26, name_zh: "雷丘", type1: "Electric", type2: "None", hp: 160, atk: 90, speed: 110, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
+  { id: 27, name_zh: "穿山鼠", type1: "Ground", type2: "None", hp: 110, atk: 75, speed: 40, skill: "Earthquake", weightTier: "light", kbResist: 0.25, evo_level: 22, evo_to: 28 },
+  { id: 28, name_zh: "穿山王", type1: "Ground", type2: "None", hp: 175, atk: 100, speed: 65, skill: "Earthquake", weightTier: "medium", kbResist: 0.60, evo_level: "None", evo_to: null },
+  { id: 29, name_zh: "尼多蘭", type1: "Poison", type2: "None", hp: 115, atk: 47, speed: 41, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 30 },
+  { id: 30, name_zh: "尼多娜", type1: "Poison", type2: "None", hp: 160, atk: 62, speed: 56, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.40, evo_level: 36, evo_to: 31 },
+  { id: 31, name_zh: "尼多后", type1: "Poison", type2: "Ground", hp: 210, atk: 92, speed: 76, skill: "Earthquake", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 32, name_zh: "尼多朗", type1: "Poison", type2: "None", hp: 110, atk: 57, speed: 50, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 33 },
+  { id: 33, name_zh: "尼多力諾", type1: "Poison", type2: "None", hp: 155, atk: 72, speed: 65, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.40, evo_level: 36, evo_to: 34 },
+  { id: 34, name_zh: "尼多王", type1: "Poison", type2: "Ground", hp: 201, atk: 102, speed: 85, skill: "Earthquake", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 35, name_zh: "皮皮", type1: "Psychic", type2: "None", hp: 140, atk: 45, speed: 35, skill: "Moonblast", weightTier: "light", kbResist: 0.20, evo_level: 20, evo_to: 36 },
+  { id: 36, name_zh: "皮可西", type1: "Psychic", type2: "None", hp: 195, atk: 70, speed: 60, skill: "Moonblast", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 37, name_zh: "六尾", type1: "Fire", type2: "None", hp: 108, atk: 41, speed: 65, skill: "Flamethrower", weightTier: "light", kbResist: 0.10, evo_level: 20, evo_to: 38 },
+  { id: 38, name_zh: "九尾", type1: "Fire", type2: "None", hp: 173, atk: 76, speed: 100, skill: "Flamethrower", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
+  { id: 39, name_zh: "胖丁", type1: "Normal", type2: "Psychic", hp: 185, atk: 45, speed: 20, skill: "Moonblast", weightTier: "light", kbResist: 0.15, evo_level: 20, evo_to: 40 },
+  { id: 40, name_zh: "胖可丁", type1: "Normal", type2: "Psychic", hp: 240, atk: 70, speed: 45, skill: "Moonblast", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 41, name_zh: "超音蝠", type1: "Poison", type2: "Flying", hp: 100, atk: 45, speed: 55, skill: "Air Slash", weightTier: "light", kbResist: 0.0, evo_level: 22, evo_to: 42 },
+  { id: 42, name_zh: "大嘴蝠", type1: "Poison", type2: "Flying", hp: 165, atk: 80, speed: 90, skill: "Air Slash", weightTier: "medium", kbResist: 0.30, evo_level: "None", evo_to: null },
+  { id: 43, name_zh: "走路草", type1: "Grass", type2: "Poison", hp: 110, atk: 50, speed: 30, skill: "Seed Bomb", weightTier: "light", kbResist: 0.10, evo_level: 21, evo_to: 44 },
+  { id: 44, name_zh: "臭臭花", type1: "Grass", type2: "Poison", hp: 150, atk: 65, speed: 40, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 45 },
+  { id: 45, name_zh: "霸王花", type1: "Grass", type2: "Poison", hp: 195, atk: 80, speed: 50, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.65, evo_level: "None", evo_to: null },
+  { id: 46, name_zh: "派拉斯", type1: "Bug", type2: "Grass", hp: 105, atk: 70, speed: 25, skill: "Seed Bomb", weightTier: "light", kbResist: 0.15, evo_level: 24, evo_to: 47 },
+  { id: 47, name_zh: "派拉斯特", type1: "Bug", type2: "Grass", hp: 160, atk: 95, speed: 30, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 48, name_zh: "毛球", type1: "Bug", type2: "Poison", hp: 120, atk: 55, speed: 45, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.15, evo_level: 31, evo_to: 49 },
+  { id: 49, name_zh: "摩魯蛾", type1: "Bug", type2: "Poison", hp: 170, atk: 65, speed: 90, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
+  { id: 50, name_zh: "地鼠", type1: "Ground", type2: "None", hp: 70, atk: 55, speed: 95, skill: "Earthquake", weightTier: "light", kbResist: 0.0, evo_level: 26, evo_to: 51 },
+  { id: 51, name_zh: "三地鼠", type1: "Ground", type2: "None", hp: 105, atk: 100, speed: 120, skill: "Earthquake", weightTier: "medium", kbResist: 0.35, evo_level: "None", evo_to: null },
+  { id: 52, name_zh: "喵喵", type1: "Normal", type2: "None", hp: 100, atk: 45, speed: 90, skill: "Tackle", weightTier: "light", kbResist: 0.05, evo_level: 28, evo_to: 53 },
+  { id: 53, name_zh: "貓老大", type1: "Normal", type2: "None", hp: 165, atk: 70, speed: 115, skill: "Tackle", weightTier: "medium", kbResist: 0.35, evo_level: "None", evo_to: null },
+  { id: 54, name_zh: "可達鴨", type1: "Water", type2: "None", hp: 120, atk: 52, speed: 55, skill: "Hydro Pump", weightTier: "light", kbResist: 0.15, evo_level: 33, evo_to: 55 },
+  { id: 55, name_zh: "哥達鴨", type1: "Water", type2: "None", hp: 180, atk: 82, speed: 85, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 56, name_zh: "猴怪", type1: "Fighting", type2: "None", hp: 100, atk: 80, speed: 70, skill: "Karate Chop", weightTier: "light", kbResist: 0.10, evo_level: 28, evo_to: 57 },
+  { id: 57, name_zh: "火爆猴", type1: "Fighting", type2: "None", hp: 165, atk: 105, speed: 95, skill: "Karate Chop", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 58, name_zh: "卡蒂狗", type1: "Fire", type2: "None", hp: 125, atk: 70, speed: 60, skill: "Flamethrower", weightTier: "light", kbResist: 0.20, evo_level: 24, evo_to: 59 },
+  { id: 59, name_zh: "風速狗", type1: "Fire", type2: "None", hp: 210, atk: 110, speed: 95, skill: "Flamethrower", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 60, name_zh: "蚊香蝌蚪", type1: "Water", type2: "None", hp: 100, atk: 50, speed: 90, skill: "Hydro Pump", weightTier: "light", kbResist: 0.05, evo_level: 25, evo_to: 61 },
+  { id: 61, name_zh: "蚊香君", type1: "Water", type2: "None", hp: 155, atk: 65, speed: 90, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.40, evo_level: 36, evo_to: 62 },
+  { id: 62, name_zh: "蚊香泳士", type1: "Water", type2: "Fighting", hp: 210, atk: 95, speed: 70, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 63, name_zh: "凱西", type1: "Psychic", type2: "None", hp: 85, atk: 20, speed: 90, skill: "Psystrike", weightTier: "light", kbResist: 0.0, evo_level: 16, evo_to: 64 },
+  { id: 64, name_zh: "勇基拉", type1: "Psychic", type2: "None", hp: 130, atk: 35, speed: 105, skill: "Psystrike", weightTier: "medium", kbResist: 0.25, evo_level: 36, evo_to: 65 },
+  { id: 65, name_zh: "胡地", type1: "Psychic", type2: "None", hp: 175, atk: 50, speed: 120, skill: "Psystrike", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 66, name_zh: "腕力", type1: "Fighting", type2: "None", hp: 130, atk: 80, speed: 35, skill: "Karate Chop", weightTier: "medium", kbResist: 0.35, evo_level: 28, evo_to: 67 },
+  { id: 67, name_zh: "豪力", type1: "Fighting", type2: "None", hp: 170, atk: 100, speed: 45, skill: "Karate Chop", weightTier: "medium", kbResist: 0.65, evo_level: 36, evo_to: 68 },
+  { id: 68, name_zh: "怪力", type1: "Fighting", type2: "None", hp: 220, atk: 130, speed: 55, skill: "Karate Chop", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 69, name_zh: "喇叭芽", type1: "Grass", type2: "Poison", hp: 110, atk: 75, speed: 40, skill: "Seed Bomb", weightTier: "light", kbResist: 0.05, evo_level: 21, evo_to: 70 },
+  { id: 70, name_zh: "口呆花", type1: "Grass", type2: "Poison", hp: 155, atk: 90, speed: 55, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 71 },
+  { id: 71, name_zh: "大食花", type1: "Grass", type2: "Poison", hp: 200, atk: 105, speed: 70, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.75, evo_level: "None", evo_to: null },
+  { id: 72, name_zh: "瑪瑙水母", type1: "Water", type2: "Poison", hp: 110, atk: 40, speed: 70, skill: "Hydro Pump", weightTier: "light", kbResist: 0.15, evo_level: 30, evo_to: 73 },
+  { id: 73, name_zh: "毒刺水母", type1: "Water", type2: "Poison", hp: 190, atk: 70, speed: 100, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 74, name_zh: "小拳石", type1: "Rock", type2: "Ground", hp: 120, atk: 80, speed: 20, skill: "Earthquake", weightTier: "medium", kbResist: 0.55, evo_level: 25, evo_to: 75 },
+  { id: 75, name_zh: "隆隆石", type1: "Rock", type2: "Ground", hp: 165, atk: 95, speed: 35, skill: "Earthquake", weightTier: "heavy", kbResist: 0.85, evo_level: 36, evo_to: 76 },
+  { id: 76, name_zh: "隆隆岩", type1: "Rock", type2: "Ground", hp: 210, atk: 120, speed: 45, skill: "Earthquake", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 77, name_zh: "小火馬", type1: "Fire", type2: "None", hp: 120, atk: 85, speed: 90, skill: "Flamethrower", weightTier: "light", kbResist: 0.20, evo_level: 40, evo_to: 78 },
+  { id: 78, name_zh: "烈焰馬", type1: "Fire", type2: "None", hp: 175, atk: 100, speed: 105, skill: "Flamethrower", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 79, name_zh: "呆呆獸", type1: "Water", type2: "Psychic", hp: 150, atk: 65, speed: 15, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.65, evo_level: 37, evo_to: 80 },
+  { id: 80, name_zh: "呆殼獸", type1: "Water", type2: "Psychic", hp: 215, atk: 75, speed: 30, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.90, evo_level: "None", evo_to: null },
+  { id: 81, name_zh: "小磁怪", type1: "Electric", type2: "Steel", hp: 90, atk: 35, speed: 45, skill: "Thunderbolt", weightTier: "light", kbResist: 0.10, evo_level: 30, evo_to: 82 },
+  { id: 82, name_zh: "三合一磁怪", type1: "Electric", type2: "Steel", hp: 145, atk: 60, speed: 70, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 83, name_zh: "大蔥鴨", type1: "Normal", type2: "Flying", hp: 132, atk: 90, speed: 60, skill: "Air Slash", weightTier: "light", kbResist: 0.15, evo_level: "None", evo_to: null },
+  { id: 84, name_zh: "嘟嘟", type1: "Normal", type2: "Flying", hp: 105, atk: 85, speed: 75, skill: "Air Slash", weightTier: "light", kbResist: 0.15, evo_level: 31, evo_to: 85 },
+  { id: 85, name_zh: "嘟嘟利", type1: "Normal", type2: "Flying", hp: 165, atk: 110, speed: 110, skill: "Air Slash", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 86, name_zh: "小海獅", type1: "Water", type2: "None", hp: 135, atk: 45, speed: 45, skill: "Ice Beam", weightTier: "medium", kbResist: 0.35, evo_level: 34, evo_to: 87 },
+  { id: 87, name_zh: "白海獅", type1: "Water", type2: "Ice", hp: 200, atk: 70, speed: 70, skill: "Ice Beam", weightTier: "heavy", kbResist: 0.80, evo_level: "None", evo_to: null },
+  { id: 88, name_zh: "臭泥", type1: "Poison", type2: "None", hp: 140, atk: 80, speed: 25, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.45, evo_level: 38, evo_to: 89 },
+  { id: 89, name_zh: "臭臭泥", type1: "Poison", type2: "None", hp: 215, atk: 105, speed: 50, skill: "Sludge Bomb", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 90, name_zh: "大舌貝", type1: "Water", type2: "None", hp: 95, atk: 65, speed: 40, skill: "Hydro Pump", weightTier: "light", kbResist: 0.30, evo_level: 24, evo_to: 91 },
+  { id: 91, name_zh: "刺甲貝", type1: "Water", type2: "Ice", hp: 160, atk: 95, speed: 70, skill: "Ice Beam", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 92, name_zh: "鬼斯", type1: "Ghost", type2: "Poison", hp: 85, atk: 35, speed: 80, skill: "Shadow Ball", weightTier: "light", kbResist: 0.0, evo_level: 25, evo_to: 93 },
+  { id: 93, name_zh: "鬼斯通", type1: "Ghost", type2: "Poison", hp: 125, atk: 50, speed: 95, skill: "Shadow Ball", weightTier: "medium", kbResist: 0.20, evo_level: 36, evo_to: 94 },
+  { id: 94, name_zh: "耿鬼", type1: "Ghost", type2: "Poison", hp: 170, atk: 65, speed: 110, skill: "Shadow Ball", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 95, name_zh: "大岩蛇", type1: "Rock", type2: "Ground", hp: 145, atk: 45, speed: 70, skill: "Earthquake", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 96, name_zh: "催眠貘", type1: "Psychic", type2: "None", hp: 130, atk: 48, speed: 42, skill: "Psystrike", weightTier: "light", kbResist: 0.20, evo_level: 26, evo_to: 97 },
+  { id: 97, name_zh: "引夢貘人", type1: "Psychic", type2: "None", hp: 185, atk: 73, speed: 67, skill: "Psystrike", weightTier: "medium", kbResist: 0.60, evo_level: "None", evo_to: null },
+  { id: 98, name_zh: "大鉗蟹", type1: "Water", type2: "None", hp: 95, atk: 105, speed: 50, skill: "Hydro Pump", weightTier: "light", kbResist: 0.20, evo_level: 28, evo_to: 99 },
+  { id: 99, name_zh: "巨鉗蟹", type1: "Water", type2: "None", hp: 165, atk: 130, speed: 75, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 100, name_zh: "霹靂電球", type1: "Electric", type2: "None", hp: 100, atk: 30, speed: 100, skill: "Thunderbolt", weightTier: "light", kbResist: 0.05, evo_level: 30, evo_to: 101 },
+  { id: 101, name_zh: "頑皮雷彈", type1: "Electric", type2: "None", hp: 160, atk: 50, speed: 150, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 102, name_zh: "蛋蛋", type1: "Grass", type2: "Psychic", hp: 120, atk: 40, speed: 40, skill: "Seed Bomb", weightTier: "light", kbResist: 0.15, evo_level: 24, evo_to: 103 },
+  { id: 103, name_zh: "椰蛋樹", type1: "Grass", type2: "Psychic", hp: 205, atk: 95, speed: 55, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 104, name_zh: "卡拉卡拉", type1: "Ground", type2: "None", hp: 110, atk: 50, speed: 35, skill: "Earthquake", weightTier: "light", kbResist: 0.20, evo_level: 28, evo_to: 105 },
+  { id: 105, name_zh: "嘎啦嘎啦", type1: "Ground", type2: "None", hp: 170, atk: 80, speed: 45, skill: "Earthquake", weightTier: "medium", kbResist: 0.60, evo_level: "None", evo_to: null },
+  { id: 106, name_zh: "飛腿郎", type1: "Fighting", type2: "None", hp: 150, atk: 120, speed: 87, skill: "Karate Chop", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 107, name_zh: "快拳郎", type1: "Fighting", type2: "None", hp: 150, atk: 105, speed: 76, skill: "Karate Chop", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 108, name_zh: "大舌頭", type1: "Normal", type2: "None", hp: 195, atk: 55, speed: 30, skill: "Tackle", weightTier: "heavy", kbResist: 0.80, evo_level: "None", evo_to: null },
+  { id: 109, name_zh: "瓦斯彈", type1: "Poison", type2: "None", hp: 100, atk: 65, speed: 35, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.20, evo_level: 35, evo_to: 110 },
+  { id: 110, name_zh: "雙彈瓦斯", type1: "Poison", type2: "None", hp: 175, atk: 90, speed: 60, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.60, evo_level: "None", evo_to: null },
+  { id: 111, name_zh: "獨角犀牛", type1: "Ground", type2: "Rock", hp: 145, atk: 85, speed: 25, skill: "Earthquake", weightTier: "heavy", kbResist: 0.75, evo_level: 42, evo_to: 112 },
+  { id: 112, name_zh: "鑽角犀獸", type1: "Ground", type2: "Rock", hp: 215, atk: 130, speed: 40, skill: "Earthquake", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 113, name_zh: "吉利蛋", type1: "Normal", type2: "None", hp: 450, atk: 15, speed: 50, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 114, name_zh: "蔓藤怪", type1: "Grass", type2: "None", hp: 145, atk: 55, speed: 60, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 115, name_zh: "袋獸", type1: "Normal", type2: "None", hp: 215, atk: 95, speed: 90, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 116, name_zh: "墨海馬", type1: "Water", type2: "None", hp: 90, atk: 40, speed: 60, skill: "Hydro Pump", weightTier: "light", kbResist: 0.05, evo_level: 32, evo_to: 117 },
+  { id: 117, name_zh: "海刺龍", type1: "Water", type2: "None", hp: 155, atk: 65, speed: 85, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 118, name_zh: "角金魚", type1: "Water", type2: "None", hp: 110, atk: 67, speed: 63, skill: "Hydro Pump", weightTier: "light", kbResist: 0.10, evo_level: 33, evo_to: 119 },
+  { id: 119, name_zh: "金魚王", type1: "Water", type2: "None", hp: 175, atk: 92, speed: 68, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 120, name_zh: "海星星", type1: "Water", type2: "None", hp: 95, atk: 45, speed: 85, skill: "Hydro Pump", weightTier: "light", kbResist: 0.10, evo_level: 24, evo_to: 121 },
+  { id: 121, name_zh: "寶石海星", type1: "Water", type2: "Psychic", hp: 170, atk: 75, speed: 115, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 122, name_zh: "魔牆人偶", type1: "Psychic", type2: "None", hp: 140, atk: 45, speed: 90, skill: "Psystrike", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 123, name_zh: "飛天螳螂", type1: "Bug", type2: "Flying", hp: 175, atk: 110, speed: 105, skill: "Air Slash", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 124, name_zh: "迷唇姐", type1: "Ice", type2: "Psychic", hp: 155, atk: 50, speed: 95, skill: "Ice Beam", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
+  { id: 125, name_zh: "電擊獸", type1: "Electric", type2: "None", hp: 170, atk: 83, speed: 105, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 126, name_zh: "鴨嘴火獸", type1: "Fire", type2: "None", hp: 170, atk: 95, speed: 93, skill: "Flamethrower", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 127, name_zh: "凱羅斯", type1: "Bug", type2: "None", hp: 170, atk: 125, speed: 85, skill: "Karate Chop", weightTier: "heavy", kbResist: 0.75, evo_level: "None", evo_to: null },
+  { id: 128, name_zh: "肯泰羅", type1: "Normal", type2: "None", hp: 185, atk: 100, speed: 110, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 129, name_zh: "鯉魚王", type1: "Water", type2: "None", hp: 70, atk: 10, speed: 80, skill: "Tackle", weightTier: "light", kbResist: 0.0, evo_level: 20, evo_to: 130 },
+  { id: 130, name_zh: "暴鯉龍", type1: "Water", type2: "Flying", hp: 225, atk: 125, speed: 81, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 131, name_zh: "拉普拉斯", type1: "Water", type2: "Ice", hp: 260, atk: 85, speed: 60, skill: "Ice Beam", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 132, name_zh: "百變怪", type1: "Normal", type2: "None", hp: 120, atk: 48, speed: 48, skill: "Metronome", weightTier: "light", kbResist: 0.15, evo_level: "None", evo_to: null },
+  { id: 133, name_zh: "伊布", type1: "Normal", type2: "None", hp: 118, atk: 55, speed: 55, skill: "Tackle", weightTier: "light", kbResist: 0.15, evo_level: 20, evo_to: 134 },
+  { id: 134, name_zh: "水伊布", type1: "Water", type2: "None", hp: 240, atk: 65, speed: 65, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.80, evo_level: "None", evo_to: null },
+  { id: 135, name_zh: "雷伊布", type1: "Electric", type2: "None", hp: 165, atk: 65, speed: 130, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 136, name_zh: "火伊布", type1: "Fire", type2: "None", hp: 165, atk: 130, speed: 65, skill: "Flamethrower", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 137, name_zh: "多邊獸", type1: "Normal", type2: "None", hp: 145, atk: 60, speed: 40, skill: "Psystrike", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
+  { id: 138, name_zh: "菊石獸", type1: "Rock", type2: "Water", hp: 105, atk: 40, speed: 35, skill: "Hydro Pump", weightTier: "light", kbResist: 0.35, evo_level: 40, evo_to: 139 },
+  { id: 139, name_zh: "多刺菊石獸", type1: "Rock", type2: "Water", hp: 175, atk: 60, speed: 55, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 140, name_zh: "化石盔", type1: "Rock", type2: "Water", hp: 95, atk: 75, speed: 55, skill: "Hydro Pump", weightTier: "light", kbResist: 0.35, evo_level: 40, evo_to: 141 },
+  { id: 141, name_zh: "鐮刀盔", type1: "Rock", type2: "Water", hp: 165, atk: 115, speed: 80, skill: "Karate Chop", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 142, name_zh: "化石翼龍", type1: "Rock", type2: "Flying", hp: 185, atk: 105, speed: 130, skill: "Air Slash", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
+  { id: 143, name_zh: "卡比獸", type1: "Normal", type2: "None", hp: 320, atk: 110, speed: 30, skill: "Tackle", weightTier: "heavy", kbResist: 1.0, evo_level: "None", evo_to: null },
+  { id: 144, name_zh: "急凍鳥", type1: "Ice", type2: "Flying", hp: 200, atk: 85, speed: 85, skill: "Ice Beam", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null },
+  { id: 145, name_zh: "閃電鳥", type1: "Electric", type2: "Flying", hp: 200, atk: 90, speed: 100, skill: "Thunderbolt", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null },
+  { id: 146, name_zh: "火焰鳥", type1: "Fire", type2: "Flying", hp: 200, atk: 100, speed: 90, skill: "Flamethrower", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null },
+  { id: 147, name_zh: "迷你龍", type1: "Dragon", type2: "None", hp: 110, atk: 64, speed: 50, skill: "Dragon Rush", weightTier: "light", kbResist: 0.15, evo_level: 30, evo_to: 148 },
+  { id: 148, name_zh: "哈克龍", type1: "Dragon", type2: "None", hp: 165, atk: 84, speed: 70, skill: "Dragon Rush", weightTier: "medium", kbResist: 0.45, evo_level: 55, evo_to: 149 },
+  { id: 149, name_zh: "快龍", type1: "Dragon", type2: "Flying", hp: 225, atk: 134, speed: 80, skill: "Dragon Rush", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
+  { id: 150, name_zh: "超夢", type1: "Psychic", type2: "None", hp: 240, atk: 110, speed: 130, skill: "Psystrike", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null },
+  { id: 151, name_zh: "夢幻", type1: "Psychic", type2: "None", hp: 220, atk: 100, speed: 100, skill: "Metronome", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null }
 ];
 
-const POKEMON_DB = COMPACT_151.map(r => {
-  const id = r[0];
-  const evoLv = r[8] === 0 ? "None" : r[8];
-  return {
-    id,
-    name_zh: r[1],
-    type1: r[2],
-    type2: r[3],
-    hp: r[4],
-    atk: r[5],
-    speed: r[6],
-    skill: r[7],
-    evo_level: evoLv,
-    evo_to: evoLv === "None" ? null : (id === 133 ? 134 : id + 1),
-    forward_sprite: `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/${id}.png`,
-    back_sprite: `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${id}.png`
-  };
+// 動態為 151 隻寶可夢掛載高畫質 GBA 正反面像素 Sprite URL
+POKEMON_DB.forEach(p => {
+  p.forward_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/${p.id}.png`;
+  p.back_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${p.id}.png`;
 });
 
-const POKEMON_MAP = new Map();
-POKEMON_DB.forEach(p => POKEMON_MAP.set(p.id, p));
+const POKEMON_MAP = new Map(POKEMON_DB.map(p => [p.id, p]));
+const REGULAR_MOB_POOL = POKEMON_DB.filter(p => p.id <= 143 && p.id !== 52 && p.id !== 113);
+const PARTNER_SUMMON_POOL = [1, 4, 7, 25, 39, 54, 58, 60, 133, 147];
 
-const EXCLUDED_WAVE_IDS = new Set([52, 113, 144, 145, 146, 150, 151]);
-const REGULAR_MOB_POOL = POKEMON_DB.filter(p => !EXCLUDED_WAVE_IDS.has(p.id));
-
-// 可解鎖出戰寶可夢清單
+// 6. 出戰初始陣容卡牌定義
 const PLAYABLE_ROSTER = [
-  { id: 25,  cost: 0,    tag: "小智/赤紅羈絆" },
-  { id: 1,   cost: 0,    tag: "小智/赤紅羈絆" },
-  { id: 4,   cost: 0,    tag: "小智/赤紅羈絆" },
-  { id: 7,   cost: 0,    tag: "小智/赤紅羈絆" },
-  { id: 10,  cost: 0,    tag: "免費基礎" },
-  { id: 16,  cost: 0,    tag: "小智羈絆" },
-  { id: 133, cost: 300,  tag: "莎莉娜羈絆‧三系進化" },
-  { id: 35,  cost: 300,  tag: "莎莉娜/莉莉艾羈絆" },
-  { id: 37,  cost: 350,  tag: "小剛/莉莉艾羈絆" },
-  { id: 39,  cost: 300,  tag: "莎莉娜羈絆" },
-  { id: 54,  cost: 320,  tag: "小霞羈絆‧水炮" },
-  { id: 56,  cost: 360,  tag: "十字劈格鬥" },
-  { id: 58,  cost: 400,  tag: "風速狗進化" },
-  { id: 63,  cost: 450,  tag: "超能胡地" },
-  { id: 66,  cost: 380,  tag: "怪力格鬥" },
-  { id: 74,  cost: 350,  tag: "小剛羈絆‧隆隆岩" },
-  { id: 92,  cost: 450,  tag: "幽靈耿鬼" },
-  { id: 106, cost: 520,  tag: "飛膝踢宗師" },
-  { id: 123, cost: 600,  tag: "十字剪雙刀" },
-  { id: 129, cost: 300,  tag: "小霞羈絆‧暴鯉龍" },
-  { id: 131, cost: 650,  tag: "小霞/赤紅羈絆" },
-  { id: 143, cost: 700,  tag: "赤紅羈絆‧卡比獸" },
-  { id: 147, cost: 850,  tag: "莉莉艾羈絆‧快龍" },
-  { id: 144, cost: 1500, tag: "莉莉艾羈絆‧三聖鳥" },
-  { id: 145, cost: 1500, tag: "傳說三聖鳥" },
-  { id: 146, cost: 1500, tag: "傳說三聖鳥" },
-  { id: 150, cost: 2500, tag: "赤紅羈絆‧超夢" },
-  { id: 151, cost: 3000, tag: "赤紅羈絆‧夢幻" }
+  { id: 25, cost: 0,   tag: "初始搭檔" },
+  { id: 1,  cost: 150, tag: "草系禦三家" },
+  { id: 4,  cost: 150, tag: "火系禦三家" },
+  { id: 7,  cost: 150, tag: "水系禦三家" },
+  { id: 10, cost: 80,  tag: "森林速通" },
+  { id: 16, cost: 80,  tag: "極速飛行" },
+  { id: 133,cost: 250, tag: "三系分支進化" },
+  { id: 147,cost: 350, tag: "准神幼體" }
 ];
 
-const PARTNER_SUMMON_POOL = [1, 4, 7, 16, 25, 35, 37, 39, 54, 58, 63, 92, 133, 147];
-
-// 6 位隨行訓練家
+// 7. 六大隨行訓練家 (包含小智、小霞、小剛、莎莉娜、莉莉艾、赤紅)
 const TRAINERS = [
   {
     id: "ash",
     name: "小智 (Ash)",
-    title: "真新鎮熱血主角 (預設)",
-    cost: 0,
+    title: "真新鎮的少年",
     sprite: "images/Ash_01.png",
-    sprites: { down: "images/Ash_01.png", up: "images/Ash_02.png", left: "images/Ash_03.png", right: "images/Ash_04.png" },
-    skillName: "就決定是你了！",
-    skillCd: 25, // 8分鐘快節奏優化：由45s下調至25s
+    sprites: {
+      down: "images/Ash_01.png",
+      up: "images/Ash_04.png",
+      left: "images/Ash_02.png",
+      right: "images/Ash_03.png"
+    },
+    cost: 0,
+    skillName: "熱血狂暴",
+    skillCd: 25,
     skillDuration: 6.0,
-    bondName: "真新鎮的奇蹟",
+    desc: "發動後自身攻速與暴擊率+25%，全場敵軍擊退阻尼削弱！",
+    bondName: "命運搭檔",
     bondColor: "#F59E0B",
-    bondPokemonIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 17, 18, 25, 26],
-    bondPreviewIds: [25, 4, 1, 7],
-    pixelColors: { hat: "#EF4444", hair: "#0F172A", top: "#2563EB", pants: "#1E293B" },
-    quote: "「皮卡丘、大家，就決定是你了！全力上吧！」",
-    desc: "【專屬羈絆】搭檔皮卡丘、關都御三家或比比鳥享傷害+25%、攻速+20%！戰術技(CD 25s)：恢復18% HP並6秒內攻速暴擊大爆發！",
-    mods: { dmgMult: 1.15, critBonus: 0.10, cdMult: 0.95, expMult: 1.15, speedMult: 1.08, hpMult: 1.15, regen: 1.2, areaMult: 1.10, projBonus: 0 }
+    bondPokemonIds: [25, 1, 4, 7],
+    bondPreviewIds: [25, 1, 4, 7],
+    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0, expMult: 1.10 }
   },
   {
     id: "misty",
     name: "小霞 (Misty)",
-    title: "華藍道館人魚館主 (免費)",
-    cost: 0,
-    sprite: "https://play.pokemonshowdown.com/sprites/trainers/misty.png",
-    skillName: "華藍水幕推進",
-    skillCd: 28, // 8分鐘快節奏優化：由50s下調至28s
+    title: "華藍道館館主",
+    sprite: "images/misty_01.png",
+    sprites: {
+      down: "images/misty_01.png",
+      up: "images/misty_04.png",
+      left: "images/misty_02.png",
+      right: "images/misty_03.png"
+    },
+    cost: 200,
+    skillName: "暴風海嘯",
+    skillCd: 28,
     skillDuration: 4.5,
-    bondName: "華藍人魚之歌",
+    desc: "釋放全屏高壓環形水浪，強烈震退周遭敵軍並冰凍遲緩 3 秒！",
+    bondName: "水之精靈",
     bondColor: "#38BDF8",
-    bondPokemonIds: [54, 55, 116, 117, 118, 119, 120, 121, 129, 130, 131, 134],
-    bondPreviewIds: [54, 121, 130, 131],
-    pixelColors: { hat: "#F97316", hair: "#F97316", top: "#FEF08A", pants: "#0284C7" },
-    quote: "「看我的華藍水幕！把敵人通通沖走吧！」",
-    desc: "【專屬羈絆】搭檔可達鴨、暴鯉龍、拉普拉斯、水伊布等享傷害+25%、攻速+20%！戰術技(CD 28s)：釋放全場水環震退並冰凍減速敵群，恢復22% HP！",
-    mods: { dmgMult: 1.12, critBonus: 0.08, cdMult: 0.94, expMult: 1.10, speedMult: 1.20, hpMult: 1.25, regen: 1.8, areaMult: 1.22, projBonus: 0 }
+    bondPokemonIds: [7, 54, 120, 131],
+    bondPreviewIds: [7, 54, 120, 131],
+    mods: { dmgMult: 1.0, cdMult: 0.92, hpMult: 1.0, speedMult: 1.0, areaMult: 1.15, critBonus: 0.0, regen: 0.5, expMult: 1.0 }
   },
   {
     id: "brock",
     name: "小剛 (Brock)",
-    title: "尼比道館堅毅飼育家 (免費)",
-    cost: 0,
-    sprite: "https://play.pokemonshowdown.com/sprites/trainers/brock.png",
-    skillName: "尼比岩石壁壘",
-    skillCd: 30, // 8分鐘快節奏優化：由55s下調至30s
+    title: "深灰道館館主",
+    sprite: "images/brock_01.png",
+    sprites: {
+      down: "images/brock_01.png",
+      up: "images/brock_04.png",
+      left: "images/brock_02.png",
+      right: "images/brock_03.png"
+    },
+    cost: 200,
+    skillName: "岩石壁壘",
+    skillCd: 30,
     skillDuration: 5.0,
-    bondName: "尼比岩壁守護",
+    desc: "召喚堅不可摧的岩石護盾，5 秒內受到傷害減少 50% 並免疫擊退！",
+    bondName: "磐石守護",
     bondColor: "#D97706",
-    bondPokemonIds: [37, 38, 41, 42, 74, 75, 76, 95, 111, 112],
-    bondPreviewIds: [74, 95, 37, 111],
-    pixelColors: { hat: "#78350F", hair: "#451A03", top: "#15803D", pants: "#A16207" },
-    quote: "「交給我吧！這是特製的元氣燉湯與岩石防禦！」",
-    desc: "【專屬羈絆】搭檔小拳石線、大岩蛇、六尾線享傷害+25%、攻速+20%！戰術技(CD 30s)：恢復25% HP，並展開5秒【50%減傷岩石護盾】！",
-    mods: { dmgMult: 1.10, critBonus: 0.06, cdMult: 0.95, expMult: 1.10, speedMult: 1.04, hpMult: 1.38, regen: 2.5, areaMult: 1.18, projBonus: 0 }
+    bondPokemonIds: [74, 95, 111],
+    bondPreviewIds: [74, 95, 111],
+    mods: { dmgMult: 0.95, cdMult: 1.05, hpMult: 1.30, speedMult: 0.95, areaMult: 1.0, critBonus: 0.0, regen: 1.5, expMult: 1.0 }
   },
   {
     id: "serena",
     name: "莎莉娜 (Serena)",
-    title: "卡洛斯雙打偶像",
-    cost: 500,
-    sprite: "https://play.pokemonshowdown.com/sprites/trainers/serena.png",
-    skillName: "雙打應援星舞",
-    skillCd: 28,
-    skillDuration: 5.0,
-    bondName: "閃耀舞台羈絆",
+    title: "卡洛斯表演家",
+    sprite: "images/serena_01.png",
+    sprites: {
+      down: "images/serena_01.png",
+      up: "images/serena_04.png",
+      left: "images/serena_02.png",
+      right: "images/serena_03.png"
+    },
+    cost: 350,
+    skillName: "華麗雙打舞台",
+    skillCd: 32,
+    skillDuration: 5.5,
+    desc: "開局直接召喚 1 隻雙打夥伴！主動發動時全夥伴大招冷卻立即重置！",
+    bondName: "華麗羈絆",
     bondColor: "#F472B6",
-    bondPokemonIds: [35, 36, 39, 40, 133, 134, 135, 136],
-    bondPreviewIds: [133, 35, 39, 135],
-    pixelColors: { hat: "#E11D48", hair: "#B45309", top: "#1E293B", pants: "#F43F5E" },
-    quote: "「大家一起閃耀吧！雙打連攜全開！」",
-    desc: "【專屬羈絆】搭檔伊布家族(#133~136)、皮皮或胖丁享傷害+25%！開局自帶1隻雙打夥伴！戰術技(CD 28s)：全體夥伴連發大招並恢復22% HP！",
-    mods: { dmgMult: 1.18, critBonus: 0.10, cdMult: 0.94, expMult: 1.22, speedMult: 1.10, hpMult: 1.18, regen: 1.5, areaMult: 1.15, projBonus: 0, startPartner: true }
+    bondPokemonIds: [133, 4, 39],
+    bondPreviewIds: [133, 4, 39],
+    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0, expMult: 1.05, startPartner: true }
   },
   {
     id: "lillie",
     name: "莉莉艾 (Lillie)",
-    title: "星光祈願守護者",
-    cost: 600,
-    sprite: "https://play.pokemonshowdown.com/sprites/trainers/lillie.png",
-    skillName: "傷藥緊急噴霧",
-    skillCd: 32,
-    skillDuration: 2.0,
-    bondName: "冰星祈願共鳴",
-    bondColor: "#A78BFA",
-    bondPokemonIds: [35, 36, 37, 38, 131, 144, 147, 148, 149],
-    bondPreviewIds: [37, 35, 147, 144],
-    pixelColors: { hat: "#FFFFFF", hair: "#FDE047", top: "#F8FAFC", pants: "#38BDF8" },
-    quote: "「請撐下去！我馬上幫你噴上滿たん傷藥！」",
-    desc: "【專屬羈絆】搭檔六尾、皮皮、快龍線或急凍鳥享傷害+25%！野生閃光率2倍！戰術技(CD 32s)：恢復38% HP、2秒無敵並淨化異常狀態！",
-    mods: { dmgMult: 1.14, critBonus: 0.12, cdMult: 0.93, expMult: 1.18, speedMult: 1.12, hpMult: 1.28, regen: 3.0, areaMult: 1.15, projBonus: 0, shinyBoost: 2.0 }
+    title: "阿羅拉大小姐",
+    sprite: "images/lillie_01.png",
+    sprites: {
+      down: "images/lillie_01.png",
+      up: "images/lillie_04.png",
+      left: "images/lillie_02.png",
+      right: "images/lillie_03.png"
+    },
+    cost: 450,
+    skillName: "全滿傷藥＆淨化",
+    skillCd: 35,
+    skillDuration: 3.0,
+    desc: "立即回覆 38% 最大 HP，淨化所有負面異常，並獲得 2 秒絕對無敵！",
+    bondName: "星之祈願",
+    bondColor: "#34D399",
+    bondPokemonIds: [35, 133, 147],
+    bondPreviewIds: [35, 133, 147],
+    mods: { dmgMult: 0.95, cdMult: 0.95, hpMult: 1.15, speedMult: 1.0, areaMult: 1.0, critBonus: 0.0, regen: 2.0, expMult: 1.15 }
   },
   {
     id: "red",
     name: "赤紅 (Red)",
-    title: "白銀山傳奇冠軍 (隱藏解鎖)",
-    cost: 0,
+    title: "傳奇冠軍",
+    sprite: "images/red_01.png",
+    sprites: {
+      down: "images/red_01.png",
+      up: "images/red_04.png",
+      left: "images/red_02.png",
+      right: "images/red_03.png"
+    },
+    cost: 1000,
     isHiddenRed: true,
-    sprite: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
-    skillName: "白銀山王牌號令",
-    skillCd: 28,
+    skillName: "王牌號令",
+    skillCd: 26,
     skillDuration: 6.5,
-    bondName: "白銀山傳奇巔峰",
+    desc: "全屏爆發王牌威壓！自身全招式傷害+45%，暴擊率+30%！",
+    bondName: "真新鎮傳奇",
     bondColor: "#EF4444",
-    bondPokemonIds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 25, 26, 131, 133, 134, 135, 136, 143, 150, 151],
-    bondPreviewIds: [6, 25, 143, 150],
-    pixelColors: { hat: "#DC2626", hair: "#0F172A", top: "#DC2626", pants: "#1E3A8A" },
-    quote: "「…………！（赤紅壓低帽沿，下達了王牌必殺指令！）」",
-    desc: "【隱藏解鎖：擊敗7.5m超夢 #150】搭檔御三家、皮卡丘、卡比獸或超夢享全傷+35%、發射數+1！戰術技(CD 28s)：震退全場並6.5秒內全傷+45%！",
-    mods: { dmgMult: 1.35, critBonus: 0.18, cdMult: 0.90, expMult: 1.20, speedMult: 1.15, hpMult: 1.30, regen: 2.0, areaMult: 1.20, projBonus: 1 }
+    bondPokemonIds: [1, 4, 7, 25, 131, 143],
+    bondPreviewIds: [1, 4, 7, 25, 131, 143],
+    mods: { dmgMult: 1.25, cdMult: 0.88, hpMult: 1.15, speedMult: 1.10, areaMult: 1.20, critBonus: 0.15, regen: 1.0, expMult: 1.20 }
   }
 ];
 
-// 挑戰難度（8分鐘快局版）
+// 8. 模式與難度考驗
 const DIFFICULTIES = [
-  { id: "easy",   name: "新手訓練家 (Easy)", badge: "輕鬆體驗",   hpMult: 1.00, atkMult: 0.90, spdMult: 0.90, spawnRateMult: 0.95, coinMult: 1.0, shinyBonus: 1.0, desc: "怪獸血量適中，適合熟悉走位拉扯與基礎圖鑑收集。" },
-  { id: "normal", name: "道館挑戰級 (Normal)", badge: "推薦 ‧ 1.5x代幣", hpMult: 1.55, atkMult: 1.20, spdMult: 1.00, spawnRateMult: 1.15, coinMult: 1.5, shinyBonus: 1.0, desc: "標準硬核生存體驗！怪物數量扎實，考驗手動戰術技搭配。" },
-  { id: "hard",   name: "四天王菁英 (Hard)",   badge: "菁英 ‧ 2.2x代幣", hpMult: 2.30, atkMult: 1.45, spdMult: 1.10, spawnRateMult: 1.35, coinMult: 2.2, shinyBonus: 1.5, desc: "怪潮壓迫感加劇！考驗屬性剋制與減速地形拉打，野生閃光精靈率提升 1.5x！" },
-  { id: "master", name: "關都冠軍級 (Master)", badge: "極限 ‧ 3.5x代幣", hpMult: 3.40, atkMult: 1.80, spdMult: 1.18, spawnRateMult: 1.55, coinMult: 3.5, shinyBonus: 2.5, desc: "極限彈幕與生存試煉！怪群洶湧圍攻，代幣獎勵 3.5x，野生閃光率高達 2.5 倍！" }
+  { id: "casual", name: "輕鬆探索", badge: "休閒", desc: "怪獸血量減免，賞金獲取率 0.9x", hpMult: 0.80, atkMult: 0.75, spdMult: 0.90, spawnRateMult: 0.85, coinMult: 0.9, shinyBonus: 1.0 },
+  { id: "normal", name: "關都標準", badge: "標準", desc: "標準 8 分鐘極速通關節奏", hpMult: 1.00, atkMult: 1.00, spdMult: 1.00, spawnRateMult: 1.00, coinMult: 1.0, shinyBonus: 1.0 },
+  { id: "hard",   name: "大師挑戰", badge: "困難", desc: "怪潮密集洶湧，賞金+35%，閃光率翻倍！", hpMult: 1.40, atkMult: 1.30, spdMult: 1.12, spawnRateMult: 1.35, coinMult: 1.35, shinyBonus: 2.0 },
+  { id: "hell",   name: "冠軍之巔", badge: "地獄", desc: "極致怪潮與霸體，賞金+80%，閃光率 3 倍！", hpMult: 1.95, atkMult: 1.65, spdMult: 1.25, spawnRateMult: 1.70, coinMult: 1.80, shinyBonus: 3.0 }
 ];
 
-// 攜帶道具配置（超武合成必備核心）
-const HELD_ITEMS = {
-  "Charcoal":     { id: "Charcoal",     name: "木炭",       sprite: ITEM_SPRITES.charcoal,     forSkill: "Flamethrower", desc: "火系威力 +20%，可讓 Lv.10【噴射火焰】突破為全屏【大字爆炎・爆炸烈焰】！" },
-  "MysticWater":  { id: "MysticWater",  name: "神秘水滴",   sprite: ITEM_SPRITES.mysticWater,  forSkill: "Water Gun",    desc: "水系威力 +20%，可讓 Lv.10【水槍/水炮】突破為全屏【巨浪加農水炮】！" },
-  "MiracleSeed":  { id: "MiracleSeed",  name: "奇蹟種子",   sprite: ITEM_SPRITES.miracleSeed,  forSkill: "Vine Whip",    desc: "草系威力 +20%，可讓 Lv.10【藤鞭/種子炸彈】突破為全屏【森羅瘋狂植物】！" },
-  "Magnet":       { id: "Magnet",       name: "磁鐵",       sprite: ITEM_SPRITES.magnet,       forSkill: "Thunderbolt",  desc: "電系威力 +20%，可讓 Lv.10【十萬伏特】突破為 360 度全屏【萬雷伏特攻擊】！" },
-  "SpellTag":     { id: "SpellTag",     name: "詛咒之符",   sprite: ITEM_SPRITES.spellTag,     forSkill: "Shadow Ball",  desc: "幽靈威力 +20%，可讓 Lv.10【暗影球】突破為全屏【冥界暗影潛襲】！" },
-  "TwistedSpoon": { id: "TwistedSpoon", name: "彎曲的湯匙", sprite: ITEM_SPRITES.twistedSpoon, forSkill: "Psystrike",    desc: "超能威力 +20%，可讓 Lv.10【精神擊破/念力】突破為全屏【創世精神超新星】！" }
-};
-
-function getSkillNextLevelBonusDesc(nextLv) {
-  const bonusMap = {
-    2: "【Lv.2 強化】基礎傷害 +25% ＆ 攻擊速度提升",
-    3: "【Lv.3 質變】發射/斬擊數量 +1 ＆ 範圍擴大 +15%",
-    4: "【Lv.4 強化】招式冷卻縮短 -12% ＆ 傷害 +20%",
-    5: "【Lv.5 質變】5大屬性狀態異常觸發率提升 +35%！",
-    6: "【Lv.6 質變】發射/斬擊數量再 +1 ＆ 貫穿提升",
-    7: "【Lv.7 強化】基礎傷害 +30% ＆ 暴擊率 +10%",
-    8: "【Lv.8 質變】範圍擴大 +25% ＆ 擊退力強化",
-    9: "【Lv.9 質變】發射/斬擊數量再 +1 ＆ 冷卻縮短 -15%",
-    10: "【Lv.10 滿級大師】傷害 +50%！持有對應攜帶物即可突破【全屏究極超武】！"
-  };
-  return bonusMap[nextLv] || "全面提升招式威力與範圍";
-}
-
-// 完整招式目錄
-const SKILLS_CATALOG = {
-  "Flamethrower": { id: "Flamethrower", name: "噴射火焰", evolvedName: "大字爆炎・爆炸烈焰", type: "Fire", isMelee: false, vfx: "fire_stream", sprite: ITEM_SPRITES.charcoal, reqItem: "Charcoal", color: "#F08030", baseCd: 1.25, baseDmg: 26, desc: "噴射彗星烈焰流與濃密火苗煙霧粒子群，附加【灼傷】。", evoDesc: "【全屏究極超武】全屏熔岩炎殺陣！立體金紅「大」字砸地引爆 8 道旋轉火龍捲！" },
-  "Water Gun":    { id: "Water Gun",    name: "水槍",     evolvedName: "巨浪加農水炮", type: "Water", isMelee: false, vfx: "water_beam", sprite: ITEM_SPRITES.mysticWater, reqItem: "MysticWater", color: "#38BDF8", baseCd: 1.15, baseDmg: 24, desc: "發射高壓螺旋激流與密集藍白泡沫粒子，附加【水流減速】。", evoDesc: "【全屏究極超武】全屏深藍漩渦巨浪！以自身為中心掀起雙重水龍捲轟炸全場！" },
-  "Hydro Pump":   { id: "Hydro Pump",   name: "水炮",     evolvedName: "巨浪加農水炮", type: "Water", isMelee: false, vfx: "water_beam", sprite: ITEM_SPRITES.mysticWater, reqItem: "MysticWater", color: "#0284C7", baseCd: 1.38, baseDmg: 34, desc: "噴發粗大高壓水柱衝擊波，強力擊退敵群並附加【水流減速】。", evoDesc: "【全屏究極超武】全屏深藍漩渦巨浪！掀起雙重水龍捲與泡沫風暴轟炸全場！" },
-  "Vine Whip":    { id: "Vine Whip",    name: "藤鞭",     evolvedName: "森羅瘋狂植物", type: "Grass", isMelee: true, meleeStyle: "vine_whip", sprite: ITEM_SPRITES.miracleSeed, reqItem: "MiracleSeed", color: "#22C55E", baseCd: 1.12, baseDmg: 23, desc: "甩出立體翠綠 S 藤鞭並散射飛葉，附加【中毒】。", evoDesc: "【全屏究極超武】全屏翠綠荊棘藤蔓與飛葉風暴震退敵群並吸血回復！" },
-  "Seed Bomb":    { id: "Seed Bomb",    name: "種子炸彈", evolvedName: "森羅瘋狂植物", type: "Grass", isMelee: false, vfx: "seed_cluster", sprite: ITEM_SPRITES.miracleSeed, reqItem: "MiracleSeed", color: "#10B981", baseCd: 1.28, baseDmg: 30, desc: "高拋發光堅果種子，砸地爆開密集孢子霧，附加【中毒】。", evoDesc: "【全屏究極超武】全屏種子花瓣連環爆破並吸血回復！" },
-  "Thunderbolt":  { id: "Thunderbolt",  name: "十萬伏特", evolvedName: "萬雷伏特攻擊", type: "Electric", isMelee: false, vfx: "lightning", sprite: ITEM_SPRITES.magnet, reqItem: "Magnet", color: "#F8D030", baseCd: 1.28, baseDmg: 29, desc: "中近程金白高頻電漿連環彈跳，高機率附加【麻痺】。", evoDesc: "【全屏究極超武】自身展開八卦電磁陣，天頂降下粗大熾白雷柱向 360 度放射 14 道分叉狂雷！" },
-  "Shadow Ball":  { id: "Shadow Ball",  name: "暗影球",   evolvedName: "冥界暗影潛襲", type: "Ghost", isMelee: false, vfx: "shadow_orb", sprite: ITEM_SPRITES.spellTag, reqItem: "SpellTag", color: "#9333EA", baseCd: 1.26, baseDmg: 28, desc: "發射帶有引力吸積盤的微型黑洞球，附加【混亂】。", evoDesc: "【全屏究極超武】全場暗影次元法陣爆裂並發射巨型追蹤引力黑洞！" },
-  "Psystrike":    { id: "Psystrike",    name: "精神擊破", evolvedName: "創世精神超新星", type: "Psychic", isMelee: false, vfx: "psychic_ring", sprite: ITEM_SPRITES.twistedSpoon, reqItem: "TwistedSpoon", color: "#F85888", baseCd: 1.35, baseDmg: 32, desc: "發射粉紫同心圓波紋環與星芒粒子，高機率【混亂】。", evoDesc: "【全屏究極超武】全屏超能力星雲波紋擴散震飛敵群！" },
-  "Confusion":    { id: "Confusion",    name: "念力",     evolvedName: "創世精神超新星", type: "Psychic", isMelee: false, vfx: "psychic_ring", sprite: ITEM_SPRITES.twistedSpoon, reqItem: "TwistedSpoon", color: "#EC4899", baseCd: 1.20, baseDmg: 24, desc: "釋放同心圓超能光環與星塵尾跡，附加【混亂】。", evoDesc: "【全屏究極超武】全屏超能力星雲波紋風暴！" },
-  "Ice Beam":     { id: "Ice Beam",     name: "急凍光線", evolvedName: "絕對零度暴風雪", type: "Ice", isMelee: false, vfx: "ice_crystal", sprite: ITEM_SPRITES.mysticWater, reqItem: null, color: "#38BDF8", baseCd: 1.35, baseDmg: 30, desc: "連發筆直六角射線冰柱束，高機率將敵人【冰凍】！", evoDesc: "雙排交錯立體冰棱矩陣極寒風暴！" },
-  "Moonblast":    { id: "Moonblast",    name: "月亮之力", evolvedName: "月華星光交響曲", type: "Fairy", isMelee: false, vfx: "moon_orb", sprite: ITEM_SPRITES.starPiece, reqItem: null, color: "#EE99AC", baseCd: 1.28, baseDmg: 28, desc: "發射璀璨粉紅月光球與四角星芒簇，附加【混亂】。", evoDesc: "璀璨月光星雨轟炸全場！" },
-  "Dragon Rush":  { id: "Dragon Rush",  name: "龍之俯衝", evolvedName: "逆鱗蒼龍破", type: "Dragon", isMelee: false, vfx: "dragon_flame", sprite: ITEM_SPRITES.charcoal, reqItem: null, color: "#7038F8", baseCd: 1.32, baseDmg: 34, desc: "釋放蒼藍紫龍焰衝擊彈與密集龍息粒子叢，貫穿敵群並【灼傷】。", evoDesc: "蒼龍逆鱗狂暴風暴！" },
-  "Sludge Bomb":  { id: "Sludge Bomb",  name: "污泥炸彈", evolvedName: "劇毒紫晶狂潮", type: "Poison", isMelee: false, vfx: "sludge_cluster", sprite: ITEM_SPRITES.spellTag, reqItem: null, color: "#A855F7", baseCd: 1.28, baseDmg: 28, desc: "投擲冒泡紫毒球並噴散濃密毒霧粒子叢，附加強烈【中毒】！", evoDesc: "劇毒紫晶連環爆破！" },
-  "Gust":         { id: "Gust",         name: "起風",     evolvedName: "暴風龍捲", type: "Flying", isMelee: false, vfx: "wind_crescent", sprite: ITEM_SPRITES.carbos, reqItem: null, color: "#A890F0", baseCd: 1.10, baseDmg: 22, desc: "揮出多層次新月旋風刃與白色氣流粒子叢擊退敵人。", evoDesc: "暴風龍捲撕裂！" },
-  "Air Slash":    { id: "Air Slash",    name: "空氣斬",   evolvedName: "神鳥猛擊", type: "Flying", isMelee: false, vfx: "wind_crescent", sprite: ITEM_SPRITES.carbos, reqItem: null, color: "#38BDF8", baseCd: 1.05, baseDmg: 31, desc: "高速連發十字真空新月風刃撕裂敵群。", evoDesc: "神鳥天翔光翼！" },
-  "Poison Sting": { id: "Poison Sting", name: "毒針",     evolvedName: "劇毒蜂群", type: "Poison", isMelee: false, vfx: "needle_dart", sprite: ITEM_SPRITES.spellTag, reqItem: null, color: "#C084FC", baseCd: 0.95, baseDmg: 20, desc: "高速連射銳利紫晶毒針與毒霧微粒，附加【中毒】。", evoDesc: "劇毒蜂針雨！" },
-  "Twineedle":    { id: "Twineedle",    name: "雙針",     evolvedName: "極限雙針", type: "Bug", isMelee: false, vfx: "needle_dart", sprite: ITEM_SPRITES.miracleSeed, reqItem: null, color: "#84CC16", baseCd: 0.92, baseDmg: 28, desc: "雙向極速貫穿翠綠雙連光針與星芒，附加【中毒】。", evoDesc: "雙針連環風暴！" },
-
-  // 近戰招式（享有無敵幀延長 + 命中微量吸血補償）
-  "Earthquake":     { id: "Earthquake",     name: "地震",     evolvedName: "大地脈動裂破", type: "Ground",   isMelee: true, meleeStyle: "quake_wave",   sprite: ITEM_SPRITES.protein, reqItem: null, color: "#D97706", baseCd: 1.70, baseDmg: 36, desc: "【近身震波】立體雙層深坑裂隙，核心重擊飛石，外圈泥石減速！", evoDesc: "12道裂隙巨岩暴起地崩全屏！" },
-  "Body Slam":      { id: "Body Slam",      name: "泰山壓頂", evolvedName: "極巨重壓震波", type: "Normal",   isMelee: true, meleeStyle: "slam_wave",    sprite: ITEM_SPRITES.protein, reqItem: null, color: "#F59E0B", baseCd: 1.60, baseDmg: 35, desc: "【近身重壓】爆發雙層黃金重壓波紋與星芒，震退敵人並【麻痺】！", evoDesc: "極巨泰山重壓！" },
-  "Scratch":        { id: "Scratch",        name: "抓",       evolvedName: "暴走利爪連斬", type: "Normal",   isMelee: true, meleeStyle: "claw_slash",   sprite: ITEM_SPRITES.protein, reqItem: null, color: "#F8FAFC", baseCd: 0.98, baseDmg: 24, desc: "【三段階梯交錯】精準階梯三段撕裂爪光，尾端爆散星塵火花！", evoDesc: "暴走利爪狂暴風暴！" },
-  "Slash":          { id: "Slash",          name: "劈開",     evolvedName: "居合劍氣連斬", type: "Normal",   isMelee: true, meleeStyle: "claw_slash",   sprite: ITEM_SPRITES.protein, reqItem: null, color: "#38BDF8", baseCd: 1.02, baseDmg: 32, desc: "【扇形居合】主刀光帶 2 道動態延遲殘影弧線，三層空間裂痕！", evoDesc: "160° 雙層居合劍氣！" },
-  "X-Scissor":      { id: "X-Scissor",      name: "十字剪",   evolvedName: "疾風十字雙刃", type: "Bug",      isMelee: true, meleeStyle: "x_scissor",    sprite: ITEM_SPRITES.miracleSeed, reqItem: null, color: "#84CC16", baseCd: 1.08, baseDmg: 34, desc: "【扇形雙刃】由內向外交叉擴張 X 型翠綠扇形光刃，高暴擊！", evoDesc: "疾風十字雙刃連環！" },
-  "Karate Chop":    { id: "Karate Chop",    name: "空手劈",   evolvedName: "武神百裂拳",   type: "Fighting", isMelee: true, meleeStyle: "martial_fist", sprite: ITEM_SPRITES.protein, reqItem: null, color: "#EF4444", baseCd: 1.10, baseDmg: 30, desc: "【螺旋飛拳】向外螺旋轟出金白氣勁巨拳印，震飛敵群！", evoDesc: "【武神百裂拳】環形氣爆波紋，螺旋轟出 18 枚格鬥神拳！" },
-  "Cross Chop":     { id: "Cross Chop",     name: "十字劈",   evolvedName: "無雙十字烈破", type: "Fighting", isMelee: true, meleeStyle: "martial_fist", sprite: ITEM_SPRITES.protein, reqItem: null, color: "#DC2626", baseCd: 1.18, baseDmg: 38, desc: "【螺旋重拳】雙向交錯的巨型烈焰拳印，極高暴擊率！", evoDesc: "無雙十字烈破！" },
-  "High Jump Kick": { id: "High Jump Kick", name: "飛膝踢",   evolvedName: "天翔流星飛踢", type: "Fighting", isMelee: true, meleeStyle: "martial_fist", sprite: ITEM_SPRITES.carbos,  reqItem: null, color: "#F97316", baseCd: 1.22, baseDmg: 40, desc: "【爆裂拳腿】向前連環轟出半透明赤橙氣勁印與密集火星！", evoDesc: "天翔流星飛踢！" },
-  "Bite":           { id: "Bite",           name: "咬住",     evolvedName: "深淵惡之咬碎", type: "Poison",   isMelee: true, meleeStyle: "fang_bite",    sprite: ITEM_SPRITES.spellTag, reqItem: null, color: "#9333EA", baseCd: 1.08, baseDmg: 26, desc: "【近戰咬合】立體黑紫巨齒重重咬合並炸開紫光星芒！", evoDesc: "深淵惡之咬碎！" },
-  "Hyper Fang":     { id: "Hyper Fang",     name: "必殺門牙", evolvedName: "黃金憤怒門牙", type: "Normal",   isMelee: true, meleeStyle: "fang_bite",    sprite: ITEM_SPRITES.protein, reqItem: null, color: "#F59E0B", baseCd: 1.12, baseDmg: 33, desc: "【近戰咬合】立體黃金巨顎利齒咬碎敵人，爆發十字閃光！", evoDesc: "黃金憤怒門牙！" },
-  "Horn Attack":    { id: "Horn Attack",    name: "角撞",     evolvedName: "黃金獨角鑽擊", type: "Normal",   isMelee: true, meleeStyle: "drill_horn",   sprite: ITEM_SPRITES.protein, reqItem: null, color: "#D97706", baseCd: 1.08, baseDmg: 28, desc: "【近戰突刺】多環旋轉黃金螺旋鑽頭與破空粒子流貫穿敵人！", evoDesc: "黃金獨角鑽擊！" },
-  "Drill Peck":     { id: "Drill Peck",     name: "啄鑽",     evolvedName: "蒼穹螺旋神鳥", type: "Flying",   isMelee: true, meleeStyle: "drill_horn",   sprite: ITEM_SPRITES.carbos,  reqItem: null, color: "#38BDF8", baseCd: 1.08, baseDmg: 32, desc: "【近戰突刺】高速旋轉蒼藍螺旋風錐與氣流粒子突刺敵群！", evoDesc: "蒼穹螺旋神鳥！" },
-  "Quick Attack":   { id: "Quick Attack",   name: "電光一閃", evolvedName: "神速星光閃擊", type: "Normal",   isMelee: true, meleeStyle: "dash_strike",  sprite: ITEM_SPRITES.carbos,  reqItem: null, color: "#FEF08A", baseCd: 0.88, baseDmg: 25, desc: "【扇形疾閃】扇形揮出純白疾風刀光與密集尾端閃爍星芒！", evoDesc: "神速星光閃擊！" },
-  "Tackle":         { id: "Tackle",         name: "撞擊",     evolvedName: "捨身星芒衝撞", type: "Normal",   isMelee: true, meleeStyle: "dash_strike",  sprite: ITEM_SPRITES.protein, reqItem: null, color: "#E2E8F0", baseCd: 0.98, baseDmg: 22, desc: "【扇形衝撞】扇形迸發元氣衝擊波與打擊星芒！", evoDesc: "捨身星芒衝撞！" },
-  "Metronome":      { id: "Metronome",      name: "揮指",     evolvedName: "創世揮指交響曲", type: "Psychic", isMelee: false, vfx: "psychic_ring", sprite: ITEM_SPRITES.masterBall, reqItem: null, color: "#F472B6", baseCd: 1.30, baseDmg: 38, desc: "夢幻專屬！隨機連鎖施放全屬性華麗大招！", evoDesc: "全屬性大爆發！" }
-};
-
-const MAP_BOSS_LOOTS = {
-  "magnet":       { id: "magnet",       name: "寶可夢磁鐵",   sprite: ITEM_SPRITES.magnet,    color: "#3B82F6", isRare: false },
-  "partner_ball": { id: "partner_ball", name: "支援治癒球",   sprite: ITEM_SPRITES.healBall,  color: "#F85888", isRare: true },
-  "rare_candy":   { id: "rare_candy",   name: "神奇糖果",     sprite: ITEM_SPRITES.rareCandy, color: "#3B82F6", isRare: true },
-  "evo_chest":    { id: "evo_chest",    name: "金色進化寶箱", sprite: ITEM_SPRITES.chest,     color: "#EAB308", isRare: true }
-};
-
+// 9. 寶可夢中心永久強化研究所 (精靈能力 ＆ 訓練家槽位)
 const CENTER_POKEMON_UPGRADES = [
-  { id: "atk",   name: "本系與屬性強化", sprite: ITEM_SPRITES.protein,   desc: "寶可夢全招式傷害與本系加成(STAB) +8% / 每級", baseCost: 100, maxLv: 10 },
-  { id: "hp",    name: "幸福蛋體質特訓", sprite: ITEM_SPRITES.hpUp,      desc: "寶可夢最大 HP +12% 且每秒回血提升 / 每級", baseCost: 90,  maxLv: 10 },
-  { id: "cd",    name: "敏捷招式連攜",   sprite: ITEM_SPRITES.carbos,    desc: "寶可夢招式冷卻縮減 -3.5% / 每級", baseCost: 120, maxLv: 8 },
-  { id: "shiny", name: "閃耀護符研究",   sprite: ITEM_SPRITES.starPiece, desc: "野生閃光寶可夢與寶藏精靈(喵喵/吉利蛋)出現率提升", baseCost: 200, maxLv: 5 }
+  { id: "atk", name: "基礎攻擊力 (ATK)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/protein.png", desc: "所有招式基礎傷害提升 +8%" },
+  { id: "cd",  name: "招式冷卻縮減 (CDR)", maxLv: 5, baseCost: 160, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png", desc: "所有招式冷卻時間縮短 -3.5%" },
+  { id: "hp",  name: "最大體質生命 (HP)", maxLv: 5, baseCost: 140, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hp-up.png", desc: "出戰生命值提升 +12%，每秒回血 +0.4" },
+  { id: "shiny", name: "閃光護符 (SHINY)", maxLv: 3, baseCost: 350, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-charm.png", desc: "局內野生閃光怪遭遇率提升 +35%" }
 ];
 
 const CENTER_TRAINER_UPGRADES = [
-  { id: "fourthSlot", name: "【核心突破】第 4 主動招式欄位", sprite: ITEM_SPRITES.masterBall, desc: "將戰鬥中可持有的主動攻擊招式上限從 3 招永久擴充至 4 招！", baseCost: 800, maxLv: 1, isSpecialSlot: true },
-  { id: "trainerCd",  name: "訓練家戰術口令精修", sprite: ITEM_SPRITES.wideLens, desc: "縮短右下角【訓練家戰術技能】冷卻時間 -4% / 每級（上限縮短20%）", baseCost: 180, maxLv: 5 },
-  { id: "partner",    name: "雙打夥伴指揮光環",   sprite: ITEM_SPRITES.healBall, desc: "副手夥伴傷害 +18%，Lv.1起開局自帶 1 隻雙打夥伴！", baseCost: 160, maxLv: 5 },
-  { id: "greed",      name: "聚寶功賞金護符",     sprite: ITEM_SPRITES.coin,     desc: "金幣與經驗獲取率 +15% / 每級", baseCost: 110, maxLv: 10 }
+  { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-case.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
+  { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },
+  { id: "partner", name: "雙打羈絆共鳴", maxLv: 3, baseCost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/destiny-knot.png", desc: "開局隨機召喚 1 隻夥伴，夥伴傷害+18%" },
+  { id: "greed", name: "護身金幣 (COINS)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png", desc: "每局獲得代幣總量增加 +15%" }
 ];
 
+// 10. 道館榮譽徽章與成就館
 const ACHIEVEMENTS = [
-  { id: "first_blood",  name: "真新鎮初心訓練家",   desc: "累計擊退 50 隻野生寶可夢", reward: 200, check: (s) => s.totalKills >= 50 },
-  { id: "first_evo",    name: "進化之光閃耀！",     desc: "在冒險中完成夥伴寶可夢進化", reward: 300, check: (s) => s.evolutions >= 1 },
-  { id: "super_move",   name: "Lv.10 全屏究極超武", desc: "將任意招式升至 Lv.10 並突破為【究極超武】", reward: 450, check: (s) => s.superMoves >= 1 },
-  { id: "kill_bird",    name: "三聖鳥的試煉 (5分)", desc: "擊退 5 分鐘傳說三聖鳥", reward: 600, check: (s) => s.birdsDefeated >= 1 },
-  { id: "kill_mewtwo",  name: "王者超夢的認可 (解鎖赤紅!)", desc: "擊退 7.5 分鐘最終 Boss【超夢 #150】並永久解鎖赤紅", reward: 1000, check: (s) => s.mewtwoDefeated >= 1 },
-  { id: "kill_mew",     name: "始祖夢幻的奇蹟 (8分)", desc: "通過隱藏終極 Boss【夢幻 #151】的極限考驗", reward: 2000, check: (s) => s.mewDefeated >= 1 }
+  { id: "first_blood", name: "初出茅廬", desc: "擊退累計 100 隻野生寶可夢", reward: 150, check: (st) => st.totalKills >= 100 },
+  { id: "hunter_500",  name: "精靈獵手", desc: "擊退累計 500 隻野生寶可夢", reward: 300, check: (st) => st.totalKills >= 500 },
+  { id: "evo_master",  name: "進化之光", desc: "累計完成 5 次寶可夢戰鬥進化", reward: 250, check: (st) => st.evolutions >= 5 },
+  { id: "super_move",  name: "極限突破", desc: "領悟並釋放 3 次究極超武技能", reward: 350, check: (st) => st.superMoves >= 3 },
+  { id: "beat_birds",  name: "傳說落幕", desc: "擊敗 5 分鐘降臨的傳說三聖鳥", reward: 500, check: (st) => st.birdsDefeated >= 1 },
+  { id: "beat_mewtwo", name: "終極宿命", desc: "擊退 7.5 分鐘王者超夢，解鎖【赤紅】", reward: 1000, check: (st) => st.mewtwoDefeated >= 1 },
+  { id: "beat_mew",    name: "始祖夢幻", desc: "擊退終極隱藏 Boss 夢幻 #151", reward: 1500, check: (st) => st.mewDefeated >= 1 },
+  { id: "dex_30",      name: "關都見習生", desc: "圖鑑登錄收服 30 隻寶可夢", reward: 300, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 30 },
+  { id: "dex_70",      name: "資深訓練家", desc: "圖鑑登錄收服 70 隻寶可夢", reward: 600, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 70 }
 ];
 
-// 圖檔與音效快取
+// 11. 地面 Boss 戰利品
+const MAP_BOSS_LOOTS = {
+  evo_chest: { name: "黃金進化寶箱", color: "#F59E0B", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-stone.png" },
+  rare_candy: { name: "神奇糖果 (立即升級)", color: "#38BDF8", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png" },
+  partner_ball: { name: "治癒球 (雙打召喚/升級)", color: "#EC4899", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png" },
+  magnet: { name: "磁鐵 (吸取全屏水晶)", color: "#FACC15", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png" }
+};
+
+const ITEM_SPRITES = {
+  coin: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png",
+  rareCandy: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png",
+  starPiece: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png",
+  protein: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/protein.png",
+  hpUp: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hp-up.png",
+  carbos: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png"
+};
+
+// 12. Sprite 快取載入器
 const SpriteCache = {
   cache: new Map(),
   get(url) {
     if (!url) return null;
     if (this.cache.has(url)) return this.cache.get(url);
     const img = new Image();
-    const record = { img, loaded: false, error: false };
-    img.onload = () => { record.loaded = true; };
-    img.onerror = () => { record.error = true; };
+    img.crossOrigin = "anonymous";
     img.src = url;
-    this.cache.set(url, record);
-    return record;
+    const rec = { img, loaded: false, error: false };
+    img.onload = () => { rec.loaded = true; };
+    img.onerror = () => { rec.error = true; };
+    this.cache.set(url, rec);
+    return rec;
   }
 };
 
+// 13. GBA 8-bit 原生復古音效生成器
 const SoundFX = {
   ctx: null,
-  bgmMuted: false,
-  currentTrack: null,
-  noteIndex: 0,
+  muted: false,
+  bgmOsc: null,
+  bgmGain: null,
   bgmTimer: null,
-
-  tracks: {
-    lobby: [
-      [523.25, 220, 261.63], [659.25, 220, 261.63], [783.99, 220, 329.63], [1046.50, 440, 392.00],
-      [880.00, 220, 349.23], [783.99, 220, 349.23], [659.25, 220, 261.63], [587.33, 440, 293.66],
-      [523.25, 220, 261.63], [659.25, 220, 261.63], [783.99, 220, 329.63], [880.00, 440, 349.23],
-      [783.99, 220, 392.00], [659.25, 320, 329.63], [587.33, 220, 293.66], [523.25, 440, 261.63]
-    ],
-    battle: [
-      [659.25, 160, 329.63], [783.99, 160, 329.63], [880.00, 160, 440.00], [1046.50, 320, 440.00],
-      [987.77, 160, 392.00], [783.99, 160, 392.00], [880.00, 160, 349.23], [659.25, 320, 329.63],
-      [587.33, 160, 293.66], [659.25, 160, 293.66], [783.99, 160, 392.00], [880.00, 320, 349.23],
-      [783.99, 160, 392.00], [659.25, 160, 329.63], [587.33, 160, 293.66], [523.25, 320, 261.63]
-    ],
-    boss: [
-      [440.00, 130, 220.00], [466.16, 130, 233.08], [493.88, 130, 246.94], [523.25, 260, 261.63],
-      [523.25, 130, 261.63], [587.33, 130, 293.66], [659.25, 130, 329.63], [698.46, 260, 349.23],
-      [783.99, 130, 392.00], [698.46, 130, 349.23], [659.25, 130, 329.63], [587.33, 260, 293.66],
-      [659.25, 130, 329.63], [587.33, 130, 293.66], [523.25, 130, 261.63], [440.00, 260, 220.00]
-    ]
-  },
+  currentBgmMode: "lobby",
 
   init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
-    }
-    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
-  },
-
-  startBgm(trackName) {
-    this.init();
-    if (this.currentTrack === trackName && this.bgmTimer) return;
-    this.currentTrack = trackName;
-    this.noteIndex = 0;
-    if (this.bgmTimer) clearTimeout(this.bgmTimer);
-    this.stepBgm();
-  },
-
-  stepBgm() {
-    if (!this.currentTrack) return;
-    const seq = this.tracks[this.currentTrack] || this.tracks.lobby;
-    const note = seq[this.noteIndex % seq.length];
-    this.noteIndex += 1;
-    const [leadFreq, durMs, bassFreq] = note;
-
-    if (!this.bgmMuted && this.ctx && this.ctx.state === "running") {
-      try {
-        const now = this.ctx.currentTime;
-        const durSec = (durMs * 0.85) / 1000;
-
-        const osc1 = this.ctx.createOscillator();
-        const gain1 = this.ctx.createGain();
-        osc1.type = "square";
-        osc1.frequency.setValueAtTime(leadFreq, now);
-        gain1.gain.setValueAtTime(0.025, now);
-        gain1.gain.exponentialRampToValueAtTime(0.003, now + durSec);
-        osc1.connect(gain1);
-        gain1.connect(this.ctx.destination);
-        osc1.start(now);
-        osc1.stop(now + durSec);
-
-        if (bassFreq) {
-          const osc2 = this.ctx.createOscillator();
-          const gain2 = this.ctx.createGain();
-          osc2.type = "triangle";
-          osc2.frequency.setValueAtTime(bassFreq, now);
-          gain2.gain.setValueAtTime(0.035, now);
-          gain2.gain.exponentialRampToValueAtTime(0.004, now + durSec);
-          osc2.connect(gain2);
-          gain2.connect(this.ctx.destination);
-          osc2.start(now);
-          osc2.stop(now + durSec);
-        }
-      } catch (e) {}
-    }
-
-    this.bgmTimer = setTimeout(() => this.stepBgm(), durMs);
-  },
-
-  toggleMute() {
-    this.init();
-    this.bgmMuted = !this.bgmMuted;
-    return this.bgmMuted;
+    if (this.ctx) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) this.ctx = new AudioCtx();
   },
 
   play(type) {
+    if (this.muted || !this.ctx) return;
     try {
-      if (!this.ctx || this.bgmMuted) return;
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -542,37 +743,105 @@ const SoundFX = {
       gain.connect(this.ctx.destination);
 
       if (type === "hit") {
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(340, now);
-        osc.frequency.exponentialRampToValueAtTime(140, now + 0.05);
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
-        osc.start(now); osc.stop(now + 0.05);
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === "levelup") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(440, now + 0.08);
+        osc.frequency.setValueAtTime(554, now + 0.16);
+        osc.frequency.setValueAtTime(660, now + 0.24);
+        gain.gain.setValueAtTime(0.20, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.38);
+        osc.start(now);
+        osc.stop(now + 0.38);
       } else if (type === "super") {
         osc.type = "triangle";
-        osc.frequency.setValueAtTime(523, now);
-        osc.frequency.setValueAtTime(659, now + 0.05);
-        osc.frequency.setValueAtTime(784, now + 0.10);
-        gain.gain.setValueAtTime(0.09, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.20);
-        osc.start(now); osc.stop(now + 0.20);
-      } else if (type === "levelup" || type === "shiny") {
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(523.25, now);
-        osc.frequency.setValueAtTime(659.25, now + 0.06);
-        osc.frequency.setValueAtTime(783.99, now + 0.12);
-        osc.frequency.setValueAtTime(1046.5, now + 0.18);
-        gain.gain.setValueAtTime(0.11, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.36);
-        osc.start(now); osc.stop(now + 0.36);
-      } else if (type === "ultimate" || type === "boss") {
-        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.30);
+        osc.start(now);
+        osc.stop(now + 0.30);
+      } else if (type === "ultimate") {
+        osc.type = "square";
         osc.frequency.setValueAtTime(180, now);
-        osc.frequency.exponentialRampToValueAtTime(65, now + 0.45);
-        gain.gain.setValueAtTime(0.12, now);
+        osc.frequency.exponentialRampToValueAtTime(740, now + 0.35);
+        gain.gain.setValueAtTime(0.28, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
-        osc.start(now); osc.stop(now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+      } else if (type === "boss") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(110, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.4);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+      } else if (type === "shiny") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1320, now + 0.08);
+        osc.frequency.setValueAtTime(1760, now + 0.16);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.linearRampToValueAtTime(0.01, now + 0.35);
+        osc.start(now);
+        osc.stop(now + 0.35);
       }
     } catch (e) {}
+  },
+
+  startBgm(mode = "battle") {
+    this.currentBgmMode = mode;
+    if (this.muted || !this.ctx) return;
+    this.stopBgm();
+
+    const bpm = mode === "boss" ? 148 : (mode === "battle" ? 132 : 110);
+    const stepTime = 60 / bpm / 2;
+    const battleNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 329.63, 293.66, 392.00];
+    const bossNotes   = [196.00, 220.00, 246.94, 261.63, 329.63, 246.94, 220.00, 196.00];
+    const lobbyNotes  = [329.63, 392.00, 440.00, 523.25, 440.00, 392.00, 349.23, 293.66];
+    const notes = mode === "boss" ? bossNotes : (mode === "battle" ? battleNotes : lobbyNotes);
+    let noteIdx = 0;
+
+    this.bgmTimer = setInterval(() => {
+      if (this.muted || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = mode === "boss" ? "sawtooth" : (mode === "battle" ? "square" : "triangle");
+        osc.frequency.setValueAtTime(notes[noteIdx % notes.length], now);
+        gain.gain.setValueAtTime(0.035, now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + stepTime * 0.85);
+
+        osc.start(now);
+        osc.stop(now + stepTime * 0.9);
+        noteIdx++;
+      } catch (e) {}
+    }, stepTime * 1000);
+  },
+
+  stopBgm() {
+    if (this.bgmTimer) {
+      clearInterval(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+  },
+
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.muted) this.stopBgm();
+    else if (this.ctx) this.startBgm(this.currentBgmMode);
+    return this.muted;
   }
 };
