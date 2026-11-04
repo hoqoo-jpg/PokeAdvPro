@@ -448,6 +448,54 @@ const GameApp = {
     this.spawnBoss(151, false);
   },
 
+  // 測試：手動觸發 3:15 火箭隊突襲小隊
+  debugTriggerRocketEvent() {
+    if (!this.player) return;
+    this.showCutsceneBanner("【火箭隊突襲 (DEBUG)】", "黑化阿柏怪與雙彈瓦斯帶著毒霧包夾！", 3200);
+    SoundFX.play("boss");
+    for (let k = 0; k < 6; k++) {
+      const ang = (k * Math.PI * 2) / 6;
+      const ex = this.player.x + Math.cos(ang) * 360;
+      const ey = this.player.y + Math.sin(ang) * 360;
+      const pId = k % 2 === 0 ? 24 : 110; // 阿柏怪 & 雙彈瓦斯
+      const pData = POKEMON_MAP.get(pId);
+      this.enemies.push({
+        id: pId, data: pData, x: ex, y: ey,
+        hp: 420 * this.selectedDifficulty.hpMult,
+        maxHp: 420 * this.selectedDifficulty.hpMult,
+        atk: 24, speed: 75, radius: 26, isElite: true, isBoss: false, isShiny: false,
+        facingX: -1, facingY: 1, status: "Poison", statusTimer: 99, statusTick: 99,
+        ccImmunityTimer: 1.5, rangedCd: 3.5, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.7
+      });
+    }
+  },
+
+  // 測試：手動觸發 4:00 肯泰羅暴走狂潮
+  debugTriggerTaurosStampede() {
+    if (!this.player) return;
+    this.showCutsceneBanner("【肯泰羅暴走狂潮 (DEBUG)】", "大群狂暴肯泰羅橫向踐踏！利用跳崖或繞水規避！", 3500);
+    SoundFX.play("super");
+    const startX = this.player.x - this.width / 2 - 120;
+    for (let row = -3; row <= 3; row++) {
+      const ey = this.player.y + row * 65;
+      const tData = POKEMON_MAP.get(128);
+      this.enemies.push({
+        id: 128, data: tData, x: startX - Math.abs(row) * 35, y: ey,
+        hp: 600 * this.selectedDifficulty.hpMult,
+        maxHp: 600 * this.selectedDifficulty.hpMult,
+        atk: 32, speed: 130, radius: 28, isElite: true, isBoss: false, isShiny: false,
+        facingX: 1, facingY: 0, status: null, statusTimer: 0, statusTick: 0,
+        ccImmunityTimer: 999, rangedCd: 999, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.95
+      });
+    }
+  },
+
+  // 測試：立即召喚或升級雙打小幫手夥伴
+  debugAddPartner() {
+    if (!this.player) return;
+    this.summonOrUpgradePartner();
+  },
+  
   updateWeatherUI(weatherType) {
     const iconMap = {
       CLEAR: "fa-sun text-amber-500",
