@@ -546,6 +546,21 @@
               </div>
             </div>
 
+            <!-- 火箭隊突襲測試按鈕 -->
+            <button onclick="GameApp.debugTriggerRocketEvent()" class="w-full text-left px-3 py-1.5 text-xs font-black text-purple-700 hover:bg-purple-50 rounded flex items-center gap-1.5 border border-purple-200 mt-1">
+              <i class="fa-solid fa-skull-crossbones text-purple-600"></i> 觸發火箭隊突襲 (阿柏怪/雙彈瓦斯)
+            </button>
+
+           <!-- 肯泰羅暴走測試按鈕 -->
+          <button onclick="GameApp.debugTriggerTaurosStampede()" class="w-full text-left px-3 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-50 rounded flex items-center gap-1.5 border border-amber-200 mt-1">
+           <i class="fa-solid fa-bullhorn text-amber-600"></i> 觸發肯泰羅暴走潮 (橫向踐踏)
+          </button>
+
+        <!-- 雙打小幫手召喚測試按鈕 -->
+          <button onclick="GameApp.debugAddPartner()" class="w-full text-left px-3 py-1.5 text-xs font-black text-pink-700 hover:bg-pink-50 rounded flex items-center gap-1.5 border border-pink-200 mt-1">
+            <i class="fa-solid fa-heart-circle-plus text-pink-500"></i> 召喚/升級雙打小幫手 (治癒球效果)
+          </button>
+
             <div class="grid grid-cols-2 gap-1.5">
               <button onclick="GameApp.debugForceLevelUp()" class="bg-sky-100 hover:bg-sky-200 border border-sky-400 py-1 rounded font-bold text-sky-900">+5級/進化</button>
               <button onclick="GameApp.debugUnlockSuperMove()" class="bg-amber-100 hover:bg-amber-200 border border-amber-500 py-1 rounded font-bold text-amber-900">超武全屏突破</button>
