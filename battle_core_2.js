@@ -1924,8 +1924,8 @@ const GameApp = {
       const paraMult = e.status === "Paralysis" ? 0.35 : 1.0;
       const confDir = e.status === "Confusion" ? -0.75 : 1.0;
       let eTerrMult = 1.0;
-      if (!e.isBoss) {
-        eTerrMult = MapEngine.getTerrainModifierAt(e.x, e.y).speedMult;
+      iif (!e.isBoss) {
+        const rawTerrMult = MapEngine.getTerrainModifierAt(e.x, e.y).speedMult;
         eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
       }
 
