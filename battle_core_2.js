@@ -2143,7 +2143,7 @@ const GameApp = {
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0));
-    let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.65 : 1.0));
+    let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0));
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
     enemy.hp -= finalDmg;
