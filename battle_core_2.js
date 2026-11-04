@@ -1765,7 +1765,7 @@ const GameApp = {
       hp,
       maxHp: hp,
       atk,
-      speed: (38 + pick.speed * 11) * diff.spdMult * (isElite ? 1.08 : 1.0) * 1.15,
+      speed: (32 + pick.speed * 0.45) * diff.spdMult * (isElite ? 1.28 : 1.0),
       radius: isElite ? 30 : 20,
       isElite,
       isBoss: false,
@@ -1926,6 +1926,7 @@ const GameApp = {
       let eTerrMult = 1.0;
       if (!e.isBoss) {
         eTerrMult = MapEngine.getTerrainModifierAt(e.x, e.y).speedMult;
+        eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
       }
 
       const dx = p.x - e.x;
@@ -1968,7 +1969,7 @@ const GameApp = {
       if (inView && (e.isElite || e.isBoss) && !e.treasureType) {
         e.rangedCd -= dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = e.isBoss ? 2.6 : 4.5;
+          e.rangedCd = e.isBoss ? 2.6 : 3.0;
           this.spawnEnemyTelegraphAttack(e);
         }
       }
