@@ -1,8 +1,6 @@
 /**
  * ============================================================================
- * battle_core_2.js (上半部 - 對接 SkillsEngine 瘦身版)
- * 8分鐘快節奏戰鬥引擎、動態虛擬搖桿、三態戰術大招、腳底環形倒數規、
- * 涉水下沉水花、草地碎葉反饋、怪獸體重抗性、Boss 多重招式輪換與 60FPS 遊戲主循環
+ * battle_core_2.js (完整無瑕疵版 - 修正敵人速度與死機語法錯誤)
  * ============================================================================
  */
 
@@ -26,10 +24,8 @@ const GameApp = {
   selectedStage: STAGES[0],
   timeScale: 1,
 
-  // 天氣測試鎖定開關
   debugWeatherLock: false,
 
-  // 存檔資料
   saveData: {
     coins: 800,
     unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
@@ -43,13 +39,12 @@ const GameApp = {
     claimedAch: {}
   },
 
-  // 戰鬥實體
   player: null,
   trainerCompanion: null,
   partners: [],
   partnerOrbitBase: 0,
   camera: { x: 0, y: 0, shakeTime: 0, shakeMagnitude: 0 },
-  hitStopTimer: 0, // 0.08s 頓挫感定格
+  hitStopTimer: 0,
 
   enemies: [],
   particles: [],
@@ -57,24 +52,21 @@ const GameApp = {
   gems: [],
   mapItems: [],
   activeBoss: null,
-  telegraphs: [], // 多形態危險預警系統 (circle, line, ring, multi_pillar)
+  telegraphs: [],
 
-  // 8 分鐘快局時間軸
   runTime: 0,
   spawnTimer: 0,
-  eliteSpawnTimer: 45,       // 45s 首隻精英
-  treasureSpawnTimer: 38,    // 38s 寶藏精靈
+  eliteSpawnTimer: 45,
+  treasureSpawnTimer: 38,
   magnetSpawnTimer: 35,
-  birdBossSpawned: false,    // 5:00 (300s) 三聖鳥
-  mewtwoBossSpawned: false,  // 7:30 (450s) 王者超夢
-  secretMewSpawned: false,   // 8:00 始祖夢幻
+  birdBossSpawned: false,
+  mewtwoBossSpawned: false,
+  secretMewSpawned: false,
   kills: 0,
   runCoins: 0,
 
-  // 招式傷害統計面板 (DPS Breakdown)
   skillDamageStats: {},
 
-  // 輸入系統
   keys: {},
   touchJoy: {
     active: false,
@@ -88,7 +80,6 @@ const GameApp = {
     maxRadius: 48
   },
 
-  // 封面漫步展示動畫
   titleDemo: {
     camX: 0,
     camY: 0,
@@ -389,7 +380,6 @@ const GameApp = {
     window.addEventListener("touchcancel", onTouchEnd);
   },
 
-  // 開發者測試工具全套實裝
   toggleDebugMenu() {
     const menu = document.getElementById("debugDropdown");
     if (menu) menu.classList.toggle("hidden");
@@ -478,7 +468,6 @@ const GameApp = {
     this.showCutsceneBanner(`[當前天候: ${w}]`, descMap[w] || "標準環境", 2500);
   },
 
-  // 三步驟選角嚮導
   openSetupFlow() {
     SoundFX.init();
     document.getElementById("titleScreen").classList.add("hidden");
@@ -576,70 +565,67 @@ const GameApp = {
     }).join("");
 
     const pBox = document.getElementById("wizardStep2");
-const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
+    const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
 
-// 取得所有一階基礎型寶可夢（排除 2 階與最終進化型，避免直接選噴火龍破壞進化感）
-const baseFormPokemon = POKEMON_DB.filter(p => {
-  // 凡是在其他精靈的 evo_to 裡出現過的，即為進化型態，過濾掉
-  return !POKEMON_DB.some(parent => parent.evo_to === p.id);
-});
+    const baseFormPokemon = POKEMON_DB.filter(p => {
+      return !POKEMON_DB.some(parent => parent.evo_to === p.id);
+    });
 
-// 排序：羈絆精靈 > 已解鎖精靈 > 未解鎖
-const sortedRoster = [...baseFormPokemon].sort((a, b) => {
-  const aUnlocked = this.saveData.unlockedPokemon[a.id] ? 1 : 0;
-  const bUnlocked = this.saveData.unlockedPokemon[b.id] ? 1 : 0;
-  const aBond = bondSet.has(a.id) ? 1 : 0;
-  const bBond = bondSet.has(b.id) ? 1 : 0;
-  return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
-});
+    const sortedRoster = [...baseFormPokemon].sort((a, b) => {
+      const aUnlocked = this.saveData.unlockedPokemon[a.id] ? 1 : 0;
+      const bUnlocked = this.saveData.unlockedPokemon[b.id] ? 1 : 0;
+      const aBond = bondSet.has(a.id) ? 1 : 0;
+      const bBond = bondSet.has(b.id) ? 1 : 0;
+      return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
+    });
 
-pBox.innerHTML = sortedRoster.map(p => {
-  const unlocked = !!this.saveData.unlockedPokemon[p.id];
-  const selected = this.selectedStarterId === p.id;
-  const hasShiny = !!this.saveData.shinyUnlocked[p.id];
-  const useShiny = hasShiny && !!this.useShinyStarter[p.id];
-  const isBond = bondSet.has(p.id);
-  const sk = SKILLS_CATALOG[p.skill];
-  const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
+    pBox.innerHTML = sortedRoster.map(p => {
+      const unlocked = !!this.saveData.unlockedPokemon[p.id];
+      const selected = this.selectedStarterId === p.id;
+      const hasShiny = !!this.saveData.shinyUnlocked[p.id];
+      const useShiny = hasShiny && !!this.useShinyStarter[p.id];
+      const isBond = bondSet.has(p.id);
+      const sk = SKILLS_CATALOG[p.skill];
+      const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
 
-  return `
-    <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-80 bg-slate-100' : ''}">
-      <div>
-        <div class="flex items-center justify-between gap-1 mb-1">
-          <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
-          ${isBond
-            ? `<span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 animate-pulse">羈絆+25%</span>`
-            : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold text-[9px] rounded-full">${p.evo_to ? '可進化' : '單一階'}</span>`
-          }
+      return `
+        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-80 bg-slate-100' : ''}">
+          <div>
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
+              ${isBond
+                ? `<span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 animate-pulse">羈絆+25%</span>`
+                : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold text-[9px] rounded-full">${p.evo_to ? '可進化' : '單一階'}</span>`
+              }
+            </div>
+            <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
+              <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}" alt="${p.name_zh}" />
+              ${hasShiny ? `
+                <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
+                  <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
+                </button>
+              ` : ''}
+            </div>
+            <div class="font-black text-sm text-slate-800 text-center">${p.name_zh}</div>
+            <div class="flex items-center justify-center gap-1 my-1">
+              ${renderTypeBadgeHTML(p.type1)}
+              ${renderTypeBadgeHTML(p.type2)}
+            </div>
+            <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
+              <div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
+              <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>
+            </div>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
+            ${unlocked
+              ? `<span class="text-[11px] font-black text-emerald-600">已收服</span>`
+              : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${unlockCost}</span>`
+            }
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${unlocked ? (selected ? '已出戰' : '選擇') : '解鎖'}</span>
+          </div>
         </div>
-        <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
-          <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}" alt="${p.name_zh}" />
-          ${hasShiny ? `
-            <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
-              <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
-            </button>
-          ` : ''}
-        </div>
-        <div class="font-black text-sm text-slate-800 text-center">${p.name_zh}</div>
-        <div class="flex items-center justify-center gap-1 my-1">
-          ${renderTypeBadgeHTML(p.type1)}
-          ${renderTypeBadgeHTML(p.type2)}
-        </div>
-        <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
-          <div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
-          <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>
-        </div>
-      </div>
-      <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
-        ${unlocked
-          ? `<span class="text-[11px] font-black text-emerald-600">已收服</span>`
-          : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${unlockCost}</span>`
-        }
-        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${unlocked ? (selected ? '已出戰' : '選擇') : '解鎖'}</span>
-      </div>
-    </div>
-  `;
-}).join("");
+      `;
+    }).join("");
 
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
@@ -1017,11 +1003,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     this.renderAchievements();
   },
 
-  /**
-   * ============================================================================
-   * 8 分鐘快節奏開局與戰鬥循環
-   * ============================================================================
-   */
   startGameRun() {
     SoundFX.init();
     SoundFX.startBgm("battle");
@@ -1113,23 +1094,21 @@ pBox.innerHTML = sortedRoster.map(p => {
     this.telegraphs = [];
     this.activeBoss = null;
     this.debugWeatherLock = false;
-    this.skillDamageStats = {}; // 重置傷害統計
+    this.skillDamageStats = {};
 
-    // 重置獨立招式引擎
     SkillsEngine.reset();
 
     if (tr.mods.startPartner || (upg.partner >= 1)) {
       this.summonOrUpgradePartner();
     }
 
-    // 8 分鐘快節奏時間軸重置
     this.runTime = 0;
     this.spawnTimer = 0.5;
-    this.eliteSpawnTimer = 45;       // 45s 首隻精英
-    this.treasureSpawnTimer = 38;    // 38s 寶藏怪
+    this.eliteSpawnTimer = 45;
+    this.treasureSpawnTimer = 38;
     this.magnetSpawnTimer = 35;
-    this.birdBossSpawned = false;    // 300s (5分)
-    this.mewtwoBossSpawned = false;  // 450s (7.5分)
+    this.birdBossSpawned = false;
+    this.mewtwoBossSpawned = false;
     this.secretMewSpawned = false;
     this.kills = 0;
     this.runCoins = 0;
@@ -1144,7 +1123,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     this.refreshHUD();
   },
 
-  // 戰術大招發動（三態視覺 + 二次元斜切 Cut-in）
   triggerTrainerActiveSkill() {
     if (this.state !== "PLAYING" || !this.player) return;
     if (this.player.trainerSkillCd > 0 || this.player.buffTimer > 0 || this.player.shieldTimer > 0) return;
@@ -1154,7 +1132,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     p.status = null;
     p.statusTimer = 0;
 
-    // 二次元眼神斜切特寫
     const cutLayer = document.getElementById("cutInLayer");
     const cutStrip = document.getElementById("cutInStrip");
     const cutAvatar = document.getElementById("cutInAvatar");
@@ -1172,7 +1149,6 @@ pBox.innerHTML = sortedRoster.map(p => {
       setTimeout(() => cutLayer.classList.add("hidden"), 750);
     }
 
-    // 全場 0.08 秒定格
     this.hitStopTimer = 0.08;
     this.camera.shakeTime = 0.28;
     this.camera.shakeMagnitude = 8;
@@ -1328,7 +1304,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     });
   },
 
-  // 戰鬥邏輯更新
   updateCombat(dt) {
     this.runTime += dt;
     const p = this.player;
@@ -1336,7 +1311,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
     if (p.invulnTimer > 0) p.invulnTimer -= dt;
 
-    // 大招三態：持續時間倒數完畢後，才正式進入 CD 倒數！
     if (p.buffTimer > 0) {
       p.buffTimer -= dt;
       if (p.buffTimer <= 0) {
@@ -1357,7 +1331,6 @@ pBox.innerHTML = sortedRoster.map(p => {
 
     if (this.camera.shakeTime > 0) this.camera.shakeTime -= dt;
 
-    // 狀態異常 DOT
     if (p.statusTimer > 0) {
       p.statusTimer -= dt;
       p.statusTick -= dt;
@@ -1372,7 +1345,6 @@ pBox.innerHTML = sortedRoster.map(p => {
       if (p.statusTimer <= 0) p.status = null;
     }
 
-    // 移動向量計算
     let ix = this.touchJoy.active ? this.touchJoy.dx : 0;
     let iy = this.touchJoy.active ? this.touchJoy.dy : 0;
 
@@ -1400,13 +1372,12 @@ pBox.innerHTML = sortedRoster.map(p => {
       p.walkBob = 0;
     }
 
-    // 地形判定
     const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
     if (terrain.inWater && MapEngine.currentStage.id === "cerulean_bay" && p.hp < p.maxHp) {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
 
-    // --- 草皮行走撥草與碎葉反饋 (玩家與隨行訓練家) ---
+    // 草皮行走撥草與碎葉反饋
     if (ilen > 0.05 && terrain.label.includes("草叢")) {
       if (Math.random() < 0.28) {
         this.particles.push({
@@ -1437,7 +1408,7 @@ pBox.innerHTML = sortedRoster.map(p => {
       }
     }
 
-    // --- 涉水撲騰水花微滴噴濺 (玩家與隨行訓練家) ---
+    // 涉水水花微滴噴濺
     if (terrain.inWater && ilen > 0.05) {
       if (Math.random() < 0.30) {
         this.particles.push({
@@ -1485,14 +1456,15 @@ pBox.innerHTML = sortedRoster.map(p => {
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
+    // 玩家速度公式：回歸合理數值 (約 140~220px/s)
     const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
 
-    // --- 單向跳崖 (Ledge Jump) 滯空拋物線位移與免傷 ---
+    // 單向跳崖拋物線位移與免傷
     if (p.isJumpingLedge) {
       p.jumpTimer -= dt;
       p.vy = 260;
       p.y += p.vy * dt;
-      p.invulnTimer = Math.max(p.invulnTimer, 0.1); // 滯空享有地面免傷
+      p.invulnTimer = Math.max(p.invulnTimer, 0.1);
 
       if (p.jumpTimer <= 0) {
         p.isJumpingLedge = false;
@@ -1509,7 +1481,6 @@ pBox.innerHTML = sortedRoster.map(p => {
 
     MapEngine.resolveObstacleCollision(p, 18, true);
 
-    // 隨行訓練家跟隨與跳崖判定
     const sideOffset = (p.facingX !== 0 ? p.facingX : (p.lastFacingX || -1)) * 28;
     const targetTx = p.x - sideOffset;
     const targetTy = p.y + (p.facingY < 0 ? 12 : -8);
@@ -1521,7 +1492,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     this.trainerCompanion.isJumpingLedge = p.isJumpingLedge;
     this.trainerCompanion.jumpTimer = p.jumpTimer;
 
-    // 雙打夥伴
     this.partnerOrbitBase += dt * 2.1;
     const upgPartnerMult = 1 + (this.saveData.upgrades.partner || 0) * 0.18;
     this.partners.forEach((pt, idx) => {
@@ -1547,7 +1517,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     this.camera.x = p.x;
     this.camera.y = p.y;
 
-    // 招式冷卻判定與 SkillsEngine 施放呼叫
     const cdFactor = Math.max(0.55, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0));
     Object.values(p.skills).forEach(skSlot => {
       skSlot.timer -= dt;
@@ -1565,7 +1534,6 @@ pBox.innerHTML = sortedRoster.map(p => {
       }
     });
 
-    // 8 分鐘快局自然天氣演進 (防手動覆蓋)
     if (!this.debugWeatherLock && !this.activeBoss) {
       const minutes = this.runTime / 60;
       let targetWeather = "CLEAR";
@@ -1580,7 +1548,7 @@ pBox.innerHTML = sortedRoster.map(p => {
     }
 
     MapEngine.updateWeather(dt, this.width, this.height);
-    SkillsEngine.update(dt); // 專屬招式運動學更新
+    SkillsEngine.update(dt);
     this.updateSpawners(dt);
     this.updateTelegraphs(dt);
     this.updateEnemies(dt);
@@ -1629,13 +1597,11 @@ pBox.innerHTML = sortedRoster.map(p => {
     const diff = this.selectedDifficulty;
     const minutes = this.runTime / 60;
 
-    // 5:00 (300s) 三聖鳥
     if (!this.birdBossSpawned && this.runTime >= 300) {
       this.birdBossSpawned = true;
       const birdIds = [144, 145, 146];
       this.spawnBoss(birdIds[Math.floor(Math.random() * birdIds.length)], false);
     }
-    // 7:30 (450s) 王者超夢
     if (!this.mewtwoBossSpawned && this.runTime >= 450) {
       this.mewtwoBossSpawned = true;
       this.spawnBoss(150, true);
@@ -1674,7 +1640,7 @@ pBox.innerHTML = sortedRoster.map(p => {
     }
   },
 
-  // 怪獸刷新（華藍海岬深水區域生態過濾）
+  // 怪獸刷新（修正：怪獸速度回歸正常，避免子彈狂飆）
   spawnWildEnemy(isElite = false) {
     const minutes = this.runTime / 60;
     const diff = this.selectedDifficulty;
@@ -1684,7 +1650,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     const ex = this.player.x + Math.cos(ang) * dist;
     const ey = this.player.y + Math.sin(ang) * dist;
 
-    // 檢測生成點是否位於深水區
     const spawnTerrain = MapEngine.getTerrainModifierAt(ex, ey);
     const isWater = spawnTerrain.inWater;
 
@@ -1692,7 +1657,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     if (minutes < 1.5) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 140);
     else if (minutes < 4.0) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 260);
 
-    // 華藍海岬深水區生態過濾：85% 優先挑選水/飛行系，徹底排除地鼠、三地鼠、小拳石、大岩蛇
     if (MapEngine.currentStage.id === "cerulean_bay" && isWater) {
       const waterFlyPool = candidates.filter(p => 
         (p.type1 === "Water" || p.type2 === "Water" || p.type1 === "Flying" || p.type2 === "Flying") &&
@@ -1716,6 +1680,9 @@ pBox.innerHTML = sortedRoster.map(p => {
 
     this.saveData.pokedexSeen[pick.id] = true;
 
+    // 修正：怪獸速度回歸 45~85px/s，消除狂飆問題！
+    const calculatedSpeed = (35 + (pick.speed || 50) * 0.45) * diff.spdMult * (isElite ? 1.10 : 1.0);
+
     this.enemies.push({
       id: pick.id,
       data: pick,
@@ -1724,7 +1691,7 @@ pBox.innerHTML = sortedRoster.map(p => {
       hp,
       maxHp: hp,
       atk,
-      speed: (38 + pick.speed * 11) * diff.spdMult * (isElite ? 1.08 : 1.0) * 1.15,
+      speed: calculatedSpeed,
       radius: isElite ? 30 : 20,
       isElite,
       isBoss: false,
@@ -1761,7 +1728,7 @@ pBox.innerHTML = sortedRoster.map(p => {
       hp,
       maxHp: hp,
       atk: 0,
-      speed: kind === "meowth" ? 130 : 54,
+      speed: kind === "meowth" ? 110 : 50,
       radius: 24,
       isElite: false,
       isBoss: false,
@@ -1828,8 +1795,8 @@ pBox.innerHTML = sortedRoster.map(p => {
       rangedCd: 2.2,
       whiteFlashTimer: 0,
       weightTier: "boss",
-      kbResist: 1.0, // Boss 100% 免除常規擊退
-      bossAttackIdx: 0 // 3.1 招式輪換指針
+      kbResist: 1.0,
+      bossAttackIdx: 0
     };
     this.enemies.push(boss);
     this.activeBoss = boss;
@@ -1928,7 +1895,7 @@ pBox.innerHTML = sortedRoster.map(p => {
         e.rangedCd -= dt;
         if (e.rangedCd <= 0) {
           e.rangedCd = e.isBoss ? 2.6 : 4.5;
-          this.spawnEnemyTelegraphAttack(e); // 觸發 3.1 多重招式輪換
+          this.spawnEnemyTelegraphAttack(e);
         }
       }
 
@@ -1952,20 +1919,17 @@ pBox.innerHTML = sortedRoster.map(p => {
     }
   },
 
-  // 3.1 原版 Boss & 精英怪多型態前搖警示生成器 (支援 line, multi_pillar, ring, circle)
   spawnEnemyTelegraphAttack(enemy) {
     const p = this.player;
     const bPattern = BOSS_ATTACK_PATTERNS[enemy.id] || BOSS_ATTACK_PATTERNS.default_elite;
     const skillList = bPattern.skills;
     
-    // 依序輪換招式
     const skill = skillList[(enemy.bossAttackIdx || 0) % skillList.length];
     enemy.bossAttackIdx = ((enemy.bossAttackIdx || 0) + 1) % skillList.length;
 
     const baseDmg = Math.round(enemy.atk * (skill.dmgMult || 1.25));
 
     if (skill.shape === "line") {
-      // 矩形直線衝鋒軌道
       const ang = Math.atan2(p.y - enemy.y, p.x - enemy.x);
       this.telegraphs.push({
         shape: "line",
@@ -1983,7 +1947,6 @@ pBox.innerHTML = sortedRoster.map(p => {
         isBoss: enemy.isBoss
       });
     } else if (skill.shape === "multi_pillar") {
-      // 多點天頂狂雷落點
       for (let i = 0; i < (skill.count || 4); i++) {
         const offsetAng = Math.random() * Math.PI * 2;
         const offsetR = 30 + Math.random() * 95;
@@ -2001,7 +1964,6 @@ pBox.innerHTML = sortedRoster.map(p => {
         });
       }
     } else if (skill.shape === "ring") {
-      // 環形電磁激波
       this.telegraphs.push({
         shape: "ring",
         owner: enemy,
@@ -2016,7 +1978,6 @@ pBox.innerHTML = sortedRoster.map(p => {
         isBoss: enemy.isBoss
       });
     } else {
-      // 圓形重力陷阱 / 重踏
       this.telegraphs.push({
         shape: "circle",
         owner: enemy,
@@ -2038,7 +1999,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     for (let i = this.telegraphs.length - 1; i >= 0; i--) {
       const tg = this.telegraphs[i];
 
-      // 吸附黑洞效果
       if (tg.isSuction && tg.timer > 0) {
         const d = Math.hypot(p.x - tg.x, p.y - tg.y);
         if (d < tg.radius * 1.5) {
@@ -2053,7 +2013,6 @@ pBox.innerHTML = sortedRoster.map(p => {
         let hitPlayer = false;
 
         if (tg.shape === "line") {
-          // 直線衝鋒判定：Boss 沿軌道衝刺，計算與玩家線段投影距離
           const dx = Math.cos(tg.angle) * tg.length;
           const dy = Math.sin(tg.angle) * tg.length;
           const pxRel = p.x - tg.startX;
@@ -2064,7 +2023,6 @@ pBox.innerHTML = sortedRoster.map(p => {
             const nearY = tg.startY + proj * dy;
             if (Math.hypot(p.x - nearX, p.y - nearY) <= tg.width / 2 + 16) hitPlayer = true;
           }
-          // Boss 本體瞬間衝鋒位移
           if (tg.owner && tg.owner.hp > 0) {
             tg.owner.x = tg.startX + Math.cos(tg.angle) * (tg.length * 0.85);
             tg.owner.y = tg.startY + Math.sin(tg.angle) * (tg.length * 0.85);
@@ -2090,7 +2048,6 @@ pBox.innerHTML = sortedRoster.map(p => {
           }
         }
 
-        // 觸發衝擊波效果交由 SkillsEngine 渲染
         SkillsEngine.meleeEffects.push({
           style: "slam_wave",
           x: tg.shape === "line" ? tg.startX + Math.cos(tg.angle) * tg.length : tg.x,
@@ -2106,7 +2063,6 @@ pBox.innerHTML = sortedRoster.map(p => {
     }
   },
 
-  // 傷害計算 (套用體重擊退抗性 weightTier & kbResist)
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0));
@@ -2114,10 +2070,8 @@ pBox.innerHTML = sortedRoster.map(p => {
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
     enemy.hp -= finalDmg;
-    // 受擊純白閃模 (0.06s)
     if (isCrit || eff > 1.1) enemy.whiteFlashTimer = 0.06;
 
-    // 累積 DPS 統計
     this.skillDamageStats[moveType] = (this.skillDamageStats[moveType] || 0) + finalDmg;
 
     if (enemy.treasureType === "meowth") {
@@ -2126,7 +2080,6 @@ pBox.innerHTML = sortedRoster.map(p => {
       this.spawnFloatingText(enemy.x, enemy.y - 20, "+8 代幣", "#F59E0B", 11);
     }
 
-    // 體重與擊退抗性衰減計算 (重型怪與 Boss 不再輕易被推飛)
     const kbResist = enemy.isBoss ? 1.0 : (enemy.kbResist !== undefined ? enemy.kbResist : 0.0);
     const actualKb = knockback * (1 - kbResist);
 
@@ -2224,7 +2177,6 @@ pBox.innerHTML = sortedRoster.map(p => {
       }
     }
 
-    // 8 分鐘經驗倍率提升：單顆基礎值 14
     this.gems.push({ x: e.x, y: e.y, val: e.isElite ? 45 : 14, color: e.isElite ? "#F59E0B" : "#38BDF8" });
     const coinGain = Math.max(1, Math.round((e.isElite ? 22 : 2) * diffCoinMult));
     this.runCoins += coinGain;
@@ -2362,13 +2314,11 @@ spawnMapLoot(id, x, y) {
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, "生命全滿且戰鬥數值大幅躍升！", 3200);
   },
 
-  // 升級三選一視窗 (含內嵌不切邊 NEW! 標籤)
   openLevelUpModal() {
     this.state = "PAUSED";
     const p = this.player;
     const pool = [];
 
-    // 超武突破
     Object.values(p.skills).forEach(sk => {
       const meta = SKILLS_CATALOG[sk.id];
       if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
@@ -2392,7 +2342,6 @@ spawnMapLoot(id, x, y) {
       }
     });
 
-    // 招式階級升級
     Object.values(p.skills).forEach(sk => {
       if (sk.level < 10) {
         const meta = SKILLS_CATALOG[sk.id];
@@ -2413,7 +2362,6 @@ spawnMapLoot(id, x, y) {
       }
     });
 
-    // 通用營養藥劑
     pool.push(
       {
         weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
@@ -2433,7 +2381,6 @@ spawnMapLoot(id, x, y) {
       }
     );
 
-    // 新招式解鎖 (附帶 isNew 標籤)
     const currentCount = Object.keys(p.skills).length;
     if (currentCount < p.maxSkillSlots) {
       Object.values(SKILLS_CATALOG).forEach(meta => {
@@ -2449,7 +2396,6 @@ spawnMapLoot(id, x, y) {
       });
     }
 
-    // 攜帶道具
     Object.values(HELD_ITEMS).forEach(hi => {
       if (!p.heldItems[hi.id]) {
         pool.push({
@@ -2477,7 +2423,6 @@ spawnMapLoot(id, x, y) {
     this._currentUpgradeChoices = choices;
     const box = document.getElementById("upgradeChoicesContainer");
 
-    // 修正：移除卡片外層 overflow-hidden，將 NEW! 標籤改為頂部貼合內嵌設計
     box.innerHTML = choices.map((c, idx) => `
       <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative">
         ${c.isNew ? `
@@ -2545,11 +2490,6 @@ spawnMapLoot(id, x, y) {
     this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
   },
 
-  /**
-   * ============================================================================
-   * 戰鬥畫面渲染、多形態危險預警、草叢遮蔽與撥草草尖、對接 SkillsEngine
-   * ============================================================================
-   */
   renderCombat() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
@@ -2565,32 +2505,26 @@ spawnMapLoot(id, x, y) {
     const toSx = (wx) => wx - camX + this.width / 2;
     const toSy = (wy) => wy - camY + this.height / 2;
 
-    // 1. 地貌底層 (MapEngine)
     MapEngine.renderBiomeWorld(ctx, camX, camY, this.width, this.height);
 
-    // 2. 3.1 原版多形態危險預警框 (支援 line 矩形軌道、ring 環形波、circle 圓形陷阱)
     this.telegraphs.forEach(tg => {
       const pct = 1 - (tg.timer / tg.maxTime);
       ctx.save();
 
       if (tg.shape === "line") {
-        // 矩形直線衝鋒軌道渲染
         const ssx = toSx(tg.startX), ssy = toSy(tg.startY);
         ctx.translate(ssx, ssy);
         ctx.rotate(tg.angle);
 
-        // 紅色半透明衝鋒預警路徑
         ctx.fillStyle = "rgba(239, 68, 68, 0.20)";
         ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
         ctx.lineWidth = 2.0;
         ctx.fillRect(0, -tg.width / 2, tg.length, tg.width);
         ctx.strokeRect(0, -tg.width / 2, tg.length, tg.width);
 
-        // 內部向終點推進的光波
         ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
         ctx.fillRect(0, -tg.width / 2, tg.length * pct, tg.width);
       } else if (tg.shape === "ring") {
-        // 環形電磁激波
         const sx = toSx(tg.x), sy = toSy(tg.y);
         ctx.strokeStyle = tg.color || "rgba(56, 189, 248, 0.85)";
         ctx.lineWidth = 3.0;
@@ -2604,7 +2538,6 @@ spawnMapLoot(id, x, y) {
         ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        // 圓形落雷 / 重踏 / 重力陷阱
         const sx = toSx(tg.x), sy = toSy(tg.y);
         ctx.strokeStyle = tg.color || "rgba(239, 68, 68, 0.9)";
         ctx.fillStyle = tg.isSuction ? "rgba(168, 85, 247, 0.22)" : "rgba(239, 68, 68, 0.18)";
@@ -2622,7 +2555,6 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     });
 
-    // 3. 經驗水晶
     this.gems.forEach(g => {
       const sx = toSx(g.x), sy = toSy(g.y);
       ctx.save();
@@ -2637,7 +2569,6 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     });
 
-    // 4. 地面掉落物
     this.mapItems.forEach(it => {
       const sx = toSx(it.x);
       const sy = toSy(it.y) + Math.sin(it.bobPhase) * 4;
@@ -2653,7 +2584,6 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     });
 
-    // 5. 隨行訓練家 (水面涉水波紋 + 高草叢下半身遮罩 + 前景撥草草尖)
     if (this.trainerCompanion) {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
@@ -2662,7 +2592,6 @@ spawnMapLoot(id, x, y) {
       const tInWater = tTerrain.inWater;
       const tInGrass = tTerrain.label.includes("草叢");
 
-      // 訓練家跳崖拋物線高度
       let tJumpOffsetZ = 0;
       if (tc.isJumpingLedge && tc.jumpTimer > 0) {
         const tJumpProg = 1 - (tc.jumpTimer / 0.22);
@@ -2682,7 +2611,6 @@ spawnMapLoot(id, x, y) {
       const tRec = SpriteCache.get(activeUrl);
 
       ctx.save();
-      // 地面水波或影子
       if (tInWater) {
         const waveCycle = (performance.now() * 0.005 + 1.2) % Math.PI;
         ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 - waveCycle / Math.PI})`;
@@ -2697,14 +2625,13 @@ spawnMapLoot(id, x, y) {
         ctx.fill();
       }
 
-      // 涉水或草叢下半身遮罩裁切
       if (tInWater) {
         ctx.beginPath();
         ctx.rect(tsx - 35, tsy - 45, 70, 56);
         ctx.clip();
       } else if (tInGrass && !tc.isJumpingLedge) {
         ctx.beginPath();
-        ctx.rect(tsx - 35, tsy - 45, 70, 58); // 遮蔽小腿部
+        ctx.rect(tsx - 35, tsy - 45, 70, 58);
         ctx.clip();
       }
 
@@ -2713,7 +2640,6 @@ spawnMapLoot(id, x, y) {
       if (tRec && tRec.loaded) ctx.drawImage(tRec.img, -28, -28, 56, 56);
       ctx.restore();
 
-      // 草叢前景動態遮擋草尖 (訓練家)
       if (tInGrass && !tc.isJumpingLedge && !tInWater) {
         ctx.save();
         ctx.strokeStyle = "#4ADE80";
@@ -2731,7 +2657,6 @@ spawnMapLoot(id, x, y) {
       }
     }
 
-    // 6. 雙打夥伴
     this.partners.forEach(pt => {
       const psx = toSx(pt.x), psy = toSy(pt.y);
       const sprUrl = pt.facingY < 0 ? pt.data.back_sprite : pt.data.forward_sprite;
@@ -2749,7 +2674,6 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     });
 
-    // 7. 出戰主角精靈 (單向跳崖拋物線 + 草叢下半身遮罩 + 前景撥草草尖)
     const p = this.player;
     const px = toSx(p.x), py = toSy(p.y);
     const pBob = Math.abs(Math.sin(p.walkBob)) * 4;
@@ -2759,7 +2683,6 @@ spawnMapLoot(id, x, y) {
     const isFlyingOrWater = p.data.type1 === "Water" || p.data.type2 === "Water" ||
                             p.data.type1 === "Flying" || p.data.type2 === "Flying";
 
-    // 計算跳崖騰空高度 (最高騰空 18px)
     let jumpOffsetZ = 0;
     if (p.isJumpingLedge && p.jumpTimer > 0) {
       const jumpProg = 1 - (p.jumpTimer / 0.22);
@@ -2776,14 +2699,12 @@ spawnMapLoot(id, x, y) {
       ctx.ellipse(px, py + 16, 16 + waveCycle * 8, 7 + waveCycle * 3.5, 0, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      // 地面陰影
       ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
       ctx.beginPath();
       ctx.ellipse(px, py + 18, Math.max(8, 14 - jumpOffsetZ * 0.3), Math.max(3, 5.5 - jumpOffsetZ * 0.1), 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 羈絆光環
     if (p.isTrainerBond) {
       ctx.strokeStyle = p.bondColor;
       ctx.lineWidth = 2.5;
@@ -2792,7 +2713,6 @@ spawnMapLoot(id, x, y) {
       ctx.stroke();
     }
 
-    // 腳底護盾倒數光環
     if (p.shieldTimer > 0) {
       const shieldPct = p.shieldTimer / p.maxShieldTimer;
       const isEnding = p.shieldTimer < 1.5;
@@ -2811,7 +2731,6 @@ spawnMapLoot(id, x, y) {
       ctx.stroke();
     }
 
-    // 腳底狂暴增益倒數光環
     if (p.buffTimer > 0) {
       const buffPct = p.buffTimer / p.maxBuffTimer;
       const isEnding = p.buffTimer < 1.5;
@@ -2831,14 +2750,13 @@ spawnMapLoot(id, x, y) {
       ctx.stroke();
     }
 
-    // 涉水或草叢下半身遮罩裁切 (主角精靈)
     if (inWater && !isFlyingOrWater) {
       ctx.beginPath();
       ctx.rect(px - 40, py - 50, 80, 58);
       ctx.clip();
     } else if (inGrass && !isFlyingOrWater && !p.isJumpingLedge) {
       ctx.beginPath();
-      ctx.rect(px - 40, py - 50, 80, 60); // 裁切腳踝
+      ctx.rect(px - 40, py - 50, 80, 60);
       ctx.clip();
     }
 
@@ -2853,7 +2771,6 @@ spawnMapLoot(id, x, y) {
     }
     ctx.restore();
 
-    // 草叢前景動態遮擋草尖 (主角精靈)
     if (inGrass && !isFlyingOrWater && !p.isJumpingLedge && !inWater) {
       ctx.save();
       ctx.strokeStyle = "#4ADE80";
@@ -2877,7 +2794,6 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     }
 
-    // 8. 敵人渲染 (含涉水波紋、草叢下半身遮罩與純白閃模)
     this.enemies.forEach(e => {
       const esx = toSx(e.x), esy = toSy(e.y);
       if (esx < -90 || esx > this.width + 90 || esy < -90 || esy > this.height + 90) return;
@@ -2894,7 +2810,6 @@ spawnMapLoot(id, x, y) {
 
       ctx.save();
 
-      // 水面波紋
       if (eInWater) {
         const waveC = (performance.now() * 0.005 + e.x * 0.01) % Math.PI;
         ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 - waveC / Math.PI})`;
@@ -2904,7 +2819,6 @@ spawnMapLoot(id, x, y) {
         ctx.stroke();
       }
 
-      // 涉水或草叢下半身遮罩裁切 (陸行怪)
       if (eInWater && !eFlyingOrWater) {
         ctx.beginPath();
         ctx.rect(esx - sz, esy - sz, sz * 2, sz * 1.35);
@@ -2918,7 +2832,6 @@ spawnMapLoot(id, x, y) {
       ctx.translate(esx, esy + (eInWater && !eFlyingOrWater ? 6 : 0));
       if (e.facingX > 0) ctx.scale(-1, 1);
 
-      // 受擊純白閃模 (White Flash)
       if (e.whiteFlashTimer > 0) {
         ctx.filter = "brightness(10) contrast(10)";
       } else if (e.isShiny) {
@@ -2932,7 +2845,6 @@ spawnMapLoot(id, x, y) {
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
       ctx.restore();
 
-      // 怪獸草叢前景草尖
       if (eInGrass && !eFlyingOrWater && !e.isBoss && !eInWater) {
         ctx.save();
         ctx.strokeStyle = "#4ADE80";
@@ -2948,7 +2860,6 @@ spawnMapLoot(id, x, y) {
         ctx.restore();
       }
 
-      // 怪獸血條
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
         const bw = e.isBoss ? 66 : 36;
         ctx.fillStyle = "rgba(15,23,42,0.85)";
@@ -2958,12 +2869,10 @@ spawnMapLoot(id, x, y) {
       }
     });
 
-    // 9. 開啟加色高光模式 (lighter) 呼叫獨立招式特效引擎 SkillsEngine
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     SkillsEngine.render(ctx, toSx, toSy);
 
-    // 粒子群渲染
     this.particles.forEach(pt => {
       const sx = toSx(pt.x), sy = toSy(pt.y);
       ctx.save();
@@ -2974,12 +2883,10 @@ spawnMapLoot(id, x, y) {
       ctx.fill();
       ctx.restore();
     });
-    ctx.restore(); // 關閉 lighter
+    ctx.restore();
 
-    // 10. 動態天氣覆蓋層
     MapEngine.renderWeatherOverlays(ctx, this.width, this.height);
 
-    // 11. 浮動傷害數字
     this.floatingTexts.forEach(ft => {
       const sx = toSx(ft.x), sy = toSy(ft.y);
       ctx.save();
@@ -2993,13 +2900,11 @@ spawnMapLoot(id, x, y) {
       ctx.restore();
     });
 
-    // 12. 螢幕邊緣視野外目標追蹤指示箭頭 (喵喵/吉利蛋/BOSS)
     const edgePad = 32;
     this.enemies.forEach(e => {
       if (!e.treasureType && !e.isBoss) return;
       const esx = toSx(e.x), esy = toSy(e.y);
 
-      // 判定目標是否在螢幕視野之外
       if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
         const dx = e.x - this.player.x;
         const dy = e.y - this.player.y;
@@ -3016,7 +2921,6 @@ spawnMapLoot(id, x, y) {
         ctx.save();
         ctx.translate(arrowX, arrowY);
 
-        // 發光底座
         ctx.fillStyle = arrowColor;
         ctx.shadowColor = arrowColor;
         ctx.shadowBlur = 10;
@@ -3024,7 +2928,6 @@ spawnMapLoot(id, x, y) {
         ctx.arc(0, 0, 16, 0, Math.PI * 2);
         ctx.fill();
 
-        // 指向箭頭三角
         ctx.rotate(ang);
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
@@ -3033,7 +2936,6 @@ spawnMapLoot(id, x, y) {
         ctx.fill();
         ctx.restore();
 
-        // 即時距離數字標籤
         ctx.save();
         ctx.font = "900 10px 'Noto Sans TC', sans-serif";
         ctx.textAlign = "center";
@@ -3047,7 +2949,6 @@ spawnMapLoot(id, x, y) {
     });
   },
 
-  // 介面 HUD 刷新
   refreshHUD() {
     const p = this.player;
     if (!p) return;
@@ -3069,13 +2970,11 @@ spawnMapLoot(id, x, y) {
     document.getElementById("hudKills").textContent = this.kills;
     document.getElementById("hudCoins").textContent = this.runCoins;
 
-    // 招式微型標籤
     document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
       const meta = SKILLS_CATALOG[sk.id];
       return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm"><img src="${meta.sprite}" class="w-3 h-3 pixel-sprite"/>${sk.evolved ? meta.evolvedName : meta.name} L${sk.level}</span>`;
     }).join("");
 
-    // 大招三態呈現
     document.getElementById("hudActiveTrainerImg").src = tr.sprite;
     document.getElementById("hudActiveSkillName").textContent = tr.skillName;
 
@@ -3143,14 +3042,12 @@ spawnMapLoot(id, x, y) {
     document.getElementById("endModal").classList.remove("hidden");
   },
 
-  // 結算畫面注入 MVP 招式傷害長條圖 (DPS Breakdown)
   populateEndModalStats() {
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
     document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})`;
     document.getElementById("endStatKills").textContent = this.kills;
     document.getElementById("endStatCoins").textContent = `+${this.runCoins}`;
 
-    // 渲染 DPS 傷害統計長條圖 (若容器存在)
     const dpsBox = document.getElementById("endStatDpsContainer");
     if (dpsBox) {
       const stats = this.skillDamageStats;
