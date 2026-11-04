@@ -77,7 +77,7 @@ const MapEngine = {
     this.prebakeTileTextures();
   },
 
-  // 離線預渲染 60x60 地表 Tile，確保每幀不重複進行偽隨機計算
+  // 離線預渲染 60x60 地表 Tile，保障遊戲滿幀運行
   prebakeTileTextures() {
     STAGES.forEach(st => {
       ["light", "dark"].forEach(tone => {
@@ -148,7 +148,7 @@ const MapEngine = {
     };
 
     if (stage.id === "cerulean_bay") {
-      chunk.waterTiles.push({ x: baseX, y: baseY, w: size, h: size });
+      // 華藍海岬主木棧道
       chunk.piers.push({ x: baseX + 264, y: baseY, w: 72, h: size, dir: "V" });
       if (pseudoRand(1) > 0.35) {
         chunk.piers.push({ x: baseX, y: baseY + 264, w: size, h: 72, dir: "H" });
@@ -188,7 +188,7 @@ const MapEngine = {
       if (!isOrigin) {
         const obPick = pseudoRand(7);
         let kind = "oak_tree", ow = 64, oh = 68;
-        if (obPick > 0.70) { kind = "house"; ow = 94; oh = 84; }
+        if (obPick > 0.70) { kind = "house"; ow = 96; oh = 86; }
         else if (obPick > 0.45) { kind = "fallen_log"; ow = 96; oh = 40; }
         else if (obPick > 0.25) { kind = "tree_stump"; ow = 48; oh = 48; }
 
@@ -292,7 +292,7 @@ const MapEngine = {
               ent.isJumpingLedge = true;
               ent.jumpTimer = 0.22;
             } else if (!isPlayer && ent.y >= ledge.y - 14 && ent.y <= ledge.y) {
-              // 怪獸下崖翻越補償
+              // 怪獸翻崖補償：快速跳躍落地，避免在崖壁卡死
               ent.y += 24;
             } else if (ent.y >= ledge.y && ent.y <= ledge.y + ledge.h + 8 && ent.vy < 0) {
               ent.y = ledge.y + ledge.h + 8;
@@ -337,28 +337,35 @@ const MapEngine = {
 
   renderBiomeWorld(ctx, camX, camY, width, height) {
     const stage = this.currentStage;
-    ctx.fillStyle = stage.tileLight;
-    ctx.fillRect(0, 0, width, height);
 
-    // 1. 離線預渲染快取 Tile 繪製
-    const tileSize = 60;
-    const startTx = Math.floor((camX - width / 2) / tileSize) - 1;
-    const endTx = Math.floor((camX + width / 2) / tileSize) + 1;
-    const startTy = Math.floor((camY - height / 2) / tileSize) - 1;
-    const endTy = Math.floor((camY + height / 2) / tileSize) + 1;
+    // 華藍海域一體化連續深水底色（徹底消除 Chunk 切邊接縫）
+    if (stage.id === "cerulean_bay") {
+      ctx.fillStyle = stage.waterColor;
+      ctx.fillRect(0, 0, width, height);
+    } else {
+      ctx.fillStyle = stage.tileLight;
+      ctx.fillRect(0, 0, width, height);
 
-    for (let tx = startTx; tx <= endTx; tx++) {
-      for (let ty = startTy; ty <= endTy; ty++) {
-        const isDark = ((tx + ty) & 1) === 0;
-        const key = `${stage.id}_${isDark ? 'dark' : 'light'}`;
-        const tileCanvas = this.tileCache.get(key);
-        const sx = tx * tileSize - camX + width / 2;
-        const sy = ty * tileSize - camY + height / 2;
-        if (tileCanvas) {
-          ctx.drawImage(tileCanvas, sx, sy);
-        } else {
-          ctx.fillStyle = isDark ? stage.tileDark : stage.tileLight;
-          ctx.fillRect(sx, sy, tileSize, tileSize);
+      // 離線快取 Tile 快速貼圖
+      const tileSize = 60;
+      const startTx = Math.floor((camX - width / 2) / tileSize) - 1;
+      const endTx = Math.floor((camX + width / 2) / tileSize) + 1;
+      const startTy = Math.floor((camY - height / 2) / tileSize) - 1;
+      const endTy = Math.floor((camY + height / 2) / tileSize) + 1;
+
+      for (let tx = startTx; tx <= endTx; tx++) {
+        for (let ty = startTy; ty <= endTy; ty++) {
+          const isDark = ((tx + ty) & 1) === 0;
+          const key = `${stage.id}_${isDark ? 'dark' : 'light'}`;
+          const tileCanvas = this.tileCache.get(key);
+          const sx = tx * tileSize - camX + width / 2;
+          const sy = ty * tileSize - camY + height / 2;
+          if (tileCanvas) {
+            ctx.drawImage(tileCanvas, sx, sy);
+          } else {
+            ctx.fillStyle = isDark ? stage.tileDark : stage.tileLight;
+            ctx.fillRect(sx, sy, tileSize, tileSize);
+          }
         }
       }
     }
@@ -373,23 +380,22 @@ const MapEngine = {
       for (let cy = startCy; cy <= endCy; cy++) {
         const chunk = this.getBiomeChunk(cx, cy);
 
-        // A. 華藍海域拍岸浪花
-        chunk.waterTiles.forEach(w => {
-          const sx = w.x - camX + width / 2;
-          const sy = w.y - camY + height / 2;
-          ctx.fillStyle = stage.waterColor;
-          ctx.fillRect(sx, sy, w.w, w.h);
-
+        // A. 華藍海域無縫 U 型動態浪花
+        if (stage.id === "cerulean_bay") {
           const stepX = 54, stepY = 38;
-          for (let gy = 16; gy < w.h - 10; gy += stepY) {
+          const swx = chunk.baseX - camX + width / 2;
+          const swy = chunk.baseY - camY + height / 2;
+
+          for (let gy = 16; gy < chunk.size - 10; gy += stepY) {
             const rowIndex = Math.floor(gy / stepY);
             const xOffset = (rowIndex % 2 === 0) ? 0 : stepX * 0.5;
-            for (let gx = 16; gx < w.w - 10; gx += stepX) {
+            for (let gx = 16; gx < chunk.size - 10; gx += stepX) {
               const waveSeed = (chunk.cx * 11 + chunk.cy * 17 + rowIndex * 7 + (gx / stepX)) * 0.8;
               const waveCycle = Math.sin(now * 1.5 + waveSeed);
-              const wx = sx + gx + xOffset + Math.cos(now * 1.1 + waveSeed) * 3.5;
-              const wy = sy + gy + Math.sin(now * 1.3 + waveSeed) * 1.8;
+              const wx = swx + gx + xOffset + Math.cos(now * 1.1 + waveSeed) * 3.5;
+              const wy = swy + gy + Math.sin(now * 1.3 + waveSeed) * 1.8;
 
+              // 暗面陰影
               ctx.strokeStyle = "rgba(7, 89, 133, 0.65)";
               ctx.lineWidth = 2.2;
               ctx.lineCap = "round";
@@ -398,6 +404,7 @@ const MapEngine = {
               ctx.quadraticCurveTo(wx, wy - 5 + 2, wx + 14, wy + 2);
               ctx.stroke();
 
+              // 亮白浪尖
               const crestAlpha = 0.45 + waveCycle * 0.35;
               ctx.strokeStyle = `rgba(224, 242, 254, ${crestAlpha})`;
               ctx.lineWidth = 1.8;
@@ -407,7 +414,7 @@ const MapEngine = {
               ctx.stroke();
             }
           }
-        });
+        }
 
         // B. 砂島與拍岸泡沫
         chunk.sandIslets.forEach(isl => {
@@ -425,7 +432,7 @@ const MapEngine = {
           ctx.strokeRect(ix - (8 - waveDist), iy - (8 - waveDist), isl.w + 16 - waveDist * 2, isl.h + 16 - waveDist * 2);
         });
 
-        // C. 道路、木棧道與大理石大道
+        // C. 道路、防波堤木棧道與大理石大道
         (chunk.roads || []).concat(chunk.piers || []).forEach(r => {
           const rx = r.x - camX + width / 2;
           const ry = r.y - camY + height / 2;
@@ -445,14 +452,17 @@ const MapEngine = {
               ctx.stroke();
             }
           } else if (stage.id === "cerulean_bay") {
+            // 木棧道立體投影
             ctx.fillStyle = "rgba(3, 40, 75, 0.45)";
             ctx.fillRect(rx + 5, ry + 6, r.w, r.h);
+
             ctx.fillStyle = stage.roadColor;
             ctx.fillRect(rx, ry, r.w, r.h);
             ctx.strokeStyle = stage.roadBorder;
             ctx.lineWidth = 2.2;
             ctx.strokeRect(rx, ry, r.w, r.h);
 
+            // 木板條紋與鐵釘
             ctx.strokeStyle = "rgba(45, 20, 5, 0.45)";
             ctx.lineWidth = 1.8;
             ctx.fillStyle = "rgba(40, 20, 5, 0.6)";
@@ -472,7 +482,7 @@ const MapEngine = {
           }
         });
 
-        // D. 草叢與 3D 等角透視旋轉五芒星超能重力陣
+        // D. 常磐高草叢與完整 3D 等角旋轉五芒星超能陣
         chunk.grassTiles.forEach(g => {
           const gx = g.x - camX + width / 2;
           const gy = g.y - camY + height / 2;
@@ -484,9 +494,9 @@ const MapEngine = {
             const rX = g.w * 0.54;
             const rY = g.w * 0.28;
 
-            // 地面發光層
+            // 1. 地面強烈半透明紫色徑向發光層
             const floorGrad = ctx.createRadialGradient(cx, cy, rY * 0.2, cx, cy, rX * 1.35);
-            floorGrad.addColorStop(0, "rgba(217, 70, 239, 0.42)");
+            floorGrad.addColorStop(0, "rgba(217, 70, 239, 0.45)");
             floorGrad.addColorStop(0.55, "rgba(147, 51, 234, 0.22)");
             floorGrad.addColorStop(1, "rgba(15, 23, 42, 0)");
             ctx.fillStyle = floorGrad;
@@ -494,11 +504,11 @@ const MapEngine = {
             ctx.ellipse(cx, cy, rX * 1.35, rY * 1.5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 通天光柱
-            const shaftHeight = 135;
+            // 2. 140px 通天蒸騰光柱
+            const shaftHeight = 140;
             const shaftGrad = ctx.createLinearGradient(cx, cy, cx, cy - shaftHeight);
-            shaftGrad.addColorStop(0, "rgba(192, 132, 252, 0.38)");
-            shaftGrad.addColorStop(0.5, "rgba(244, 114, 182, 0.15)");
+            shaftGrad.addColorStop(0, "rgba(192, 132, 252, 0.40)");
+            shaftGrad.addColorStop(0.4, "rgba(244, 114, 182, 0.20)");
             shaftGrad.addColorStop(1, "rgba(255, 255, 255, 0)");
             ctx.fillStyle = shaftGrad;
             ctx.beginPath();
@@ -509,10 +519,11 @@ const MapEngine = {
             ctx.closePath();
             ctx.fill();
 
-            // 立體等角五芒星魔法陣
+            // 3. 3D 等角透視雙層發光圓環
             ctx.save();
             ctx.translate(cx, cy);
-            ctx.strokeStyle = "rgba(244, 114, 182, 0.85)";
+
+            ctx.strokeStyle = "rgba(244, 114, 182, 0.9)";
             ctx.lineWidth = 3.5;
             ctx.beginPath();
             ctx.ellipse(0, 0, rX, rY, 0, 0, Math.PI * 2);
@@ -524,28 +535,56 @@ const MapEngine = {
             ctx.ellipse(0, 0, rX * 0.94, rY * 0.94, 0, 0, Math.PI * 2);
             ctx.stroke();
 
+            // 4. 等角五芒星金星旋轉核心
             const starRot = now * 0.6;
-            const numPoints = 5;
             const starPts = [];
-            for (let k = 0; k < numPoints; k++) {
-              const ang = starRot + (k * Math.PI * 2) / numPoints;
-              starPts.push({ x: Math.cos(ang) * (rX * 0.7), y: Math.sin(ang) * (rY * 0.7) });
+            for (let k = 0; k < 5; k++) {
+              const ang = starRot + (k * Math.PI * 2) / 5;
+              starPts.push({ x: Math.cos(ang) * (rX * 0.72), y: Math.sin(ang) * (rY * 0.72) });
             }
             ctx.strokeStyle = "#FDE047";
-            ctx.lineWidth = 2.0;
+            ctx.lineWidth = 2.2;
             ctx.beginPath();
             let curV = 0;
             ctx.moveTo(starPts[0].x, starPts[0].y);
-            for (let step = 0; step < numPoints; step++) {
-              curV = (curV + 2) % numPoints;
+            for (let s = 0; s < 5; s++) {
+              curV = (curV + 2) % 5;
               ctx.lineTo(starPts[curV].x, starPts[curV].y);
             }
             ctx.closePath();
             ctx.stroke();
+
+            // 環周金色符文節點
+            ctx.fillStyle = "#FDE047";
+            for (let n = 0; n < 8; n++) {
+              const nAng = -starRot * 0.8 + (n * Math.PI * 2) / 8;
+              const nx = Math.cos(nAng) * (rX * 0.86);
+              const ny = Math.sin(nAng) * (rY * 0.86);
+              ctx.beginPath();
+              ctx.arc(nx, ny, 2.5, 0, Math.PI * 2);
+              ctx.fill();
+            }
+
             ctx.restore();
+
+            // 5. 飄浮上升靈力微粒
+            for (let orb = 0; orb < 8; orb++) {
+              const orbSeed = (cx * 13 + cy * 19 + orb * 37);
+              const orbProg = ((now * 0.7 + orb * 0.14) % 1.0);
+              const orbAng = (orbSeed + orb * 1.7);
+              const ox = cx + Math.cos(orbAng) * (rX * 0.65) + Math.sin(now * 3.0 + orb) * 6;
+              const oy = cy + Math.sin(orbAng) * (rY * 0.65) - (orbProg * shaftHeight);
+              const orbAlpha = Math.sin(orbProg * Math.PI) * 0.85;
+
+              ctx.fillStyle = orb % 2 === 0 ? `rgba(244, 114, 182, ${orbAlpha})` : `rgba(56, 189, 248, ${orbAlpha})`;
+              ctx.beginPath();
+              ctx.arc(ox, oy, 2.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
 
             ctx.restore();
           } else {
+            // 常磐草叢
             ctx.fillStyle = stage.slowZoneColor;
             ctx.beginPath();
             ctx.roundRect(gx, gy, g.w, g.h, 8);
@@ -570,7 +609,7 @@ const MapEngine = {
           }
         });
 
-        // E. 單向跳崖
+        // E. 單向跳崖（Ledges，防抖穩定箭頭間距）
         chunk.ledges.forEach(l => {
           const lx = l.x - camX + width / 2;
           const ly = l.y - camY + height / 2;
@@ -596,14 +635,60 @@ const MapEngine = {
           }
         });
 
-        // F. 建築物與障礙物
+        // F. 建築物與障礙物（補齊木屋木門與玻璃窗戶構造）
         chunk.obstacles.forEach(ob => {
           const ox = ob.x - camX + width / 2;
           const oy = ob.y - camY + height / 2;
           ctx.fillStyle = "rgba(0,0,0,0.3)";
           ctx.fillRect(ox + 4, oy + 6, ob.w, ob.h);
 
-          if (ob.kind === "statue") {
+          if (ob.kind === "house") {
+            // 牆身主體
+            ctx.fillStyle = "#FEF3C7";
+            ctx.strokeStyle = "#1E293B";
+            ctx.lineWidth = 2.5;
+            ctx.fillRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
+            ctx.strokeRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
+
+            // 紅色屋頂
+            ctx.fillStyle = "#DC2626";
+            ctx.beginPath();
+            ctx.moveTo(ox - 6, oy + ob.h * 0.38);
+            ctx.lineTo(ox + ob.w / 2, oy);
+            ctx.lineTo(ox + ob.w + 6, oy + ob.h * 0.38);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 補齊：深棕色木門與把手
+            ctx.fillStyle = "#92400E";
+            ctx.strokeStyle = "#451A03";
+            ctx.lineWidth = 2;
+            ctx.fillRect(ox + 16, oy + ob.h * 0.52, 22, ob.h * 0.48);
+            ctx.strokeRect(ox + 16, oy + ob.h * 0.52, 22, ob.h * 0.48);
+            // 門鎖銅把手
+            ctx.fillStyle = "#FDE047";
+            ctx.beginPath();
+            ctx.arc(ox + 34, oy + ob.h * 0.74, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 補齊：天藍色雙格玻璃窗戶
+            ctx.fillStyle = "#38BDF8";
+            ctx.strokeStyle = "#0F172A";
+            ctx.lineWidth = 2;
+            ctx.fillRect(ox + ob.w - 36, oy + ob.h * 0.52, 20, 20);
+            ctx.strokeRect(ox + ob.w - 36, oy + ob.h * 0.52, 20, 20);
+            // 窗框十字分隔線
+            ctx.strokeStyle = "#FEF3C7";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(ox + ob.w - 26, oy + ob.h * 0.52);
+            ctx.lineTo(ox + ob.w - 26, oy + ob.h * 0.52 + 20);
+            ctx.moveTo(ox + ob.w - 36, oy + ob.h * 0.52 + 10);
+            ctx.lineTo(ox + ob.w - 16, oy + ob.h * 0.52 + 10);
+            ctx.stroke();
+
+          } else if (ob.kind === "statue") {
             ctx.fillStyle = "#475569";
             ctx.fillRect(ox, oy + 18, ob.w, ob.h - 18);
             ctx.strokeStyle = "#1E293B";
@@ -625,19 +710,6 @@ const MapEngine = {
             ctx.strokeStyle = "#1E293B";
             ctx.lineWidth = 2;
             ctx.strokeRect(ox, oy + 32, ob.w, ob.h - 32);
-          } else if (ob.kind === "house") {
-            ctx.fillStyle = "#FEF3C7";
-            ctx.strokeStyle = "#1E293B";
-            ctx.lineWidth = 2.5;
-            ctx.fillRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
-            ctx.strokeRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
-            ctx.fillStyle = "#DC2626";
-            ctx.beginPath();
-            ctx.moveTo(ox - 4, oy + ob.h * 0.38);
-            ctx.lineTo(ox + ob.w / 2, oy);
-            ctx.lineTo(ox + ob.w + 4, oy + ob.h * 0.38);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
           } else if (ob.kind === "reef") {
             ctx.fillStyle = "#334155";
             ctx.beginPath();
