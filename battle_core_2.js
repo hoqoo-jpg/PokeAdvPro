@@ -448,6 +448,18 @@ const GameApp = {
     this.spawnBoss(151, false);
   },
 
+  // 測試：手動召喚指定傳說三聖鳥 (#144 急凍鳥, #145 閃電鳥, #146 火焰鳥)
+  debugSpawnLegendaryBird(birdId) {
+    if (!this.player) return;
+    this.spawnBoss(birdId, false);
+  },
+
+  // 測試：手動召喚 7.5 分鐘王者超夢 (#150)
+  debugSpawnMewtwo() {
+    if (!this.player) return;
+    this.spawnBoss(150, true);
+  },
+
   // 測試：手動觸發 3:15 火箭隊突襲小隊
   debugTriggerRocketEvent() {
     if (!this.player) return;
