@@ -576,60 +576,70 @@ const GameApp = {
     }).join("");
 
     const pBox = document.getElementById("wizardStep2");
-    const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
-    const sortedRoster = [...PLAYABLE_ROSTER].sort((a, b) => {
-      const aBond = bondSet.has(a.id) ? 1 : 0;
-      const bBond = bondSet.has(b.id) ? 1 : 0;
-      return bBond - aBond;
-    });
+const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
 
-    pBox.innerHTML = sortedRoster.map(item => {
-      const p = POKEMON_MAP.get(item.id);
-      const unlocked = !!this.saveData.unlockedPokemon[p.id];
-      const selected = this.selectedStarterId === p.id;
-      const hasShiny = !!this.saveData.shinyUnlocked[p.id];
-      const useShiny = hasShiny && !!this.useShinyStarter[p.id];
-      const isBond = bondSet.has(p.id);
-      const sk = SKILLS_CATALOG[p.skill];
+// 取得所有一階基礎型寶可夢（排除 2 階與最終進化型，避免直接選噴火龍破壞進化感）
+const baseFormPokemon = POKEMON_DB.filter(p => {
+  // 凡是在其他精靈的 evo_to 裡出現過的，即為進化型態，過濾掉
+  return !POKEMON_DB.some(parent => parent.evo_to === p.id);
+});
 
-      return `
-        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${item.cost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-80 bg-slate-100' : ''}">
-          <div>
-            <div class="flex items-center justify-between gap-1 mb-1">
-              <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
-              ${isBond
-                ? `<span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 animate-pulse">羈絆+25%</span>`
-                : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold text-[9px] rounded-full">${item.tag}</span>`
-              }
-            </div>
-            <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
-              <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}" alt="${p.name_zh}" />
-              ${hasShiny ? `
-                <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
-                  <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
-                </button>
-              ` : ''}
-            </div>
-            <div class="font-black text-sm text-slate-800 text-center">${p.name_zh}</div>
-            <div class="flex items-center justify-center gap-1 my-1">
-              ${renderTypeBadgeHTML(p.type1)}
-              ${renderTypeBadgeHTML(p.type2)}
-            </div>
-            <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
-              <div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
-              <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>
-            </div>
-          </div>
-          <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
-            ${unlocked
-              ? `<span class="text-[11px] font-black text-emerald-600">已收服</span>`
-              : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${item.cost}</span>`
-            }
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${unlocked ? (selected ? '已出戰' : '選擇') : '解鎖'}</span>
-          </div>
+// 排序：羈絆精靈 > 已解鎖精靈 > 未解鎖
+const sortedRoster = [...baseFormPokemon].sort((a, b) => {
+  const aUnlocked = this.saveData.unlockedPokemon[a.id] ? 1 : 0;
+  const bUnlocked = this.saveData.unlockedPokemon[b.id] ? 1 : 0;
+  const aBond = bondSet.has(a.id) ? 1 : 0;
+  const bBond = bondSet.has(b.id) ? 1 : 0;
+  return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
+});
+
+pBox.innerHTML = sortedRoster.map(p => {
+  const unlocked = !!this.saveData.unlockedPokemon[p.id];
+  const selected = this.selectedStarterId === p.id;
+  const hasShiny = !!this.saveData.shinyUnlocked[p.id];
+  const useShiny = hasShiny && !!this.useShinyStarter[p.id];
+  const isBond = bondSet.has(p.id);
+  const sk = SKILLS_CATALOG[p.skill];
+  const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
+
+  return `
+    <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-80 bg-slate-100' : ''}">
+      <div>
+        <div class="flex items-center justify-between gap-1 mb-1">
+          <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
+          ${isBond
+            ? `<span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 animate-pulse">羈絆+25%</span>`
+            : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold text-[9px] rounded-full">${p.evo_to ? '可進化' : '單一階'}</span>`
+          }
         </div>
-      `;
-    }).join("");
+        <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
+          <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}" alt="${p.name_zh}" />
+          ${hasShiny ? `
+            <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
+              <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
+            </button>
+          ` : ''}
+        </div>
+        <div class="font-black text-sm text-slate-800 text-center">${p.name_zh}</div>
+        <div class="flex items-center justify-center gap-1 my-1">
+          ${renderTypeBadgeHTML(p.type1)}
+          ${renderTypeBadgeHTML(p.type2)}
+        </div>
+        <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
+          <div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
+          <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>
+        </div>
+      </div>
+      <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
+        ${unlocked
+          ? `<span class="text-[11px] font-black text-emerald-600">已收服</span>`
+          : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${unlockCost}</span>`
+        }
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${unlocked ? (selected ? '已出戰' : '選擇') : '解鎖'}</span>
+      </div>
+    </div>
+  `;
+}).join("");
 
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
@@ -1475,7 +1485,7 @@ const GameApp = {
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
-    const moveSpd = (90 + p.baseSpeed * 22) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
+    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
 
     // --- 單向跳崖 (Ledge Jump) 滯空拋物線位移與免傷 ---
     if (p.isJumpingLedge) {
