@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * battle_core.js
+ * battle_core_2.js (上半部)
  * 8分鐘快節奏戰鬥引擎、動態虛擬搖桿、三態戰術大招、腳底環形倒數規、
  * 涉水下沉水花、草地碎葉反饋、全套開發者測試工具與 60FPS 遊戲主循環
  * ============================================================================
@@ -1073,7 +1073,9 @@ const GameApp = {
       trainerSkillMaxCd,
       status: null,
       statusTimer: 0,
-      statusTick: 0
+      statusTick: 0,
+      isJumpingLedge: false,
+      jumpTimer: 0
     };
 
     const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
@@ -1088,7 +1090,9 @@ const GameApp = {
       sprite: tr.sprite,
       sprites: tr.sprites || null,
       name: tr.name,
-      pixelColors: tr.pixelColors
+      pixelColors: tr.pixelColors,
+      isJumpingLedge: false,
+      jumpTimer: 0
     };
 
     this.partners = [];
@@ -1393,7 +1397,7 @@ const GameApp = {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
 
-    // --- 草皮行走撥草與碎葉反饋 ---
+    // --- 草皮行走撥草與碎葉反饋 (玩家與隨行訓練家) ---
     if (ilen > 0.05 && terrain.label.includes("草叢")) {
       if (Math.random() < 0.28) {
         this.particles.push({
@@ -1409,21 +1413,49 @@ const GameApp = {
           maxLife: 0.32
         });
       }
+      if (Math.random() < 0.20 && this.trainerCompanion) {
+        this.particles.push({
+          x: this.trainerCompanion.x + (Math.random() - 0.5) * 14,
+          y: this.trainerCompanion.y + 12,
+          vx: (Math.random() - 0.5) * 20,
+          vy: -10 - Math.random() * 12,
+          size: 2.2,
+          color: "#22C55E",
+          shape: "petal",
+          life: 0.30,
+          maxLife: 0.30
+        });
+      }
     }
 
-    // --- 涉水撲騰水花微滴噴濺 ---
-    if (terrain.inWater && ilen > 0.05 && Math.random() < 0.30) {
-      this.particles.push({
-        x: p.x + (Math.random() - 0.5) * 14,
-        y: p.y + 14,
-        vx: (Math.random() - 0.5) * 35,
-        vy: -15 - Math.random() * 20,
-        size: 2.2,
-        color: "#E0F2FE",
-        shape: "circle",
-        life: 0.25,
-        maxLife: 0.25
-      });
+    // --- 涉水撲騰水花微滴噴濺 (玩家與隨行訓練家) ---
+    if (terrain.inWater && ilen > 0.05) {
+      if (Math.random() < 0.30) {
+        this.particles.push({
+          x: p.x + (Math.random() - 0.5) * 14,
+          y: p.y + 14,
+          vx: (Math.random() - 0.5) * 35,
+          vy: -15 - Math.random() * 20,
+          size: 2.2,
+          color: "#E0F2FE",
+          shape: "circle",
+          life: 0.25,
+          maxLife: 0.25
+        });
+      }
+      if (Math.random() < 0.22 && this.trainerCompanion) {
+        this.particles.push({
+          x: this.trainerCompanion.x + (Math.random() - 0.5) * 14,
+          y: this.trainerCompanion.y + 16,
+          vx: (Math.random() - 0.5) * 30,
+          vy: -12 - Math.random() * 18,
+          size: 2.0,
+          color: "#E0F2FE",
+          shape: "circle",
+          life: 0.22,
+          maxLife: 0.22
+        });
+      }
     }
 
     const tBadge = document.getElementById("hudTerrainBadge");
@@ -1445,14 +1477,30 @@ const GameApp = {
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
     const moveSpd = (90 + p.baseSpeed * 22) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
-    p.vx = ix * moveSpd;
-    p.vy = iy * moveSpd;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
+
+    // --- 單向跳崖 (Ledge Jump) 滯空拋物線位移與免傷 ---
+    if (p.isJumpingLedge) {
+      p.jumpTimer -= dt;
+      p.vy = 260;
+      p.y += p.vy * dt;
+      p.invulnTimer = Math.max(p.invulnTimer, 0.1); // 滯空享有地面近戰免傷
+
+      if (p.jumpTimer <= 0) {
+        p.isJumpingLedge = false;
+        p.jumpTimer = 0;
+        SoundFX.play("hit");
+        this.spawnParticleCluster(p.x, p.y + 16, "#CBD5E1", "#94A3B8", 8, "circle", 0.6);
+      }
+    } else {
+      p.vx = ix * moveSpd;
+      p.vy = iy * moveSpd;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
 
     MapEngine.resolveObstacleCollision(p, 18, true);
 
-    // 隨行訓練家
+    // 隨行訓練家跟隨與跳崖判定
     const sideOffset = (p.facingX !== 0 ? p.facingX : (p.lastFacingX || -1)) * 28;
     const targetTx = p.x - sideOffset;
     const targetTy = p.y + (p.facingY < 0 ? 12 : -8);
@@ -1461,6 +1509,8 @@ const GameApp = {
     this.trainerCompanion.facingX = p.facingX;
     this.trainerCompanion.facingY = p.facingY;
     this.trainerCompanion.walkBob = p.walkBob;
+    this.trainerCompanion.isJumpingLedge = p.isJumpingLedge;
+    this.trainerCompanion.jumpTimer = p.jumpTimer;
 
     // 雙打夥伴
     this.partnerOrbitBase += dt * 2.1;
@@ -1901,19 +1951,38 @@ const GameApp = {
     }
   },
 
+  // 怪獸刷新（加入華藍海岬深水區域生態過濾，排除海面地鼠）
   spawnWildEnemy(isElite = false) {
     const minutes = this.runTime / 60;
     const diff = this.selectedDifficulty;
-
-    let candidates = REGULAR_MOB_POOL;
-    if (minutes < 1.5) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 140);
-    else if (minutes < 4.0) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 260);
-    const pick = candidates[Math.floor(Math.random() * candidates.length)] || REGULAR_MOB_POOL[0];
 
     const ang = Math.random() * Math.PI * 2;
     const dist = Math.max(this.width, this.height) * 0.56 + 50;
     const ex = this.player.x + Math.cos(ang) * dist;
     const ey = this.player.y + Math.sin(ang) * dist;
+
+    // 檢測生成點是否位於深水區
+    const spawnTerrain = MapEngine.getTerrainModifierAt(ex, ey);
+    const isWater = spawnTerrain.inWater;
+
+    let candidates = REGULAR_MOB_POOL;
+    if (minutes < 1.5) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 140);
+    else if (minutes < 4.0) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 260);
+
+    // --- 華藍海岬生態過濾：深水區80%優先挑選水系/飛行系，徹底排除地鼠、三地鼠、小拳石、大岩蛇 ---
+    if (MapEngine.currentStage.id === "cerulean_bay" && isWater) {
+      const waterFlyPool = candidates.filter(p => 
+        (p.type1 === "Water" || p.type2 === "Water" || p.type1 === "Flying" || p.type2 === "Flying") &&
+        ![50, 51, 74, 95].includes(p.id)
+      );
+      if (waterFlyPool.length > 0 && Math.random() < 0.85) {
+        candidates = waterFlyPool;
+      } else {
+        candidates = candidates.filter(p => ![50, 51, 74, 95].includes(p.id));
+      }
+    }
+
+    const pick = candidates[Math.floor(Math.random() * candidates.length)] || REGULAR_MOB_POOL[0];
 
     const shinyChance = 0.0025 * (1 + (this.saveData.upgrades.shiny || 0) * 0.35) * (this.selectedTrainer.mods.shinyBoost || 1) * (diff.shinyBonus || 1.0);
     const isShiny = Math.random() < shinyChance;
@@ -1945,7 +2014,7 @@ const GameApp = {
       statusTick: 0,
       ccImmunityTimer: 0,
       rangedCd: 2.5 + Math.random() * 2.0,
-      whiteFlashTimer: 0 // 受擊純白閃模計時器
+      whiteFlashTimer: 0
     });
   },
 
@@ -2314,8 +2383,7 @@ const GameApp = {
     this.runCoins += coinGain;
     this.saveData.coins += coinGain;
   },
-
-  spawnMapLoot(id, x, y) {
+spawnMapLoot(id, x, y) {
     const meta = MAP_BOSS_LOOTS[id];
     if (meta) this.mapItems.push({ id, x, y, meta, bobPhase: Math.random() * Math.PI * 2 });
   },
@@ -2504,7 +2572,7 @@ const GameApp = {
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, "生命全滿且戰鬥數值大幅躍升！", 3200);
   },
 
-// 升級三選一視窗 (手機橫條緊湊排版)
+  // 升級三選一視窗 (含全新技能專屬 NEW! 角標)
   openLevelUpModal() {
     this.state = "PAUSED";
     const p = this.player;
@@ -2524,6 +2592,7 @@ const GameApp = {
           typeBadge: renderTypeBadgeHTML(meta.type),
           sprite: meta.sprite,
           desc: meta.evoDesc,
+          isNew: false,
           apply: () => {
             sk.evolved = true;
             this.saveData.stats.superMoves += 1;
@@ -2533,7 +2602,7 @@ const GameApp = {
       }
     });
 
-    // 招式升級
+    // 招式階級升級
     Object.values(p.skills).forEach(sk => {
       if (sk.level < 10) {
         const meta = SKILLS_CATALOG[sk.id];
@@ -2548,6 +2617,7 @@ const GameApp = {
           typeBadge: renderTypeBadgeHTML(meta.type),
           sprite: meta.sprite,
           desc: getSkillNextLevelBonusDesc(nextLv),
+          isNew: false,
           apply: () => { sk.level = nextLv; }
         });
       }
@@ -2558,22 +2628,22 @@ const GameApp = {
       {
         weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
         title: "蛋白藥劑", subTitle: "全傷 +8%", typeBadge: "", sprite: ITEM_SPRITES.protein,
-        desc: "全面提升寶可夢所有招式傷害 +8%！", apply: () => { p.dmgMult *= 1.08; }
+        desc: "全面提升寶可夢所有招式傷害 +8%！", isNew: false, apply: () => { p.dmgMult *= 1.08; }
       },
       {
         weight: 30, rarityClass: "rarity-common", badge: "體質強化", badgeBg: "bg-slate-700 text-white",
         title: "HP提升劑", subTitle: "最大HP +12%", typeBadge: "", sprite: ITEM_SPRITES.hpUp,
-        desc: "最大生命值提升 12%，並立即恢復 25% 已損失生命！",
+        desc: "最大生命值提升 12%，並立即恢復 25% 已損失生命！", isNew: false,
         apply: () => { p.maxHp = Math.round(p.maxHp * 1.12); p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.25)); }
       },
       {
         weight: 28, rarityClass: "rarity-common", badge: "敏捷連動", badgeBg: "bg-slate-700 text-white",
         title: "敏捷強化劑", subTitle: "移速+5% ＆ CD-3%", typeBadge: "", sprite: ITEM_SPRITES.carbos,
-        desc: "提升移動速度 5%，縮短招式冷卻 -3%！", apply: () => { p.speedMult *= 1.05; p.cdMult *= 0.97; }
+        desc: "提升移動速度 5%，縮短招式冷卻 -3%！", isNew: false, apply: () => { p.speedMult *= 1.05; p.cdMult *= 0.97; }
       }
     );
 
-    // 新招式解鎖
+    // 新招式解鎖 (附帶 isNew 標籤)
     const currentCount = Object.keys(p.skills).length;
     if (currentCount < p.maxSkillSlots) {
       Object.values(SKILLS_CATALOG).forEach(meta => {
@@ -2582,6 +2652,7 @@ const GameApp = {
             weight: 18, rarityClass: "rarity-rare", badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
             badgeBg: "bg-blue-600 text-white font-black", title: meta.name, subTitle: "新領悟 Lv.1",
             typeBadge: renderTypeBadgeHTML(meta.type), sprite: meta.sprite, desc: meta.desc,
+            isNew: true,
             apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
           });
         }
@@ -2594,6 +2665,7 @@ const GameApp = {
         pool.push({
           weight: 8, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
           title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
+          isNew: true,
           apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
         });
       }
@@ -2616,7 +2688,12 @@ const GameApp = {
     const box = document.getElementById("upgradeChoicesContainer");
 
     box.innerHTML = choices.map((c, idx) => `
-      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform">
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative overflow-hidden">
+        ${c.isNew ? `
+          <div class="absolute -top-1.5 -left-1.5 bg-gradient-to-r from-red-600 to-amber-500 text-white font-pixel text-[9px] px-2 py-0.5 rounded-br-lg rounded-tl-xl border border-white shadow-md animate-pulse z-10">
+            NEW!
+          </div>
+        ` : ''}
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-12 h-12 rounded-2xl bg-slate-900/40 border-2 border-slate-700 flex items-center justify-center shrink-0">
             <img src="${c.sprite}" class="w-9 h-9 pixel-sprite object-contain" alt="${c.title}" />
@@ -2683,7 +2760,7 @@ const GameApp = {
 
   /**
    * ============================================================================
-   * 戰鬥畫面渲染、腳底環形倒數規、水花涉水下沉與高光合成
+   * 戰鬥畫面渲染、單向跳崖拋物線、訓練家涉水波紋、視野外導航箭頭與高光合成
    * ============================================================================
    */
   renderCombat() {
@@ -2717,7 +2794,6 @@ const GameApp = {
       ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
       ctx.fill(); ctx.stroke();
 
-      // 純白邊界向中心收縮
       ctx.strokeStyle = "#FFFFFF";
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -2757,11 +2833,20 @@ const GameApp = {
       ctx.restore();
     });
 
-    // 5. 隨行訓練家
+    // 5. 隨行訓練家 (含水面涉水波紋與半身下沉裁切)
     if (this.trainerCompanion) {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
       const bob = Math.abs(Math.sin(tc.walkBob)) * 3.5;
+      const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
+      const tInWater = tTerrain.inWater;
+
+      // 訓練家跳崖拋物線高度
+      let tJumpOffsetZ = 0;
+      if (tc.isJumpingLedge && tc.jumpTimer > 0) {
+        const tJumpProg = 1 - (tc.jumpTimer / 0.22);
+        tJumpOffsetZ = Math.sin(tJumpProg * Math.PI) * 18;
+      }
 
       let activeUrl = tc.sprite;
       let needFlip = false;
@@ -2773,15 +2858,32 @@ const GameApp = {
       } else {
         needFlip = tc.facingX > 0;
       }
-
       const tRec = SpriteCache.get(activeUrl);
-      ctx.save();
-      ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
-      ctx.beginPath();
-      ctx.ellipse(tsx, tsy + 18, 14, 5.5, 0, 0, Math.PI * 2);
-      ctx.fill();
 
-      ctx.translate(tsx, tsy - bob);
+      ctx.save();
+      // 訓練家地面波紋 / 陰影
+      if (tInWater) {
+        const waveCycle = (performance.now() * 0.005 + 1.2) % Math.PI;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 - waveCycle / Math.PI})`;
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(tsx, tsy + 16, 15 + waveCycle * 7, 6 + waveCycle * 3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
+        ctx.beginPath();
+        ctx.ellipse(tsx, tsy + 18, Math.max(7, 14 - tJumpOffsetZ * 0.3), Math.max(3, 5.5 - tJumpOffsetZ * 0.1), 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // 涉水下半身裁剪遮罩
+      if (tInWater) {
+        ctx.beginPath();
+        ctx.rect(tsx - 35, tsy - 45, 70, 56);
+        ctx.clip();
+      }
+
+      ctx.translate(tsx, tsy - bob - tJumpOffsetZ + (tInWater ? 5 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) ctx.drawImage(tRec.img, -28, -28, 56, 56);
       ctx.restore();
@@ -2805,7 +2907,7 @@ const GameApp = {
       ctx.restore();
     });
 
-    // 7. 出戰主角精靈 ＆ 腳底環形倒數規 ＆ 水花涉水下沉遮罩
+    // 7. 出戰主角精靈 ＆ 單向跳崖拋物線 ＆ 腳底環形倒數規 ＆ 水花涉水下沉遮罩
     const p = this.player;
     const px = toSx(p.x), py = toSy(p.y);
     const pBob = Math.abs(Math.sin(p.walkBob)) * 4;
@@ -2813,6 +2915,13 @@ const GameApp = {
     const inWater = terrain.inWater;
     const isFlyingOrWater = p.data.type1 === "Water" || p.data.type2 === "Water" ||
                             p.data.type1 === "Flying" || p.data.type2 === "Flying";
+
+    // 計算跳崖騰空高度 (拋物線曲線：最高騰空 18px)
+    let jumpOffsetZ = 0;
+    if (p.isJumpingLedge && p.jumpTimer > 0) {
+      const jumpProg = 1 - (p.jumpTimer / 0.22);
+      jumpOffsetZ = Math.sin(jumpProg * Math.PI) * 18;
+    }
 
     ctx.save();
 
@@ -2824,6 +2933,12 @@ const GameApp = {
       ctx.beginPath();
       ctx.ellipse(px, py + 16, 16 + waveCycle * 8, 7 + waveCycle * 3.5, 0, 0, Math.PI * 2);
       ctx.stroke();
+    } else {
+      // 地面陰影 (跳崖時陰影停留在地面並微縮)
+      ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
+      ctx.beginPath();
+      ctx.ellipse(px, py + 18, Math.max(8, 14 - jumpOffsetZ * 0.3), Math.max(3, 5.5 - jumpOffsetZ * 0.1), 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // 羈絆光環
@@ -2884,7 +2999,7 @@ const GameApp = {
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
-      ctx.translate(px, py - pBob + (inWater && !isFlyingOrWater ? 4 : 0));
+      ctx.translate(px, py - pBob - jumpOffsetZ + (inWater && !isFlyingOrWater ? 4 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
       if (p.isShiny) ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";
       ctx.drawImage(pRec.img, -26, -26, 52, 52);
@@ -3096,6 +3211,60 @@ const GameApp = {
       ctx.fillText(ft.text, sx, sy);
       ctx.restore();
     });
+
+    // 12. 螢幕邊緣視野外目標追蹤指示箭頭 (喵喵/吉利蛋/BOSS)
+    const edgePad = 32;
+    this.enemies.forEach(e => {
+      if (!e.treasureType && !e.isBoss) return;
+      const esx = toSx(e.x), esy = toSy(e.y);
+
+      // 判定目標是否在螢幕可視區之外
+      if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
+        const dx = e.x - this.player.x;
+        const dy = e.y - this.player.y;
+        const ang = Math.atan2(dy, dx);
+        const distMeters = Math.round(Math.hypot(dx, dy) / 10);
+
+        // 貼合螢幕邊界安全區
+        const arrowX = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
+        const arrowY = Math.max(edgePad, Math.min(this.height - edgePad, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+
+        const isMeowth = e.treasureType === "meowth";
+        const isChansey = e.treasureType === "chansey";
+        const arrowColor = isMeowth ? "#F59E0B" : (isChansey ? "#EC4899" : "#EF4444");
+
+        ctx.save();
+        ctx.translate(arrowX, arrowY);
+
+        // 脈動外發光底座
+        ctx.fillStyle = arrowColor;
+        ctx.shadowColor = arrowColor;
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 指向目標三角箭頭
+        ctx.rotate(ang);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.moveTo(11, 0); ctx.lineTo(-4, -6.5); ctx.lineTo(-4, 6.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // 即時距離數字標籤
+        ctx.save();
+        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.5;
+        ctx.strokeText(`${distMeters}m`, arrowX, arrowY + 25);
+        ctx.fillText(`${distMeters}m`, arrowX, arrowY + 25);
+        ctx.restore();
+      }
+    });
   },
 
   // 介面 HUD 刷新
@@ -3126,7 +3295,7 @@ const GameApp = {
       return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm"><img src="${meta.sprite}" class="w-3 h-3 pixel-sprite"/>${sk.evolved ? meta.evolvedName : meta.name} L${sk.level}</span>`;
     }).join("");
 
-    // 大招三態視覺化呈現 (就緒 / 生效中 Active / 冷卻中 CD)
+    // 大招三態呈現 (就緒 / 生效中 Active / 冷卻中 CD)
     document.getElementById("hudActiveTrainerImg").src = tr.sprite;
     document.getElementById("hudActiveSkillName").textContent = tr.skillName;
 

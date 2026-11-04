@@ -65,60 +65,60 @@ const MapEngine = {
   lightningFlashAlpha: 0,
   splashParticles: [],
 
-  // 雲影系統
+  // 雲影系統 (大氣層巨幅柔和雲團配置)
   cloudTime: 0,
   clouds: [
-  {
-    x: -350, y: -250, scale: 1.2, speed: 14,
-    puffs: [
-      { ox: 0,   oy: 0,   r: 48 },
-      { ox: -36, oy: 6,   r: 38 },
-      { ox: 40,  oy: -4,  r: 42 },
-      { ox: -70, oy: 12,  r: 28 },
-      { ox: 76,  oy: 8,   r: 32 },
-      { ox: -20, oy: -24, r: 35 },
-      { ox: 25,  oy: -20, r: 34 },
-      { ox: 10,  oy: 18,  r: 30 }
-    ]
-  },
-  {
-    x: 300,  y: 180,  scale: 1.0, speed: 12,
-    puffs: [
-      { ox: 0,   oy: 0,   r: 48 },
-      { ox: -36, oy: 6,   r: 38 },
-      { ox: 40,  oy: -4,  r: 42 },
-      { ox: -20, oy: -24, r: 35 },
-      { ox: 25,  oy: -20, r: 34 }
-    ]
-  },
-  {
-    x: -550, y: 450,  scale: 1.35, speed: 15,
-    puffs: [
-      { ox: 0,   oy: 0,   r: 52 },
-      { ox: -40, oy: 8,   r: 42 },
-      { ox: 45,  oy: -5,  r: 46 },
-      { ox: -20, oy: -26, r: 36 },
-      { ox: 20,  oy: 20,  r: 32 }
-    ]
-  },
-  {
-    x: 550,  y: -400, scale: 0.9, speed: 11,
-    puffs: [
-      { ox: 0,   oy: 0,   r: 45 },
-      { ox: -30, oy: 5,   r: 35 },
-      { ox: 35,  oy: -4,  r: 38 }
-    ]
-  },
-  {
-    x: -100, y: 700,  scale: 1.15, speed: 13,
-    puffs: [
-      { ox: 0,   oy: 0,   r: 48 },
-      { ox: -35, oy: 6,   r: 38 },
-      { ox: 38,  oy: -4,  r: 40 },
-      { ox: 15,  oy: 18,  r: 32 }
-    ]
-  }
-],
+    {
+      x: -350, y: -250, scale: 1.2, speed: 14,
+      puffs: [
+        { ox: 0,   oy: 0,   r: 48 },
+        { ox: -36, oy: 6,   r: 38 },
+        { ox: 40,  oy: -4,  r: 42 },
+        { ox: -70, oy: 12,  r: 28 },
+        { ox: 76,  oy: 8,   r: 32 },
+        { ox: -20, oy: -24, r: 35 },
+        { ox: 25,  oy: -20, r: 34 },
+        { ox: 10,  oy: 18,  r: 30 }
+      ]
+    },
+    {
+      x: 300,  y: 180,  scale: 1.0, speed: 12,
+      puffs: [
+        { ox: 0,   oy: 0,   r: 48 },
+        { ox: -36, oy: 6,   r: 38 },
+        { ox: 40,  oy: -4,  r: 42 },
+        { ox: -20, oy: -24, r: 35 },
+        { ox: 25,  oy: -20, r: 34 }
+      ]
+    },
+    {
+      x: -550, y: 450,  scale: 1.35, speed: 15,
+      puffs: [
+        { ox: 0,   oy: 0,   r: 52 },
+        { ox: -40, oy: 8,   r: 42 },
+        { ox: 45,  oy: -5,  r: 46 },
+        { ox: -20, oy: -26, r: 36 },
+        { ox: 20,  oy: 20,  r: 32 }
+      ]
+    },
+    {
+      x: 550,  y: -400, scale: 0.9, speed: 11,
+      puffs: [
+        { ox: 0,   oy: 0,   r: 45 },
+        { ox: -30, oy: 5,   r: 35 },
+        { ox: 35,  oy: -4,  r: 38 }
+      ]
+    },
+    {
+      x: -100, y: 700,  scale: 1.15, speed: 13,
+      puffs: [
+        { ox: 0,   oy: 0,   r: 48 },
+        { ox: -35, oy: 6,   r: 38 },
+        { ox: 38,  oy: -4,  r: 40 },
+        { ox: 15,  oy: 18,  r: 32 }
+      ]
+    }
+  ],
 
   init() {
     this.prebakeTileTextures();
@@ -499,9 +499,17 @@ const MapEngine = {
               ctx.stroke();
             }
           } else if (stage.id === "cerulean_bay") {
-            // 木棧道立體投影
+            // 木棧道立體投影與迎水側木樁側面
             ctx.fillStyle = "rgba(3, 40, 75, 0.45)";
-            ctx.fillRect(rx + 5, ry + 6, r.w, r.h);
+            ctx.fillRect(rx + 6, ry + 8, r.w, r.h);
+
+            // 木棧道側立面（體現木橋架高於水面的立體厚度）
+            ctx.fillStyle = "#4A2A12";
+            if (r.dir === "V") {
+              ctx.fillRect(rx + r.w, ry, 8, r.h);
+            } else {
+              ctx.fillRect(rx, ry + r.h, r.w, 8);
+            }
 
             ctx.fillStyle = stage.roadColor;
             ctx.fillRect(rx, ry, r.w, r.h);
@@ -807,41 +815,42 @@ const MapEngine = {
       }
     }
 
-   // --- 2. 沙盒 V11 原版自然羽化雲影圖層 ---
-  ctx.save();
-  const plx = 0.45; // 高空視差懸浮感[cite: 2]
-  const cloudWrapArea = 1800; // 循環漫遊邊界，保證畫面上永遠有雲
+    // --- 2. 大氣層巨幅柔和透色雲影圖層 ---
+    ctx.save();
+    const plx = 0.45; // 高空視差懸浮感
+    const cloudWrapArea = 2200; // 擴大漫遊循環邊界
 
-  this.clouds.forEach(c => {
-  // 自動循環封閉位移，玩家走到哪裡都會有雲漂過
-  const rawX = c.x + this.cloudTime * c.speed - camX * (1 - plx);
-  const rawY = c.y + this.cloudTime * (c.speed * 0.32) - camY * (1 - plx);
-  
-  // 鏡頭循環包裹運算
-  const worldCloudX = ((rawX % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camX;
-  const worldCloudY = ((rawY % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camY;
+    this.clouds.forEach(c => {
+      // 鏡頭漫遊位移包裹計算
+      const rawX = c.x + this.cloudTime * c.speed - camX * (1 - plx);
+      const rawY = c.y + this.cloudTime * (c.speed * 0.32) - camY * (1 - plx);
+      const worldCloudX = ((rawX % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camX;
+      const worldCloudY = ((rawY % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camY;
 
-  const csx = worldCloudX - camX + width / 2;
-  const csy = worldCloudY - camY + height / 2;
+      const csx = worldCloudX - camX + width / 2;
+      const csy = worldCloudY - camY + height / 2;
 
-  // 稍微提升中心濃度 (0.22)，外圍羽化 (0.12)，讓雲影清晰可見
-  c.puffs.forEach(p => {
-    const px = csx + p.ox * c.scale;
-    const py = csy + p.oy * c.scale;
-    const pr = p.r * c.scale;
+      // 依關卡動態調配環境透色（海面深藍、草地深墨綠，徹底消除灰黑污漬感）
+      const isBay = stage.id === "cerulean_bay";
+      const shadowColor = isBay ? "rgba(3, 35, 75, " : "rgba(10, 35, 18, ";
 
-    const grad = ctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
-    grad.addColorStop(0, "rgba(15, 23, 42, 0.22)");  // 中心深色提升
-    grad.addColorStop(0.65, "rgba(15, 23, 42, 0.12)"); // 柔和過渡
-    grad.addColorStop(1, "rgba(15, 23, 42, 0)");     // 邊緣完全羽化
+      c.puffs.forEach(p => {
+        const px = csx + p.ox * c.scale * 1.8; // 擴大雲團跨度
+        const py = csy + p.oy * c.scale * 1.8;
+        const pr = p.r * c.scale * 2.2;        // 擴大柔和羽化半徑
 
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(px, py, pr, 0, Math.PI * 2);
-    ctx.fill();
-  });
-});
-ctx.restore();
+        const grad = ctx.createRadialGradient(px, py, pr * 0.1, px, py, pr);
+        grad.addColorStop(0, `${shadowColor}0.24)`);
+        grad.addColorStop(0.5, `${shadowColor}0.14)`);
+        grad.addColorStop(1, `${shadowColor}0)`);
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    });
+    ctx.restore();
   },
 
   renderWeatherOverlays(ctx, width, height) {
