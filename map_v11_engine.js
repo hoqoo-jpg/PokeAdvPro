@@ -1,7 +1,8 @@
 /**
  * ============================================================================
  * map_v11_engine.js
- * 關卡生態地貌引擎、沙盒 V11 深度融合、離線 Tile 預渲染、3D 透視魔法陣與動態天氣
+ * 關卡生態地貌引擎、沙盒 V11 深度融合、離線 Tile 預渲染、3D 透視魔法陣與 6 大動態天氣系統
+ * (CLEAR, RAIN, THUNDER, BLIZZARD, HEATWAVE, PSYCHIC)
  * ============================================================================
  */
 
@@ -58,14 +59,14 @@ const MapEngine = {
   chunkCache: new Map(),
   tileCache: new Map(), // 60x60 離線 Tile 預渲染快取
 
-  // 天氣系統變數
-  weather: "CLEAR", // CLEAR, RAIN, THUNDER, BLIZZARD, HEATWAVE, PSYCHIC
+  // 6 大天氣系統變數 (CLEAR, RAIN, THUNDER, BLIZZARD, HEATWAVE, PSYCHIC)
+  weather: "CLEAR",
   rainOffset: 0,
   lightningTimer: 0,
   lightningFlashAlpha: 0,
   splashParticles: [],
 
-  // 雲影系統 (大氣層巨幅柔和雲團配置)
+  // 雲影系統
   cloudTime: 0,
   clouds: [
     {
@@ -124,7 +125,6 @@ const MapEngine = {
     this.prebakeTileTextures();
   },
 
-  // 離線預渲染 60x60 地表 Tile，保障遊戲滿幀運行
   prebakeTileTextures() {
     STAGES.forEach(st => {
       ["light", "dark"].forEach(tone => {
@@ -195,7 +195,6 @@ const MapEngine = {
     };
 
     if (stage.id === "cerulean_bay") {
-      // 華藍海岬主木棧道
       chunk.piers.push({ x: baseX + 264, y: baseY, w: 72, h: size, dir: "V" });
       if (pseudoRand(1) > 0.35) {
         chunk.piers.push({ x: baseX, y: baseY + 264, w: size, h: 72, dir: "H" });
@@ -332,14 +331,12 @@ const MapEngine = {
           }
         }
 
-        // 單向跳崖判定
         for (const ledge of chunk.ledges) {
           if (ent.x >= ledge.x - 8 && ent.x <= ledge.x + ledge.w + 8) {
             if (isPlayer && ent.y >= ledge.y - 12 && ent.y <= ledge.y && ent.vy > 0) {
               ent.isJumpingLedge = true;
               ent.jumpTimer = 0.22;
             } else if (!isPlayer && ent.y >= ledge.y - 14 && ent.y <= ledge.y) {
-              // 怪獸翻崖補償：快速跳躍落地，避免在崖壁卡死
               ent.y += 24;
             } else if (ent.y >= ledge.y && ent.y <= ledge.y + ledge.h + 8 && ent.vy < 0) {
               ent.y = ledge.y + ledge.h + 8;
@@ -385,7 +382,6 @@ const MapEngine = {
   renderBiomeWorld(ctx, camX, camY, width, height) {
     const stage = this.currentStage;
 
-    // 華藍海域一體化連續深水底色（徹底消除 Chunk 切邊接縫）
     if (stage.id === "cerulean_bay") {
       ctx.fillStyle = stage.waterColor;
       ctx.fillRect(0, 0, width, height);
@@ -393,7 +389,6 @@ const MapEngine = {
       ctx.fillStyle = stage.tileLight;
       ctx.fillRect(0, 0, width, height);
 
-      // 離線快取 Tile 快速貼圖
       const tileSize = 60;
       const startTx = Math.floor((camX - width / 2) / tileSize) - 1;
       const endTx = Math.floor((camX + width / 2) / tileSize) + 1;
@@ -427,7 +422,7 @@ const MapEngine = {
       for (let cy = startCy; cy <= endCy; cy++) {
         const chunk = this.getBiomeChunk(cx, cy);
 
-        // A. 華藍海域無縫 U 型動態浪花
+        // A. 華藍海域動態浪花
         if (stage.id === "cerulean_bay") {
           const stepX = 54, stepY = 38;
           const swx = chunk.baseX - camX + width / 2;
@@ -442,7 +437,6 @@ const MapEngine = {
               const wx = swx + gx + xOffset + Math.cos(now * 1.1 + waveSeed) * 3.5;
               const wy = swy + gy + Math.sin(now * 1.3 + waveSeed) * 1.8;
 
-              // 暗面陰影
               ctx.strokeStyle = "rgba(7, 89, 133, 0.65)";
               ctx.lineWidth = 2.2;
               ctx.lineCap = "round";
@@ -451,7 +445,6 @@ const MapEngine = {
               ctx.quadraticCurveTo(wx, wy - 5 + 2, wx + 14, wy + 2);
               ctx.stroke();
 
-              // 亮白浪尖
               const crestAlpha = 0.45 + waveCycle * 0.35;
               ctx.strokeStyle = `rgba(224, 242, 254, ${crestAlpha})`;
               ctx.lineWidth = 1.8;
@@ -479,7 +472,7 @@ const MapEngine = {
           ctx.strokeRect(ix - (8 - waveDist), iy - (8 - waveDist), isl.w + 16 - waveDist * 2, isl.h + 16 - waveDist * 2);
         });
 
-        // C. 道路、防波堤木棧道與大理石大道
+        // C. 道路與木棧道
         (chunk.roads || []).concat(chunk.piers || []).forEach(r => {
           const rx = r.x - camX + width / 2;
           const ry = r.y - camY + height / 2;
@@ -499,11 +492,9 @@ const MapEngine = {
               ctx.stroke();
             }
           } else if (stage.id === "cerulean_bay") {
-            // 木棧道立體投影與迎水側木樁側面
             ctx.fillStyle = "rgba(3, 40, 75, 0.45)";
             ctx.fillRect(rx + 6, ry + 8, r.w, r.h);
 
-            // 木棧道側立面（體現木橋架高於水面的立體厚度）
             ctx.fillStyle = "#4A2A12";
             if (r.dir === "V") {
               ctx.fillRect(rx + r.w, ry, 8, r.h);
@@ -517,7 +508,6 @@ const MapEngine = {
             ctx.lineWidth = 2.2;
             ctx.strokeRect(rx, ry, r.w, r.h);
 
-            // 木板條紋與鐵釘
             ctx.strokeStyle = "rgba(45, 20, 5, 0.45)";
             ctx.lineWidth = 1.8;
             ctx.fillStyle = "rgba(40, 20, 5, 0.6)";
@@ -537,7 +527,7 @@ const MapEngine = {
           }
         });
 
-        // D. 常磐高草叢與完整 3D 等角旋轉五芒星超能陣
+        // D. 草叢與 3D 等角超能陣
         chunk.grassTiles.forEach(g => {
           const gx = g.x - camX + width / 2;
           const gy = g.y - camY + height / 2;
@@ -549,7 +539,6 @@ const MapEngine = {
             const rX = g.w * 0.54;
             const rY = g.w * 0.28;
 
-            // 1. 地面強烈半透明紫色徑向發光層
             const floorGrad = ctx.createRadialGradient(cx, cy, rY * 0.2, cx, cy, rX * 1.35);
             floorGrad.addColorStop(0, "rgba(217, 70, 239, 0.45)");
             floorGrad.addColorStop(0.55, "rgba(147, 51, 234, 0.22)");
@@ -559,7 +548,6 @@ const MapEngine = {
             ctx.ellipse(cx, cy, rX * 1.35, rY * 1.5, 0, 0, Math.PI * 2);
             ctx.fill();
 
-            // 2. 140px 通天蒸騰光柱
             const shaftHeight = 140;
             const shaftGrad = ctx.createLinearGradient(cx, cy, cx, cy - shaftHeight);
             shaftGrad.addColorStop(0, "rgba(192, 132, 252, 0.40)");
@@ -574,7 +562,6 @@ const MapEngine = {
             ctx.closePath();
             ctx.fill();
 
-            // 3. 3D 等角透視雙層發光圓環
             ctx.save();
             ctx.translate(cx, cy);
 
@@ -590,7 +577,6 @@ const MapEngine = {
             ctx.ellipse(0, 0, rX * 0.94, rY * 0.94, 0, 0, Math.PI * 2);
             ctx.stroke();
 
-            // 4. 等角五芒星金星旋轉核心
             const starRot = now * 0.6;
             const starPts = [];
             for (let k = 0; k < 5; k++) {
@@ -609,7 +595,6 @@ const MapEngine = {
             ctx.closePath();
             ctx.stroke();
 
-            // 環周金色符文節點
             ctx.fillStyle = "#FDE047";
             for (let n = 0; n < 8; n++) {
               const nAng = -starRot * 0.8 + (n * Math.PI * 2) / 8;
@@ -622,7 +607,6 @@ const MapEngine = {
 
             ctx.restore();
 
-            // 5. 飄浮上升靈力微粒
             for (let orb = 0; orb < 8; orb++) {
               const orbSeed = (cx * 13 + cy * 19 + orb * 37);
               const orbProg = ((now * 0.7 + orb * 0.14) % 1.0);
@@ -639,7 +623,6 @@ const MapEngine = {
 
             ctx.restore();
           } else {
-            // 常磐草叢
             ctx.fillStyle = stage.slowZoneColor;
             ctx.beginPath();
             ctx.roundRect(gx, gy, g.w, g.h, 8);
@@ -664,7 +647,7 @@ const MapEngine = {
           }
         });
 
-        // E. 單向跳崖（Ledges，防抖穩定箭頭間距）
+        // E. 單向跳崖 (Ledges)
         chunk.ledges.forEach(l => {
           const lx = l.x - camX + width / 2;
           const ly = l.y - camY + height / 2;
@@ -690,7 +673,7 @@ const MapEngine = {
           }
         });
 
-        // F. 建築物與障礙物（補齊木屋木門與玻璃窗戶構造）
+        // F. 建築物與障礙物
         chunk.obstacles.forEach(ob => {
           const ox = ob.x - camX + width / 2;
           const oy = ob.y - camY + height / 2;
@@ -698,14 +681,12 @@ const MapEngine = {
           ctx.fillRect(ox + 4, oy + 6, ob.w, ob.h);
 
           if (ob.kind === "house") {
-            // 牆身主體
             ctx.fillStyle = "#FEF3C7";
             ctx.strokeStyle = "#1E293B";
             ctx.lineWidth = 2.5;
             ctx.fillRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
             ctx.strokeRect(ox, oy + ob.h * 0.35, ob.w, ob.h * 0.65);
 
-            // 紅色屋頂
             ctx.fillStyle = "#DC2626";
             ctx.beginPath();
             ctx.moveTo(ox - 6, oy + ob.h * 0.38);
@@ -715,25 +696,21 @@ const MapEngine = {
             ctx.fill();
             ctx.stroke();
 
-            // 補齊：深棕色木門與把手
             ctx.fillStyle = "#92400E";
             ctx.strokeStyle = "#451A03";
             ctx.lineWidth = 2;
             ctx.fillRect(ox + 16, oy + ob.h * 0.52, 22, ob.h * 0.48);
             ctx.strokeRect(ox + 16, oy + ob.h * 0.52, 22, ob.h * 0.48);
-            // 門鎖銅把手
             ctx.fillStyle = "#FDE047";
             ctx.beginPath();
             ctx.arc(ox + 34, oy + ob.h * 0.74, 2, 0, Math.PI * 2);
             ctx.fill();
 
-            // 補齊：天藍色雙格玻璃窗戶
             ctx.fillStyle = "#38BDF8";
             ctx.strokeStyle = "#0F172A";
             ctx.lineWidth = 2;
             ctx.fillRect(ox + ob.w - 36, oy + ob.h * 0.52, 20, 20);
             ctx.strokeRect(ox + ob.w - 36, oy + ob.h * 0.52, 20, 20);
-            // 窗框十字分隔線
             ctx.strokeStyle = "#FEF3C7";
             ctx.lineWidth = 1.5;
             ctx.beginPath();
@@ -775,7 +752,6 @@ const MapEngine = {
             ctx.arc(ox + ob.w * 0.38, oy + ob.h * 0.38, 7, 0, Math.PI * 2);
             ctx.fill();
           } else {
-            // 雙層大橡樹自然擺動
             const treeSway = Math.sin(now * 1.3 + ob.x * 0.05) * 2.2;
             ctx.fillStyle = "#78350F";
             ctx.fillRect(ox + ob.w * 0.38, oy + ob.h * 0.55, ob.w * 0.24, ob.h * 0.45);
@@ -815,29 +791,24 @@ const MapEngine = {
       }
     }
 
-    // --- 2. 大氣層巨幅柔和透色雲影圖層 (座標修正版) ---
+    // 雲影覆蓋層
     ctx.save();
-    const plx = 0.45; // 視差係數
+    const plx = 0.45;
     const areaW = 1600;
     const areaH = 1400;
-
-    // 依關卡動態調配環境透色（海面深墨海藍、草地深林綠，濃度調至清晰可見的 0.32）
     const isBay = stage.id === "cerulean_bay";
     const shadowColor = isBay ? "rgba(2, 28, 62, " : "rgba(8, 30, 14, ";
 
-    this.clouds.forEach((c, idx) => {
-      // 基準漂移座標
+    this.clouds.forEach(c => {
       const moveX = c.x + this.cloudTime * c.speed - camX * plx;
       const moveY = c.y + this.cloudTime * (c.speed * 0.3) - camY * plx;
-
-      // 正確的螢幕循環取模運算，確保永遠有雲覆蓋螢幕
       const sx = ((moveX % areaW) + areaW) % areaW - (areaW * 0.25);
       const sy = ((moveY % areaH) + areaH) % areaH - (areaH * 0.25);
 
       c.puffs.forEach(p => {
         const px = sx + p.ox * c.scale * 2.0;
         const py = sy + p.oy * c.scale * 2.0;
-        const pr = p.r * c.scale * 2.5; // 巨幅羽化雲朵
+        const pr = p.r * c.scale * 2.5;
 
         const grad = ctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
         grad.addColorStop(0, `${shadowColor}0.32)`);
@@ -853,7 +824,12 @@ const MapEngine = {
     ctx.restore();
   },
 
+  /**
+   * 6 大天氣全螢幕渲染覆蓋層
+   * 包含：RAIN(微雨), THUNDER(雷暴白閃), BLIZZARD(漫天風雪), HEATWAVE(地熱蒸騰), PSYCHIC(超能極光)
+   */
   renderWeatherOverlays(ctx, width, height) {
+    // 1. 微雨 & 狂暴雷暴
     if (this.weather === "RAIN" || this.weather === "THUNDER") {
       ctx.save();
       const isThunder = this.weather === "THUNDER";
@@ -884,15 +860,51 @@ const MapEngine = {
       }
       ctx.restore();
 
+    // 2. 極寒暴雪 (雪花飄落與冷光色調)
+    } else if (this.weather === "BLIZZARD") {
+      ctx.save();
+      ctx.fillStyle = "rgba(224, 242, 254, 0.88)";
+      const t = performance.now() * 0.002;
+      for (let i = 0; i < 65; i++) {
+        const sx = ((i * 47 + t * 45 + Math.sin(t * 1.5 + i) * 25) % width);
+        const sy = ((i * 61 + t * 125) % height);
+        const sz = (i % 3 === 0) ? 3.4 : (i % 2 === 0 ? 2.4 : 1.6);
+        ctx.beginPath();
+        ctx.arc(sx, sy, sz, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // 冷色調薄霧
+      ctx.fillStyle = "rgba(186, 230, 253, 0.12)";
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+
+    // 3. 烈日熱浪 (橘紅透光與地面蒸騰微粒)
+    } else if (this.weather === "HEATWAVE") {
+      ctx.save();
+      ctx.fillStyle = "rgba(249, 115, 22, 0.11)";
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = "rgba(253, 224, 71, 0.45)";
+      const t = performance.now() * 0.003;
+      for (let i = 0; i < 30; i++) {
+        const hx = (i * 73 + Math.sin(t * 2.0 + i) * 18) % width;
+        const hy = height - ((i * 37 + t * 90) % height);
+        ctx.beginPath();
+        ctx.arc(hx, hy, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+    // 4. 超能極光 (紫色光球漂浮)
     } else if (this.weather === "PSYCHIC") {
       ctx.save();
       ctx.fillStyle = "rgba(192, 132, 252, 0.65)";
       const t = performance.now() * 0.002;
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 22; i++) {
         const ax = ((i * 137 + t * 35) % width);
         const ay = ((i * 93 + Math.sin(t + i) * 80) % height);
         ctx.beginPath();
-        ctx.arc(ax, ay, 2.5, 0, Math.PI * 2);
+        ctx.arc(ax, ay, 2.8, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();

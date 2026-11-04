@@ -2,790 +2,604 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>寶可夢大冒險：全明星閃耀版 | Pokémon Adventure Survivors Pro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Pokémon Adv Survivors 3.2 - 關都傳說大冒險</title>
+  
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts: Pixelify Sans & Noto Sans TC -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Pixelify+Sans:wght@700&display=swap" rel="stylesheet">
+
   <style>
-    :root {
-      --pixel-font: 'Press Start 2P', 'Noto Sans TC', monospace;
-      --body-font: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
-      --poke-indigo: #131722;
-      --poke-crimson: #E63946;
-      --poke-crimson-dark: #9B1C28;
-      --poke-amber: #F59E0B;
-      --poke-amber-dark: #B45309;
-      --poke-blue: #2563EB;
-      --poke-panel-bg: #FFFDF8;
-      --poke-border: #1E2433;
-    }
     * {
       box-sizing: border-box;
       user-select: none;
       -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
     }
-    body, html {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background-color: #0b1120;
-      font-family: var(--body-font); color: var(--poke-indigo);
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+      background-color: #0f172a;
+      overflow: hidden;
+      touch-action: none;
     }
-    canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
-    .font-pixel { font-family: var(--pixel-font); letter-spacing: 0.02em; }
-    .pixel-sprite { image-rendering: pixelated; }
-    .shiny-sprite-filter { filter: hue-rotate(48deg) saturate(1.75) brightness(1.15) drop-shadow(0 0 8px #F59E0B); }
-
-    /* 掌機面板與卡片 */
-    .poke-panel {
-      background: var(--poke-panel-bg);
-      border: 3px solid var(--poke-border);
-      border-radius: 20px;
-      box-shadow: 0 8px 0 rgba(19, 23, 34, 0.28), 0 16px 32px rgba(10, 15, 30, 0.35);
+    .font-pixel {
+      font-family: 'Pixelify Sans', 'Noto Sans TC', sans-serif;
     }
-    .poke-header-red {
-      background: linear-gradient(135deg, #E63946 0%, #D90429 65%, #EF233C 100%);
-      border-bottom: 3px solid var(--poke-border);
-      color: #FFFFFF;
+    .pixel-sprite {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
-    .poke-hud-box {
-      background: rgba(255, 253, 248, 0.94);
-      border: 2px solid var(--poke-border);
-      border-radius: 14px;
-      box-shadow: 0 4px 0 rgba(19, 23, 34, 0.2);
-    }
+    /* 卡片與按鈕 GBA 風格陰影 */
     .poke-card {
-      background: #FFFFFF;
-      border: 2.5px solid #CBD5E1;
-      border-radius: 16px;
-      box-shadow: 0 4px 0 #E2E8F0;
-      transition: transform 0.15s ease, border-color 0.15s ease;
-      position: relative;
+      border: 3px solid #1e293b;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.45);
+      border-radius: 14px;
+      background: #ffffff;
+      transition: all 0.15s ease-in-out;
     }
-    .poke-card:hover, .poke-card.selected {
-      border-color: var(--poke-blue);
-      background: linear-gradient(180deg, #FFFFFF 0%, #EFF6FF 100%);
-      box-shadow: 0 5px 0 var(--poke-blue);
-      transform: translateY(-2px);
+    .poke-card.selected {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px #60a5fa, 4px 4px 0px rgba(37, 99, 235, 0.4);
     }
-
-    /* 按鈕樣式 */
     .poke-btn-red {
-      background: linear-gradient(180deg, #EF4444 0%, #E63946 50%, #DC2626 100%);
-      border: 2.5px solid var(--poke-border);
+      background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+      border: 2px solid #7f1d1d;
+      box-shadow: 0 3px 0 #7f1d1d;
+      color: white;
       border-radius: 9999px;
-      color: #FFFFFF;
-      box-shadow: 0 4px 0 var(--poke-crimson-dark);
-      transition: all 0.1s ease;
     }
-    .poke-btn-red:active:not(:disabled) {
+    .poke-btn-red:active {
       transform: translateY(2px);
-      box-shadow: 0 1px 0 var(--poke-crimson-dark);
-    }
-    .poke-btn-yellow {
-      background: linear-gradient(180deg, #FDE047 0%, #F59E0B 100%);
-      border: 2.5px solid var(--poke-border);
-      border-radius: 9999px;
-      color: var(--poke-indigo);
-      box-shadow: 0 4px 0 var(--poke-amber-dark);
-      transition: all 0.1s ease;
-    }
-    .poke-btn-yellow:active:not(:disabled) {
-      transform: translateY(2px);
-      box-shadow: 0 1px 0 var(--poke-amber-dark);
+      box-shadow: 0 1px 0 #7f1d1d;
     }
     .poke-btn-blue {
-      background: linear-gradient(180deg, #3B82F6 0%, #2563EB 100%);
-      border: 2.5px solid var(--poke-border);
+      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+      border: 2px solid #1e3a8a;
+      box-shadow: 0 3px 0 #1e3a8a;
+      color: white;
       border-radius: 9999px;
-      color: #FFFFFF;
-      box-shadow: 0 4px 0 #1D4ED8;
-      transition: all 0.1s ease;
     }
-    .poke-btn-blue:active:not(:disabled) {
+    .poke-btn-blue:active {
       transform: translateY(2px);
-      box-shadow: 0 1px 0 #1D4ED8;
+      box-shadow: 0 1px 0 #1e3a8a;
+    }
+    .poke-btn-yellow {
+      background: linear-gradient(180deg, #facc15 0%, #d97706 100%);
+      border: 2px solid #78350f;
+      box-shadow: 0 3px 0 #78350f;
+      color: #0f172a;
+      border-radius: 9999px;
+    }
+    .poke-btn-yellow:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #78350f;
     }
     .poke-btn-white {
-      background: #FFFFFF;
-      border: 2.5px solid var(--poke-border);
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      box-shadow: 0 3px 0 #94a3b8;
+      color: #334155;
       border-radius: 9999px;
-      color: var(--poke-indigo);
-      box-shadow: 0 3px 0 #CBD5E1;
-      transition: all 0.1s ease;
     }
-    .poke-btn-white:active:not(:disabled) {
-      transform: translateY(2px);
-      box-shadow: 0 1px 0 #CBD5E1;
-    }
+    /* 稀有度邊框特效 */
+    .rarity-common { border-color: #64748b !important; }
+    .rarity-rare { border-color: #3b82f6 !important; box-shadow: 0 0 10px rgba(59, 130, 246, 0.4); }
+    .rarity-epic { border-color: #a855f7 !important; box-shadow: 0 0 12px rgba(168, 85, 247, 0.5); }
+    .rarity-legendary { border-color: #f59e0b !important; box-shadow: 0 0 14px rgba(245, 158, 11, 0.6); }
 
-    /* 稀有度邊框 */
-    .rarity-common { border: 2.5px solid #94A3B8; background: #FFFFFF; box-shadow: 0 4px 0 #CBD5E1; }
-    .rarity-rare { border: 3px solid #2563EB; background: linear-gradient(180deg, #FFFFFF 0%, #EFF6FF 100%); box-shadow: 0 4px 0 #1D4ED8; }
-    .rarity-epic { border: 3px solid #9333EA; background: linear-gradient(180deg, #FFFFFF 0%, #FAF5FF 100%); box-shadow: 0 4px 0 #7E22CE; }
-    .rarity-legendary { border: 3.5px solid #F59E0B; background: linear-gradient(135deg, #FFFDF5 0%, #FEF3C7 60%, #FDE68A 100%); box-shadow: 0 5px 0 #B45309; }
-
-    /* 動態虛擬搖桿 */
-    #touchJoyBase {
-      position: absolute;
-      width: 116px; height: 116px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(19, 23, 34, 0.65) 75%);
-      border: 2.5px solid rgba(245, 158, 11, 0.85);
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      z-index: 35;
-      display: none;
+    /* 閃光寶可夢金黃高光濾鏡 */
+    .shiny-sprite-filter {
+      filter: hue-rotate(48deg) saturate(1.8) brightness(1.15) drop-shadow(0 0 6px #fde047);
     }
-    #touchJoyStick {
-      position: absolute;
-      width: 48px; height: 48px;
-      border-radius: 50%;
-      background: radial-gradient(circle, #FDE047 0%, #F59E0B 100%);
-      border: 2.5px solid var(--poke-border);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.6);
-      pointer-events: none;
-      transform: translate(-50%, -50%);
-      z-index: 36;
-      display: none;
-    }
-
-    /* 戰術大招按鈕動畫 */
-    @keyframes tacticalPulse {
-      0%, 100% {
-        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8), 0 0 16px rgba(245, 158, 11, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.6);
-        transform: scale(1);
-      }
-      50% {
-        box-shadow: 0 0 0 14px rgba(245, 158, 11, 0), 0 0 26px rgba(245, 158, 11, 0.9), inset 0 0 15px rgba(255, 255, 255, 0.9);
-        transform: scale(1.06);
-      }
-    }
-    .tactical-btn-ready {
-      animation: tacticalPulse 1.4s infinite cubic-bezier(0.4, 0, 0.6, 1);
-      filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.9));
-    }
-    @keyframes activeGlow {
-      0%, 100% { box-shadow: 0 0 14px #10B981, inset 0 0 12px #34D399; }
-      50% { box-shadow: 0 0 24px #10B981, inset 0 0 18px #34D399; }
-    }
-    .tactical-btn-active {
-      animation: activeGlow 0.8s infinite ease-in-out;
-      border-color: #10B981 !important;
-    }
-
-    /* 大招特寫瞬切動畫 */
-    @keyframes cutInSlide {
-      0% { transform: translateX(-110%) skewX(-14deg); opacity: 0; }
-      20% { transform: translateX(0%) skewX(-14deg); opacity: 1; }
-      80% { transform: translateX(0%) skewX(-14deg); opacity: 1; }
-      100% { transform: translateX(110%) skewX(-14deg); opacity: 0; }
+    /* 二次元斜切 Cut-in 特寫動畫 */
+    @keyframes cutInAnim {
+      0% { transform: translateY(-50%) skewX(-20deg) translateX(-120%); opacity: 0; }
+      15% { transform: translateY(-50%) skewX(-20deg) translateX(0%); opacity: 1; }
+      85% { transform: translateY(-50%) skewX(-20deg) translateX(0%); opacity: 1; }
+      100% { transform: translateY(-50%) skewX(-20deg) translateX(120%); opacity: 0; }
     }
     .cut-in-active {
-      animation: cutInSlide 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: cutInAnim 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
-
-    /* 標題字體 */
-    .adventure-logo-yellow {
-      background: linear-gradient(180deg, #FFF04D 0%, #FFCB05 48%, #F59E0B 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 4px 0 #1E3A8A) drop-shadow(0 -2px 0 #1E3A8A) drop-shadow(3px 0 0 #1E3A8A) drop-shadow(-3px 0 0 #1E3A8A) drop-shadow(0 8px 12px rgba(0,0,0,0.5));
+    /* 大招按鈕呼吸光暈 */
+    .tactical-btn-ready {
+      animation: pulseGlow 1.4s infinite alternate;
     }
-    .adventure-logo-orange {
-      background: linear-gradient(180deg, #FDBA74 0%, #F97316 45%, #DC2626 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 4px 0 #111827) drop-shadow(0 -2px 0 #111827) drop-shadow(3px 0 0 #111827) drop-shadow(-3px 0 0 #111827) drop-shadow(0 8px 12px rgba(0,0,0,0.5));
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      100% { box-shadow: 0 0 0 14px rgba(245, 158, 11, 0); }
     }
-    .adventure-logo-green {
-      background: linear-gradient(180deg, #BEF264 0%, #4ADE80 50%, #0D9488 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      filter: drop-shadow(0 4px 0 #111827) drop-shadow(0 -2px 0 #111827) drop-shadow(3px 0 0 #111827) drop-shadow(-3px 0 0 #111827) drop-shadow(0 8px 12px rgba(0,0,0,0.5));
+    .tactical-btn-active {
+      animation: greenGlow 1.2s infinite alternate;
     }
-
-    .no-scrollbar::-webkit-scrollbar { display: none; }
-    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes greenGlow {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8); }
+      100% { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0); }
+    }
   </style>
 </head>
-<body class="relative w-screen h-screen overflow-hidden select-none bg-slate-950">
+<body class="relative w-screen h-screen overflow-hidden select-none">
 
-  <!-- 1. 60FPS CANVAS 圖層 -->
-  <canvas id="gameCanvas" class="absolute inset-0 z-0"></canvas>
+  <!-- 1. 遊戲主畫布 -->
+  <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
 
-  <!-- 2. 動態虛擬搖桿 DOM -->
-  <div id="touchJoyBase"></div>
-  <div id="touchJoyStick"></div>
+  <!-- 2. 資源預載進度畫面 -->
+  <div id="preloader-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white">
+    <div class="flex items-center gap-3 mb-4">
+      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-10 h-10 pixel-sprite animate-spin" />
+      <span class="font-pixel text-xl sm:text-2xl font-black text-amber-400 tracking-wider">POKÉMON ADV SURVIVORS</span>
+    </div>
+    <div class="w-72 sm:w-96 h-4 bg-slate-800 rounded-full border-2 border-slate-700 overflow-hidden p-0.5 shadow-inner">
+      <div id="preloaderBar" class="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-200" style="width: 0%;"></div>
+    </div>
+    <div class="flex justify-between w-72 sm:w-96 text-xs text-slate-400 font-bold mt-2">
+      <span id="preloaderStatusText">正在建構關都自然生態與圖鑑快取...</span>
+      <span id="preloaderPctText">0%</span>
+    </div>
+    <div id="preloaderCountText" class="text-[10px] text-slate-500 mt-1">0 / 0</div>
+  </div>
 
-  <!-- 3. 大招特寫瞬切插播 (Cut-in Banner) -->
-  <div id="cutInLayer" class="hidden pointer-events-none fixed inset-0 z-40 flex items-center justify-center overflow-hidden">
-    <div id="cutInStrip" class="w-[125vw] h-28 sm:h-36 bg-gradient-to-r from-red-600 via-amber-500 to-red-700 border-y-4 border-white shadow-2xl flex items-center px-10 gap-6">
-      <img id="cutInAvatar" src="" class="w-24 h-24 sm:w-32 sm:h-32 pixel-sprite object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.6)]" alt="Cut-in" />
-      <div class="text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-        <div id="cutInTrainer" class="text-xs sm:text-sm font-black tracking-widest text-amber-200 uppercase">TACTICAL ORDER</div>
-        <div id="cutInSkill" class="text-2xl sm:text-4xl font-black italic tracking-tight">就決定是你了！</div>
+  <!-- 3. Splash 點擊開始畫面 -->
+  <div id="splashScreen" class="absolute inset-0 z-40 hidden flex flex-col items-center justify-between py-12 px-4 cursor-pointer bg-slate-900/40 backdrop-blur-[2px]" onclick="GameApp.enterLobbyFromSplash()">
+    <div class="text-center mt-8">
+      <div class="inline-block px-3 py-1 bg-red-600 text-white font-pixel text-xs rounded-full border border-white shadow-lg mb-2 animate-bounce">
+        ★ GBA 復古像素重構版 ★
       </div>
+      <h1 class="font-pixel text-3xl sm:text-5xl text-amber-400 font-black drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] tracking-wide">
+        POKÉMON ADV SURVIVORS
+      </h1>
+      <p class="text-sm sm:text-base text-slate-200 font-bold mt-2 drop-shadow">關都 151 全圖鑑 ‧ 8 分鐘快節奏冒險 ‧ 六大自然生態</p>
+    </div>
+    <div class="text-center mb-8 animate-pulse">
+      <span class="px-6 py-2.5 bg-white/90 text-slate-900 rounded-full font-black text-sm sm:text-base border-2 border-slate-900 shadow-xl">
+        - 按任意鍵或點擊螢幕進入大廳 -
+      </span>
     </div>
   </div>
 
-  <!-- 4. 資源預載載入中視窗 -->
-  <div id="preloader-screen" class="absolute inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-center select-none">
-    <div class="poke-panel max-w-md w-full p-6 sm:p-8 flex flex-col items-center">
-      <div class="relative flex items-end justify-center gap-3 mb-4 h-20">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-10 h-10 pixel-sprite animate-bounce" alt="ball" />
-        <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-16 h-16 pixel-sprite animate-pulse" alt="pika" />
-        <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/133.png" class="w-14 h-14 pixel-sprite animate-bounce" style="animation-delay:0.15s" alt="eevee" />
-      </div>
-      <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black mb-2 tracking-wider">KANTO 151 ENGINE V4</div>
-      <h2 class="font-black text-base sm:text-lg text-slate-800 mb-1">正在載入關都自然地貌與 151 圖鑑素材...</h2>
-      <p id="preloaderStatusText" class="text-xs font-bold text-slate-500 mb-3">生成離線高畫質 Tile 快取、雙向走位動畫與 8-bit 音頻...</p>
-      <div class="w-full h-5 bg-slate-800 rounded-full p-1 border-2 border-slate-900 overflow-hidden">
-        <div id="preloaderBar" class="h-full bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 rounded-full transition-all duration-150" style="width: 0%"></div>
-      </div>
-      <div class="w-full flex justify-between items-center mt-2 text-xs font-pixel">
-        <span id="preloaderCountText" class="text-slate-500 text-[10px]">0 / 320</span>
-        <span id="preloaderPctText" class="text-blue-600 font-black">0%</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- 5. 動態封面 (SPLASH) -->
-  <div id="splashScreen" onclick="GameApp.enterLobbyFromSplash()" class="hidden absolute inset-0 z-40 bg-gradient-to-b from-slate-950/45 via-transparent to-slate-950/70 flex flex-col items-center justify-between p-4 sm:p-8 cursor-pointer overflow-hidden">
-    <div class="w-full max-w-4xl flex justify-between items-center pointer-events-none mt-1">
-      <div class="flex items-center gap-2 bg-slate-900/85 text-white px-3.5 py-1.5 rounded-full border border-amber-400/60 shadow-lg">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-4 h-4 pixel-sprite" alt="ball" />
-        <span class="text-xs font-black tracking-wide">KANTO 151 ‧ 8-MINUTE FAST SURVIVORS</span>
-      </div>
-      <div class="bg-white/95 px-3 py-1.5 rounded-full border-2 border-slate-800 text-xs font-black text-slate-800 shadow">
-        <i class="fa-solid fa-music text-red-600 mr-1"></i> 點擊啟動 GBA 原生配樂
-      </div>
-    </div>
-
-    <div class="relative my-auto flex flex-col items-center text-center max-w-3xl w-full px-2">
-      <div class="relative flex flex-col items-center bg-slate-900/60 backdrop-blur-md px-6 py-6 rounded-3xl border-2 border-white/20 shadow-2xl">
-        <div class="flex items-baseline justify-center font-black tracking-tight select-none leading-none py-1">
-          <span class="text-5xl sm:text-7xl md:text-8xl adventure-logo-yellow">寶可夢</span>
-          <span class="text-5xl sm:text-7xl md:text-8xl adventure-logo-orange">大冒</span>
-          <span class="text-5xl sm:text-7xl md:text-8xl adventure-logo-green">險</span>
-        </div>
-        <div class="flex flex-wrap items-center justify-center gap-2.5 mt-3.5">
-          <span class="bg-slate-900 text-amber-300 font-pixel text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-amber-400/80 shadow">8 MIN FAST RUN</span>
-          <span class="bg-gradient-to-b from-amber-300 to-orange-500 text-slate-950 font-black text-xs sm:text-lg px-4 py-1 rounded-lg border-2 border-slate-900 shadow">沙盒 V11 深度融合版</span>
-        </div>
-      </div>
-
-      <div class="mt-8 sm:mt-10 flex flex-col items-center gap-2 animate-bounce">
-        <div class="bg-red-600 text-white font-pixel text-xs sm:text-base px-8 py-3 rounded-full border-2 border-white shadow-[0_0_20px_rgba(230,57,70,0.8)]">
-          CLICK OR TAP TO START
-        </div>
-        <div class="text-xs font-bold text-white/90 bg-slate-900/80 px-4 py-1 rounded-full border border-white/20 shadow">
-          支援手機虛擬搖桿單手操作 ‧ 鍵盤 WASD 移動 ‧ 空白鍵戰術技
-        </div>
-      </div>
-    </div>
-
-    <div class="w-full max-w-5xl flex justify-between items-end px-2 pb-1 pointer-events-none">
-      <div class="flex items-end bg-white/90 px-3 py-1.5 rounded-2xl border-2 border-slate-800 shadow">
-        <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-12 h-12 pixel-sprite" alt="Pikachu" />
-        <div class="text-left ml-2">
-          <div class="text-[10px] font-black text-amber-600">全訓練家代表羈絆</div>
-          <div class="text-xs font-black text-slate-800">搭檔專屬精靈享傷害+25%</div>
-        </div>
-      </div>
-      <div class="flex items-end bg-white/90 px-3 py-1.5 rounded-2xl border-2 border-slate-800 shadow">
-        <div class="text-right mr-2">
-          <div class="text-[10px] font-black text-purple-600">Lv.16~20 分支進化</div>
-          <div class="text-xs font-black text-slate-800">伊布 ➔ 水/雷/火伊布</div>
-        </div>
-        <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/133.png" class="w-12 h-12 pixel-sprite" alt="Eevee" />
-      </div>
-    </div>
-  </div>
-
-  <!-- 6. 準備大廳 (LOBBY) -->
-  <div id="titleScreen" class="hidden absolute inset-0 z-30 flex flex-col items-center justify-between p-3 sm:p-6 bg-slate-900/50 backdrop-blur-sm overflow-y-auto">
-    <div class="w-full max-w-5xl flex justify-between items-center gap-2 shrink-0">
+  <!-- 4. 大廳標題主選單 -->
+  <div id="titleScreen" class="absolute inset-0 z-30 hidden flex flex-col justify-between p-4 sm:p-6 bg-gradient-to-b from-slate-900/70 via-transparent to-slate-950/80 pointer-events-auto">
+    <!-- 頂部資訊列 -->
+    <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <button onclick="GameApp.backToSplash()" class="poke-hud-box px-3.5 py-2 flex items-center gap-1.5 text-xs font-black text-slate-700 hover:border-blue-600">
-          <i class="fa-solid fa-arrow-left text-blue-600"></i> 返回封面
+        <button onclick="GameApp.backToSplash()" class="poke-btn-white px-3 py-1.5 text-xs font-black flex items-center gap-1">
+          <i class="fa-solid fa-arrow-left"></i>
         </button>
-        <button onclick="GameApp.toggleBgm()" class="poke-hud-box px-3.5 py-2 flex items-center gap-1.5 text-xs font-black text-blue-700 min-w-[44px] min-h-[44px]">
-          <i id="lobbyBgmIcon" class="fa-solid fa-volume-high"></i> <span class="hidden sm:inline">BGM</span>
+        <button onclick="GameApp.toggleBgm()" class="poke-btn-white w-9 h-9 flex items-center justify-center">
+          <i id="lobbyBgmIcon" class="fa-solid fa-volume-high text-blue-600"></i>
         </button>
       </div>
-      <div class="flex items-center gap-2">
-        <div class="poke-hud-box px-3.5 py-2 flex items-center gap-1.5">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="w-4 h-4 pixel-sprite" alt="shiny" />
-          <span class="text-xs font-bold text-slate-600">閃光:</span>
-          <span id="titleShinyCount" class="font-pixel text-xs text-pink-600">1</span>
+      <!-- 貨幣與閃光統計 -->
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-1.5 px-3 py-1 bg-amber-400/95 text-slate-950 font-black rounded-full border-2 border-slate-900 shadow">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" />
+          <span id="titleCoinDisplay" class="font-pixel text-xs sm:text-sm">0</span>
         </div>
-        <div class="poke-hud-box px-4 py-2 flex items-center gap-1.5">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="coin" />
-          <span class="text-xs font-bold text-slate-600">代幣:</span>
-          <span id="titleCoinDisplay" class="font-pixel text-amber-500 text-xs sm:text-sm">800</span>
+        <div class="flex items-center gap-1.5 px-3 py-1 bg-sky-500/95 text-white font-black rounded-full border-2 border-slate-900 shadow">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="w-4 h-4 pixel-sprite" />
+          <span class="text-xs">閃光：<strong id="titleShinyCount">0</strong>/151</span>
         </div>
       </div>
     </div>
 
-    <div class="poke-panel max-w-3xl w-full p-5 sm:p-7 text-center my-auto">
-      <div class="inline-flex items-center gap-1.5 px-3 py-1 mb-2 rounded-full bg-red-600 text-white text-[11px] font-black">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-3.5 h-3.5 pixel-sprite" alt="b" />
-        8分鐘極速節奏 ‧ 沙盒V11超細膩地表 ‧ 腳底環形倒數規 ‧ 3D五芒星超能陣
-      </div>
-      <h1 class="font-black text-2xl sm:text-4xl text-slate-800 mb-1">寶可夢大冒險：大廳</h1>
-      <p class="text-xs sm:text-sm font-bold text-blue-700 mb-4">
-        選擇專屬羈絆搭檔享傷害+25%與光環！5分鐘降臨傳說三聖鳥，7.5分鐘迎戰超夢！
-      </p>
-
-      <!-- 角色展示對戰台座 -->
-      <div class="flex items-center justify-center gap-4 sm:gap-10 my-3 bg-gradient-to-r from-amber-50 via-sky-50 to-emerald-50 py-3.5 px-6 rounded-2xl border-2 border-slate-300 shadow-inner">
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border-2 border-slate-800 flex items-center justify-center shadow-md">
-            <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain" alt="trainer" />
-          </div>
-          <div class="text-left">
-            <div class="text-[10px] font-black text-slate-500">隨行訓練家</div>
-            <div id="lobbyTrainerName" class="text-xs sm:text-sm font-black text-slate-800">小智 (Ash)</div>
-          </div>
+    <!-- 中部出戰預覽小卡 -->
+    <div class="self-center my-auto text-center">
+      <div class="poke-card p-4 inline-flex items-center gap-4 bg-white/95 backdrop-blur-sm">
+        <div class="flex items-center -space-x-2">
+          <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-14 h-14 pixel-sprite object-contain bg-amber-50 rounded-full border-2 border-slate-800 p-1" />
+          <img id="lobbyPokemonPreview" src="" class="w-14 h-14 pixel-sprite object-contain bg-sky-50 rounded-full border-2 border-slate-800 p-1" />
         </div>
-        <div class="px-3 py-1 rounded-full bg-amber-400 text-slate-900 font-pixel text-[10px] font-black shadow border border-slate-800">
-          VS
+        <div class="text-left">
+          <div class="text-[10px] font-black text-slate-500">當前準備出戰組合</div>
+          <div id="lobbyTrainerName" class="font-black text-sm text-slate-800">小智</div>
+          <div id="lobbyPokemonName" class="font-bold text-xs text-blue-600">皮卡丘 (#025)</div>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white border-2 border-slate-800 flex items-center justify-center shadow-md">
-            <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain" alt="poke" />
-          </div>
-          <div class="text-left">
-            <div class="text-[10px] font-black text-slate-500">出戰寶可夢</div>
-            <div id="lobbyPokemonName" class="text-xs sm:text-sm font-black text-slate-800">皮卡丘 (#025)</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-        <button onclick="GameApp.openSetupFlow()" class="poke-btn-red py-3.5 px-4 font-black text-sm sm:text-base flex items-center justify-center gap-2">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-5 h-5 pixel-sprite" alt="go" /> 開始冒險
-        </button>
-        <button onclick="GameApp.openPokedexModal()" class="poke-btn-yellow py-3.5 px-4 font-black text-sm sm:text-base flex items-center justify-center gap-2 relative">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png" class="w-5 h-5 pixel-sprite" alt="dex" /> 151全圖鑑
-          <span id="pokedexRewardBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full border-2 border-white animate-bounce">領賞!</span>
-        </button>
-        <button onclick="GameApp.openSkillTreeModal()" class="poke-btn-blue py-3.5 px-4 font-black text-sm sm:text-base flex items-center justify-center gap-2">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png" class="w-5 h-5 pixel-sprite" alt="tree" /> 寶可夢中心
-        </button>
-        <button onclick="GameApp.openAchievementModal()" class="poke-btn-white py-3.5 px-4 font-black text-sm sm:text-base flex items-center justify-center gap-2 relative">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-5 h-5 pixel-sprite" alt="ach" /> 榮譽徽章館
-          <span id="achClaimBadge" class="hidden absolute -top-2 -right-2 bg-red-600 text-white text-[10px] px-2 py-0.5 rounded-full border-2 border-white animate-bounce">!</span>
-        </button>
       </div>
     </div>
 
-    <div class="poke-hud-box px-4 py-2 text-xs font-bold text-slate-700 text-center shrink-0">
-      GBA原生動態沙盒 ‧ 潮汐拍岸 ‧ 跳崖機制 ‧ 腳底環形倒數規 ‧ 8分鐘極速通關
-    </div>
-  </div>
+    <!-- 底部功能入口導航 -->
+    <div class="w-full max-w-xl mx-auto flex flex-col gap-3">
+      <button onclick="GameApp.openSetupFlow()" class="poke-btn-red w-full py-3.5 text-base sm:text-lg font-black tracking-wide flex items-center justify-center gap-2 shadow-2xl">
+        <i class="fa-solid fa-play"></i> 立即出發冒險 (選擇組合)
+      </button>
 
-  <!-- 7. 三步驟設定嚮導 (SETUP WIZARD) -->
-  <div id="setupModal" class="hidden absolute inset-0 z-30 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-5">
-    <div class="poke-panel w-full max-w-5xl max-h-[94vh] flex flex-col overflow-hidden">
-      <div class="poke-header-red px-4 py-3 flex items-center justify-between gap-2 shrink-0">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-6 h-6 pixel-sprite shrink-0" alt="b" />
-          <div class="truncate">
-            <h2 id="wizardStepTitle" class="font-black text-sm sm:text-lg truncate">STEP 1/3：選擇隨行訓練家</h2>
-            <p id="wizardStepDesc" class="text-[11px] text-red-100 truncate">6 位訓練家皆有專屬代表精靈羈絆與戰術指令技能</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <div class="hidden sm:flex items-center gap-1.5 bg-white border-2 border-slate-800 px-3 py-1 rounded-full">
-            <img id="wizardPreviewTrainer" src="" class="w-6 h-6 pixel-sprite object-contain" alt="t" />
-            <span class="text-xs font-black text-slate-800">+</span>
-            <img id="wizardPreviewPoke" src="" class="w-6 h-6 pixel-sprite object-contain" alt="p" />
-          </div>
-          <div class="bg-white border-2 border-slate-800 px-3 py-1 rounded-full text-xs font-pixel text-amber-600 flex items-center gap-1">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="c" />
-            <span id="wizardCoinDisplay">800</span>
-          </div>
-          <button onclick="GameApp.backToTitle()" class="poke-btn-white px-3.5 py-1 text-xs font-black min-h-[38px]">✕ 返回</button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-3 bg-slate-100 border-b-2 border-slate-300 text-center text-xs sm:text-sm font-black shrink-0">
-        <button onclick="GameApp.setWizardStep(1)" id="stepTab1" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
-        <button onclick="GameApp.setWizardStep(2)" id="stepTab2" class="py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
-        <button onclick="GameApp.setWizardStep(3)" id="stepTab3" class="py-3 border-b-4 border-transparent text-slate-500">3. 模式與生態地圖</button>
-      </div>
-
-      <div class="p-3.5 sm:p-5 overflow-y-auto flex-1 bg-slate-50">
-        <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
-        <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"></div>
-        <div id="wizardStep3" class="hidden max-w-4xl mx-auto space-y-5 py-2 text-center">
-          <div>
-            <h3 class="font-black text-sm sm:text-base text-slate-800 mb-2 flex items-center justify-center gap-1.5">
-              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/choice-band.png" class="w-5 h-5 pixel-sprite" alt="d" />
-              單局時間模式與難度考驗
-            </h3>
-            <div id="difficultyGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-left"></div>
-          </div>
-          <div>
-            <h3 class="font-black text-sm sm:text-base text-slate-800 mb-2 flex items-center justify-center gap-1.5">
-              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png" class="w-5 h-5 pixel-sprite" alt="m" />
-              選擇三大 GBA 經典生態舞台（整合沙盒 V11 超細膩地貌）
-            </h3>
-            <div id="stageGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-left"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="px-4 py-3 border-t-2 border-slate-300 bg-white flex items-center justify-between shrink-0">
-        <button id="btnWizardPrev" onclick="GameApp.prevWizardStep()" class="poke-btn-white px-5 py-2.5 text-xs sm:text-sm font-black min-h-[44px]">← 上一步</button>
-        <div class="flex items-center gap-2 sm:hidden">
-          <img id="wizardMobileTrainer" src="" class="w-7 h-7 pixel-sprite" alt="t"/>
-          <img id="wizardMobilePoke" src="" class="w-7 h-7 pixel-sprite" alt="p"/>
-        </div>
-        <button id="btnWizardNext" onclick="GameApp.nextWizardStep()" class="poke-btn-red px-7 py-2.5 text-xs sm:text-sm font-black min-h-[44px]">下一步 →</button>
+      <div class="grid grid-cols-3 gap-2 sm:gap-3">
+        <button onclick="GameApp.openPokedexModal()" class="poke-btn-white py-2.5 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 relative">
+          <i class="fa-solid fa-book-open text-red-500"></i> 151 圖鑑
+          <span id="pokedexRewardBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full animate-ping"></span>
+        </button>
+        <button onclick="GameApp.openSkillTreeModal()" class="poke-btn-white py-2.5 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-house-medical text-emerald-600"></i> 寶可夢中心
+        </button>
+        <button onclick="GameApp.openAchievementModal()" class="poke-btn-white py-2.5 text-xs sm:text-sm font-black flex items-center justify-center gap-1.5 relative">
+          <i class="fa-solid fa-medal text-amber-500"></i> 道館榮譽
+          <span id="achClaimBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full animate-ping"></span>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- 8. 戰鬥 HUD (含微型天氣徽章與開發者測試面板) -->
-  <div id="hudLayer" class="hidden absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-2 sm:p-3">
-    <!-- 頂部資訊區 -->
-    <div class="w-full space-y-1.5 pointer-events-auto">
-      <div class="flex items-start justify-between gap-1.5">
-        <!-- 左上精靈與血條（精簡版） -->
-        <div class="flex flex-col gap-1 max-w-[62%] sm:max-w-md">
-          <div class="poke-hud-box px-2.5 py-1.5 flex items-center gap-2">
-            <div class="relative flex items-center shrink-0">
-              <div class="w-10 h-10 rounded-xl bg-amber-50 border-2 border-slate-800 flex items-center justify-center relative">
-                <img id="hudAvatar" src="" alt="avatar" class="w-8 h-8 pixel-sprite object-contain" />
-                <img id="hudShinyIcon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="hidden w-4 h-4 pixel-sprite absolute -top-1.5 -right-1.5" alt="shiny" />
-              </div>
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-center justify-between gap-1">
-                <div class="flex items-center gap-1 min-w-0 flex-wrap">
-                  <span id="hudPartnerName" class="font-black text-xs sm:text-sm text-slate-800 truncate">皮卡丘</span>
-                  <span id="hudTypeBadges" class="flex items-center gap-0.5 shrink-0"></span>
-                  <span id="hudAshBondBadge" class="hidden px-1.5 py-0.2 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 whitespace-nowrap">羈絆加成</span>
-                </div>
-                <span id="hudLevelText" class="font-pixel text-[10px] sm:text-xs text-blue-700 shrink-0">Lv.1</span>
-              </div>
-              <div class="flex items-center gap-1 bg-slate-900 px-1.5 py-0.5 rounded-full mt-0.5">
-                <span class="font-pixel text-[8px] text-amber-400">HP</span>
-                <div class="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div id="hudHpBar" class="h-full bg-emerald-500 transition-all duration-150" style="width:100%"></div>
-                </div>
-                <span id="hudHpText" class="text-[9px] font-mono text-white font-bold whitespace-nowrap">100/100</span>
-              </div>
-              <div class="w-full h-1 bg-slate-200 rounded-full overflow-hidden mt-1">
-                <div id="hudExpBar" class="h-full bg-sky-500 transition-all duration-150" style="width:0%"></div>
-              </div>
-            </div>
+  <!-- 5. 戰鬥中 HUD 覆蓋層 -->
+  <div id="hudLayer" class="absolute inset-0 z-20 hidden pointer-events-none">
+    <!-- 頂部即時儀表板 -->
+    <div class="p-2 sm:p-4 flex items-start justify-between gap-2 pointer-events-auto">
+      <!-- 玩家狀態小卡 -->
+      <div class="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md p-2 rounded-2xl border-2 border-slate-700 text-white shadow-xl max-w-[260px] sm:max-w-xs">
+        <div class="relative shrink-0">
+          <img id="hudAvatar" src="" class="w-11 h-11 pixel-sprite bg-slate-800 rounded-xl border border-slate-600 p-0.5" />
+          <span id="hudLevelText" class="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 font-pixel text-[9px] px-1 rounded font-black border border-slate-900">Lv.1</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1 mb-0.5">
+            <span id="hudPartnerName" class="font-black text-xs truncate">水箭龜</span>
+            <div id="hudTypeBadges" class="flex gap-0.5"></div>
+            <span id="hudAshBondBadge" class="hidden px-1 bg-amber-400 text-slate-900 text-[8px] font-black rounded">羈絆</span>
           </div>
-
-          <!-- 招式與持有物（收折為緊湊圓點列，釋放作戰視野） -->
-          <div class="flex items-center gap-1 flex-wrap">
-            <div id="hudSkillList" class="flex items-center gap-1 flex-wrap"></div>
-            <div id="hudHeldItemList" class="flex items-center gap-1 flex-wrap"></div>
-            <span id="hudTerrainBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-400"></span>
-            <span id="hudPlayerStatusBadge" class="hidden px-2 py-0.5 rounded-full text-[10px] font-black bg-red-600 text-white border border-white"></span>
+          <!-- 血條 -->
+          <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-700 relative">
+            <div id="hudHpBar" class="h-full bg-emerald-500 rounded-full transition-all duration-100" style="width: 100%;"></div>
+          </div>
+          <!-- 經驗條 -->
+          <div class="w-full h-1 bg-slate-950 rounded-full overflow-hidden border border-slate-800 mt-0.5">
+            <div id="hudExpBar" class="h-full bg-sky-400 rounded-full transition-all duration-100" style="width: 0%;"></div>
+          </div>
+          <div class="flex justify-between text-[9px] text-slate-400 font-bold mt-0.5">
+            <span id="hudHpText">260/260</span>
+            <span id="hudPlayerStatusBadge" class="hidden text-orange-400 font-black"></span>
           </div>
         </div>
+      </div>
 
-        <!-- 右上時間、擊殺與系統控制按鈕 (標準 44x44px 熱區) -->
-        <div class="flex flex-col items-end gap-1 shrink-0 relative">
-          <div class="poke-hud-box px-3 py-1 flex items-center gap-2">
-            <!-- 實裝左上/右上微型天氣徽章 -->
-            <div id="hudWeatherBadge" onclick="GameApp.showWeatherInfoToast()" title="當前自然天候" class="cursor-pointer flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-sky-100 border border-sky-300 text-[10px] font-black text-sky-800">
-              <i id="hudWeatherIcon" class="fa-solid fa-sun text-amber-500"></i>
-              <span id="hudWeatherText">晴天</span>
-            </div>
+      <!-- 中央計時與統計 -->
+      <div class="flex flex-col items-center bg-slate-900/80 backdrop-blur-md px-3 py-1.5 rounded-2xl border-2 border-slate-700 text-white shadow-xl">
+        <div id="hudTimer" class="font-pixel text-base sm:text-xl text-amber-400 font-black tracking-wider">00:00</div>
+        <div class="flex items-center gap-2 text-[10px] font-bold text-slate-300">
+          <span><i class="fa-solid fa-skull text-red-400"></i> <strong id="hudKills">0</strong></span>
+          <span><i class="fa-solid fa-coins text-amber-400"></i> <strong id="hudCoins">0</strong></span>
+        </div>
+      </div>
 
-            <div id="hudTimer" class="font-pixel text-xs sm:text-base text-slate-800">00:00</div>
-            <div class="flex items-center gap-2 text-xs font-black text-slate-700 border-l-2 border-slate-200 pl-2">
-              <span class="flex items-center gap-0.5"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-3.5 h-3.5 pixel-sprite" alt="k"/><strong id="hudKills" class="text-red-600">0</strong></span>
-              <span class="flex items-center gap-0.5"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite" alt="c"/><strong id="hudCoins" class="text-amber-600">0</strong></span>
-            </div>
-          </div>
-
-          <!-- 控制工具列 (熱區 >= 44px) -->
-          <div class="flex items-center gap-1.5 mt-0.5">
-            <button onclick="GameApp.toggleBgm()" title="切換背景音樂" class="poke-btn-white w-11 h-11 flex items-center justify-center text-sm font-black text-blue-600">
-              <i id="hudBgmIcon" class="fa-solid fa-volume-high"></i>
-            </button>
-            <button onclick="GameApp.toggleTimeScale()" title="切換倍速" class="poke-btn-yellow h-11 px-3 text-xs font-black flex items-center justify-center gap-1">
-              <i class="fa-solid fa-bolt"></i> <span id="speedToggleText">1x</span>
-            </button>
-            <button onclick="GameApp.togglePause()" title="暫停遊戲" class="poke-btn-white w-11 h-11 flex items-center justify-center text-sm font-black text-red-600">
-              <i class="fa-solid fa-pause"></i>
-            </button>
-            <!-- 補回開發者板手按鈕 -->
-            <button onclick="GameApp.toggleDebugMenu()" title="開發者測試工具箱" class="poke-btn-white w-11 h-11 flex items-center justify-center text-sm font-black text-slate-700 hover:text-blue-600">
-              <i class="fa-solid fa-wrench"></i>
-            </button>
-          </div>
-
-          <!-- 開發者測試工具下拉選單 (含即時切換天氣功能) -->
-          <div id="debugDropdown" class="hidden absolute top-20 right-0 poke-hud-box p-3 flex flex-col gap-2 text-[11px] w-52 shadow-2xl border-2 border-blue-600 bg-white/95 z-50">
-            <div class="font-black text-blue-700 border-b pb-1 flex justify-between items-center">
-              <span><i class="fa-solid fa-flask mr-1"></i>測試工具箱</span>
-              <button onclick="GameApp.toggleDebugMenu()" class="text-slate-400 hover:text-red-600 font-bold px-1">✕</button>
+      <!-- 右上角工具列與天氣徽章 -->
+      <div class="flex items-center gap-1.5">
+        <!-- 天候提示徽章 -->
+        <button onclick="GameApp.showWeatherInfoToast()" class="px-2.5 py-1 bg-slate-900/80 backdrop-blur-md text-white border-2 border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1 shadow">
+          <i id="hudWeatherIcon" class="fa-solid fa-sun text-amber-500"></i>
+          <span id="hudWeatherText" class="text-[10px]">晴天</span>
+        </button>
+        <!-- 速度切換 -->
+        <button onclick="GameApp.toggleTimeScale()" class="poke-btn-white w-8 h-8 flex items-center justify-center font-pixel text-xs font-black">
+          <span id="speedToggleText">1x</span>
+        </button>
+        <!-- 音效開關 -->
+        <button onclick="GameApp.toggleBgm()" class="poke-btn-white w-8 h-8 flex items-center justify-center">
+          <i id="hudBgmIcon" class="fa-solid fa-volume-high text-blue-600"></i>
+        </button>
+        <!-- 暫停 -->
+        <button onclick="GameApp.togglePause()" class="poke-btn-white w-8 h-8 flex items-center justify-center">
+          <i class="fa-solid fa-pause"></i>
+        </button>
+        <!-- 開發者測試面板開關 -->
+        <div class="relative">
+          <button onclick="GameApp.toggleDebugMenu()" class="poke-btn-white w-8 h-8 flex items-center justify-center text-slate-700">
+            <i class="fa-solid fa-wrench"></i>
+          </button>
+          
+          <!-- 開發者測試下拉選單 (已整合火箭隊、肯泰羅狂潮、雙打夥伴與 6 大天氣) -->
+          <div id="debugDropdown" class="hidden absolute right-0 mt-2 w-64 bg-slate-900 text-white rounded-2xl border-2 border-slate-700 shadow-2xl p-2.5 z-50 text-xs space-y-1.5 max-h-[80vh] overflow-y-auto">
+            <div class="font-black text-amber-400 border-b border-slate-700 pb-1 flex justify-between">
+              <span>DEBUG 測試工具</span>
+              <span class="text-[10px] text-slate-400">一鍵觸發</span>
             </div>
             
-            <!-- 天氣切換按鈕區 -->
-            <div class="bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-              <div class="text-[9px] font-bold text-slate-500 mb-1">即時自然天候切換：</div>
-              <div class="grid grid-cols-2 gap-1 text-[10px]">
-                <button onclick="GameApp.debugSetWeather('CLEAR')" class="bg-amber-100 hover:bg-amber-200 border border-amber-300 py-1 rounded font-black text-amber-800">☀️ 晴朗</button>
-                <button onclick="GameApp.debugSetWeather('RAIN')" class="bg-sky-100 hover:bg-sky-200 border border-sky-300 py-1 rounded font-black text-sky-800">🌧️ 微雨</button>
-                <button onclick="GameApp.debugSetWeather('THUNDER')" class="bg-indigo-100 hover:bg-indigo-200 border border-indigo-300 py-1 rounded font-black text-indigo-800">⚡ 雷暴白閃</button>
-                <button onclick="GameApp.debugSetWeather('PSYCHIC')" class="bg-purple-100 hover:bg-purple-200 border border-purple-300 py-1 rounded font-black text-purple-800">🔮 超能極光</button>
-              </div>
+            <!-- 天候手動鎖定切換 (支援全 6 大天氣) -->
+            <div class="text-[10px] font-bold text-slate-400">天氣環境手動切換：</div>
+            <div class="grid grid-cols-3 gap-1">
+              <button onclick="GameApp.debugSetWeather('CLEAR')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-amber-400">晴天</button>
+              <button onclick="GameApp.debugSetWeather('RAIN')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-sky-400">微雨</button>
+              <button onclick="GameApp.debugSetWeather('THUNDER')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-yellow-300">雷暴</button>
+              <button onclick="GameApp.debugSetWeather('BLIZZARD')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-sky-200">暴雪(下雪)</button>
+              <button onclick="GameApp.debugSetWeather('HEATWAVE')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-orange-400">熱浪</button>
+              <button onclick="GameApp.debugSetWeather('PSYCHIC')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[9px] font-bold text-purple-400">極光</button>
             </div>
 
-            <!-- 火箭隊突襲測試按鈕 -->
-            <button onclick="GameApp.debugTriggerRocketEvent()" class="w-full text-left px-3 py-1.5 text-xs font-black text-purple-700 hover:bg-purple-50 rounded flex items-center gap-1.5 border border-purple-200 mt-1">
-              <i class="fa-solid fa-skull-crossbones text-purple-600"></i> 觸發火箭隊突襲 (阿柏怪/雙彈瓦斯)
+            <!-- 中盤突發事件手動觸發 -->
+            <div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">中盤突發事件測試：</div>
+            <button onclick="GameApp.debugTriggerRocketEvent()" class="w-full text-left px-2 py-1 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 border border-purple-800 rounded font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-skull-crossbones text-purple-400"></i> 觸發 3:15 火箭隊毒霧突襲
+            </button>
+            <button onclick="GameApp.debugTriggerTaurosStampede()" class="w-full text-left px-2 py-1 bg-amber-950/60 hover:bg-amber-900/80 text-amber-300 border border-amber-800 rounded font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-bullhorn text-amber-400"></i> 觸發 4:00 肯泰羅狂潮踐踏
+            </button>
+            <button onclick="GameApp.debugAddPartner()" class="w-full text-left px-2 py-1 bg-pink-950/60 hover:bg-pink-900/80 text-pink-300 border border-pink-800 rounded font-bold flex items-center gap-1.5">
+              <i class="fa-solid fa-heart-circle-plus text-pink-400"></i> 召喚/升級雙打小幫手
             </button>
 
-           <!-- 肯泰羅暴走測試按鈕 -->
-          <button onclick="GameApp.debugTriggerTaurosStampede()" class="w-full text-left px-3 py-1.5 text-xs font-black text-amber-800 hover:bg-amber-50 rounded flex items-center gap-1.5 border border-amber-200 mt-1">
-           <i class="fa-solid fa-bullhorn text-amber-600"></i> 觸發肯泰羅暴走潮 (橫向踐踏)
-          </button>
-
-        <!-- 雙打小幫手召喚測試按鈕 -->
-          <button onclick="GameApp.debugAddPartner()" class="w-full text-left px-3 py-1.5 text-xs font-black text-pink-700 hover:bg-pink-50 rounded flex items-center gap-1.5 border border-pink-200 mt-1">
-            <i class="fa-solid fa-heart-circle-plus text-pink-500"></i> 召喚/升級雙打小幫手 (治癒球效果)
-          </button>
-
-            <div class="grid grid-cols-2 gap-1.5">
-              <button onclick="GameApp.debugForceLevelUp()" class="bg-sky-100 hover:bg-sky-200 border border-sky-400 py-1 rounded font-bold text-sky-900">+5級/進化</button>
-              <button onclick="GameApp.debugUnlockSuperMove()" class="bg-amber-100 hover:bg-amber-200 border border-amber-500 py-1 rounded font-bold text-amber-900">超武全屏突破</button>
-              <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="bg-yellow-100 hover:bg-yellow-200 border border-yellow-500 py-1 rounded font-bold text-yellow-900">召喚喵喵</button>
-              <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="bg-pink-100 hover:bg-pink-200 border border-pink-400 py-1 rounded font-bold text-pink-900">召喚吉利蛋</button>
-              <button onclick="GameApp.debugSkipToTime(298)" class="bg-indigo-100 hover:bg-indigo-200 border border-indigo-400 py-1 rounded font-bold text-indigo-900">5m三聖鳥</button>
-              <button onclick="GameApp.debugSkipToTime(448)" class="bg-purple-100 hover:bg-purple-200 border border-purple-400 py-1 rounded font-bold text-purple-900">7.5m超夢</button>
+            <!-- 寶藏怪手動召喚 -->
+            <div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">稀有精靈與 Boss：</div>
+            <div class="grid grid-cols-2 gap-1">
+              <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-amber-300 font-bold">聚寶喵喵</button>
+              <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-pink-300 font-bold">幸福吉利蛋</button>
             </div>
-            <button onclick="GameApp.debugTriggerSecretMew()" class="w-full bg-rose-100 hover:bg-rose-200 border border-rose-500 py-1 rounded font-black text-rose-900">召喚隱藏夢幻 #151</button>
+            <button onclick="GameApp.debugTriggerSecretMew()" class="w-full text-left px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800 rounded font-bold">
+              ★ 召喚始祖夢幻 #151
+            </button>
+
+            <!-- 角色育成強化調試 -->
+            <div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">數值與等級跳轉：</div>
+            <button onclick="GameApp.debugForceLevelUp()" class="w-full text-left px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded font-bold text-emerald-400">
+              +5 等級並開啟升級三選一
+            </button>
+            <button onclick="GameApp.debugUnlockSuperMove()" class="w-full text-left px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded font-bold text-yellow-300">
+              首個招式立即滿級並解鎖超武
+            </button>
+            <div class="grid grid-cols-3 gap-1">
+              <button onclick="GameApp.debugSkipToTime(180)" class="px-1 py-0.5 bg-slate-800 rounded text-[9px]">3分</button>
+              <button onclick="GameApp.debugSkipToTime(295)" class="px-1 py-0.5 bg-slate-800 rounded text-[9px]">5分(鳥)</button>
+              <button onclick="GameApp.debugSkipToTime(445)" class="px-1 py-0.5 bg-slate-800 rounded text-[9px]">7.5分(超夢)</button>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <div id="cutsceneBanner" class="hidden mx-auto max-w-md poke-hud-box px-4 py-2 border-2 border-amber-400 bg-white/95 text-center shadow-lg">
-        <div id="cutsceneTitle" class="font-black text-xs sm:text-sm text-red-600"></div>
-        <div id="cutsceneSubtitle" class="text-[11px] text-slate-600 font-bold"></div>
+    <!-- 地形標籤提示 -->
+    <div class="px-4">
+      <span id="hudTerrainBadge" class="hidden px-2 py-0.5 bg-slate-900/75 text-emerald-300 border border-emerald-500/50 font-bold text-[10px] rounded-full"></span>
+    </div>
+
+    <!-- Boss 血條 -->
+    <div id="bossHudContainer" class="hidden w-80 sm:w-96 mx-auto mt-2 bg-slate-950/85 backdrop-blur-md p-2.5 rounded-2xl border-2 border-red-600 shadow-2xl pointer-events-auto">
+      <div class="flex justify-between items-center text-xs font-black text-white mb-1">
+        <span id="bossHudName" class="text-red-400">傳說 Boss 降臨</span>
+        <span id="bossHudHpText" class="text-[10px] text-slate-400">10000/10000</span>
+      </div>
+      <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+        <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-600 to-amber-500 rounded-full transition-all duration-100" style="width: 100%;"></div>
       </div>
     </div>
 
-    <!-- 右下角大招戰術按鈕（SafeArea 防切邊留白：right: 20px; bottom: 28px） -->
-    <div class="pointer-events-auto fixed right-5 bottom-7 z-30 flex flex-col items-center">
-      <button id="btnTrainerActiveSkill" onclick="GameApp.triggerTrainerActiveSkill()" class="tactical-btn-ready relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex flex-col items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-2xl">
-        <img id="hudActiveTrainerImg" src="" class="w-10 h-10 sm:w-11 sm:h-11 pixel-sprite object-contain" alt="trainerSkill" />
-        <span id="hudActiveSkillName" class="text-[8px] sm:text-[9px] font-black text-slate-900 bg-white/95 px-1.5 rounded-full border border-slate-700 truncate max-w-[90%]">戰術指令</span>
-        <span class="text-[7px] font-pixel text-slate-950 mt-0.5">[SPACE]</span>
-        <!-- 三態倒數遮罩 (冷卻/生效中) -->
+    <!-- 底部已裝備技能微型圖示列表 -->
+    <div class="absolute bottom-4 left-4 flex gap-1.5 pointer-events-auto" id="hudSkillList"></div>
+
+    <!-- 右下角隨行訓練家主動戰術大招按鈕 (三態視覺與 CD 倒數規) -->
+    <div class="absolute bottom-6 right-6 pointer-events-auto flex flex-col items-center">
+      <button id="btnTrainerActiveSkill" onclick="GameApp.triggerTrainerActiveSkill()" class="tactical-btn-ready relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex flex-col items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl">
+        <img id="hudActiveTrainerImg" src="images/Ash_01.png" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain drop-shadow" />
+        <span id="hudActiveSkillName" class="text-[9px] font-black text-slate-950 px-1 rounded-full bg-white/80 -mt-0.5">熱血狂暴</span>
+        <span class="text-[8px] font-black text-slate-800">[SPACE]</span>
+
+        <!-- 冷卻遮罩層 -->
         <div id="trainerSkillCdOverlay" class="hidden absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center text-white">
-          <span id="trainerSkillCdText" class="font-pixel text-xs sm:text-sm text-amber-300">25s</span>
-          <span id="trainerSkillStatusSub" class="text-[8px] font-bold text-slate-300">冷卻中</span>
+          <span id="trainerSkillCdText" class="font-pixel text-xs text-amber-300">0s</span>
+          <span id="trainerSkillStatusSub" class="text-[8px] text-slate-400">冷卻中</span>
         </div>
       </button>
     </div>
 
-    <!-- 底部 BOSS 條 -->
-    <div class="w-full pb-2 flex items-end justify-center pointer-events-none">
-      <div id="bossHudContainer" class="hidden w-full max-w-md mx-auto poke-hud-box px-4 py-2 border-red-600 bg-white/95 shadow-2xl">
-        <div class="flex items-center justify-between gap-2 text-xs mb-1">
-          <div class="flex items-center gap-1.5 min-w-0">
-            <span class="px-2 py-0.5 bg-red-600 text-white font-black text-[10px] rounded-full whitespace-nowrap">傳說 BOSS</span>
-            <span id="bossHudName" class="font-black text-slate-800 truncate">閃電鳥 (#145)</span>
-          </div>
-          <span id="bossHudHpText" class="font-mono font-bold text-red-600 text-xs shrink-0">7500/7500</span>
-        </div>
-        <div class="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-900">
-          <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-100" style="width:100%"></div>
+    <!-- 虛擬搖桿底座與手柄 (行動端觸控) -->
+    <div id="touchJoyBase" class="hidden absolute w-24 h-24 rounded-full bg-slate-900/40 border-2 border-white/30 -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+    <div id="touchJoyStick" class="hidden absolute w-10 h-10 rounded-full bg-amber-400/80 border-2 border-slate-900 -translate-x-1/2 -translate-y-1/2 pointer-events-none shadow-lg"></div>
+  </div>
+
+  <!-- 6. 二次元斜切特寫動畫層 (Cut-in Layer) -->
+  <div id="cutInLayer" class="absolute inset-0 z-40 hidden pointer-events-none overflow-hidden">
+    <div id="cutInStrip" class="absolute top-1/2 left-0 w-[140%] h-28 sm:h-36 bg-gradient-to-r from-red-600 via-amber-500 to-rose-600 border-y-4 border-slate-900 shadow-2xl flex items-center px-12 sm:px-24">
+      <div class="flex items-center gap-4 sm:gap-6">
+        <img id="cutInAvatar" src="images/Ash_01.png" class="w-20 h-20 sm:w-28 sm:h-28 pixel-sprite object-contain bg-white rounded-full border-4 border-slate-900 p-1 shadow-lg" />
+        <div class="text-white drop-shadow-[0_3px_3px_rgba(0,0,0,0.8)]">
+          <div id="cutInTrainer" class="font-pixel text-sm sm:text-base text-amber-200 font-bold">小智 ‧ 戰術指令</div>
+          <div id="cutInSkill" class="text-2xl sm:text-4xl font-black italic tracking-wider">【熱血狂暴】</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 9. 升級三選一卡片 (LEVEL UP MODAL) -->
-  <div id="levelUpModal" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-    <div class="poke-panel w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden">
-      <div class="poke-header-red px-4 py-3 text-center shrink-0">
-        <div class="font-pixel text-amber-300 text-sm sm:text-lg">LEVEL UP! 選擇突破卡片</div>
-        <p class="text-[11px] text-white font-bold mt-0.5">
-          普通強化 ‧ 稀有新招式 ‧ 史詩攜帶物 ‧ 傳說究極超武
-        </p>
+  <!-- 7. 事件橫幅通知 (Cutscene Banner) -->
+  <div id="cutsceneBanner" class="hidden absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-slate-950/90 text-white px-6 py-2.5 rounded-2xl border-2 border-amber-400 shadow-2xl flex flex-col items-center pointer-events-none animate-bounce">
+    <span id="cutsceneTitle" class="font-pixel text-sm sm:text-base text-amber-400 font-black">【事件通知】</span>
+    <span id="cutsceneSubtitle" class="text-xs font-bold text-slate-200 mt-0.5">內容說明</span>
+  </div>
+
+  <!-- 8. 升級三選一彈窗 (Level Up Modal) -->
+  <div id="levelUpModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-lg p-5 bg-gradient-to-b from-slate-50 to-slate-100 border-4 border-slate-800 shadow-2xl">
+      <div class="text-center mb-4">
+        <div class="font-pixel text-xs text-red-600 font-black tracking-widest uppercase">LEVEL UP!</div>
+        <h2 class="text-xl sm:text-2xl font-black text-slate-800">領悟新的戰術或技能</h2>
+        <p class="text-xs font-bold text-slate-500">挑選一項強化你的出戰寶可夢</p>
       </div>
-      <div id="upgradeChoicesContainer" class="p-3.5 sm:p-5 bg-slate-50 overflow-y-auto flex flex-col gap-3"></div>
+      <!-- 三選一卡片容器 (內嵌防切邊 NEW! 標籤) -->
+      <div id="upgradeChoicesContainer" class="space-y-3"></div>
     </div>
   </div>
 
-  <!-- 10. 關都 151 全寶可夢圖鑑 (POKÉDEX) -->
-  <div id="pokedexModal" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2.5 sm:p-4">
-    <div class="poke-panel w-full max-w-5xl h-[92vh] flex flex-col overflow-hidden">
-      <div class="poke-header-red px-4 py-3 flex items-center justify-between gap-2 shrink-0">
-        <div class="flex items-center gap-2 min-w-0">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-6 h-6 pixel-sprite shrink-0" alt="dex" />
-          <div class="min-w-0">
-            <h2 class="font-black text-sm sm:text-lg truncate">關都地區 151 全圖鑑 (Pokédex)</h2>
-            <p class="text-[11px] text-red-100 truncate">點擊卡片切換正反面！已收服登錄即可領取代幣賞金！</p>
-          </div>
+  <!-- 9. 伊布分支進化選擇彈窗 (Eevee Modal) -->
+  <div id="eevee-evo-modal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-md p-5 text-center bg-white border-4 border-slate-800 shadow-2xl">
+      <h3 class="font-pixel text-lg font-black text-amber-500 mb-1">伊布的命運分支進化！</h3>
+      <p class="text-xs font-bold text-slate-600 mb-4">達到 Lv.20！請選擇你想進化的形態：</p>
+      <div class="grid grid-cols-3 gap-3">
+        <div onclick="GameApp.confirmEeveeEvolution(134)" class="poke-card p-3 cursor-pointer hover:border-sky-500 flex flex-col items-center">
+          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/134.png" class="w-14 h-14 pixel-sprite object-contain my-1" />
+          <span class="font-black text-xs text-sky-600">水伊布</span>
+          <span class="text-[9px] text-slate-500">水炮</span>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <button onclick="GameApp.claimAllPokedexRewards()" class="poke-btn-yellow px-3.5 py-1.5 text-xs font-black min-h-[38px] flex items-center gap-1">
-            <i class="fa-solid fa-coins"></i> <span>一鍵領賞</span>
-          </button>
-          <button onclick="GameApp.closePokedexModal()" class="poke-btn-white px-3.5 py-1.5 text-xs font-black min-h-[38px]">✕ 關閉</button>
+        <div onclick="GameApp.confirmEeveeEvolution(135)" class="poke-card p-3 cursor-pointer hover:border-yellow-500 flex flex-col items-center">
+          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/135.png" class="w-14 h-14 pixel-sprite object-contain my-1" />
+          <span class="font-black text-xs text-amber-500">雷伊布</span>
+          <span class="text-[9px] text-slate-500">十萬伏特</span>
         </div>
-      </div>
-
-      <!-- 橫向滑動屬性分類標籤 -->
-      <div id="pokedexFilterTabs" class="flex items-center gap-1.5 px-3 py-2 bg-slate-200 border-b border-slate-300 overflow-x-auto no-scrollbar shrink-0"></div>
-
-      <!-- 圖鑑網格 -->
-      <div id="pokedexGrid" class="p-3 sm:p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 bg-slate-50 flex-1 auto-rows-max"></div>
-    </div>
-  </div>
-
-  <!-- 11. 伊布三系分支進化彈窗 -->
-  <div id="eevee-evo-modal" class="hidden absolute inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="poke-panel w-full max-w-2xl overflow-hidden text-center">
-      <div class="poke-header-red px-4 py-3">
-        <div class="font-pixel text-amber-300 text-xs sm:text-sm">EEVEE EVOLUTION CHOICE!</div>
-        <h3 class="font-black text-base sm:text-xl text-white mt-0.5">伊布 (#133) 達到了進化等級！請選擇進化之石：</h3>
-      </div>
-      <div class="p-4 sm:p-6 bg-slate-50 grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-        <div onclick="GameApp.confirmEeveeEvolution(134)" class="poke-card rarity-rare cursor-pointer p-4 flex flex-col items-center justify-between">
-          <div class="text-xs font-black text-blue-700 bg-blue-100 px-3 py-0.5 rounded-full border border-blue-300">水之石進化</div>
-          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/134.png" class="w-20 h-20 pixel-sprite my-2" alt="Vaporeon" />
-          <div class="font-black text-base text-slate-800">水伊布 (#134)</div>
-          <p class="text-xs font-bold text-slate-600 my-1.5 leading-relaxed">重裝水系坦克！最大 HP 大幅提升並領悟高壓【水炮】！</p>
-          <button class="poke-btn-blue w-full py-2 text-xs font-black mt-1">選擇水伊布</button>
-        </div>
-        <div onclick="GameApp.confirmEeveeEvolution(135)" class="poke-card rarity-legendary cursor-pointer p-4 flex flex-col items-center justify-between">
-          <div class="text-xs font-black text-amber-800 bg-amber-100 px-3 py-0.5 rounded-full border border-amber-400">雷之石進化</div>
-          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/135.png" class="w-20 h-20 pixel-sprite my-2" alt="Jolteon" />
-          <div class="font-black text-base text-slate-800">雷伊布 (#135)</div>
-          <p class="text-xs font-bold text-slate-600 my-1.5 leading-relaxed">極速暴擊刺客！移速攻速大幅躍升並領悟【十萬伏特】！</p>
-          <button class="poke-btn-yellow w-full py-2 text-xs font-black mt-1">選擇雷伊布</button>
-        </div>
-        <div onclick="GameApp.confirmEeveeEvolution(136)" class="poke-card rarity-epic cursor-pointer p-4 flex flex-col items-center justify-between">
-          <div class="text-xs font-black text-red-700 bg-red-100 px-3 py-0.5 rounded-full border border-red-300">火之石進化</div>
-          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/136.png" class="w-20 h-20 pixel-sprite my-2" alt="Flareon" />
-          <div class="font-black text-base text-slate-800">火伊布 (#136)</div>
-          <p class="text-xs font-bold text-slate-600 my-1.5 leading-relaxed">烈焰高攻重砲！基礎攻擊力大幅提升並領悟【噴射火焰】！</p>
-          <button class="poke-btn-red w-full py-2 text-xs font-black mt-1">選擇火伊布</button>
+        <div onclick="GameApp.confirmEeveeEvolution(136)" class="poke-card p-3 cursor-pointer hover:border-red-500 flex flex-col items-center">
+          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/136.png" class="w-14 h-14 pixel-sprite object-contain my-1" />
+          <span class="font-black text-xs text-red-600">火伊布</span>
+          <span class="text-[9px] text-slate-500">噴射火焰</span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 12. 解鎖確認彈窗 -->
-  <div id="unlock-confirm-modal" class="hidden absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="poke-panel w-full max-w-sm overflow-hidden text-center">
-      <div class="poke-header-red px-4 py-3 flex items-center justify-between">
-        <span id="unlockModalHeaderTitle" class="font-black text-sm text-white">收服解鎖確認</span>
-        <button onclick="GameApp.closeUnlockConfirmModal()" class="text-white font-black text-sm px-2">✕</button>
+  <!-- 10. 三步驟選角嚮導彈窗 (Setup Modal) -->
+  <div id="setupModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-4xl h-[92vh] flex flex-col bg-slate-50 overflow-hidden border-4 border-slate-800 shadow-2xl">
+      <!-- 頂部步驟 Tab -->
+      <div class="flex border-b-2 border-slate-300 bg-slate-200/70 font-black text-xs sm:text-sm">
+        <button id="stepTab1" onclick="GameApp.setWizardStep(1)" class="flex-1 py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
+        <button id="stepTab2" onclick="GameApp.setWizardStep(2)" class="flex-1 py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
+        <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="flex-1 py-3 border-b-4 border-transparent text-slate-500">3. 模式與生態</button>
       </div>
-      <div class="p-5 bg-white space-y-3">
-        <div id="unlockPreviewBox" class="flex items-center justify-center gap-4 py-2 bg-sky-50 rounded-2xl border-2 border-slate-200">
-          <div class="flex flex-col items-center">
-            <img id="unlockConfirmFrontImg" src="" class="w-16 h-16 pixel-sprite object-contain" alt="front" />
-            <span class="text-[10px] font-bold text-slate-500">正面</span>
-          </div>
-          <div id="unlockBackCol" class="flex flex-col items-center">
-            <img id="unlockConfirmBackImg" src="" class="w-16 h-16 pixel-sprite object-contain" alt="back" />
-            <span class="text-[10px] font-bold text-slate-500">背面</span>
-          </div>
-        </div>
+
+      <!-- 標題與指引 -->
+      <div class="p-3 bg-white border-b border-slate-200 flex items-center justify-between">
         <div>
-          <div id="unlockConfirmName" class="font-black text-lg text-slate-800">皮卡丘 (#025)</div>
-          <div id="unlockConfirmTypes" class="flex justify-center gap-1 my-1"></div>
+          <div id="wizardStepTitle" class="font-black text-sm sm:text-base text-slate-800">STEP 1/3：選擇隨行訓練家</div>
+          <div id="wizardStepDesc" class="text-xs font-bold text-slate-500">6 位訓練家皆有專屬代表精靈羈絆！</div>
         </div>
-        <div id="unlockConfirmStats" class="text-xs font-bold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-1"></div>
-        <div class="flex items-center justify-center gap-1.5 text-sm font-black text-amber-600 bg-amber-50 py-2 rounded-xl border border-amber-300">
-          <span>所需代幣：</span>
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="coin" />
-          <span id="unlockConfirmCost">200</span>
+        <div class="flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-xs border border-amber-300">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" />
+          <span id="wizardCoinDisplay">0</span>
         </div>
-        <p id="unlockConfirmError" class="hidden text-xs font-black text-red-600">代幣不足！可至圖鑑或徽章館領取賞金！</p>
-        <div class="grid grid-cols-2 gap-3 pt-1">
-          <button onclick="GameApp.closeUnlockConfirmModal()" class="poke-btn-white py-2.5 text-xs font-black min-h-[44px]">取消返回</button>
-          <button id="btnConfirmUnlockAction" onclick="GameApp.confirmUnlockAction()" class="poke-btn-red py-2.5 text-xs font-black min-h-[44px]">確認解鎖</button>
+      </div>
+
+      <!-- 滾動內容區 -->
+      <div class="flex-1 overflow-y-auto p-3 sm:p-4">
+        <!-- 步驟 1：訓練家卡片清單 -->
+        <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        <!-- 步驟 2：出戰寶可夢卡片清單 (全一階基礎型開放) -->
+        <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5"></div>
+        <!-- 步驟 3：難度與關卡生態 -->
+        <div id="wizardStep3" class="hidden space-y-4">
+          <div>
+            <div class="text-xs font-black text-slate-700 mb-1.5">難度考驗：</div>
+            <div id="difficultyGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"></div>
+          </div>
+          <div>
+            <div class="text-xs font-black text-slate-700 mb-1.5">關卡生態地貌：</div>
+            <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
+          </div>
         </div>
+      </div>
+
+      <!-- 底部操作列 -->
+      <div class="p-3 bg-white border-t border-slate-200 flex items-center justify-between">
+        <button id="btnWizardPrev" onclick="GameApp.prevWizardStep()" class="poke-btn-white px-4 py-2 text-xs font-black">← 上一步</button>
+        <button id="btnWizardNext" onclick="GameApp.nextWizardStep()" class="poke-btn-red px-6 py-2 text-xs sm:text-sm font-black">下一步 →</button>
       </div>
     </div>
   </div>
 
-  <!-- 13. 寶可夢中心・強化研究所 -->
-  <div id="skillTreeModal" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-    <div class="poke-panel w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-      <div class="poke-header-red px-4 py-3 flex items-center justify-between gap-2 shrink-0">
+  <!-- 11. 151 全圖鑑彈窗 (Pokedex Modal) -->
+  <div id="pokedexModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-4xl h-[92vh] flex flex-col bg-slate-50 border-4 border-slate-800 shadow-2xl overflow-hidden">
+      <div class="p-3.5 bg-red-600 text-white flex items-center justify-between border-b-2 border-slate-800">
         <div class="flex items-center gap-2">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png" class="w-6 h-6 pixel-sprite shrink-0" alt="tree" />
-          <h2 class="font-black text-sm sm:text-lg">寶可夢中心・永久強化研究所</h2>
+          <i class="fa-solid fa-book-open text-amber-300"></i>
+          <span class="font-pixel text-base sm:text-lg font-black">關都地區 151 圖鑑登錄冊</span>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <div class="bg-white border-2 border-slate-800 px-3 py-1 rounded-full text-xs font-pixel text-amber-500 flex items-center gap-1">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="c" />
+        <div class="flex items-center gap-2">
+          <button onclick="GameApp.claimAllPokedexRewards()" class="poke-btn-yellow px-3 py-1 text-xs font-black">一鍵領取所有賞金</button>
+          <button onclick="GameApp.closePokedexModal()" class="poke-btn-white px-3 py-1 text-xs font-black">關閉 ✕</button>
+        </div>
+      </div>
+      <div id="pokedexFilterTabs" class="p-2.5 bg-white border-b border-slate-200 flex gap-1.5 overflow-x-auto"></div>
+      <div class="flex-1 overflow-y-auto p-3">
+        <div id="pokedexGrid" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12. 寶可夢中心永久強化研究所 (Center Upgrades Modal) -->
+  <div id="skillTreeModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-3xl h-[88vh] flex flex-col bg-slate-50 border-4 border-slate-800 shadow-2xl overflow-hidden">
+      <div class="p-3.5 bg-slate-900 text-white flex items-center justify-between border-b-2 border-slate-800">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-house-medical text-emerald-400"></i>
+          <span class="font-pixel text-base sm:text-lg font-black">寶可夢中心 ‧ 永久能力研究所</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 px-3 py-1 bg-amber-400 text-slate-950 font-black rounded-full text-xs">
+            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" />
             <span id="shopCoinDisplay">0</span>
           </div>
-          <button onclick="GameApp.closeSkillTreeModal()" class="poke-btn-white px-3.5 py-1 text-xs font-black min-h-[38px]">✕ 關閉</button>
+          <button onclick="GameApp.closeSkillTreeModal()" class="poke-btn-white px-3 py-1 text-xs font-black">離開 ✕</button>
         </div>
       </div>
-      <div class="grid grid-cols-2 bg-slate-100 border-b-2 border-slate-300 text-center text-xs sm:text-sm font-black shrink-0">
-        <button id="centerTabBtn1" onclick="GameApp.switchCenterTab('pokemon')" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">
-          精靈強化 (體質/攻擊/冷卻)
+      <div class="flex border-b border-slate-200 bg-slate-200/70 font-black text-xs sm:text-sm">
+        <button id="centerTabBtn1" onclick="GameApp.switchCenterTab('pokemon')" class="flex-1 py-3 border-b-4 border-red-600 text-red-600 bg-white">寶可夢戰鬥特訓</button>
+        <button id="centerTabBtn2" onclick="GameApp.switchCenterTab('trainer')" class="flex-1 py-3 border-b-4 border-transparent text-slate-500">訓練家指揮槽位</button>
+      </div>
+      <div id="skillTreeContainer" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+    </div>
+  </div>
+
+  <!-- 13. 道館榮譽徽章彈窗 (Achievement Modal) -->
+  <div id="achievementModal" class="absolute inset-0 z-40 hidden flex items-center justify-center p-3 sm:p-6 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-2xl h-[80vh] flex flex-col bg-slate-50 border-4 border-slate-800 shadow-2xl overflow-hidden">
+      <div class="p-3.5 bg-amber-500 text-slate-950 flex items-center justify-between border-b-2 border-slate-800">
+        <div class="flex items-center gap-2 font-pixel text-base sm:text-lg font-black">
+          <i class="fa-solid fa-medal"></i> 道館榮譽勳章與成就館
+        </div>
+        <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-3 py-1 text-xs font-black">關閉 ✕</button>
+      </div>
+      <div id="achievementListContainer" class="flex-1 overflow-y-auto p-4 space-y-2.5"></div>
+    </div>
+  </div>
+
+  <!-- 14. 解鎖收服確認彈窗 (Unlock Confirm Modal) -->
+  <div id="unlock-confirm-modal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-sm p-4 text-center bg-white border-4 border-slate-800 shadow-2xl">
+      <h3 id="unlockModalHeaderTitle" class="font-pixel text-base font-black text-slate-800 mb-2">確認收服</h3>
+      <div class="flex items-center justify-center gap-3 my-2">
+        <img id="unlockConfirmFrontImg" src="" class="w-16 h-16 pixel-sprite object-contain bg-sky-50 rounded-2xl border p-1" />
+        <div id="unlockBackCol">
+          <img id="unlockConfirmBackImg" src="" class="w-16 h-16 pixel-sprite object-contain bg-slate-50 rounded-2xl border p-1" />
+        </div>
+      </div>
+      <div id="unlockConfirmName" class="font-black text-base text-slate-800">皮卡丘</div>
+      <div id="unlockConfirmTypes" class="flex justify-center gap-1 my-1"></div>
+      <div id="unlockConfirmStats" class="text-xs text-slate-600 font-bold bg-slate-50 p-2 rounded-xl my-2 border"></div>
+      <div id="unlockConfirmError" class="hidden text-xs font-black text-red-600 mb-2 animate-bounce">代幣不足！請先前往 151 圖鑑領取賞金！</div>
+      <div class="flex items-center justify-center gap-2 mt-3">
+        <button onclick="GameApp.closeUnlockConfirmModal()" class="poke-btn-white px-4 py-2 text-xs font-black">取消</button>
+        <button onclick="GameApp.confirmUnlockAction()" class="poke-btn-red px-5 py-2 text-xs font-black flex items-center gap-1">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" />
+          <span id="unlockConfirmCost">0</span> 解鎖
         </button>
-        <button id="centerTabBtn2" onclick="GameApp.switchCenterTab('trainer')" class="py-3 border-b-4 border-transparent text-slate-500">
-          訓練家強化 & 第4招式槽
-        </button>
-      </div>
-      <div id="skillTreeContainer" class="p-4 overflow-y-auto space-y-3 bg-slate-50 flex-1"></div>
-    </div>
-  </div>
-
-  <!-- 14. 榮譽徽章與成就館 -->
-  <div id="achievementModal" class="hidden absolute inset-0 z-40 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-    <div class="poke-panel w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
-      <div class="poke-header-red px-4 py-3 flex items-center justify-between gap-2 shrink-0">
-        <div class="flex items-center gap-2">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-6 h-6 pixel-sprite shrink-0" alt="ach" />
-          <h2 class="font-black text-sm sm:text-lg">道館榮譽徽章與成就館</h2>
-        </div>
-        <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-3.5 py-1 text-xs font-black min-h-[38px]">✕ 關閉</button>
-      </div>
-      <div id="achievementListContainer" class="p-4 overflow-y-auto space-y-2.5 bg-slate-50 flex-1"></div>
-    </div>
-  </div>
-
-  <!-- 15. 結算與暫停彈窗 -->
-  <div id="endModal" class="hidden absolute inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-    <div class="poke-panel w-full max-w-md overflow-hidden text-center">
-      <div class="poke-header-red px-5 py-3.5">
-        <h2 id="endModalTitle" class="font-pixel text-base sm:text-lg text-amber-300">GAME PAUSED</h2>
-      </div>
-      <div class="p-5 space-y-4 bg-white">
-        <p id="endModalSubtitle" class="text-xs sm:text-sm font-bold text-slate-600"></p>
-        <div class="bg-slate-50 border-2 border-slate-200 rounded-2xl p-4 space-y-2 text-xs sm:text-sm text-left font-bold text-slate-700">
-          <div class="flex justify-between"><span>冒險時間：</span><strong id="endStatTime" class="text-slate-900">00:00</strong></div>
-          <div class="flex justify-between"><span>出戰組合：</span><strong id="endStatPartner" class="text-blue-600">Lv.1</strong></div>
-          <div class="flex justify-between"><span>擊退數量：</span><strong id="endStatKills" class="text-red-600">0</strong></div>
-          <div class="flex justify-between"><span>獲得代幣：</span><strong id="endStatCoins" class="text-amber-600">0</strong></div>
-        </div>
-        <div class="flex items-center justify-center gap-3 pt-1">
-          <button id="btnResumeGame" onclick="GameApp.togglePause()" class="hidden poke-btn-red px-6 py-2.5 text-xs sm:text-sm font-black min-h-[44px]">繼續冒險</button>
-          <button onclick="GameApp.quitToTitle()" class="poke-btn-white px-6 py-2.5 text-xs sm:text-sm font-black min-h-[44px]">返回大廳</button>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- 16. 按依賴關係引入 JS 模組 -->
+  <!-- 15. 戰鬥結算 / 暫停彈窗 (End Modal，已內嵌 DPS Breakdown 長條圖容器) -->
+  <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm pointer-events-auto">
+    <div class="poke-card w-full max-w-md p-5 bg-slate-900 text-white border-4 border-slate-700 shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div class="text-center mb-4">
+        <h2 id="endModalTitle" class="font-pixel text-2xl text-amber-400 font-black tracking-wider">BATTLE FINISHED</h2>
+        <p id="endModalSubtitle" class="text-xs text-slate-400 font-bold mt-0.5">冒險結算清單</p>
+      </div>
+
+      <div class="bg-slate-800/80 p-3 rounded-2xl border border-slate-700 space-y-2 text-xs font-bold">
+        <div class="flex justify-between"><span>生存時間：</span><strong id="endStatTime" class="text-amber-400 font-pixel">00:00</strong></div>
+        <div class="flex justify-between"><span>出戰組合：</span><strong id="endStatPartner" class="text-slate-200">小智 & 水箭龜</strong></div>
+        <div class="flex justify-between"><span>擊退寶可夢：</span><strong id="endStatKills" class="text-red-400">0</strong></div>
+        <div class="flex justify-between"><span>獲得代幣：</span><strong id="endStatCoins" class="text-amber-400">+0</strong></div>
+
+        <!-- MVP 招式傷害統計長條圖容器 (DPS Breakdown) -->
+        <div id="endStatDpsContainer"></div>
+      </div>
+
+      <div class="flex gap-2.5 mt-5">
+        <button id="btnResumeGame" onclick="GameApp.togglePause()" class="poke-btn-white flex-1 py-2.5 text-xs font-black">繼續冒險</button>
+        <button onclick="GameApp.quitToTitle()" class="poke-btn-red flex-1 py-2.5 text-xs font-black">返回大廳</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 16. 核心腳本載入順序 (遵守解耦架構) -->
   <script src="pokedex_data.js"></script>
   <script src="map_v11_engine.js"></script>
   <script src="skills_engine.js"></script>
