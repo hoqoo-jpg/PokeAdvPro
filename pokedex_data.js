@@ -206,6 +206,12 @@ const SKILLS_CATALOG = {
   }
 };
 
+// 在 pokedex_data.js 定義完 SKILLS_CATALOG 後加上：
+Object.values(SKILLS_CATALOG).forEach(sk => {
+  SKILLS_CATALOG[sk.id] = sk;
+  SKILLS_CATALOG[sk.id.replace(/\s+/g, '')] = sk;
+});
+
 function getSkillNextLevelBonusDesc(nextLv) {
   if (nextLv === 10) return "★ 滿級覺醒！攻擊力大幅躍升 +50%，解鎖超武進化前置！";
   if (nextLv === 3 || nextLv === 6 || nextLv === 9) return `彈幕數量/打擊次數 +1！基礎傷害提升至 ${(1 + (nextLv-1)*0.25).toFixed(2)}x！`;
