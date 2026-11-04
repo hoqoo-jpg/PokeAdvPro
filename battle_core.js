@@ -2688,10 +2688,10 @@ spawnMapLoot(id, x, y) {
     const box = document.getElementById("upgradeChoicesContainer");
 
     box.innerHTML = choices.map((c, idx) => `
-      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative overflow-hidden">
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative">
         ${c.isNew ? `
-          <div class="absolute -top-1.5 -left-1.5 bg-gradient-to-r from-red-600 to-amber-500 text-white font-pixel text-[9px] px-2 py-0.5 rounded-br-lg rounded-tl-xl border border-white shadow-md animate-pulse z-10">
-            NEW!
+          <div class="absolute top-0 left-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-pixel text-[9px] px-2.5 py-0.5 rounded-tl-[13px] rounded-br-lg border-b border-r border-white/80 shadow-md flex items-center gap-1 z-10 animate-pulse">
+            <i class="fa-solid fa-sparkles text-[8px] text-amber-200"></i>NEW!
           </div>
         ` : ''}
         <div class="flex items-center gap-3 min-w-0">

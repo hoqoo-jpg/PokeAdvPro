@@ -815,33 +815,33 @@ const MapEngine = {
       }
     }
 
-    // --- 2. 大氣層巨幅柔和透色雲影圖層 ---
+    // --- 2. 大氣層巨幅柔和透色雲影圖層 (座標修正版) ---
     ctx.save();
-    const plx = 0.45; // 高空視差懸浮感
-    const cloudWrapArea = 2200; // 擴大漫遊循環邊界
+    const plx = 0.45; // 視差係數
+    const areaW = 1600;
+    const areaH = 1400;
 
-    this.clouds.forEach(c => {
-      // 鏡頭漫遊位移包裹計算
-      const rawX = c.x + this.cloudTime * c.speed - camX * (1 - plx);
-      const rawY = c.y + this.cloudTime * (c.speed * 0.32) - camY * (1 - plx);
-      const worldCloudX = ((rawX % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camX;
-      const worldCloudY = ((rawY % cloudWrapArea) + cloudWrapArea) % cloudWrapArea - (cloudWrapArea / 2) + camY;
+    // 依關卡動態調配環境透色（海面深墨海藍、草地深林綠，濃度調至清晰可見的 0.32）
+    const isBay = stage.id === "cerulean_bay";
+    const shadowColor = isBay ? "rgba(2, 28, 62, " : "rgba(8, 30, 14, ";
 
-      const csx = worldCloudX - camX + width / 2;
-      const csy = worldCloudY - camY + height / 2;
+    this.clouds.forEach((c, idx) => {
+      // 基準漂移座標
+      const moveX = c.x + this.cloudTime * c.speed - camX * plx;
+      const moveY = c.y + this.cloudTime * (c.speed * 0.3) - camY * plx;
 
-      // 依關卡動態調配環境透色（海面深藍、草地深墨綠，徹底消除灰黑污漬感）
-      const isBay = stage.id === "cerulean_bay";
-      const shadowColor = isBay ? "rgba(3, 35, 75, " : "rgba(10, 35, 18, ";
+      // 正確的螢幕循環取模運算，確保永遠有雲覆蓋螢幕
+      const sx = ((moveX % areaW) + areaW) % areaW - (areaW * 0.25);
+      const sy = ((moveY % areaH) + areaH) % areaH - (areaH * 0.25);
 
       c.puffs.forEach(p => {
-        const px = csx + p.ox * c.scale * 1.8; // 擴大雲團跨度
-        const py = csy + p.oy * c.scale * 1.8;
-        const pr = p.r * c.scale * 2.2;        // 擴大柔和羽化半徑
+        const px = sx + p.ox * c.scale * 2.0;
+        const py = sy + p.oy * c.scale * 2.0;
+        const pr = p.r * c.scale * 2.5; // 巨幅羽化雲朵
 
-        const grad = ctx.createRadialGradient(px, py, pr * 0.1, px, py, pr);
-        grad.addColorStop(0, `${shadowColor}0.24)`);
-        grad.addColorStop(0.5, `${shadowColor}0.14)`);
+        const grad = ctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
+        grad.addColorStop(0, `${shadowColor}0.32)`);
+        grad.addColorStop(0.5, `${shadowColor}0.18)`);
         grad.addColorStop(1, `${shadowColor}0)`);
 
         ctx.fillStyle = grad;
