@@ -320,15 +320,26 @@
               <i class="fa-solid fa-heart-circle-plus text-pink-400"></i> 召喚/升級雙打小幫手
             </button>
 
-            <!-- 寶藏怪手動召喚 -->
-            <div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">稀有精靈與 Boss：</div>
-            <div class="grid grid-cols-2 gap-1">
-              <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-amber-300 font-bold">聚寶喵喵</button>
-              <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-pink-300 font-bold">幸福吉利蛋</button>
-            </div>
-            <button onclick="GameApp.debugTriggerSecretMew()" class="w-full text-left px-2 py-1 bg-indigo-950/60 hover:bg-indigo-900/80 text-indigo-300 border border-indigo-800 rounded font-bold">
-              ★ 召喚始祖夢幻 #151
-            </button>
+            <!-- 傳說頭目手動召喚測試 -->
+<div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">傳說神獸 Boss 測試：</div>
+<div class="grid grid-cols-3 gap-1">
+  <button onclick="GameApp.debugSpawnLegendaryBird(144)" class="px-1.5 py-1 bg-sky-950/70 hover:bg-sky-900 border border-sky-700 rounded text-sky-300 font-bold text-[10px]">
+    急凍鳥 #144
+  </button>
+  <button onclick="GameApp.debugSpawnLegendaryBird(145)" class="px-1.5 py-1 bg-yellow-950/70 hover:bg-yellow-900 border border-yellow-700 rounded text-yellow-300 font-bold text-[10px]">
+    閃電鳥 #145
+  </button>
+  <button onclick="GameApp.debugSpawnLegendaryBird(146)" class="px-1.5 py-1 bg-red-950/70 hover:bg-red-900 border border-red-700 rounded text-red-300 font-bold text-[10px]">
+    火焰鳥 #146
+  </button>
+</div>
+<button onclick="GameApp.debugSpawnMewtwo()" class="w-full text-left px-2 py-1 bg-purple-950/80 hover:bg-purple-900 text-purple-300 border border-purple-600 rounded font-bold flex items-center justify-between">
+  <span><i class="fa-solid fa-dna text-purple-400"></i> 召喚王者超夢 #150</span>
+  <span class="text-[9px] text-purple-400 font-mono">7.5m 終極血量</span>
+</button>
+<button onclick="GameApp.debugTriggerSecretMew()" class="w-full text-left px-2 py-1 bg-pink-950/60 hover:bg-pink-900 text-pink-300 border border-pink-700 rounded font-bold">
+  ★ 召喚始祖夢幻 #151
+</button>
 
             <!-- 角色育成強化調試 -->
             <div class="text-[10px] font-bold text-slate-400 pt-1 border-t border-slate-800">數值與等級跳轉：</div>
