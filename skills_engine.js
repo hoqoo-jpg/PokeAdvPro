@@ -54,7 +54,9 @@ const SkillsEngine = {
     // 本系屬性一致加成 (STAB 1.35x)
     const isStab = (caster.data.type1 === meta.type || caster.data.type2 === meta.type);
     const stabMult = isStab ? 1.35 : 1.0;
-    const lvDmgMult = 1 + (level - 1) * 0.25 + (level === 10 ? 0.50 : 0);
+    //const lvDmgMult = 1 + (level - 1) * 0.25 + (level === 10 ? 0.50 : 0);
+    // 1. 每級成長從 25% 調回 12%（原先每級+25%滿級翻3.25倍太膨脹）
+    const lvDmgMult = 1 + (level - 1) * 0.12 + (level === 10 ? 0.25 : 0);
 
     // 關卡生態屬性加成
     let stageBuffMult = 1.0;
@@ -93,7 +95,7 @@ const SkillsEngine = {
       if (meta.type === "Flying" && GameApp.player.heldItems["sharp_beak"]) heldItemMult *= 1.20;
     }
 
-    const rawDmg = (meta.baseDmg + GameApp.player.baseAtk * 0.85) * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
+    const rawDmg = (meta.baseDmg + GameApp.player.baseAtk * 0.35) * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
 
     // A. 近戰型招式發動
     if (meta.isMelee) {
