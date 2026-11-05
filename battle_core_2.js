@@ -6,7 +6,7 @@
  * ============================================================================
  */
 
-const GameApp = {
+ windows.GameApp = {
   canvas: null,
   ctx: null,
   width: window.innerWidth,
