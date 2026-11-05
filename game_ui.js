@@ -7,7 +7,8 @@
  */
 
 // 透過原型或方法擴展掛載到全域 GameApp
-Object.assign(GameApp, {
+window.GameApp = window.GameApp || {};
+Object.assign(window.GameApp, {
   wizardStep: 1,
   centerTab: "pokemon",
   selectedTrainer: TRAINERS[0],
