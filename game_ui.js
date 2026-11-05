@@ -142,29 +142,6 @@ Object.assign(window.GameApp, {
     });
   },
 
-    const step = () => {
-      if (finished) return;
-      done += 1;
-      const pct = Math.min(100, Math.round((done / total) * 100));
-      bar.style.width = `${pct}%`;
-      countEl.textContent = `${done} / ${total}`;
-      pctEl.textContent = `${pct}%`;
-      if (done >= total) complete();
-    };
-
-    setTimeout(complete, 4500);
-
-    urlList.forEach(url => {
-      const rec = SpriteCache.get(url);
-      if (rec.loaded || rec.error) step();
-      else {
-        const ol = rec.img.onload, oe = rec.img.onerror;
-        rec.img.onload = () => { rec.loaded = true; if (ol) ol(); step(); };
-        rec.img.onerror = () => { rec.error = true; if (oe) oe(); step(); };
-      }
-    });
-  },
-
   enterLobbyFromSplash() {
     if (this.state !== "SPLASH") return;
     SoundFX.init();
