@@ -1,0 +1,74 @@
+runAssetPreloader() {
+    const urls = new Set();
+    if (typeof ITEM_SPRITES !== "undefined") {
+      Object.values(ITEM_SPRITES).forEach(u => { if (u) urls.add(u); });
+    }
+    if (typeof TRAINERS !== "undefined") {
+      TRAINERS.forEach(t => {
+        if (t.sprite) urls.add(t.sprite);
+        if (t.sprites) Object.values(t.sprites).forEach(u => { if (u) urls.add(u); });
+        if (t.cutin) urls.add(t.cutin);
+      });
+    }
+    if (typeof POKEMON_DB !== "undefined") {
+      POKEMON_DB.forEach(p => {
+        if (p.forward_sprite) urls.add(p.forward_sprite);
+        if (p.back_sprite) urls.add(p.back_sprite);
+      });
+    }
+
+    const urlList = Array.from(urls).filter(u => typeof u === "string" && u.trim().length > 0);
+    const total = urlList.length;
+    let done = 0;
+    let finished = false;
+
+    const bar = document.getElementById("preloaderBar");
+    const countEl = document.getElementById("preloaderCountText");
+    const pctEl = document.getElementById("preloaderPctText");
+    const statusEl = document.getElementById("preloaderStatusText");
+
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      if (bar) bar.style.width = "100%";
+      if (pctEl) pctEl.textContent = "100%";
+      if (statusEl) statusEl.textContent = "關都自然生態、圖鑑快取與招式引擎建構完畢！";
+      setTimeout(() => {
+        const preEl = document.getElementById("preloader-screen");
+        const splashEl = document.getElementById("splashScreen");
+        if (preEl) preEl.classList.add("hidden");
+        if (splashEl) splashEl.classList.remove("hidden");
+        this.state = "SPLASH";
+      }, 200);
+    };
+
+    // 如果圖片列表為空，或者超過 3 秒直接強制放行，絕不卡死在 0/0！
+    if (total === 0) {
+      complete();
+      return;
+    }
+
+    const step = () => {
+      if (finished) return;
+      done += 1;
+      const pct = Math.min(100, Math.round((done / total) * 100));
+      if (bar) bar.style.width = `${pct}%`;
+      if (countEl) countEl.textContent = `${done} / ${total}`;
+      if (pctEl) pctEl.textContent = `${pct}%`;
+      if (done >= total) complete();
+    };
+
+    // 兜底定時器：最多 3.5 秒必定進入遊戲
+    setTimeout(complete, 3500);
+
+    urlList.forEach(url => {
+      const rec = SpriteCache.get(url);
+      if (!rec || rec.loaded || rec.error) {
+        step();
+      } else {
+        const ol = rec.img.onload, oe = rec.img.onerror;
+        rec.img.onload = () => { rec.loaded = true; if (ol) ol(); step(); };
+        rec.img.onerror = () => { rec.error = true; if (oe) oe(); step(); };
+      }
+    });
+  },
