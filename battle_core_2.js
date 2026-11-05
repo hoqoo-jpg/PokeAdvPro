@@ -215,9 +215,19 @@ window.GameApp = {
   debugSetWeather(weatherType) {
     if (typeof MapEngine !== "undefined") {
       this.debugWeatherLock = true;
+      
+      // 1. 強制設定天氣並重置粒子過渡計時
       MapEngine.setWeather(weatherType);
+      
+      // 2. 同步更新 UI 圖標與文字
       this.updateWeatherUI(weatherType);
-      this.spawnFloatingText(this.player.x, this.player.y - 30, `天候切換: ${weatherType}`, "#38BDF8", 14);
+      
+      // 3. 強制在當前影格執行一次畫面更新，確保第一次點擊零延遲
+      if (typeof MapEngine.updateWeather === "function") {
+        MapEngine.updateWeather(0.016, this.width, this.height);
+      }
+      
+      this.spawnFloatingText(this.player.x, this.player.y - 30, `天候強制切換: ${weatherType}`, "#38BDF8", 14);
     }
   },
 
