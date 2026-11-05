@@ -1169,22 +1169,72 @@ window.GameApp = {
     this.showCutsceneBanner("[稀有寶藏精靈登場]", msg, 3000);
   },
 
-  spawnBoss(bossId, isFinalMewtwo = false) {
+  // Boss 降臨前奏系統 (Warning 預警序列)
+  triggerBossWarningSequence(bossId, isFinalMewtwo = false) {
     const bData = POKEMON_MAP.get(bossId);
-    const diff = this.selectedDifficulty;
-    const ang = Math.random() * Math.PI * 2;
-    const bx = this.player.x + Math.cos(ang) * 290;
-    const by = this.player.y + Math.sin(ang) * 290;
-    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
+    if (!bData) return;
 
     const weatherMap = { 144: "BLIZZARD", 145: "THUNDER", 146: "HEATWAVE", 150: "PSYCHIC", 151: "PSYCHIC" };
     const wType = weatherMap[bossId] || "THUNDER";
+    const wNames = { BLIZZARD: "極寒暴雪", THUNDER: "狂暴雷暴", HEATWAVE: "烈日熱浪", PSYCHIC: "超能極光" };
+
+    // 1. 預先切換戰場氣候與 HUD
     MapEngine.setWeather(wType);
     this.updateWeatherUI(wType);
 
+    // 2. 播放警報聲並彈出全屏紅色 WARNING 橫幅
+    SoundFX.play("boss");
+    this.showCutsceneBanner(
+      "【⚠️ WARNING!! 神獸降臨預警】",
+      `天地異變！氣候轉為【${wNames[wType] || wType}】！傳說精靈【${bData.name_zh}】即將在預警點降臨！`,
+      2400
+    );
+
+    // 3. 計算降落目標座標 (距離主角 280px)
+    const ang = Math.random() * Math.PI * 2;
+    const dropX = this.player.x + Math.cos(ang) * 280;
+    const dropY = this.player.y + Math.sin(ang) * 280;
+
+    // 4. 地面生成動態收縮的 1.8 秒 Danger 預警圈
+    this.telegraphs.push({
+      shape: "circle",
+      isBossWarning: true,
+      bossId: bossId,
+      isFinalMewtwo: isFinalMewtwo,
+      x: dropX,
+      y: dropY,
+      radius: 95,
+      timer: 1.8,
+      maxTime: 1.8,
+      dmg: 0,
+      color: "#EF4444"
+    });
+  },
+
+  spawnBoss(bossId, isFinalMewtwo = false) {
+    this.triggerBossWarningSequence(bossId, isFinalMewtwo);
+  },
+
+  spawnBossAt(bossId, bx, by, isFinalMewtwo = false) {
+    const bData = POKEMON_MAP.get(bossId);
+    const diff = this.selectedDifficulty;
+    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
+
     SoundFX.startBgm("boss");
     this.camera.shakeTime = 0.65;
-    this.camera.shakeMagnitude = 14;
+    this.camera.shakeMagnitude = 16;
+    SoundFX.play("ultimate");
+
+    this.spawnParticleCluster(bx, by, "#EF4444", "#F59E0B", 36, "star", 1.8);
+    SkillsEngine.meleeEffects.push({
+      style: "slam_wave",
+      x: bx,
+      y: by,
+      radius: 140,
+      timer: 0.45,
+      maxTime: 0.45,
+      color: "#EF4444"
+    });
 
     this.saveData.pokedexSeen[bossId] = true;
     const boss = {
@@ -1216,7 +1266,6 @@ window.GameApp = {
     };
     this.enemies.push(boss);
     this.activeBoss = boss;
-    SoundFX.play("boss");
     document.getElementById("bossHudContainer").classList.remove("hidden");
   },
 
@@ -1458,6 +1507,12 @@ window.GameApp = {
 
       tg.timer -= dt;
       if (tg.timer <= 0) {
+        if (tg.isBossWarning) {
+          this.spawnBossAt(tg.bossId, tg.x, tg.y, tg.isFinalMewtwo);
+          this.telegraphs.splice(i, 1);
+          continue;
+        }
+
         let hitPlayer = false;
 
         if (tg.shape === "line") {
@@ -2000,6 +2055,32 @@ window.GameApp = {
         ctx.beginPath();
         ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (tg.isBossWarning) {
+        const sx = toSx(tg.x), sy = toSy(tg.y);
+        const curR = tg.radius * (1 - pct);
+
+        ctx.fillStyle = "rgba(239, 68, 68, 0.25)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "#EF4444";
+        ctx.lineWidth = 3.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(sx, sy, curR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.font = "900 12px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#FDE047";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 3;
+        ctx.strokeText(`⚠️ DANGER: ${tg.timer.toFixed(1)}s`, sx, sy + 4);
+        ctx.fillText(`⚠️ DANGER: ${tg.timer.toFixed(1)}s`, sx, sy + 4);
       } else {
         const sx = toSx(tg.x), sy = toSy(tg.y);
         ctx.strokeStyle = tg.color || "rgba(239, 68, 68, 0.9)";
