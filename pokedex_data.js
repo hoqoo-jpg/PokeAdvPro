@@ -522,7 +522,7 @@ const TRAINERS = [
     name: "小智 (Ash)",
     title: "真新鎮的少年",
     sprite: "images/Ash_01.png",
-    cutin: "images/cutin_ash.jpg",
+    cutin: "images/cutin_ash.png",
     sprites: {
       down: "images/Ash_01.png",
       up: "images/Ash_04.png",
