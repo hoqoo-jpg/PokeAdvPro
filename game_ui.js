@@ -796,6 +796,7 @@ Object.assign(window.GameApp, {
     this.updateTitleUI();
   }
 });
+
 // 確保 game_ui.js 掛載完畢後，立即啟動存檔載入、UI刷新與資源預載！
 if (window.GameApp) {
   if (window.GameApp.loadSaveData) window.GameApp.loadSaveData();
