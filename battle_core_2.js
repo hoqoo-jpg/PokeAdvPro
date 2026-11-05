@@ -6,7 +6,7 @@
  * ============================================================================
  */
 
- windows.GameApp = {
+ window.GameApp = {
   canvas: null,
   ctx: null,
   width: window.innerWidth,
