@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>寶可夢大生存 寶可夢大冒險 ‧ Survivors Edition</title>
+  <title>POKÉMON ADV SURVIVORS</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome Icons -->
@@ -180,10 +180,19 @@
     /* 緩慢浮動動畫 */
     @keyframes bounceSlow {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+      50% { transform: translateY(-5px); }
     }
     .animate-bounce-slow {
-      animation: bounceSlow 3.2s infinite ease-in-out;
+      animation: bounceSlow 2.5s infinite ease-in-out;
+    }
+
+    /* 精靈球旋轉/彈跳動畫 */
+    @keyframes pokeballSpin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .animate-pokeball-spin {
+      animation: pokeballSpin 1.8s linear infinite;
     }
 
     /* 滾動條自定義美化 */
@@ -206,52 +215,62 @@
 </head>
 <body class="w-screen h-screen overflow-hidden bg-slate-900 select-none">
 
-  <!-- 1. 遊戲主畫面 Canvas (永遠位於最底層 z-0) -->
+  <!-- 1. 遊戲主畫面 Canvas (永遠位於最底層 z-0，持續跑自然生態與精靈漫步) -->
   <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
 
-  <!-- 2. 資源預載進度層 (Preloader Screen) -->
-  <div id="preloader-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white p-6">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-12 h-12 bg-red-600 rounded-full border-4 border-slate-900 flex items-center justify-center shadow-lg animate-spin">
-        <div class="w-4 h-4 bg-white rounded-full border-2 border-slate-900"></div>
-      </div>
-      <span class="font-pixel text-xl sm:text-2xl text-amber-400 tracking-wider">POKÉMON SURVIVORS</span>
+  <!-- 2. 原版經典黑底 Loading 預載層 (Preloader Screen) -->
+  <div id="preloader-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white p-6 select-none">
+    <!-- 原版精靈球圖片旋轉與標題 -->
+    <div class="flex items-center gap-3.5 mb-5">
+      <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" 
+           class="w-10 h-10 pixel-sprite animate-pokeball-spin drop-shadow-[0_0_8px_rgba(239,68,68,0.7)]" 
+           alt="Pokéball" />
+      <span class="font-pixel text-xl sm:text-2xl text-amber-400 tracking-wider drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+        POKÉMON SURVIVORS
+      </span>
     </div>
-    <div class="w-full max-w-md bg-slate-800 rounded-full h-4 p-0.5 border-2 border-slate-700 shadow-inner overflow-hidden mb-2">
+
+    <!-- 原版復古進度條外框 -->
+    <div class="w-full max-w-md bg-slate-900 rounded-full h-4 p-0.5 border-2 border-slate-700 shadow-inner overflow-hidden mb-2">
       <div id="preloaderBar" class="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full transition-all duration-150" style="width: 0%;"></div>
     </div>
+
+    <!-- 進度計數與百分比 -->
     <div class="flex justify-between w-full max-w-md text-xs font-bold text-slate-400 px-1">
-      <span id="preloaderCountText">0 / 0</span>
-      <span id="preloaderPctText" class="text-amber-400 font-pixel">0%</span>
+      <span id="preloaderCountText" class="font-pixel text-[11px] text-slate-300">0 / 0</span>
+      <span id="preloaderPctText" class="font-pixel text-xs text-amber-400">0%</span>
     </div>
-    <p id="preloaderStatusText" class="text-xs text-slate-500 mt-4 font-bold animate-pulse text-center">正在初始化關都生態圖鑑、招式引擎與音訊單元...</p>
+
+    <!-- 底部載入狀態文字 -->
+    <p id="preloaderStatusText" class="text-xs text-slate-400 mt-4 font-bold animate-pulse text-center">
+      正在初始化關都生態圖鑑、招式引擎與音訊單元...
+    </p>
   </div>
 
-  <!-- 3. 開場啟動層 (Splash Screen) - 支援動態穿透與封面浮動 -->
-  <div id="splashScreen" onclick="GameApp.enterLobbyFromSplash()" class="absolute inset-0 z-40 hidden flex flex-col justify-between py-10 px-6 cursor-pointer bg-slate-950/25 backdrop-blur-[0.5px]">
-    <!-- 頂部裝飾標籤 -->
-    <div class="flex justify-between items-center z-10 pointer-events-none">
-      <span class="px-3 py-1 bg-slate-900/80 rounded-full text-white font-pixel text-[10px] border border-amber-400/50 shadow">VER 4.2 GBA SURVIVORS</span>
-      <span class="px-3 py-1 bg-slate-900/80 rounded-full text-amber-300 font-pixel text-[10px] border border-amber-400/50 shadow">8 MIN FAST RUN</span>
-    </div>
-
-    <!-- 中央立體標題與封面展示 (浮動於動態自然生態 Canvas 上方) -->
+  <!-- 3. 原版經典透明穿透封面 (Splash Screen - 完全還原截圖樣式) -->
+  <div id="splashScreen" onclick="GameApp.enterLobbyFromSplash()" class="absolute inset-0 z-40 hidden flex flex-col justify-between py-12 px-6 cursor-pointer select-none">
+    <!-- 頂部與中央：★ GBA 復古像素重構版 ★ 與 金色立體 POKÉMON ADV SURVIVORS 標題 -->
     <div class="self-center text-center my-auto flex flex-col items-center pointer-events-none">
-      <div class="inline-block px-4 py-1.5 bg-red-600 text-white font-pixel text-xs sm:text-sm rounded-full border-2 border-white shadow-md mb-3 tracking-widest animate-bounce-slow">
-        寶可夢大生存 ‧ 經典復刻
+      <!-- 經典紅色頂部標籤 -->
+      <div class="inline-block px-4 py-1 bg-red-600/95 text-white font-black text-xs sm:text-sm rounded-full border-2 border-white/90 shadow-lg mb-3 tracking-wide">
+        ★ GBA 復古像素重構版 ★
       </div>
-      <h1 class="font-pixel text-3xl sm:text-5xl text-amber-400 tracking-wider drop-shadow-[0_4px_6px_rgba(0,0,0,0.85)] mb-2">
-        寶可夢大冒險
+
+      <!-- 經典金黃色像素大標題 (帶粗黑立體描邊) -->
+      <h1 class="font-pixel text-3xl sm:text-5xl text-amber-300 tracking-wider drop-shadow-[0_4px_0_#78350f] mb-3">
+        POKÉMON ADV SURVIVORS
       </h1>
-      <div class="px-3 py-1 bg-slate-900/90 text-white font-pixel text-[11px] sm:text-xs rounded border border-slate-700 tracking-widest shadow">
-        SURVIVORS EDITION
+
+      <!-- 白色副標題 -->
+      <div class="text-xs sm:text-sm font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-widest">
+        關都 151 全圖鑑 ‧ 8 分鐘快節奏冒險 ‧ 六大自然生態
       </div>
     </div>
 
-    <!-- 底部點擊進入大廳提示 (呼吸閃爍) -->
+    <!-- 底部白色經典提示膠囊 (呼吸閃爍) -->
     <div class="text-center z-10 pointer-events-none">
-      <div class="inline-block px-6 py-2.5 bg-slate-900/85 text-amber-300 rounded-full font-pixel text-xs sm:text-sm border-2 border-amber-400 shadow-2xl animate-pulse">
-        - 點擊螢幕任意處進入大廳 -
+      <div class="inline-block px-6 py-2.5 bg-white/95 text-slate-900 rounded-full font-black text-xs sm:text-sm border-2 border-slate-900 shadow-2xl animate-pulse">
+        - 按任意鍵或點擊螢幕進入大廳 -
       </div>
     </div>
   </div>
@@ -342,7 +361,7 @@
   <div id="hudLayer" class="absolute inset-0 z-20 hidden pointer-events-none overflow-hidden">
     <!-- 頂部資訊條 (血條、等級、時間軸、擊退數、代幣與功能按鈕) -->
     <div class="absolute top-2 left-2 right-2 flex items-start justify-between gap-2 pointer-events-auto">
-      <!-- 左側：玩家主角頭像、血條與經驗條 -->
+      <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 -->
       <div class="flex items-center gap-2 bg-slate-900/85 p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[55%] sm:max-w-xs">
         <div class="relative w-11 h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
           <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-10 h-10 pixel-sprite object-contain" alt="Current" />
@@ -350,8 +369,12 @@
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between text-[11px] font-black text-white mb-0.5">
-            <span id="hudPartnerName" class="truncate">皮卡丘</span>
-            <span id="hudLevelText" class="font-pixel text-amber-400 text-[10px] ml-1">Lv.1</span>
+            <div class="flex items-center gap-1 truncate">
+              <span id="hudPartnerName" class="truncate">皮卡丘</span>
+              <!-- 修正：補齊屬性徽章容器 hudTypeBadges，避免報錯 -->
+              <span id="hudTypeBadges" class="flex items-center"></span>
+            </div>
+            <span id="hudLevelText" class="font-pixel text-amber-400 text-[10px] ml-1 shrink-0">Lv.1</span>
           </div>
           <!-- HP 綠色生命條 -->
           <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden mb-1 relative">
@@ -428,7 +451,7 @@
     <div class="absolute bottom-4 right-4 pointer-events-auto flex flex-col items-center">
       <button id="btnTrainerActiveSkill" onclick="GameApp.triggerTrainerActiveSkill()" class="tactical-btn-ready relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex flex-col items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl">
         <img id="hudActiveTrainerImg" src="images/Ash_01.png" class="w-12 h-12 pixel-sprite object-contain mt-0.5" alt="Trainer" />
-        <span id="hudActiveSkillName" class="font-black text-[9px] text-slate-950 bg-amber-200/90 px-1.5 py-0.2 rounded-full border border-slate-900 truncate max-w-[85%] -mt-1">熱血狂暴</span>
+        <span id="hudActiveSkillName" class="font-black text-[9px] text-slate-950 bg-amber-200/90 px-1.5 py-0.2 rounded-full border border-slate-900 truncate max-w-[85%] -mt-1">就決定是你了！</span>
         <span class="font-pixel text-[7px] text-slate-800">[SPACE]</span>
 
         <!-- 冷卻遮罩層 -->
@@ -463,7 +486,7 @@
         <img id="cutInAvatar" src="images/Ash_01.png" class="w-20 h-20 sm:w-28 sm:h-28 pixel-sprite object-contain bg-white rounded-full border-4 border-slate-900 p-1 shadow-lg" alt="Avatar" />
         <div class="text-white drop-shadow-[0_3px_3px_rgba(0,0,0,0.8)]">
           <div id="cutInTrainer" class="font-pixel text-sm sm:text-base text-amber-200 font-bold">小智 ‧ 戰術指令</div>
-          <div id="cutInSkill" class="text-2xl sm:text-4xl font-black italic tracking-wider">【熱血狂暴】</div>
+          <div id="cutInSkill" class="text-2xl sm:text-4xl font-black italic tracking-wider">【就決定是你了！】</div>
         </div>
       </div>
     </div>
@@ -471,7 +494,6 @@
 
   <!-- 7. 三步驟選角嚮導彈窗 (Setup Wizard Modal) -->
   <div id="setupModal" class="absolute inset-0 z-50 hidden flex flex-col bg-slate-900 text-slate-800">
-    <!-- 嚮導頂部 -->
     <div class="bg-white border-b-2 border-slate-800 p-3 sm:p-4 flex items-center justify-between shadow-md shrink-0">
       <div class="flex items-center gap-2">
         <button onclick="GameApp.backToTitle()" class="poke-btn-white px-3 py-1 text-xs font-black"><i class="fa-solid fa-arrow-left"></i> 大廳</button>
@@ -483,28 +505,20 @@
       </div>
     </div>
 
-    <!-- 步驟切換頁籤 -->
     <div class="grid grid-cols-3 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
       <button id="stepTab1" onclick="GameApp.setWizardStep(1)" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
       <button id="stepTab2" onclick="GameApp.setWizardStep(2)" class="py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
       <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 模式與難度</button>
     </div>
 
-    <!-- 步驟標題提示 -->
     <div class="bg-amber-50 px-4 py-2 border-b border-amber-200 text-xs shrink-0">
       <div id="wizardStepTitle" class="font-black text-slate-800">STEP 1/3：選擇隨行訓練家</div>
       <div id="wizardStepDesc" class="text-slate-600 font-bold text-[11px]">每位訓練家皆有專屬代表精靈羈絆（傷害+25%）！</div>
     </div>
 
-    <!-- 步驟容器內容區 (滾動區域) -->
     <div class="flex-1 overflow-y-auto p-4 bg-slate-100">
-      <!-- Step 1: 訓練家卡牌格 -->
       <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
-
-      <!-- Step 2: 寶可夢卡牌格 -->
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-
-      <!-- Step 3: 難度與地圖卡牌格 -->
       <div id="wizardStep3" class="hidden space-y-4">
         <div>
           <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
@@ -517,7 +531,6 @@
       </div>
     </div>
 
-    <!-- 嚮導底部按鈕列 -->
     <div class="bg-white border-t-2 border-slate-800 p-3 sm:p-4 flex items-center justify-between shrink-0 shadow-lg">
       <button id="btnWizardPrev" onclick="GameApp.prevWizardStep()" class="poke-btn-white px-5 py-2.5 text-xs font-black">
         ← 上一步
@@ -567,11 +580,7 @@
         一鍵領取所有賞金
       </button>
     </div>
-
-    <!-- 圖鑑屬性篩選頁籤 (可橫向捲動) -->
     <div id="pokedexFilterTabs" class="flex items-center gap-1.5 p-2.5 bg-slate-100 border-b border-slate-300 overflow-x-auto shrink-0"></div>
-
-    <!-- 151 圖鑑卡牌格 -->
     <div class="flex-1 overflow-y-auto p-3 sm:p-4 bg-slate-100">
       <div id="pokedexGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5"></div>
     </div>
@@ -589,13 +598,10 @@
         <span id="shopCoinDisplay" class="font-pixel text-xs font-black text-amber-600">0</span>
       </div>
     </div>
-
-    <!-- 寶可夢能力 / 訓練家特權 切換頁籤 -->
     <div class="grid grid-cols-2 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
       <button id="centerTabBtn1" onclick="GameApp.switchCenterTab('pokemon')" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">寶可夢永久強化</button>
       <button id="centerTabBtn2" onclick="GameApp.switchCenterTab('trainer')" class="py-3 border-b-4 border-transparent text-slate-500">訓練家戰術槽位</button>
     </div>
-
     <div class="flex-1 overflow-y-auto p-4 bg-slate-100">
       <div id="skillTreeContainer" class="max-w-2xl mx-auto space-y-3"></div>
     </div>
@@ -622,8 +628,6 @@
         <h2 class="text-xl sm:text-2xl font-black text-amber-300 mt-1">能力突破與招式進階</h2>
         <p class="text-xs text-slate-400 mt-0.5">選擇一項專屬招式升級、超武進化或營養藥劑</p>
       </div>
-
-      <!-- 三選一卡牌容器 -->
       <div id="upgradeChoicesContainer" class="space-y-3"></div>
     </div>
   </div>
@@ -654,7 +658,7 @@
     </div>
   </div>
 
-  <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal - 含招式輸出 DPS Breakdown) -->
+  <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal) -->
   <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
     <div class="poke-card w-full max-w-md p-5 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
       <div class="text-center mb-3">
@@ -679,7 +683,6 @@
           <span class="text-slate-400">獲取代幣：</span>
           <span id="endStatCoins" class="text-amber-400">+0</span>
         </div>
-        <!-- 招式傷害統計面板 (DPS Breakdown) 注入容器 -->
         <div id="endStatDpsContainer"></div>
       </div>
 
@@ -730,7 +733,7 @@
     </div>
   </div>
 
-  <!-- 16. 核心腳本載入順序 (遵守解耦架構：定義在先、擴展在後，徹底杜絕 0/0 與未定義報錯) -->
+  <!-- 16. 核心腳本載入順序 -->
   <script src="pokedex_data.js"></script>
   <script src="map_v11_engine.js"></script>
   <script src="skills_engine.js"></script>
