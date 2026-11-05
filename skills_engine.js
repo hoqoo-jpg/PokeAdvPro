@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * skills_engine.js
- * 專屬招式與視覺特效引擎 (Skills & VFX Engine)
+ * 專屬招式與視覺特效引擎 (Skills & VFX Engine - 數值平滑平衡版)
  * 職責：
  * 1. 技能發射判定 (彈道數、穿透、追蹤、散射角、傷害加成與擊退分配)
  * 2. 投射物實體生命週期運算與旋轉運動學
@@ -54,18 +54,18 @@ const SkillsEngine = {
     // 本系屬性一致加成 (STAB 1.35x)
     const isStab = (caster.data.type1 === meta.type || caster.data.type2 === meta.type);
     const stabMult = isStab ? 1.35 : 1.0;
-    //const lvDmgMult = 1 + (level - 1) * 0.25 + (level === 10 ? 0.50 : 0);
-    // 1. 每級成長從 25% 調回 12%（原先每級+25%滿級翻3.25倍太膨脹）
-    const lvDmgMult = 1 + (level - 1) * 0.12 + (level === 10 ? 0.25 : 0);
 
-    // 關卡生態屬性加成
+    // 1. 每級成長 10% (後期 10 級約翻 2.1 倍，杜絕後期傷害破千)
+    const lvDmgMult = 1 + (level - 1) * 0.10 + (level === 10 ? 0.20 : 0);
+
+    // 關卡生態屬性加成 (保留乘法)
     let stageBuffMult = 1.0;
     const stId = MapEngine.currentStage.id;
     if (stId === "pallet" && (meta.type === "Grass" || meta.type === "Bug")) stageBuffMult = 1.20;
     if (stId === "cerulean_bay" && (meta.type === "Water" || meta.type === "Ice")) stageBuffMult = 1.20;
     if (stId === "sky_pillar" && (meta.type === "Psychic" || meta.type === "Ghost")) stageBuffMult = 1.20;
 
-    // 動態天氣傷害加成
+    // 動態天氣傷害加成 (保留乘法)
     const curW = MapEngine.weather;
     let weatherBuff = 1.0;
     if (curW === "RAIN") {
@@ -80,7 +80,7 @@ const SkillsEngine = {
       if (meta.type === "Electric") weatherBuff = 1.20;
     }
 
-    // 攜帶物獨立加成
+    // 攜帶物獨立加成 (保留乘法)
     let heldItemMult = 1.0;
     if (GameApp.player && GameApp.player.heldItems) {
       if (meta.type === "Fire" && GameApp.player.heldItems["charcoal"]) heldItemMult *= 1.20;
@@ -95,7 +95,9 @@ const SkillsEngine = {
       if (meta.type === "Flying" && GameApp.player.heldItems["sharp_beak"]) heldItemMult *= 1.20;
     }
 
-    const rawDmg = (meta.baseDmg + GameApp.player.baseAtk * 0.35) * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
+    // 2. 核心修正：招式基底收斂 (baseDmg * 0.55 + ATK * 0.18)，出門基數回歸合理區間
+    const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
+    const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
 
     // A. 近戰型招式發動
     if (meta.isMelee) {
@@ -103,7 +105,7 @@ const SkillsEngine = {
       return;
     }
 
-    // B. 十萬伏特金白交織高頻電漿鏈 (特例瞬發彈道)
+    // B. 十萬伏特金白交織高頻電漿鏈
     if (skillId === "Thunderbolt") {
       const maxStrikeRange = 210 * GameApp.player.areaMult;
       const nearby = GameApp.enemies
@@ -135,7 +137,7 @@ const SkillsEngine = {
       return;
     }
 
-    // C. 常規彈射遠程投射物
+    // C. 常規遠程投射物
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : 0;
       const ang = baseAngle + spread;
@@ -166,14 +168,13 @@ const SkillsEngine = {
   },
 
   /**
-   * 近戰招式執行 (空手劈武道巨拳、地震重踏裂隙、刀光劍氣)
+   * 近戰招式執行
    */
   executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg) {
     const style = meta.meleeStyle || "claw_slash";
     const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
-    // 空手劈 / 十字劈：金白氣勁巨拳
     if (style === "martial_fist") {
       const fistCount = Math.min(10, 4 + count + Math.floor(level / 2));
       for (let f = 0; f < fistCount; f++) {
@@ -206,7 +207,6 @@ const SkillsEngine = {
       return;
     }
 
-    // 地震 / 泰山壓頂
     if (style === "quake_wave" || style === "slam_wave") {
       const rad = (style === "quake_wave" ? (120 + level * 6) : 110) * areaScale;
       this.meleeEffects.push({
@@ -232,7 +232,6 @@ const SkillsEngine = {
       return;
     }
 
-    // 扇形刀光劍氣 (抓/劈開/十字剪)
     const maxReach = 98 * areaScale;
     const waves = Math.min(3, Math.ceil(count / 2));
     for (let w = 0; w < waves; w++) {
@@ -277,7 +276,7 @@ const SkillsEngine = {
     GameApp.camera.shakeMagnitude = 8.5;
     SoundFX.play("ultimate");
 
-    const ultDmg = (meta.baseDmg * 3.8 + p.baseAtk * 2.5) * p.dmgMult;
+    const ultDmg = (meta.baseDmg * 2.6 + p.baseAtk * 1.2) * p.dmgMult;
 
     this.ultimateVfxList.push({
       type: meta.type,
@@ -349,11 +348,7 @@ const SkillsEngine = {
     this.lightningArcs.push({ pts, color, timer: 0.25 });
   },
 
-  /**
-   * 招式運動學更新
-   */
   update(dt) {
-    // 1. 投射物更新
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pr = this.projectiles[i];
 
@@ -395,30 +390,23 @@ const SkillsEngine = {
       }
     }
 
-    // 2. 近戰特效倒數
     for (let i = this.meleeEffects.length - 1; i >= 0; i--) {
       this.meleeEffects[i].timer -= dt;
       if (this.meleeEffects[i].timer <= 0) this.meleeEffects.splice(i, 1);
     }
 
-    // 3. 超武特效倒數
     for (let i = this.ultimateVfxList.length - 1; i >= 0; i--) {
       this.ultimateVfxList[i].timer -= dt;
       if (this.ultimateVfxList[i].timer <= 0) this.ultimateVfxList.splice(i, 1);
     }
 
-    // 4. 電弧電漿倒數
     for (let i = this.lightningArcs.length - 1; i >= 0; i--) {
       this.lightningArcs[i].timer -= dt;
       if (this.lightningArcs[i].timer <= 0) this.lightningArcs.splice(i, 1);
     }
   },
 
-  /**
-   * 專屬 Canvas 加色高光渲染 (必須由主循環在 lighter 模式下呼叫)
-   */
   render(ctx, toSx, toSy) {
-    // 1. 近戰刀光與巨拳印
     this.meleeEffects.forEach(m => {
       const prog = 1 - (m.timer / m.maxTime);
       ctx.save();
@@ -461,7 +449,6 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 2. 投射物向量繪製 (純白能量核高光)
     this.projectiles.forEach(pr => {
       const sx = toSx(pr.x), sy = toSy(pr.y);
       const r = pr.radius;
@@ -502,7 +489,6 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 3. 閃電弧線
     this.lightningArcs.forEach(arc => {
       ctx.save();
       ctx.strokeStyle = arc.color;
