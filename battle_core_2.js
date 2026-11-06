@@ -2,7 +2,7 @@
  * ============================================================================
  * battle_core_2.js (Part 1 / 2)
  * 8分鐘快節奏戰鬥引擎核心、動態虛擬搖桿、三態戰術大招、腳底環形倒數規、
- * 涉水下沉水花、草地碎葉反饋、怪獸體重抗性、Boss 多重招式輪換與 60FPS 遊戲主循環 
+ * 涉水下沉水花、草地碎葉反饋、怪獸體重抗性、Boss 多重招式輪換與 60FPS 遊戲主循環
  * ============================================================================
  */
 
@@ -856,7 +856,10 @@ window.GameApp = {
       p.walkBob = 0;
     }
 	
-	// 恢復草地、涉水與木板腳底粒子反饋
+	// 1. 先計算當前主角所在位置的地形數據
+    const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
+
+    // 2. 恢復草地、涉水與木板腳底粒子反饋
     if (ilen > 0.05) {
       this.stepParticleTimer = (this.stepParticleTimer || 0) - dt;
       if (this.stepParticleTimer <= 0) {
@@ -1275,7 +1278,13 @@ window.GameApp = {
     this.state = "PAUSED";
     const p = this.player;
     const catalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
-    const availableTMs = Object.values(catalog).filter(tm => !p.skills[tm.id]);
+    
+    // 智慧比對：防範帶空格與不帶空格的技能名稱衝突
+    const hasSkill = (sId) => {
+      const clean = sId.replace(/\s+/g, '');
+      return Object.keys(p.skills).some(k => k.replace(/\s+/g, '') === clean);
+    };
+    const availableTMs = Object.values(catalog).filter(tm => !hasSkill(tm.id));
     const shelf = availableTMs.sort(() => 0.5 - Math.random()).slice(0, 3);
     if (this.renderMartModal) this.renderMartModal(shelf);
   },
@@ -1295,6 +1304,21 @@ window.GameApp = {
     const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[skillId]) ? SKILLS_CATALOG[skillId].name : skillId;
     this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
     this.closePokeMartModal();
+  },
+
+  closePokeMartModal() {
+    const modal = document.getElementById("pokeMartModal");
+    if (modal) modal.classList.add("hidden");
+    this.state = "PLAYING";
+    const idx = this.mapItems.findIndex(it => it.id === "poke_mart");
+    if (idx !== -1) {
+      const it = this.mapItems[idx];
+      this.spawnParticleCluster(it.x, it.y, "#94A3B8", "#FFFFFF", 20, "circle", 1.2);
+      this.mapItems.splice(idx, 1);
+      SoundFX.play("hit");
+    }
+    this.martRerollCost = 50;
+    this.refreshHUD();
   },
 
   updateEnemies(dt) {
