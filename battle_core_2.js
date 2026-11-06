@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * battle_core_2.js
+ * battle_core_2.js (Part 1 / 2)
  * 8分鐘快節奏戰鬥引擎核心、動態虛擬搖桿、三態戰術大招、腳底環形倒數規、
  * 涉水下沉水花、草地碎葉反饋、怪獸體重抗性、Boss 多重招式輪換與 60FPS 遊戲主循環
  * ============================================================================
@@ -204,6 +204,15 @@ window.GameApp = {
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("touchend", onTouchEnd);
     window.addEventListener("touchcancel", onTouchEnd);
+
+    // 解決移動中無法點擊大招：綁定原生 touchstart 支援多點觸控
+    if (skillBtn) {
+      skillBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerTrainerActiveSkill();
+      }, { passive: false });
+    }
   },
 
   // 開發者測試工具全套實裝
@@ -215,19 +224,9 @@ window.GameApp = {
   debugSetWeather(weatherType) {
     if (typeof MapEngine !== "undefined") {
       this.debugWeatherLock = true;
-      
-      // 1. 強制設定天氣並重置粒子過渡計時
       MapEngine.setWeather(weatherType);
-      
-      // 2. 同步更新 UI 圖標與文字
       this.updateWeatherUI(weatherType);
-      
-      // 3. 強制在當前影格執行一次畫面更新，確保第一次點擊零延遲
-      if (typeof MapEngine.updateWeather === "function") {
-        MapEngine.updateWeather(0.016, this.width, this.height);
-      }
-      
-      this.spawnFloatingText(this.player.x, this.player.y - 30, `天候強制切換: ${weatherType}`, "#38BDF8", 14);
+      this.spawnFloatingText(this.player.x, this.player.y - 30, `天候切換: ${weatherType}`, "#38BDF8", 14);
     }
   },
 
@@ -283,6 +282,11 @@ window.GameApp = {
   debugSpawnMewtwo() {
     if (!this.player) return;
     this.spawnBoss(150, true);
+  },
+
+  debugSpawnPokeMart() {
+    if (!this.player) return;
+    this.spawnPokeMartEntity(true);
   },
 
   debugTriggerRocketEvent() {
@@ -360,11 +364,103 @@ window.GameApp = {
     this.showCutsceneBanner(`[當前天候: ${w}]`, descMap[w] || "標準環境", 2500);
   },
 
-  /**
-   * ============================================================================
-   * 8 分鐘快節奏開局與戰鬥循環
-   * ============================================================================
-   */
+  // Boss 降臨前奏系統 (Warning 預警序列)
+  triggerBossWarningSequence(bossId, isFinalMewtwo = false) {
+    const bData = POKEMON_MAP.get(bossId);
+    if (!bData) return;
+
+    const weatherMap = { 144: "BLIZZARD", 145: "THUNDER", 146: "HEATWAVE", 150: "PSYCHIC", 151: "PSYCHIC" };
+    const wType = weatherMap[bossId] || "THUNDER";
+    const wNames = { BLIZZARD: "極寒暴雪", THUNDER: "狂暴雷暴", HEATWAVE: "烈日熱浪", PSYCHIC: "超能極光" };
+
+    // 關鍵鎖定：防止被 updateCombat 的時間軸常規天氣在 16ms 內覆蓋回來！
+    this.debugWeatherLock = true;
+    MapEngine.setWeather(wType);
+    this.updateWeatherUI(wType);
+
+    SoundFX.play("boss");
+    this.showCutsceneBanner(
+      "【⚠️ WARNING!! 神獸降臨預警】",
+      `天地異變！氣候轉為【${wNames[wType] || wType}】！傳說精靈【${bData.name_zh}】即將在預警點降臨！`,
+      2400
+    );
+
+    const ang = Math.random() * Math.PI * 2;
+    const dropX = this.player.x + Math.cos(ang) * 280;
+    const dropY = this.player.y + Math.sin(ang) * 280;
+
+    this.telegraphs.push({
+      shape: "circle",
+      isBossWarning: true,
+      bossId: bossId,
+      isFinalMewtwo: isFinalMewtwo,
+      x: dropX,
+      y: dropY,
+      radius: 95,
+      timer: 1.8,
+      maxTime: 1.8,
+      dmg: 0,
+      color: "#EF4444"
+    });
+  },
+
+  spawnBoss(bossId, isFinalMewtwo = false) {
+    this.triggerBossWarningSequence(bossId, isFinalMewtwo);
+  },
+
+  spawnBossAt(bossId, bx, by, isFinalMewtwo = false) {
+    const bData = POKEMON_MAP.get(bossId);
+    const diff = this.selectedDifficulty;
+    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
+
+    SoundFX.startBgm("boss");
+    this.camera.shakeTime = 0.65;
+    this.camera.shakeMagnitude = 16;
+    SoundFX.play("ultimate");
+
+    this.spawnParticleCluster(bx, by, "#EF4444", "#F59E0B", 36, "star", 1.8);
+    SkillsEngine.meleeEffects.push({
+      style: "slam_wave",
+      x: bx,
+      y: by,
+      radius: 140,
+      timer: 0.45,
+      maxTime: 0.45,
+      color: "#EF4444"
+    });
+
+    this.saveData.pokedexSeen[bossId] = true;
+    const boss = {
+      id: bossId,
+      data: bData,
+      x: bx,
+      y: by,
+      hp,
+      maxHp: hp,
+      atk: Math.round((isFinalMewtwo ? 42 : 30) * diff.atkMult),
+      speed: (isFinalMewtwo ? 92 : 82) * diff.spdMult,
+      radius: 44,
+      isElite: true,
+      isBoss: true,
+      isFinalMewtwo,
+      isShiny: false,
+      treasureType: null,
+      facingX: -1,
+      facingY: 1,
+      status: null,
+      statusTimer: 0,
+      statusTick: 0,
+      ccImmunityTimer: 0,
+      rangedCd: 2.2,
+      whiteFlashTimer: 0,
+      weightTier: "boss",
+      kbResist: 1.0,
+      bossAttackIdx: 0
+    };
+    this.enemies.push(boss);
+    this.activeBoss = boss;
+    document.getElementById("bossHudContainer").classList.remove("hidden");
+  },
   startGameRun() {
     SoundFX.init();
     SoundFX.startBgm("battle");
@@ -470,6 +566,7 @@ window.GameApp = {
     this.eliteSpawnTimer = 45;
     this.treasureSpawnTimer = 38;
     this.magnetSpawnTimer = 35;
+	this.martSpawnTimer = 110;
     this.birdBossSpawned = false;
     this.mewtwoBossSpawned = false;
     this.secretMewSpawned = false;
@@ -486,7 +583,6 @@ window.GameApp = {
     this.refreshHUD();
   },
 
-  // 戰術大招發動 (支援滿版插圖與備用橫幅雙通道)
   triggerTrainerActiveSkill() {
     if (this.state !== "PLAYING" || !this.player) return;
     if (this.player.trainerSkillCd > 0 || this.player.buffTimer > 0 || this.player.shieldTimer > 0) return;
@@ -756,65 +852,6 @@ window.GameApp = {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
 
-    if (ilen > 0.05 && terrain.label.includes("草叢")) {
-      if (Math.random() < 0.28) {
-        this.particles.push({
-          x: p.x + (Math.random() - 0.5) * 16,
-          y: p.y + 10,
-          vx: (Math.random() - 0.5) * 24 - p.vx * 0.1,
-          vy: -10 - Math.random() * 14,
-          size: 2.5 + Math.random() * 2,
-          color: Math.random() < 0.5 ? "#22C55E" : "#84CC16",
-          shape: "petal",
-          rot: Math.random() * Math.PI,
-          life: 0.32,
-          maxLife: 0.32
-        });
-      }
-      if (Math.random() < 0.20 && this.trainerCompanion) {
-        this.particles.push({
-          x: this.trainerCompanion.x + (Math.random() - 0.5) * 14,
-          y: this.trainerCompanion.y + 12,
-          vx: (Math.random() - 0.5) * 20,
-          vy: -10 - Math.random() * 12,
-          size: 2.2,
-          color: "#22C55E",
-          shape: "petal",
-          life: 0.30,
-          maxLife: 0.30
-        });
-      }
-    }
-
-    if (terrain.inWater && ilen > 0.05) {
-      if (Math.random() < 0.30) {
-        this.particles.push({
-          x: p.x + (Math.random() - 0.5) * 14,
-          y: p.y + 14,
-          vx: (Math.random() - 0.5) * 35,
-          vy: -15 - Math.random() * 20,
-          size: 2.2,
-          color: "#E0F2FE",
-          shape: "circle",
-          life: 0.25,
-          maxLife: 0.25
-        });
-      }
-      if (Math.random() < 0.22 && this.trainerCompanion) {
-        this.particles.push({
-          x: this.trainerCompanion.x + (Math.random() - 0.5) * 14,
-          y: this.trainerCompanion.y + 16,
-          vx: (Math.random() - 0.5) * 30,
-          vy: -12 - Math.random() * 18,
-          size: 2.0,
-          color: "#E0F2FE",
-          shape: "circle",
-          life: 0.22,
-          maxLife: 0.22
-        });
-      }
-    }
-
     const tBadge = document.getElementById("hudTerrainBadge");
     if (terrain.label) {
       tBadge.textContent = terrain.label;
@@ -835,40 +872,22 @@ window.GameApp = {
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
     const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
 
-    if (p.isJumpingLedge) {
-      p.jumpTimer -= dt;
-      p.vy = 260;
-      p.y += p.vy * dt;
-      p.invulnTimer = Math.max(p.invulnTimer, 0.1);
-
-      if (p.jumpTimer <= 0) {
-        p.isJumpingLedge = false;
-        p.jumpTimer = 0;
-        SoundFX.play("hit");
-        this.spawnParticleCluster(p.x, p.y + 16, "#CBD5E1", "#94A3B8", 8, "circle", 0.6);
-      }
-    } else {
-      p.vx = ix * moveSpd;
-      p.vy = iy * moveSpd;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-    }
+    p.vx = ix * moveSpd;
+    p.vy = iy * moveSpd;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
 
     MapEngine.resolveObstacleCollision(p, 18, true);
 
-    // 真 ‧ 雙人齊頭並肩站位：訓練家與寶可夢永遠保持左右橫排同行
     const sideOffset = (p.facingX < 0 ? 24 : -24);
     const targetTx = p.x + sideOffset;
-    const targetTy = p.y; // Y 軸拉平，向上或向下走時兩人完全齊頭，不再落後！
+    const targetTy = p.y;
     this.trainerCompanion.x += (targetTx - this.trainerCompanion.x) * Math.min(1, dt * 30);
     this.trainerCompanion.y += (targetTy - this.trainerCompanion.y) * Math.min(1, dt * 30);
     this.trainerCompanion.facingX = p.facingX;
     this.trainerCompanion.facingY = p.facingY;
     this.trainerCompanion.walkBob = p.walkBob;
-    this.trainerCompanion.isJumpingLedge = p.isJumpingLedge;
-    this.trainerCompanion.jumpTimer = p.jumpTimer;
 
-    // 雙打夥伴公轉：以「寶可夢與訓練家兩人幾何重心」為軸心，大範圍環繞護衛
     const midX = (p.x + this.trainerCompanion.x) * 0.5;
     const midY = (p.y + this.trainerCompanion.y) * 0.5;
     this.partnerOrbitBase += dt * 2.1;
@@ -934,6 +953,7 @@ window.GameApp = {
     this.updateTelegraphs(dt);
     this.updateEnemies(dt);
     this.updateLootAndGems(dt);
+    this.updateMartInteraction(dt);
     this.updateParticlesAndTexts(dt);
     this.refreshHUD();
   },
@@ -977,6 +997,12 @@ window.GameApp = {
   updateSpawners(dt) {
     const diff = this.selectedDifficulty;
     const minutes = this.runTime / 60;
+
+    this.martSpawnTimer = (this.martSpawnTimer || 110) - dt;
+    if (this.martSpawnTimer <= 0) {
+      this.martSpawnTimer = 110;
+      this.spawnPokeMartEntity(false);
+    }
 
     if (!this.rocketEventTriggered && this.runTime >= 195) {
       this.rocketEventTriggered = true;
@@ -1057,8 +1083,7 @@ window.GameApp = {
       const baseInterval = Math.max(0.24, (1.15 - minutes * 0.12) / diff.spawnRateMult);
       this.spawnTimer = baseInterval;
 
-      // 隨時間動態擴增上限，徹底解決後期怪潮容量不足與空場
-      const maxMobCap = Math.min(160, Math.round(75 + minutes * 14));
+      const maxMobCap = Math.min(180, Math.round(75 + minutes * 15));
       if (this.enemies.length < maxMobCap) {
         this.spawnWildEnemy(false);
         if (minutes >= 4.0 && this.enemies.length < maxMobCap - 5) {
@@ -1068,13 +1093,11 @@ window.GameApp = {
     }
   },
 
-  // 怪獸刷新（適配 iPhone 小螢幕視野，確保怪物及時進入玩家視角）
   spawnWildEnemy(isElite = false) {
     const minutes = this.runTime / 60;
     const diff = this.selectedDifficulty;
 
     const ang = Math.random() * Math.PI * 2;
-    // iPhone 專屬刷新半徑：在可視邊緣外 30~50px 處刷新，杜絕遠處無效生成
     const viewEdge = Math.hypot(this.width, this.height) * 0.45;
     const dist = Math.min(380, Math.max(260, viewEdge)) + (isElite ? 40 : 0);
     const ex = this.player.x + Math.cos(ang) * dist;
@@ -1104,7 +1127,9 @@ window.GameApp = {
     const isShiny = Math.random() < shinyChance;
 
     const timeHpScale = 1 + (minutes * 0.80) + Math.pow(minutes / 2.3, 2.0) * 0.90;
-    const hp = Math.round((35 + pick.hp * 0.55) * timeHpScale * diff.hpMult * (isElite ? 3.8 : 1.0) * (isShiny ? 1.6 : 1.0));
+    let hp = Math.round((35 + pick.hp * 0.55) * timeHpScale * diff.hpMult * (isElite ? 3.8 : 1.0) * (isShiny ? 1.6 : 1.0));
+    if (isElite && minutes >= 4.0) hp = Math.round(hp * 1.25);
+
     const atk = Math.round((8 + pick.atk * 0.35) * (1 + minutes * 0.15) * diff.atkMult * (isElite ? 1.45 : 1.0));
 
     this.saveData.pokedexSeen[pick.id] = true;
@@ -1179,104 +1204,73 @@ window.GameApp = {
     this.showCutsceneBanner("[稀有寶藏精靈登場]", msg, 3000);
   },
 
-  // Boss 降臨前奏系統 (Warning 預警序列)
-  triggerBossWarningSequence(bossId, isFinalMewtwo = false) {
-    const bData = POKEMON_MAP.get(bossId);
-    if (!bData) return;
-
-    const weatherMap = { 144: "BLIZZARD", 145: "THUNDER", 146: "HEATWAVE", 150: "PSYCHIC", 151: "PSYCHIC" };
-    const wType = weatherMap[bossId] || "THUNDER";
-    const wNames = { BLIZZARD: "極寒暴雪", THUNDER: "狂暴雷暴", HEATWAVE: "烈日熱浪", PSYCHIC: "超能極光" };
-
-    // 1. 預先切換戰場氣候與 HUD
-    MapEngine.setWeather(wType);
-    this.updateWeatherUI(wType);
-
-    // 2. 播放警報聲並彈出全屏紅色 WARNING 橫幅
-    SoundFX.play("boss");
-    this.showCutsceneBanner(
-      "【⚠️ WARNING!! 神獸降臨預警】",
-      `天地異變！氣候轉為【${wNames[wType] || wType}】！傳說精靈【${bData.name_zh}】即將在預警點降臨！`,
-      2400
-    );
-
-    // 3. 計算降落目標座標 (距離主角 280px)
-    const ang = Math.random() * Math.PI * 2;
-    const dropX = this.player.x + Math.cos(ang) * 280;
-    const dropY = this.player.y + Math.sin(ang) * 280;
-
-    // 4. 地面生成動態收縮的 1.8 秒 Danger 預警圈
-    this.telegraphs.push({
-      shape: "circle",
-      isBossWarning: true,
-      bossId: bossId,
-      isFinalMewtwo: isFinalMewtwo,
-      x: dropX,
-      y: dropY,
-      radius: 95,
-      timer: 1.8,
-      maxTime: 1.8,
-      dmg: 0,
-      color: "#EF4444"
-    });
+  spawnPokeMartEntity(nearPlayer = false) {
+    const activeMarts = this.mapItems.filter(i => i.id === "poke_mart").length;
+    if (activeMarts < 1) {
+      const ang = Math.random() * Math.PI * 2;
+      const dist = nearPlayer ? 140 : 340;
+      const mx = this.player.x + Math.cos(ang) * dist;
+      const my = this.player.y + Math.sin(ang) * dist;
+      this.mapItems.push({
+        id: "poke_mart",
+        x: mx,
+        y: my,
+        bobPhase: 0,
+        standTimer: 0,
+        meta: {
+          name: "友好商店",
+          color: "#38BDF8",
+          sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png"
+        }
+      });
+      this.showCutsceneBanner("【友好商店 (Poké Mart) 登場】", "靠近並站定 0.5 秒即可進店選購 TM 學習機！", 3000);
+    }
   },
 
-  spawnBoss(bossId, isFinalMewtwo = false) {
-    this.triggerBossWarningSequence(bossId, isFinalMewtwo);
+  updateMartInteraction(dt) {
+    if (!this.player || this.state !== "PLAYING") return;
+    const p = this.player;
+    const mart = this.mapItems.find(it => it.id === "poke_mart");
+    if (!mart) return;
+
+    const d = Math.hypot(p.x - mart.x, p.y - mart.y);
+    const isStationary = Math.hypot(p.vx, p.vy) < 10;
+
+    if (d < 40 && isStationary) {
+      mart.standTimer = (mart.standTimer || 0) + dt;
+      if (mart.standTimer >= 0.5) {
+        mart.standTimer = 0;
+        this.openPokeMartModal();
+      }
+    } else {
+      mart.standTimer = 0;
+    }
   },
 
-  spawnBossAt(bossId, bx, by, isFinalMewtwo = false) {
-    const bData = POKEMON_MAP.get(bossId);
-    const diff = this.selectedDifficulty;
-    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
+  openPokeMartModal() {
+    this.state = "PAUSED";
+    const p = this.player;
+    const catalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
+    const availableTMs = Object.values(catalog).filter(tm => !p.skills[tm.id]);
+    const shelf = availableTMs.sort(() => 0.5 - Math.random()).slice(0, 3);
+    if (this.renderMartModal) this.renderMartModal(shelf);
+  },
 
-    SoundFX.startBgm("boss");
-    this.camera.shakeTime = 0.65;
-    this.camera.shakeMagnitude = 16;
-    SoundFX.play("ultimate");
+  buyTM(skillId, cost) {
+    if (this.runCoins < cost) {
+      this.spawnFloatingText(this.player.x, this.player.y - 20, "代幣不足！", "#EF4444", 13);
+      return;
+    }
+    this.runCoins -= cost;
+    this.saveData.coins = Math.max(0, this.saveData.coins - cost);
+    const p = this.player;
+    p.maxSkillSlots = 4;
+    p.skills[skillId] = { id: skillId, level: 1, evolved: false, timer: 0.1 };
 
-    this.spawnParticleCluster(bx, by, "#EF4444", "#F59E0B", 36, "star", 1.8);
-    SkillsEngine.meleeEffects.push({
-      style: "slam_wave",
-      x: bx,
-      y: by,
-      radius: 140,
-      timer: 0.45,
-      maxTime: 0.45,
-      color: "#EF4444"
-    });
-
-    this.saveData.pokedexSeen[bossId] = true;
-    const boss = {
-      id: bossId,
-      data: bData,
-      x: bx,
-      y: by,
-      hp,
-      maxHp: hp,
-      atk: Math.round((isFinalMewtwo ? 42 : 30) * diff.atkMult),
-      speed: (isFinalMewtwo ? 92 : 82) * diff.spdMult,
-      radius: 44,
-      isElite: true,
-      isBoss: true,
-      isFinalMewtwo,
-      isShiny: false,
-      treasureType: null,
-      facingX: -1,
-      facingY: 1,
-      status: null,
-      statusTimer: 0,
-      statusTick: 0,
-      ccImmunityTimer: 0,
-      rangedCd: 2.2,
-      whiteFlashTimer: 0,
-      weightTier: "boss",
-      kbResist: 1.0,
-      bossAttackIdx: 0
-    };
-    this.enemies.push(boss);
-    this.activeBoss = boss;
-    document.getElementById("bossHudContainer").classList.remove("hidden");
+    SoundFX.play("levelup");
+    const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[skillId]) ? SKILLS_CATALOG[skillId].name : skillId;
+    this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+    this.closePokeMartModal();
   },
 
   updateEnemies(dt) {
@@ -1334,7 +1328,6 @@ window.GameApp = {
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // 螢幕外過遠怪物主動回撈拉近 (避免華藍水路怪物卡在遠處佔用名額)
       if (dist > Math.max(this.width, this.height) * 0.85 && !e.isBoss && !e.isElite && !e.treasureType) {
         const rAng = Math.random() * Math.PI * 2;
         e.x = p.x + Math.cos(rAng) * (Math.max(this.width, this.height) * 0.55);
@@ -1382,7 +1375,6 @@ window.GameApp = {
         }
       }
 
-      // 雙實體承傷判定：怪獸撞擊「出戰寶可夢」或「隨行訓練家」均會觸發傷害
       const tc = this.trainerCompanion;
       const distToPoke = dist;
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
@@ -1399,7 +1391,6 @@ window.GameApp = {
         p.invulnTimer = hasMelee ? 0.75 : 0.50;
 
         if (hitTrainer && !hitPoke) {
-          // 訓練家肉身受傷後果：震屏加劇、大招冷卻延遲 1.5 秒 (Panic 混亂硬直)
           this.camera.shakeTime = 0.24;
           this.camera.shakeMagnitude = 7.5;
           p.trainerSkillCd = Math.min(p.trainerSkillMaxCd, p.trainerSkillCd + 1.5);
@@ -1407,7 +1398,6 @@ window.GameApp = {
           this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 10, "star", 0.8);
           SoundFX.play("hit");
         } else {
-          // 寶可夢承受傷害：強烈受創反饋 (白閃 + 頓挫 + 震屏 + 受傷紅星)
           p.whiteFlashTimer = 0.12;
           this.camera.shakeTime = 0.15;
           this.camera.shakeMagnitude = 4.5;
@@ -1579,7 +1569,6 @@ window.GameApp = {
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0));
-    // 暴擊倍率調整為 1.35x
     let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0));
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
@@ -1745,15 +1734,20 @@ window.GameApp = {
     const p = this.player;
     SoundFX.play("levelup");
     let evolvedAny = false;
-    Object.values(p.skills).forEach(sk => {
-      const meta = SKILLS_CATALOG[sk.id];
-      if (sk.level >= 10 && !sk.evolved && (!meta.reqItem || p.heldItems[meta.reqItem])) {
-        sk.evolved = true;
-        evolvedAny = true;
-        this.saveData.stats.superMoves += 1;
-        this.showCutsceneBanner(`[寶箱突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3200);
-      }
-    });
+    const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
+
+    if (evolvedCount < 2) {
+      Object.values(p.skills).forEach(sk => {
+        const meta = SKILLS_CATALOG[sk.id];
+        if (sk.level >= 10 && !sk.evolved && (!meta.reqItem || p.heldItems[meta.reqItem])) {
+          sk.evolved = true;
+          evolvedAny = true;
+          this.saveData.stats.superMoves += 1;
+          this.showCutsceneBanner(`[寶箱突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3200);
+        }
+      });
+    }
+
     if (!evolvedAny) {
       const skList = Object.values(p.skills);
       const pick = skList[Math.floor(Math.random() * skList.length)];
@@ -1794,14 +1788,29 @@ window.GameApp = {
 
   confirmEeveeEvolution(targetId) {
     document.getElementById("eevee-evo-modal").classList.add("hidden");
+    const p = this.player;
+    const oldSkills = Object.values(p.skills);
+    const savedLevels = oldSkills.slice(0, 3).map(s => s.level);
+    const tmSkill = oldSkills[3] || null;
+
     this.evolvePlayerPokemon(targetId);
 
-    const sigSkill = targetId === 134 ? "Hydro Pump" : (targetId === 135 ? "Thunderbolt" : "Flamethrower");
-    if (this.player.skills[sigSkill]) {
-      this.player.skills[sigSkill].level = Math.min(10, this.player.skills[sigSkill].level + 2);
-    } else {
-      this.player.skills[sigSkill] = { id: sigSkill, level: 3, evolved: false, timer: 0.1 };
+    const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
+      134: ["Tackle", "HydroPump", "IceBeam"],
+      135: ["Tackle", "Thunderbolt", "AirSlash"],
+      136: ["Tackle", "Flamethrower", "DragonRush"]
+    };
+
+    const newSkillIds = evoSkillMap[targetId] || ["Tackle", "HydroPump", "IceBeam"];
+    p.skills = {};
+    newSkillIds.forEach((sId, idx) => {
+      p.skills[sId] = { id: sId, level: Math.max(1, savedLevels[idx] || 1), evolved: false, timer: 0.2 };
+    });
+
+    if (tmSkill) {
+      p.skills[tmSkill.id] = tmSkill;
     }
+
     this.state = "PLAYING";
     this.refreshHUD();
   },
@@ -1829,37 +1838,37 @@ window.GameApp = {
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, "生命全滿且戰鬥數值大幅躍升！", 3200);
   },
 
-  // 升級三選一視窗 (優化攜帶物權重與屬性相關性)
   openLevelUpModal() {
     this.state = "PAUSED";
     const p = this.player;
     const pool = [];
 
-    // 1. 超武突破 (權重 100)
-    Object.values(p.skills).forEach(sk => {
-      const meta = SKILLS_CATALOG[sk.id];
-      if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
-        pool.push({
-          weight: 100,
-          rarityClass: "rarity-legendary",
-          badge: "究極超武突破",
-          badgeBg: "bg-amber-500 text-slate-950 font-black",
-          title: meta.evolvedName,
-          subTitle: "★ MAX 滿級突破",
-          typeBadge: renderTypeBadgeHTML(meta.type),
-          sprite: meta.sprite,
-          desc: meta.evoDesc,
-          isNew: false,
-          apply: () => {
-            sk.evolved = true;
-            this.saveData.stats.superMoves += 1;
-            this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
-          }
-        });
-      }
-    });
+    const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
+    if (evolvedCount < 2) {
+      Object.values(p.skills).forEach(sk => {
+        const meta = SKILLS_CATALOG[sk.id];
+        if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
+          pool.push({
+            weight: 100,
+            rarityClass: "rarity-legendary",
+            badge: "究極超武突破",
+            badgeBg: "bg-amber-500 text-slate-950 font-black",
+            title: meta.evolvedName,
+            subTitle: "★ MAX 滿級突破",
+            typeBadge: renderTypeBadgeHTML(meta.type),
+            sprite: meta.sprite,
+            desc: meta.evoDesc,
+            isNew: false,
+            apply: () => {
+              sk.evolved = true;
+              this.saveData.stats.superMoves += 1;
+              this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
+            }
+          });
+        }
+      });
+    }
 
-    // 2. 招式階級提升 (權重 42)
     Object.values(p.skills).forEach(sk => {
       if (sk.level < 10) {
         const meta = SKILLS_CATALOG[sk.id];
@@ -1880,7 +1889,6 @@ window.GameApp = {
       }
     });
 
-    // 3. 通用營養藥劑 (權重 30/30/28)
     pool.push(
       {
         weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
@@ -1900,7 +1908,6 @@ window.GameApp = {
       }
     );
 
-    // 4. 新招式領悟
     const currentCount = Object.keys(p.skills).length;
     if (currentCount < p.maxSkillSlots) {
       Object.values(SKILLS_CATALOG).forEach(meta => {
@@ -1916,7 +1923,6 @@ window.GameApp = {
       });
     }
 
-    // 5. 攜帶道具 (精確優化：權重調降至 3，且只推送與當前已裝備技能屬性相關的攜帶物)
     const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
     Object.values(HELD_ITEMS).forEach(hi => {
       const targetSkill = SKILLS_CATALOG[hi.skillReq];
@@ -1963,7 +1969,7 @@ window.GameApp = {
               ${c.typeBadge || ''}
               <span class="px-2 py-0.2 rounded-full text-[9px] ${c.badgeBg} truncate">${c.badge}</span>
             </div>
-            <p class="text-xs font-bold text-slate-600 truncate mt-0.5">${c.desc}</p>
+            <p class="text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
           </div>
         </div>
         <button class="poke-btn-red px-4 py-2 text-xs font-black shrink-0 min-h-[38px]">
@@ -2013,11 +2019,6 @@ window.GameApp = {
     this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
   },
 
-  /**
-   * ============================================================================
-   * 戰鬥畫面渲染、多形態危險預警、草叢沉浸與動態草尖、對接 SkillsEngine
-   * ============================================================================
-   */
   renderCombat() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
@@ -2146,12 +2147,6 @@ window.GameApp = {
       const tInWater = tTerrain.inWater;
       const tInGrass = tTerrain.label.includes("草叢");
 
-      let tJumpOffsetZ = 0;
-      if (tc.isJumpingLedge && tc.jumpTimer > 0) {
-        const tJumpProg = 1 - (tc.jumpTimer / 0.22);
-        tJumpOffsetZ = Math.sin(tJumpProg * Math.PI) * 18;
-      }
-
       let activeUrl = tc.sprite;
       let needFlip = false;
       if (tc.sprites) {
@@ -2175,40 +2170,14 @@ window.GameApp = {
       } else {
         ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
         ctx.beginPath();
-        ctx.ellipse(tsx, tsy + 18, Math.max(7, 14 - tJumpOffsetZ * 0.3), Math.max(3, 5.5 - tJumpOffsetZ * 0.1), 0, 0, Math.PI * 2);
+        ctx.ellipse(tsx, tsy + 18, 14, 5.5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      if (tInWater) {
-        ctx.beginPath();
-        ctx.rect(tsx - 35, tsy - 45, 70, 56);
-        ctx.clip();
-      } else if (tInGrass && !tc.isJumpingLedge) {
-        ctx.beginPath();
-        ctx.rect(tsx - 35, tsy - 45, 70, 58);
-        ctx.clip();
-      }
-
-      ctx.translate(tsx, tsy - bob - tJumpOffsetZ + (tInWater ? 5 : 0));
+      ctx.translate(tsx, tsy - bob + (tInWater ? 5 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) ctx.drawImage(tRec.img, -28, -28, 56, 56);
       ctx.restore();
-
-      if (tInGrass && !tc.isJumpingLedge && !tInWater) {
-        ctx.save();
-        ctx.strokeStyle = "#4ADE80";
-        ctx.lineWidth = 2.0;
-        const tSway = Math.sin(performance.now() * 0.01 + tc.walkBob) * 2;
-        ctx.beginPath();
-        ctx.moveTo(tsx - 10, tsy + 16);
-        ctx.lineTo(tsx - 6 + tSway, tsy + 4);
-        ctx.lineTo(tsx - 2, tsy + 16);
-        ctx.moveTo(tsx + 1, tsy + 16);
-        ctx.lineTo(tsx + 5 - tSway, tsy + 3);
-        ctx.lineTo(tsx + 9, tsy + 16);
-        ctx.stroke();
-        ctx.restore();
-      }
     }
 
     this.partners.forEach(pt => {
@@ -2234,14 +2203,6 @@ window.GameApp = {
     const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
     const inWater = terrain.inWater;
     const inGrass = terrain.label.includes("草叢");
-    const isFlyingOrWater = p.data.type1 === "Water" || p.data.type2 === "Water" ||
-                            p.data.type1 === "Flying" || p.data.type2 === "Flying";
-
-    let jumpOffsetZ = 0;
-    if (p.isJumpingLedge && p.jumpTimer > 0) {
-      const jumpProg = 1 - (p.jumpTimer / 0.22);
-      jumpOffsetZ = Math.sin(jumpProg * Math.PI) * 18;
-    }
 
     ctx.save();
 
@@ -2255,7 +2216,7 @@ window.GameApp = {
     } else {
       ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
       ctx.beginPath();
-      ctx.ellipse(px, py + 18, Math.max(8, 14 - jumpOffsetZ * 0.3), Math.max(3, 5.5 - jumpOffsetZ * 0.1), 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 18, 14, 5.5, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -2269,17 +2230,8 @@ window.GameApp = {
 
     if (p.shieldTimer > 0) {
       const shieldPct = p.shieldTimer / p.maxShieldTimer;
-      const isEnding = p.shieldTimer < 1.5;
-      const blinkAlpha = isEnding ? (Math.sin(performance.now() * 0.02) > 0 ? 1 : 0.3) : 1;
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(px, py, 30, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = `rgba(245, 158, 11, ${blinkAlpha})`;
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
       ctx.lineWidth = 3.5;
-      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.arc(px, py, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldPct, false);
       ctx.stroke();
@@ -2287,37 +2239,17 @@ window.GameApp = {
 
     if (p.buffTimer > 0) {
       const buffPct = p.buffTimer / p.maxBuffTimer;
-      const isEnding = p.buffTimer < 1.5;
-      const blinkAlpha = isEnding ? (Math.sin(performance.now() * 0.02) > 0 ? 1 : 0.25) : 1;
-
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(px, py + 12, 26, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = `rgba(245, 158, 11, ${blinkAlpha})`;
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
       ctx.lineWidth = 3.5;
-      ctx.lineCap = "round";
       ctx.beginPath();
       ctx.arc(px, py + 12, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
       ctx.stroke();
     }
 
-    if (inWater && !isFlyingOrWater) {
-      ctx.beginPath();
-      ctx.rect(px - 40, py - 50, 80, 58);
-      ctx.clip();
-    } else if (inGrass && !isFlyingOrWater && !p.isJumpingLedge) {
-      ctx.beginPath();
-      ctx.rect(px - 40, py - 50, 80, 60);
-      ctx.clip();
-    }
-
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
-      ctx.translate(px, py - pBob - jumpOffsetZ + (inWater && !isFlyingOrWater ? 4 : 0));
+      ctx.translate(px, py - pBob + (inWater ? 4 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
       if (p.whiteFlashTimer > 0) {
         ctx.filter = "brightness(10) contrast(10)";
@@ -2329,64 +2261,16 @@ window.GameApp = {
     }
     ctx.restore();
 
-    if (inGrass && !isFlyingOrWater && !p.isJumpingLedge && !inWater) {
-      ctx.save();
-      ctx.strokeStyle = "#4ADE80";
-      ctx.lineWidth = 2.0;
-      const sway = Math.sin(performance.now() * 0.01 + p.walkBob) * 2;
-      const gx = px, gy = py + 14;
-
-      ctx.beginPath();
-      ctx.moveTo(gx - 12, gy + 4);
-      ctx.lineTo(gx - 8 + sway, gy - 6);
-      ctx.lineTo(gx - 4, gy + 4);
-
-      ctx.moveTo(gx - 2, gy + 4);
-      ctx.lineTo(gx + 1 - sway, gy - 8);
-      ctx.lineTo(gx + 5, gy + 4);
-
-      ctx.moveTo(gx + 6, gy + 4);
-      ctx.lineTo(gx + 10 + sway, gy - 5);
-      ctx.lineTo(gx + 14, gy + 4);
-      ctx.stroke();
-      ctx.restore();
-    }
-
     this.enemies.forEach(e => {
       const esx = toSx(e.x), esy = toSy(e.y);
       if (esx < -90 || esx > this.width + 90 || esy < -90 || esy > this.height + 90) return;
-
-      const eTerrain = MapEngine.getTerrainModifierAt(e.x, e.y);
-      const eInWater = eTerrain.inWater;
-      const eInGrass = eTerrain.label.includes("草叢");
-      const eFlyingOrWater = e.data.type1 === "Water" || e.data.type2 === "Water" ||
-                             e.data.type1 === "Flying" || e.data.type2 === "Flying";
 
       const eSprUrl = e.facingY < 0 ? e.data.back_sprite : e.data.forward_sprite;
       const eRec = SpriteCache.get(eSprUrl);
       const sz = e.isBoss ? 120 : (e.isElite || e.treasureType ? 88 : 64);
 
       ctx.save();
-      if (eInWater) {
-        const waveC = (performance.now() * 0.005 + e.x * 0.01) % Math.PI;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${0.7 - waveC / Math.PI})`;
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.ellipse(esx, esy + sz * 0.25, sz * 0.3 + waveC * 6, sz * 0.12 + waveC * 3, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      if (eInWater && !eFlyingOrWater) {
-        ctx.beginPath();
-        ctx.rect(esx - sz, esy - sz, sz * 2, sz * 1.35);
-        ctx.clip();
-      } else if (eInGrass && !eFlyingOrWater && !e.isBoss) {
-        ctx.beginPath();
-        ctx.rect(esx - sz, esy - sz, sz * 2, sz * 1.4);
-        ctx.clip();
-      }
-
-      ctx.translate(esx, esy + (eInWater && !eFlyingOrWater ? 6 : 0));
+      ctx.translate(esx, esy);
       if (e.facingX > 0) ctx.scale(-1, 1);
 
       if (e.whiteFlashTimer > 0) {
@@ -2401,21 +2285,6 @@ window.GameApp = {
 
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
       ctx.restore();
-
-      if (eInGrass && !eFlyingOrWater && !e.isBoss && !eInWater) {
-        ctx.save();
-        ctx.strokeStyle = "#4ADE80";
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(esx - 8, esy + sz * 0.22);
-        ctx.lineTo(esx - 4, esy + sz * 0.12);
-        ctx.lineTo(esx, esy + sz * 0.22);
-        ctx.moveTo(esx + 2, esy + sz * 0.22);
-        ctx.lineTo(esx + 6, esy + sz * 0.10);
-        ctx.lineTo(esx + 10, esy + sz * 0.22);
-        ctx.stroke();
-        ctx.restore();
-      }
 
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
         const bw = e.isBoss ? 66 : 36;
@@ -2504,6 +2373,46 @@ window.GameApp = {
         ctx.restore();
       }
     });
+
+    this.mapItems.forEach(it => {
+      const esx = toSx(it.x), esy = toSy(it.y);
+      if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
+        const dx = it.x - this.player.x;
+        const dy = it.y - this.player.y;
+        const ang = Math.atan2(dy, dx);
+        const distMeters = Math.round(Math.hypot(dx, dy) / 10);
+
+        const arrowX = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
+        const arrowY = Math.max(edgePad, Math.min(this.height - edgePad, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+
+        ctx.save();
+        ctx.translate(arrowX, arrowY);
+        ctx.fillStyle = "#38BDF8";
+        ctx.shadowColor = "#38BDF8";
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.arc(0, 0, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.rotate(ang);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.moveTo(10, 0); ctx.lineTo(-3, -5.5); ctx.lineTo(-3, 5.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#38BDF8";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.5;
+        ctx.strokeText(`商店 ${distMeters}m`, arrowX, arrowY + 25);
+        ctx.fillText(`商店 ${distMeters}m`, arrowX, arrowY + 25);
+        ctx.restore();
+      }
+    });
   },
 
   refreshHUD() {
@@ -2527,7 +2436,6 @@ window.GameApp = {
     document.getElementById("hudKills").textContent = this.kills;
     document.getElementById("hudCoins").textContent = this.runCoins;
 
-    // 1. 雙打小夥伴狀態列表 (頭像 + 等級 Lv)
     const partnerBox = document.getElementById("hudPartnerList");
     if (partnerBox) {
       partnerBox.innerHTML = this.partners.map(pt => `
@@ -2539,7 +2447,6 @@ window.GameApp = {
       `).join("");
     }
 
-    // 2. 攜帶道具欄圖示渲染
     const heldBox = document.getElementById("hudHeldItemList");
     if (heldBox) {
       heldBox.innerHTML = Object.keys(p.heldItems || {}).map(itemId => {
@@ -2552,7 +2459,6 @@ window.GameApp = {
       }).join("");
     }
 
-    // 3. 招式微型標籤列表
     document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
       const meta = SKILLS_CATALOG[sk.id];
       return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm"><img src="${meta.sprite}" class="w-3 h-3 pixel-sprite"/>${sk.evolved ? meta.evolvedName : meta.name} L${sk.level}</span>`;
@@ -2622,6 +2528,7 @@ window.GameApp = {
       : "前往寶可夢中心強化能力後再次挑戰！";
     document.getElementById("btnResumeGame").classList.add("hidden");
     if (this.populateEndModalStats) this.populateEndModalStats();
+    document.getElementById("endModal").classList.add("hidden");
     document.getElementById("endModal").classList.remove("hidden");
   }
 };
