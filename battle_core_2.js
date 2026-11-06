@@ -527,9 +527,18 @@ window.GameApp = {
       jumpTimer: 0
     };
 
-    const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
-    this.player.skills[initSkillId] = { id: initSkillId, level: 1, evolved: false, timer: 0.2 };
+    //const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
+    //this.player.skills[initSkillId] = { id: initSkillId, level: 1, evolved: false, timer: 0.2 };
 
+// 讀取天生三招配置
+    const natConfig = (typeof POKEMON_NATURAL_SKILLS !== "undefined" && POKEMON_NATURAL_SKILLS[basePoke.id])
+      ? POKEMON_NATURAL_SKILLS[basePoke.id]
+      : null;
+
+    const firstSkillId = natConfig ? natConfig.skills[0] : (SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle");
+    this.player.skills[firstSkillId] = { id: firstSkillId, level: 1, evolved: false, timer: 0.2 };
+    this.player.naturalSkills = natConfig ? [...natConfig.skills] : [firstSkillId];
+	
     this.trainerCompanion = {
       x: 26,
       y: 8,
@@ -845,6 +854,21 @@ window.GameApp = {
       p.walkBob += dt * 12;
     } else {
       p.walkBob = 0;
+    }
+	
+	// 恢復草地、涉水與木板腳底粒子反饋
+    if (ilen > 0.05) {
+      this.stepParticleTimer = (this.stepParticleTimer || 0) - dt;
+      if (this.stepParticleTimer <= 0) {
+        this.stepParticleTimer = 0.18;
+        if (terrain.label.includes("草叢")) {
+          this.spawnParticleCluster(p.x, p.y + 12, "#22C55E", "#86EFAC", 4, "leaf", 0.4);
+        } else if (terrain.inWater) {
+          this.spawnParticleCluster(p.x, p.y + 14, "#38BDF8", "#FFFFFF", 5, "circle", 0.5);
+        } else if (terrain.label.includes("木") || terrain.label.includes("橋")) {
+          this.spawnParticleCluster(p.x, p.y + 14, "#B45309", "#D97706", 3, "circle", 0.3);
+        }
+      }
     }
 
     const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
@@ -1234,7 +1258,7 @@ window.GameApp = {
     if (!mart) return;
 
     const d = Math.hypot(p.x - mart.x, p.y - mart.y);
-    const isStationary = Math.hypot(p.vx, p.vy) < 10;
+    const isStationary = Math.hypot(p.vx, p.vy) < 15;
 
     if (d < 40 && isStationary) {
       mart.standTimer = (mart.standTimer || 0) + dt;
@@ -1710,6 +1734,8 @@ window.GameApp = {
 
     for (let i = this.mapItems.length - 1; i >= 0; i--) {
       const it = this.mapItems[i];
+	  if (it.id === "poke_mart") continue; // 👈 關鍵防護：商店絕不被碰撞拾取邏輯刪除！
+	  
       it.bobPhase += dt * 4;
       if (Math.hypot(p.x - it.x, p.y - it.y) < 30) {
         this.mapItems.splice(i, 1);
@@ -1807,6 +1833,9 @@ window.GameApp = {
       p.skills[sId] = { id: sId, level: Math.max(1, savedLevels[idx] || 1), evolved: false, timer: 0.2 };
     });
 
+    // 關鍵修正：同步更新當前精靈的天生三招記憶庫
+    p.naturalSkills = [...newSkillIds];
+	
     if (tmSkill) {
       p.skills[tmSkill.id] = tmSkill;
     }
@@ -1910,17 +1939,47 @@ window.GameApp = {
 
     const currentCount = Object.keys(p.skills).length;
     if (currentCount < p.maxSkillSlots) {
-      Object.values(SKILLS_CATALOG).forEach(meta => {
-        if (!p.skills[meta.id] && meta.id !== "Metronome") {
-          pool.push({
-            weight: 18, rarityClass: "rarity-rare", badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
-            badgeBg: "bg-blue-600 text-white font-black", title: meta.name, subTitle: "新領悟 Lv.1",
-            typeBadge: renderTypeBadgeHTML(meta.type), sprite: meta.sprite, desc: meta.desc,
-            isNew: true,
-            apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
-          });
-        }
-      });
+      // 1. 優先推送天生尚未學會的招式 (高權重 60)
+      const unlearnedNatural = (p.naturalSkills || []).filter(sId => !p.skills[sId]);
+      if (unlearnedNatural.length > 0) {
+        unlearnedNatural.forEach(sId => {
+          const meta = SKILLS_CATALOG[sId];
+          if (meta) {
+            pool.push({
+              weight: 60,
+              rarityClass: "rarity-rare",
+              badge: `天生招式 (${currentCount + 1}/${p.maxSkillSlots})`,
+              badgeBg: "bg-emerald-600 text-white font-black",
+              title: meta.name,
+              subTitle: "本系領悟 Lv.1",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite,
+              desc: meta.desc,
+              isNew: true,
+              apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+            });
+          }
+        });
+      } else {
+        // 2. 天生三招已學齊，才開放從全庫挑選普通新招 (低權重 15)
+        Object.values(SKILLS_CATALOG).forEach(meta => {
+          if (!p.skills[meta.id] && meta.id !== "Metronome") {
+            pool.push({
+              weight: 15,
+              rarityClass: "rarity-rare",
+              badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
+              badgeBg: "bg-blue-600 text-white font-black",
+              title: meta.name,
+              subTitle: "新領悟 Lv.1",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite,
+              desc: meta.desc,
+              isNew: true,
+              apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+            });
+          }
+        });
+      }
     }
 
     const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
