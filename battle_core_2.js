@@ -2487,22 +2487,43 @@ window.GameApp = {
     if (!p) return;
     const tr = this.selectedTrainer;
 
-    document.getElementById("hudAvatar").src = p.data.forward_sprite;
-    document.getElementById("hudPartnerName").textContent = p.data.name_zh;
-    const tb = document.getElementById("hudTypeBadges");
-    if (tb && typeof renderTypeBadgeHTML === "function") tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
-    document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
-    document.getElementById("hudLevelText").textContent = `Lv.${p.level}`;
+    const av = document.getElementById("hudAvatar");
+    if (av) av.src = p.data.forward_sprite;
 
-    document.getElementById("hudHpBar").style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
-    document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
-    document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
+    const pName = document.getElementById("hudPartnerName");
+    if (pName) pName.textContent = p.data.name_zh;
+
+    const tb = document.getElementById("hudTypeBadges");
+    if (tb && typeof renderTypeBadgeHTML === "function") {
+      tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
+    }
+
+    const bBadge = document.getElementById("hudAshBondBadge");
+    if (bBadge) bBadge.classList.toggle("hidden", !p.isTrainerBond);
+
+    const lvText = document.getElementById("hudLevelText");
+    if (lvText) lvText.textContent = `Lv.${p.level}`;
+
+    const hpBar = document.getElementById("hudHpBar");
+    if (hpBar) hpBar.style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
+
+    const hpText = document.getElementById("hudHpText");
+    if (hpText) hpText.textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+
+    const expBar = document.getElementById("hudExpBar");
+    if (expBar) expBar.style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
 
     const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
     const secs = String(Math.floor(this.runTime % 60)).padStart(2, "0");
-    document.getElementById("hudTimer").textContent = `${mins}:${secs}`;
-    document.getElementById("hudKills").textContent = this.kills;
-    document.getElementById("hudCoins").textContent = this.runCoins;
+
+    const timerEl = document.getElementById("hudTimer");
+    if (timerEl) timerEl.textContent = `${mins}:${secs}`;
+
+    const killsEl = document.getElementById("hudKills");
+    if (killsEl) killsEl.textContent = this.kills;
+
+    const coinsEl = document.getElementById("hudCoins");
+    if (coinsEl) coinsEl.textContent = this.runCoins;
 
     const partnerBox = document.getElementById("hudPartnerList");
     if (partnerBox) {
