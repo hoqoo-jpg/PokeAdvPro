@@ -806,20 +806,24 @@ window.GameApp = {
     }
 
     const tBadge = document.getElementById("hudTerrainBadge");
-    if (terrain.label) {
-      tBadge.textContent = terrain.label;
-      tBadge.classList.remove("hidden");
-    } else {
-      tBadge.classList.add("hidden");
+    if (tBadge) {
+      if (terrain.label) {
+        tBadge.textContent = terrain.label;
+        tBadge.classList.remove("hidden");
+      } else {
+        tBadge.classList.add("hidden");
+      }
     }
 
     const pStatusEl = document.getElementById("hudPlayerStatusBadge");
-    if (p.status) {
-      const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
-      pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
-      pStatusEl.classList.remove("hidden");
-    } else {
-      pStatusEl.classList.add("hidden");
+    if (pStatusEl) {
+      if (p.status) {
+        const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
+        pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
+        pStatusEl.classList.remove("hidden");
+      } else {
+        pStatusEl.classList.add("hidden");
+      }
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
