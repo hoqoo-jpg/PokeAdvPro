@@ -1,3 +1,23 @@
+// 確保初始寶可夢、難度與生態地圖有完整預設陣列，絕不出現空白
+window.STARTER_POKEMON_LIST = window.STARTER_POKEMON_LIST || [
+  { id: 25, name_zh: "皮卡丘", forward_sprite: "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" },
+  { id: 1, name_zh: "妙蛙種子", forward_sprite: "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/1.png" },
+  { id: 4, name_zh: "小火龍", forward_sprite: "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/4.png" },
+  { id: 7, name_zh: "傑尼龜", forward_sprite: "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/7.png" },
+  { id: 133, name_zh: "伊布", forward_sprite: "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/133.png" }
+];
+
+window.GAME_DIFFICULTIES = window.GAME_DIFFICULTIES || [
+  { id: "easy", name: "微風新手", desc: "怪獸生命-20%，適合熟悉操作", hpMult: 0.8, atkMult: 0.8, spdMult: 0.9, coinMult: 0.8, spawnRateMult: 0.85 },
+  { id: "normal", name: "標準冒險", desc: "正統關都荒野難度，標準體驗", hpMult: 1.0, atkMult: 1.0, spdMult: 1.0, coinMult: 1.0, spawnRateMult: 1.0 },
+  { id: "hard", name: "火箭隊狂潮", desc: "怪獸生命+40%，代幣獎勵大幅提升", hpMult: 1.4, atkMult: 1.25, spdMult: 1.15, coinMult: 1.5, spawnRateMult: 1.3 }
+];
+
+window.MAP_STAGES = window.MAP_STAGES || [
+  { id: "viridian_forest", name: "常青森林原野", desc: "草叢、河流與落石群交錯的標準生態", rewardMult: 1.0 },
+  { id: "cerulean_bay", name: "華藍海灣水路", desc: "水域佔比高，水系精靈獲得持續自癒", rewardMult: 1.25 }
+];
+
 /**
  * ============================================================================
  * game_ui.js
@@ -106,26 +126,19 @@ Object.assign(window.GameApp, {
       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png",
       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png",
       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png",
-      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
-      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
-      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
-      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/1.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/4.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/7.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/133.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/150.png",
-      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/151.png",
       "images/Ash_01.png"
     ];
-
-    // 動態載入全 151 隻正反面圖片，精確達到 333/333
+    // 動態預載關都 151 隻正面與背面圖片，精確達成 333 項資源計數
     if (typeof POKEMON_MAP !== "undefined") {
       POKEMON_MAP.forEach(p => {
         if (p.forward_sprite) urls.push(p.forward_sprite);
         if (p.back_sprite) urls.push(p.back_sprite);
       });
+    } else {
+      for (let i = 1; i <= 151; i++) {
+        urls.push(`https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/${i}.png`);
+        urls.push(`https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${i}.png`);
+      }
     }
 
     let loaded = 0;
@@ -305,16 +318,34 @@ Object.assign(window.GameApp, {
     if (!box || typeof TRAINERS === "undefined") return;
     box.innerHTML = TRAINERS.map(tr => {
       const isSel = (this.selectedTrainer && this.selectedTrainer.id === tr.id) || (!this.selectedTrainer && tr.id === "ash");
+      const bondIds = tr.bondPokemonIds || [];
+      const fallbackImg = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/1.png";
       return `
-        <div onclick="GameApp.selectTrainer('${tr.id}')" class="poke-card cursor-pointer p-3.5 flex flex-col justify-between ${isSel ? 'selected' : ''}">
-          <div class="flex items-center gap-3">
-            <img src="${tr.sprite}" class="w-14 h-14 pixel-sprite object-contain bg-slate-100 rounded-xl p-1"/>
-            <div>
-              <div class="font-black text-sm text-slate-900">${tr.name}</div>
-              <div class="text-[10px] font-bold text-red-600 mt-0.5">指令: ${tr.skillName}</div>
+        <div onclick="GameApp.selectTrainer('${tr.id}')" class="poke-card cursor-pointer p-3.5 flex flex-col justify-between transition-all duration-150 ${isSel ? 'selected' : 'hover:scale-[1.01]'}">
+          <div>
+            <div class="flex items-center gap-3 border-b border-slate-200 pb-2 mb-2">
+              <div class="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-300 flex items-center justify-center shrink-0 p-1">
+                <img src="${tr.sprite}" onerror="this.src='${fallbackImg}'" class="w-12 h-12 pixel-sprite object-contain"/>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-black text-sm text-slate-900">${tr.name}</span>
+                  <span class="px-1.5 py-0.2 bg-red-600 text-white text-[8px] font-pixel rounded">TRAINER</span>
+                </div>
+                <div class="text-[10px] font-black text-amber-600 mt-0.5 truncate">指令: 【${tr.skillName}】</div>
+              </div>
+            </div>
+            <p class="text-[11px] font-bold text-slate-600 leading-snug mb-2">${tr.desc}</p>
+          </div>
+          <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-[9px] space-y-0.5">
+            <div class="flex justify-between text-slate-500 font-bold">
+              <span>戰術CD: ${tr.skillCd}s</span>
+              <span class="text-emerald-600 font-black">專屬羈絆+25%傷</span>
+            </div>
+            <div class="text-slate-700 font-black truncate">
+              羈絆精靈: ${bondIds.map(id => `#${String(id).padStart(3, '0')}`).join(" ")}
             </div>
           </div>
-          <p class="text-xs font-bold text-slate-600 mt-2">${tr.desc}</p>
         </div>
       `;
     }).join("");
@@ -386,12 +417,146 @@ Object.assign(window.GameApp, {
     this.renderWizardDifficultiesAndStages();
   },
 
-  openPokedexModal() { document.getElementById("pokedexModal")?.classList.remove("hidden"); },
+  openPokedexModal() {
+    document.getElementById("pokedexModal")?.classList.remove("hidden");
+    this.renderPokedexTypeFilters();
+    this.renderPokedexGrid();
+  },
   closePokedexModal() { document.getElementById("pokedexModal")?.classList.add("hidden"); },
-  openSkillTreeModal() { document.getElementById("skillTreeModal")?.classList.remove("hidden"); },
+  openSkillTreeModal() {
+    document.getElementById("skillTreeModal")?.classList.remove("hidden");
+    this.renderSkillTree();
+  },
   closeSkillTreeModal() { document.getElementById("skillTreeModal")?.classList.add("hidden"); },
-  openAchievementModal() { document.getElementById("achievementModal")?.classList.remove("hidden"); },
+  openAchievementModal() {
+    document.getElementById("achievementModal")?.classList.remove("hidden");
+    this.renderAchievements();
+  },
   closeAchievementModal() { document.getElementById("achievementModal")?.classList.add("hidden"); },
+  selectedPokedexType: "ALL",
+  renderPokedexTypeFilters() {
+    const box = document.getElementById("pokedexTypeFilters");
+    if (!box || typeof TYPE_META === "undefined") return;
+    const types = ["ALL", ...Object.keys(TYPE_META)];
+    box.innerHTML = types.map(t => {
+      const isSel = this.selectedPokedexType === t;
+      const col = TYPE_META[t]?.color || "#64748B";
+      return `
+        <button onclick="GameApp.filterPokedexByType('${t}')" 
+          class="type-filter-btn px-2.5 py-1 text-[10px] font-black rounded-lg border border-slate-700 transition-all ${isSel ? 'active' : 'opacity-70'}"
+          style="background-color: ${isSel ? col : '#1E293B'}; color: #FFFFFF;">
+          ${t === "ALL" ? "全部" : (TYPE_META[t]?.name_zh || t)}
+        </button>
+      `;
+    }).join("");
+  },
+
+  filterPokedexByType(t) {
+    this.selectedPokedexType = t;
+    this.renderPokedexTypeFilters();
+    this.renderPokedexGrid();
+  },
+
+  renderPokedexGrid() {
+    const grid = document.getElementById("pokedexGrid");
+    if (!grid || typeof POKEMON_MAP === "undefined") return;
+    const seen = this.saveData.pokedexSeen || {};
+    const caught = this.saveData.pokedexCaught || {};
+    
+    let list = Array.from(POKEMON_MAP.values());
+    if (this.selectedPokedexType !== "ALL") {
+      list = list.filter(p => p.type1 === this.selectedPokedexType || p.type2 === this.selectedPokedexType);
+    }
+
+    grid.innerHTML = list.map(p => {
+      const isSeen = !!seen[p.id];
+      const isCaught = !!caught[p.id];
+      const displayName = isSeen ? p.name_zh : "???";
+      const sprite = isSeen ? p.forward_sprite : "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png";
+      const opacityClass = isSeen ? (isCaught ? "" : "opacity-80") : "opacity-40 brightness-0";
+      return `
+        <div class="poke-card p-1.5 flex flex-col items-center justify-center bg-slate-900 border border-slate-700 rounded-xl text-center">
+          <span class="font-pixel text-[8px] text-slate-500">#${String(p.id).padStart(3, '0')}</span>
+          <img src="${sprite}" class="w-10 h-10 pixel-sprite object-contain my-1 ${opacityClass}"/>
+          <span class="font-black text-[9px] text-slate-200 truncate w-full">${displayName}</span>
+        </div>
+      `;
+    }).join("");
+  },
+
+  renderSkillTree() {
+    const container = document.getElementById("skillTreeContainer");
+    if (!container || typeof CENTER_TRAINER_UPGRADES === "undefined") return;
+    const upg = this.saveData.upgrades || {};
+    container.innerHTML = CENTER_TRAINER_UPGRADES.map(item => {
+      const curLv = upg[item.id] || 0;
+      const isMax = curLv >= item.maxLv;
+      const cost = Math.round(item.baseCost * Math.pow(1.5, curLv));
+      return `
+        <div class="poke-card p-3 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-between gap-3 text-white">
+          <div class="flex items-center gap-3">
+            <img src="${item.sprite}" class="w-9 h-9 pixel-sprite object-contain bg-slate-800 rounded-lg p-1"/>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-black text-xs sm:text-sm">${item.name}</span>
+                <span class="font-pixel text-[9px] text-amber-400">Lv.${curLv}/${item.maxLv}</span>
+              </div>
+              <p class="text-[11px] font-bold text-slate-400 mt-0.5">${item.desc}</p>
+            </div>
+          </div>
+          <button onclick="GameApp.buyLabUpgrade('${item.id}', ${cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 ${isMax ? 'opacity-50 cursor-not-allowed' : ''}">
+            ${isMax ? 'MAX' : `${cost} 代幣`}
+          </button>
+        </div>
+      `;
+    }).join("");
+  },
+
+  buyLabUpgrade(id, cost) {
+    const upg = this.saveData.upgrades;
+    const item = (typeof CENTER_TRAINER_UPGRADES !== "undefined") ? CENTER_TRAINER_UPGRADES.find(u => u.id === id) : null;
+    if (!item) return;
+    const curLv = upg[id] || 0;
+    if (curLv >= item.maxLv) return;
+    if (this.saveData.coins < cost) {
+      alert("代幣不足！");
+      return;
+    }
+    this.saveData.coins -= cost;
+    upg[id] = curLv + 1;
+    this.saveToStorage();
+    this.updateTitleUI();
+    this.renderSkillTree();
+  },
+
+  renderAchievements() {
+    const listEl = document.getElementById("achievementList");
+    if (!listEl) return;
+    const stats = this.saveData.stats || {};
+    const achs = [
+      { id: "kills_50", name: "初試啼聲", desc: "累計擊退 50 隻野生怪獸", progress: stats.totalKills || 0, target: 50 },
+      { id: "kills_200", name: "荒野開拓者", desc: "累計擊退 200 隻野生怪獸", progress: stats.totalKills || 0, target: 200 },
+      { id: "super_2", name: "究極突破", desc: "一局內成功覺醒雙超武", progress: stats.superMoves || 0, target: 2 },
+      { id: "birds_1", name: "傳說目擊", desc: "擊敗任意傳說三聖鳥", progress: stats.birdsDefeated || 0, target: 1 },
+      { id: "mewtwo_1", name: "王者之巔", desc: "擊敗終極首領【王者超夢】", progress: stats.mewtwoDefeated || 0, target: 1 }
+    ];
+    listEl.innerHTML = achs.map(a => {
+      const done = a.progress >= a.target;
+      return `
+        <div class="poke-card p-3 bg-slate-900 border border-slate-700 rounded-2xl flex items-center justify-between text-white">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-black text-xs sm:text-sm text-slate-100">${a.name}</span>
+              ${done ? '<span class="px-2 py-0.2 bg-emerald-600 text-white font-pixel text-[8px] rounded">達成</span>' : ''}
+            </div>
+            <p class="text-[11px] font-bold text-slate-400 mt-0.5">${a.desc}</p>
+          </div>
+          <span class="font-pixel text-xs text-amber-400">${Math.min(a.target, a.progress)}/${a.target}</span>
+        </div>
+      `;
+    }).join("");
+  },
+
 
   populateEndModalStats() {
     const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");

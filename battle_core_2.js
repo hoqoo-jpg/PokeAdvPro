@@ -1973,17 +1973,39 @@ window.GameApp = {
       }
     );
 
-    // 4. 新招式領悟
+    // 4. 新招式領悟：嚴格限制只給「該寶可夢天生專屬三招」
     const currentCount = Object.keys(p.skills).length;
-    if (currentCount < p.maxSkillSlots) {
-      Object.values(SKILLS_CATALOG).forEach(meta => {
-        if (!p.skills[meta.id] && meta.id !== "Metronome") {
+    if (currentCount < 3) {
+      const INNATE_SKILL_TREES = {
+        25: ["Thundershock", "Thunderbolt", "Thunder"],
+        1:  ["VineWhip", "SeedBomb", "FrenzyPlant"],
+        4:  ["Ember", "Flamethrower", "FireBlast"],
+        7:  ["WaterGun", "HydroPump", "Whirlpool"],
+        133:["Swift", "BabyDollEyes", "LastResort"],
+        143:["BodySlam", "HyperVoice", "Rest"],
+        150:["PsychoCut", "ShadowBall", "Psystrike"],
+        151:["AncientPower", "Metronome", "Transform"]
+      };
+
+      const myInnateList = INNATE_SKILL_TREES[p.id] || [p.data.skill || "Tackle"];
+
+      myInnateList.forEach(skId => {
+        const meta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[skId] : null;
+        if (meta && !p.skills[skId]) {
           pool.push({
-            weight: 18, rarityClass: "rarity-rare", badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
-            badgeBg: "bg-blue-600 text-white font-black", title: meta.name, subTitle: "新領悟 Lv.1",
-            typeBadge: renderTypeBadgeHTML(meta.type), sprite: meta.sprite, desc: meta.desc,
+            weight: 40,
+            rarityClass: "rarity-rare",
+            badge: `本系專屬 (${currentCount + 1}/3)`,
+            badgeBg: "bg-blue-600 text-white font-black",
+            title: meta.name,
+            subTitle: "天生領悟 Lv.1",
+            typeBadge: renderTypeBadgeHTML(meta.type),
+            sprite: meta.sprite,
+            desc: meta.desc,
             isNew: true,
-            apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+            apply: () => {
+              p.skills[skId] = { id: skId, level: 1, evolved: false, timer: 0.2 };
+            }
           });
         }
       });
