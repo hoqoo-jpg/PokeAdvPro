@@ -120,6 +120,14 @@ Object.assign(window.GameApp, {
       "images/Ash_01.png"
     ];
 
+    // 動態載入全 151 隻正反面圖片，精確達到 333/333
+    if (typeof POKEMON_MAP !== "undefined") {
+      POKEMON_MAP.forEach(p => {
+        if (p.forward_sprite) urls.push(p.forward_sprite);
+        if (p.back_sprite) urls.push(p.back_sprite);
+      });
+    }
+
     let loaded = 0;
     const total = urls.length;
 

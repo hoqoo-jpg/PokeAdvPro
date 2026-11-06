@@ -47,6 +47,26 @@ window.GameApp = {
   activeBoss: null,
   telegraphs: [],
 
+  // 標題大廳生態預覽
+  titleDemo: {
+    camX: 0,
+    camY: 0,
+    wildWanderers: [
+      { id: 16, offsetX: 120, offsetY: -30, phase: 0 },
+      { id: 19, offsetX: 320, offsetY: 50, phase: 1.5 },
+      { id: 25, offsetX: 520, offsetY: -20, phase: 3.0 },
+      { id: 43, offsetX: 720, offsetY: 70, phase: 4.2 },
+      { id: 133, offsetX: 920, offsetY: -40, phase: 5.5 }
+    ]
+  },
+
+  // 地圖友好商店 (Poké Mart)
+  activeMart: null,
+  martHoldTimer: 0,
+  martRerollCost: 50,
+  martCurrentShelf: [],
+  martSpawnTimer: 65,
+
   // 8 分鐘快局時間軸
   runTime: 0,
   spawnTimer: 0,
@@ -448,8 +468,19 @@ window.GameApp = {
     this.mapItems = [];
     this.telegraphs = [];
     this.activeBoss = null;
+    this.activeMart = null;
+    this.martHoldTimer = 0;
+    this.martRerollCost = 50;
+    this.martCurrentShelf = [];
+    this.martSpawnTimer = 65;
     this.debugWeatherLock = false;
     this.skillDamageStats = {};
+
+    if (typeof MapEngine !== "undefined") {
+      if (!MapEngine.currentStage && typeof MAP_STAGES !== "undefined") {
+        MapEngine.currentStage = MAP_STAGES[0];
+      }
+    }
 
     SkillsEngine.reset();
 
@@ -892,6 +923,24 @@ window.GameApp = {
     this.camera.x = p.x;
     this.camera.y = p.y;
 
+    // 友好商店站定 0.5 秒交互判定
+    const mart = this.mapItems.find(it => it.id === "poke_mart");
+    if (mart) {
+      const dToMart = Math.hypot(p.x - mart.x, p.y - mart.y);
+      if (dToMart < 46 && ilen < 0.05) {
+        this.martHoldTimer += dt;
+        if (this.martHoldTimer >= 0.5) {
+          this.martHoldTimer = 0;
+          this.activeMart = mart;
+          this.openPokeMartModal();
+        }
+      } else {
+        this.martHoldTimer = 0;
+      }
+    } else {
+      this.martHoldTimer = 0;
+    }
+
     const cdFactor = Math.max(0.55, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0));
     Object.values(p.skills).forEach(skSlot => {
       skSlot.timer -= dt;
@@ -1023,6 +1072,30 @@ window.GameApp = {
     if (!this.mewtwoBossSpawned && this.runTime >= 450) {
       this.mewtwoBossSpawned = true;
       this.spawnBoss(150, true);
+    }
+
+    // 地圖友好商店生成 (每 110 秒生成一間)
+    this.martSpawnTimer = (this.martSpawnTimer || 110) - dt;
+    if (this.martSpawnTimer <= 0) {
+      this.martSpawnTimer = 110;
+      const hasMart = this.mapItems.some(it => it.id === "poke_mart");
+      if (!hasMart) {
+        const ang = Math.random() * Math.PI * 2;
+        const mx = this.player.x + Math.cos(ang) * 340;
+        const my = this.player.y + Math.sin(ang) * 340;
+        this.mapItems.push({
+          id: "poke_mart",
+          x: mx,
+          y: my,
+          bobPhase: 0,
+          meta: {
+            name: "友好商店 (Poké Mart)",
+            color: "#38BDF8",
+            sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png"
+          }
+        });
+        this.showCutsceneBanner("【友好商店降臨】", "隨藍色箭頭前往！站定 0.5 秒進店採購 TM 招式！", 3000);
+      }
     }
 
     this.magnetSpawnTimer -= dt;
@@ -1831,9 +1904,11 @@ window.GameApp = {
     this.state = "PAUSED";
     const p = this.player;
     const pool = [];
+    const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
 
-    // 1. 超武突破 (權重 100)
-    Object.values(p.skills).forEach(sk => {
+    // 1. 超武突破 (最多 2 個超武)
+    if (evolvedCount < 2) {
+      Object.values(p.skills).forEach(sk => {
       const meta = SKILLS_CATALOG[sk.id];
       if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
         pool.push({
@@ -1855,6 +1930,7 @@ window.GameApp = {
         });
       }
     });
+    }
 
     // 2. 招式階級提升 (權重 42)
     Object.values(p.skills).forEach(sk => {
@@ -2127,13 +2203,34 @@ window.GameApp = {
       const sy = toSy(it.y) + Math.sin(it.bobPhase) * 4;
       const rec = SpriteCache.get(it.meta.sprite);
       ctx.save();
-      ctx.fillStyle = "rgba(15,23,42,0.65)";
-      ctx.strokeStyle = it.meta.color;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-      if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 12, sy - 12, 24, 24);
+
+      if (it.id === "poke_mart") {
+        ctx.fillStyle = "rgba(14, 165, 233, 0.25)";
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 26, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 16, sy - 16, 32, 32);
+
+        // 站定 0.5 秒光圈蓄力
+        if (this.martHoldTimer > 0) {
+          const holdPct = Math.min(1, this.martHoldTimer / 0.5);
+          ctx.strokeStyle = "#FDE047";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * holdPct);
+          ctx.stroke();
+        }
+      } else {
+        ctx.fillStyle = "rgba(15,23,42,0.65)";
+        ctx.strokeStyle = it.meta.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 16, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 12, sy - 12, 24, 24);
+      }
       ctx.restore();
     });
 
@@ -2457,7 +2554,56 @@ window.GameApp = {
     });
 
     const edgePad = 32;
-    this.enemies.forEach(e => {
+    const arrowTargets = [
+      ...this.enemies.filter(e => e.treasureType || e.isBoss),
+      ...this.mapItems.filter(it => it.id === "poke_mart")
+    ];
+
+    arrowTargets.forEach(target => {
+      const tsx = toSx(target.x), tsy = toSy(target.y);
+      if (tsx < 0 || tsx > this.width || tsy < 0 || tsy > this.height) {
+        const dx = target.x - this.player.x;
+        const dy = target.y - this.player.y;
+        const ang = Math.atan2(dy, dx);
+        const distMeters = Math.round(Math.hypot(dx, dy) / 10);
+
+        const arrowX = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
+        const arrowY = Math.max(edgePad, Math.min(this.height - edgePad, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+
+        let arrowColor = "#EF4444";
+        if (target.id === "poke_mart") arrowColor = "#0284C7";
+        else if (target.treasureType === "meowth") arrowColor = "#F59E0B";
+        else if (target.treasureType === "chansey") arrowColor = "#EC4899";
+
+        ctx.save();
+        ctx.translate(arrowX, arrowY);
+        ctx.fillStyle = arrowColor;
+        ctx.beginPath();
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.rotate(ang);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.moveTo(11, 0); ctx.lineTo(-4, -6.5); ctx.lineTo(-4, 6.5);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.5;
+        ctx.strokeText(`${distMeters}m`, arrowX, arrowY + 25);
+        ctx.fillText(`${distMeters}m`, arrowX, arrowY + 25);
+        ctx.restore();
+      }
+    });
+
+    const _skipOldArrow = true;
+    if (!_skipOldArrow) this.enemies.forEach(e => {
       if (!e.treasureType && !e.isBoss) return;
       const esx = toSx(e.x), esy = toSy(e.y);
 
@@ -2503,6 +2649,99 @@ window.GameApp = {
         ctx.restore();
       }
     });
+  },
+
+  // 友好商店系統 (Poké Mart)
+  openPokeMartModal() {
+    this.state = "PAUSED";
+    this.martRerollCost = 50;
+    this.rerollMartShelf(false);
+    document.getElementById("pokeMartModal")?.classList.remove("hidden");
+  },
+
+  rerollMartShelf(chargeCoins = true) {
+    if (chargeCoins) {
+      if (this.runCoins < this.martRerollCost) {
+        alert("代幣不足，無法刷新貨架！");
+        return;
+      }
+      this.runCoins -= this.martRerollCost;
+      this.martRerollCost += 50;
+    }
+
+    const p = this.player;
+    const availableTMs = (typeof SKILLS_CATALOG !== "undefined")
+      ? Object.values(SKILLS_CATALOG).filter(s => s.id !== "Metronome" && !p.skills[s.id])
+      : [];
+    this.martCurrentShelf = availableTMs.sort(() => 0.5 - Math.random()).slice(0, 3);
+    this.renderMartShelfUI();
+  },
+
+  renderMartShelfUI() {
+    const cEl = document.getElementById("martCoinsDisplay");
+    if (cEl) cEl.textContent = this.runCoins;
+    const rEl = document.getElementById("martRerollBtnText");
+    if (rEl) rEl.textContent = `刷新貨架 (${this.martRerollCost} 代幣)`;
+
+    const container = document.getElementById("martShelfContainer");
+    if (!container) return;
+    container.innerHTML = this.martCurrentShelf.map(sk => `
+      <div class="poke-card p-3 bg-white/95 flex items-center justify-between gap-3 border border-slate-700">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <img src="${sk.sprite}" class="w-10 h-10 pixel-sprite object-contain bg-slate-100 rounded-lg p-1"/>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-black text-xs sm:text-sm text-slate-900">${sk.name}</span>
+              ${typeof renderTypeBadgeHTML === "function" ? renderTypeBadgeHTML(sk.type) : ''}
+            </div>
+            <p class="text-[11px] font-bold text-slate-600 leading-tight mt-0.5">${sk.desc}</p>
+          </div>
+        </div>
+        <button onclick="GameApp.buyMartTM('${sk.id}')" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
+          240 購買
+        </button>
+      </div>
+    `).join("");
+  },
+
+  buyMartTM(skillId) {
+    const cost = 240;
+    if (this.runCoins < cost) {
+      alert("局內代幣不足！追擊喵喵或擊退怪獸可獲得代幣！");
+      return;
+    }
+
+    const p = this.player;
+    const currentKeys = Object.keys(p.skills);
+    this.runCoins -= cost;
+
+    if (currentKeys.length < 4) {
+      p.maxSkillSlots = 4;
+      p.skills[skillId] = { id: skillId, level: 1, evolved: false, timer: 0.1 };
+      this.spawnFloatingText(p.x, p.y - 25, `習得 TM 第 4 招【${SKILLS_CATALOG[skillId]?.name || skillId}】！`, "#38BDF8", 15);
+      SoundFX.play("levelup");
+      this.closePokeMartModal();
+    } else {
+      const replaceKey = currentKeys[currentKeys.length - 1];
+      delete p.skills[replaceKey];
+      p.skills[skillId] = { id: skillId, level: 1, evolved: false, timer: 0.1 };
+      this.spawnFloatingText(p.x, p.y - 25, `替換獲得 TM【${SKILLS_CATALOG[skillId]?.name || skillId}】！`, "#38BDF8", 15);
+      SoundFX.play("levelup");
+      this.closePokeMartModal();
+    }
+  },
+
+  closePokeMartModal() {
+    document.getElementById("pokeMartModal")?.classList.add("hidden");
+    if (this.activeMart) {
+      const idx = this.mapItems.indexOf(this.activeMart);
+      if (idx !== -1) this.mapItems.splice(idx, 1);
+      this.spawnParticleCluster(this.activeMart.x, this.activeMart.y, "#94A3B8", "#E2E8F0", 25, "circle", 1.2);
+      this.activeMart = null;
+    }
+    this.state = "PLAYING";
+    this.refreshHUD();
   },
 
   refreshHUD() {
