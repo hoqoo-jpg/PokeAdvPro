@@ -2548,13 +2548,28 @@ window.GameApp = {
       }).join("");
     }
 
-    document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
-      const meta = SKILLS_CATALOG[sk.id];
-      return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm"><img src="${meta.sprite}" class="w-3 h-3 pixel-sprite"/>${sk.evolved ? meta.evolvedName : meta.name} L${sk.level}</span>`;
-    }).join("");
+    const skillListEl = document.getElementById("hudSkillList");
+    if (skillListEl) {
+      skillListEl.innerHTML = Object.values(p.skills).map(sk => {
+        const meta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[sk.id] : null;
+        if (!meta) return "";
+        const iconSrc = meta.sprite || "";
+        const displayName = sk.evolved ? (meta.evolvedName || meta.name) : meta.name;
+        return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm">
+          ${iconSrc ? `<img src="${iconSrc}" class="w-3 h-3 pixel-sprite"/>` : ""}
+          ${displayName} L${sk.level}
+        </span>`;
+      }).filter(Boolean).join("");
+    }
 
-    document.getElementById("hudActiveTrainerImg").src = tr.sprite;
-    document.getElementById("hudActiveSkillName").textContent = tr.skillName;
+    const tr = this.selectedTrainer || (typeof TRAINERS !== "undefined" ? TRAINERS[0] : null);
+    const trImg = document.getElementById("hudActiveTrainerImg");
+    const trSkill = document.getElementById("hudActiveSkillName");
+
+    if (tr) {
+      if (trImg && tr.sprite) trImg.src = tr.sprite;
+      if (trSkill && tr.skillName) trSkill.textContent = tr.skillName;
+    }
 
     const btnEl = document.getElementById("btnTrainerActiveSkill");
     const cdOverlay = document.getElementById("trainerSkillCdOverlay");
