@@ -258,6 +258,25 @@ window.GameApp = {
     this.openLevelUpModal();
   },
 
+  debugSpawnPokemart() {
+    if (!this.player) return;
+    const ang = Math.random() * Math.PI * 2;
+    const mx = this.player.x + Math.cos(ang) * 160;
+    const my = this.player.y + Math.sin(ang) * 160;
+    this.mapItems.push({
+      id: "poke_mart",
+      x: mx,
+      y: my,
+      bobPhase: 0,
+      meta: {
+        name: "友好商店 (Poké Mart)",
+        color: "#38BDF8",
+        sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png"
+      }
+    });
+    this.spawnFloatingText(mx, my - 20, "友好商店已生成！", "#38BDF8", 15);
+  },
+
   debugUnlockSuperMove() {
     if (!this.player) return;
     const sk = Object.values(this.player.skills)[0];
