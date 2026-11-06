@@ -228,7 +228,7 @@ window.GameApp = {
       if (this.player.data.evo_level !== "None" && this.player.level >= this.player.data.evo_level) {
         if (this.player.id === 133) {
           this.state = "PAUSED";
-          document.getElementById("eevee-evo-modal").classList.remove("hidden");
+          document.getElementById("eevee-evo-modal")?.classList.remove("hidden");
           return;
         } else if (this.player.data.evo_to) {
           this.evolvePlayerPokemon(this.player.data.evo_to);
@@ -358,9 +358,9 @@ window.GameApp = {
   startGameRun() {
     SoundFX.init();
     SoundFX.startBgm("battle");
-    document.getElementById("setupModal").classList.add("hidden");
-    document.getElementById("titleScreen").classList.add("hidden");
-    document.getElementById("hudLayer").classList.remove("hidden");
+    document.getElementById("setupModal")?.classList.add("hidden");
+    document.getElementById("titleScreen")?.classList.add("hidden");
+    document.getElementById("hudLayer")?.classList.remove("hidden");
 
     const basePoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
     const tr = this.selectedTrainer || TRAINERS[0];
@@ -467,8 +467,8 @@ window.GameApp = {
     this.runCoins = 0;
     this.timeScale = 1;
 
-    document.getElementById("speedToggleText").textContent = "1x";
-    document.getElementById("bossHudContainer").classList.add("hidden");
+    const spdEl = document.getElementById("speedToggleText"); if (spdEl) spdEl.textContent = "1x";
+    document.getElementById("bossHudContainer")?.classList.add("hidden");
     MapEngine.setWeather("CLEAR");
     this.updateWeatherUI("CLEAR");
 
@@ -504,9 +504,9 @@ window.GameApp = {
       } else if (cutStrip) {
         cutBannerWrap.classList.add("hidden");
         cutStrip.classList.remove("hidden");
-        document.getElementById("cutInAvatar").src = tr.sprite;
-        document.getElementById("cutInTrainer").textContent = `${tr.name} ‧ 戰術指令`;
-        document.getElementById("cutInSkill").textContent = `【${tr.skillName}】`;
+        const cAv = document.getElementById("cutInAvatar"); if (cAv && tr.sprite) cAv.src = tr.sprite;
+        const cTr = document.getElementById("cutInTrainer"); if (cTr) cTr.textContent = `${tr.name} ‧ 戰術指令`;
+        const cSk = document.getElementById("cutInSkill"); if (cSk) cSk.textContent = `【${tr.skillName}】`;
         cutStrip.classList.remove("cut-in-active");
         void cutStrip.offsetWidth;
         cutStrip.classList.add("cut-in-active");
@@ -1270,7 +1270,7 @@ window.GameApp = {
     };
     this.enemies.push(boss);
     this.activeBoss = boss;
-    document.getElementById("bossHudContainer").classList.remove("hidden");
+    document.getElementById("bossHudContainer")?.classList.remove("hidden");
   },
 
   updateEnemies(dt) {
@@ -1661,7 +1661,7 @@ window.GameApp = {
         MapEngine.setWeather("CLEAR");
         this.updateWeatherUI("CLEAR");
         SoundFX.startBgm("battle");
-        document.getElementById("bossHudContainer").classList.add("hidden");
+        document.getElementById("bossHudContainer")?.classList.add("hidden");
       }
       this.spawnMapLoot("evo_chest", e.x, e.y);
       this.spawnMapLoot("rare_candy", e.x + 28, e.y);
@@ -1776,7 +1776,7 @@ window.GameApp = {
       if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
         if (p.id === 133) {
           this.state = "PAUSED";
-          document.getElementById("eevee-evo-modal").classList.remove("hidden");
+          document.getElementById("eevee-evo-modal")?.classList.remove("hidden");
           return;
         } else if (p.data.evo_to) {
           this.evolvePlayerPokemon(p.data.evo_to);
@@ -1787,7 +1787,7 @@ window.GameApp = {
   },
 
   confirmEeveeEvolution(targetId) {
-    document.getElementById("eevee-evo-modal").classList.add("hidden");
+    document.getElementById("eevee-evo-modal")?.classList.add("hidden");
     this.evolvePlayerPokemon(targetId);
 
     const sigSkill = targetId === 134 ? "Hydro Pump" : (targetId === 135 ? "Thunderbolt" : "Flamethrower");
@@ -1966,13 +1966,13 @@ window.GameApp = {
       </div>
     `).join("");
 
-    document.getElementById("levelUpModal").classList.remove("hidden");
+    document.getElementById("levelUpModal")?.classList.remove("hidden");
   },
 
   selectUpgradeChoice(idx) {
     const c = this._currentUpgradeChoices && this._currentUpgradeChoices[idx];
     if (c && c.apply) c.apply();
-    document.getElementById("levelUpModal").classList.add("hidden");
+    document.getElementById("levelUpModal")?.classList.add("hidden");
     this.state = "PLAYING";
     this.refreshHUD();
   },
@@ -2000,11 +2000,13 @@ window.GameApp = {
 
   showCutsceneBanner(title, subtitle, duration = 2600) {
     const b = document.getElementById("cutsceneBanner");
-    document.getElementById("cutsceneTitle").textContent = title;
-    document.getElementById("cutsceneSubtitle").textContent = subtitle;
-    b.classList.remove("hidden");
-    clearTimeout(this._bannerTimeout);
-    this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
+    const cTit = document.getElementById("cutsceneTitle"); if (cTit) cTit.textContent = title;
+    const cSub = document.getElementById("cutsceneSubtitle"); if (cSub) cSub.textContent = subtitle;
+    if (b) {
+      b.classList.remove("hidden");
+      clearTimeout(this._bannerTimeout);
+      this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
+    }
   },
 
   /**
@@ -2624,19 +2626,20 @@ window.GameApp = {
 
   toggleTimeScale() {
     this.timeScale = this.timeScale === 1 ? 2 : 1;
-    document.getElementById("speedToggleText").textContent = `${this.timeScale}x`;
+    const stEl = document.getElementById("speedToggleText");
+    if (stEl) stEl.textContent = `${this.timeScale}x`;
   },
 
   togglePause() {
     if (this.state === "PLAYING") {
       this.state = "PAUSED";
-      document.getElementById("endModalTitle").textContent = "GAME PAUSED";
-      document.getElementById("endModalSubtitle").textContent = "冒險暫停中，隨時可返回挑戰！";
-      document.getElementById("btnResumeGame").classList.remove("hidden");
+      const mTit = document.getElementById("endModalTitle"); if (mTit) mTit.textContent = "GAME PAUSED";
+      const mSub = document.getElementById("endModalSubtitle"); if (mSub) mSub.textContent = "冒險暫停中，隨時可返回挑戰！";
+      document.getElementById("btnResumeGame")?.classList.remove("hidden");
       if (this.populateEndModalStats) this.populateEndModalStats();
-      document.getElementById("endModal").classList.remove("hidden");
+      document.getElementById("endModal")?.classList.remove("hidden");
     } else if (this.state === "PAUSED") {
-      document.getElementById("endModal").classList.add("hidden");
+      document.getElementById("endModal")?.classList.add("hidden");
       this.state = "PLAYING";
     }
   },
@@ -2645,13 +2648,17 @@ window.GameApp = {
     this.state = "GAMEOVER";
     SoundFX.startBgm("lobby");
     if (this.saveToStorage) this.saveToStorage();
-    document.getElementById("endModalTitle").textContent = isVictory ? "VICTORY! 關都冠軍!" : "BATTLE FINISHED";
-    document.getElementById("endModalSubtitle").textContent = isVictory
-      ? "恭喜通過 8 分鐘極速關都傳說考驗！"
-      : "前往寶可夢中心強化能力後再次挑戰！";
-    document.getElementById("btnResumeGame").classList.add("hidden");
+    const mTit = document.getElementById("endModalTitle");
+    if (mTit) mTit.textContent = isVictory ? "VICTORY! 關都冠軍!" : "BATTLE FINISHED";
+    const mSub = document.getElementById("endModalSubtitle");
+    if (mSub) {
+      mSub.textContent = isVictory
+        ? "恭喜通過 8 分鐘極速關都傳說考驗！"
+        : "前往寶可夢中心強化能力後再次挑戰！";
+    }
+    document.getElementById("btnResumeGame")?.classList.add("hidden");
     if (this.populateEndModalStats) this.populateEndModalStats();
-    document.getElementById("endModal").classList.remove("hidden");
+    document.getElementById("endModal")?.classList.remove("hidden");
   }
 };
 
