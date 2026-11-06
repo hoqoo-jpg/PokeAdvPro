@@ -392,23 +392,62 @@
     </div>
   </div>
 
-  <!-- 12. 開發者測試工具選單 -->
-  <div id="debugDropdown" class="hidden absolute top-12 right-2 z-50 bg-slate-900 border-2 border-amber-400 rounded-2xl p-3 text-white text-xs w-64 shadow-2xl space-y-2 pointer-events-auto">
-    <div class="font-pixel text-[10px] text-amber-300 border-b border-slate-700 pb-1 flex justify-between">
-      <span>DEBUG TOOLS</span>
-      <button onclick="GameApp.toggleDebugMenu()" class="text-slate-400 hover:text-white">✕</button>
+  <!-- 12. 開發者測試工具選單 (完整全套工具) -->
+  <div id="debugDropdown" class="hidden absolute top-12 right-2 z-50 bg-slate-900 border-2 border-amber-400 rounded-2xl p-3 text-white text-xs w-72 shadow-2xl space-y-2 pointer-events-auto max-h-[85vh] overflow-y-auto">
+    <div class="font-pixel text-[10px] text-amber-300 border-b border-slate-700 pb-1 flex justify-between items-center">
+      <span>DEBUG TOOLS (測試全套)</span>
+      <button onclick="GameApp.toggleDebugMenu()" class="text-slate-400 hover:text-white font-bold text-sm">✕</button>
     </div>
+    
     <div class="space-y-1">
-      <div class="text-[10px] font-bold text-slate-400">事件與刷王：</div>
+      <div class="text-[10px] font-bold text-slate-400">⚡ 角色與能力：</div>
       <div class="grid grid-cols-2 gap-1">
-        <button onclick="GameApp.debugForceLevelUp()" class="px-1.5 py-1 bg-emerald-700 rounded text-[9px] font-bold">+5級三選一</button>
-        <button onclick="GameApp.debugUnlockSuperMove()" class="px-1.5 py-1 bg-purple-700 rounded text-[9px] font-bold">滿級超武</button>
-        <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">刷聚寶喵喵</button>
-        <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-pink-700 rounded text-[9px] font-bold">刷吉利蛋</button>
-        <button onclick="GameApp.debugSpawnLegendaryBird(144)" class="px-1.5 py-1 bg-sky-700 rounded text-[9px] font-bold">召喚急凍鳥</button>
-        <button onclick="GameApp.debugSpawnLegendaryBird(145)" class="px-1.5 py-1 bg-yellow-700 rounded text-[9px] font-bold">召喚閃電鳥</button>
-        <button onclick="GameApp.debugSpawnLegendaryBird(146)" class="px-1.5 py-1 bg-red-700 rounded text-[9px] font-bold">召喚火焰鳥</button>
-        <button onclick="GameApp.debugSpawnMewtwo()" class="px-1.5 py-1 bg-purple-800 rounded text-[9px] font-bold">召喚超夢</button>
+        <button onclick="GameApp.debugForceLevelUp()" class="px-1.5 py-1 bg-emerald-700 hover:bg-emerald-600 rounded text-[9px] font-bold">+5級三選一</button>
+        <button onclick="GameApp.debugUnlockSuperMove()" class="px-1.5 py-1 bg-purple-700 hover:bg-purple-600 rounded text-[9px] font-bold">滿級超武突破</button>
+        <button onclick="GameApp.debugAddPartner()" class="px-1.5 py-1 bg-pink-700 hover:bg-pink-600 rounded text-[9px] font-bold">召喚雙打夥伴</button>
+        <button onclick="GameApp.triggerTrainerActiveSkill()" class="px-1.5 py-1 bg-amber-600 hover:bg-amber-500 rounded text-[9px] font-bold">手動放戰術大招</button>
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-slate-400">🌦️ 天候切換測試：</div>
+      <div class="grid grid-cols-3 gap-1">
+        <button onclick="GameApp.debugSetWeather('CLEAR')" class="px-1 py-1 bg-slate-700 hover:bg-slate-600 rounded text-[9px] font-bold">☀️ 晴天</button>
+        <button onclick="GameApp.debugSetWeather('RAIN')" class="px-1 py-1 bg-sky-700 hover:bg-sky-600 rounded text-[9px] font-bold">🌧️ 微雨</button>
+        <button onclick="GameApp.debugSetWeather('THUNDER')" class="px-1 py-1 bg-yellow-600 hover:bg-yellow-500 rounded text-[9px] font-bold">⚡ 雷暴</button>
+        <button onclick="GameApp.debugSetWeather('PSYCHIC')" class="px-1 py-1 bg-purple-700 hover:bg-purple-600 rounded text-[9px] font-bold">🌌 極光</button>
+        <button onclick="GameApp.debugSetWeather('BLIZZARD')" class="px-1 py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-[9px] font-bold">❄️ 暴雪</button>
+        <button onclick="GameApp.debugSetWeather('HEATWAVE')" class="px-1 py-1 bg-orange-700 hover:bg-orange-600 rounded text-[9px] font-bold">🔥 熱浪</button>
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-slate-400">🐉 神獸降臨與 Boss 戰：</div>
+      <div class="grid grid-cols-2 gap-1">
+        <button onclick="GameApp.debugSpawnLegendaryBird(144)" class="px-1.5 py-1 bg-sky-800 hover:bg-sky-700 rounded text-[9px] font-bold">急凍鳥 (#144)</button>
+        <button onclick="GameApp.debugSpawnLegendaryBird(145)" class="px-1.5 py-1 bg-yellow-800 hover:bg-yellow-700 rounded text-[9px] font-bold">閃電鳥 (#145)</button>
+        <button onclick="GameApp.debugSpawnLegendaryBird(146)" class="px-1.5 py-1 bg-red-800 hover:bg-red-700 rounded text-[9px] font-bold">火焰鳥 (#146)</button>
+        <button onclick="GameApp.debugSpawnMewtwo()" class="px-1.5 py-1 bg-purple-900 hover:bg-purple-800 rounded text-[9px] font-bold">王者超夢 (#150)</button>
+        <button onclick="GameApp.debugTriggerSecretMew()" class="col-span-2 px-1.5 py-1 bg-rose-700 hover:bg-rose-600 rounded text-[9px] font-bold">隱藏始祖夢幻 (#151)</button>
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-slate-400">🚨 事件狂潮與寶藏：</div>
+      <div class="grid grid-cols-2 gap-1">
+        <button onclick="GameApp.debugTriggerRocketEvent()" class="px-1.5 py-1 bg-indigo-800 hover:bg-indigo-700 rounded text-[9px] font-bold">火箭隊突襲</button>
+        <button onclick="GameApp.debugTriggerTaurosStampede()" class="px-1.5 py-1 bg-amber-800 hover:bg-amber-700 rounded text-[9px] font-bold">肯泰羅狂潮</button>
+        <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-amber-600 hover:bg-amber-500 rounded text-[9px] font-bold">聚寶喵喵</button>
+        <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-pink-600 hover:bg-pink-500 rounded text-[9px] font-bold">幸福吉利蛋</button>
+      </div>
+    </div>
+
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-slate-400">⏱️ 時間軸快速跳轉：</div>
+      <div class="grid grid-cols-3 gap-1">
+        <button onclick="GameApp.debugSkipToTime(120)" class="px-1 py-1 bg-slate-800 rounded text-[9px] font-bold">2分 熱浪</button>
+        <button onclick="GameApp.debugSkipToTime(300)" class="px-1 py-1 bg-slate-800 rounded text-[9px] font-bold">5分 三聖鳥</button>
+        <button onclick="GameApp.debugSkipToTime(450)" class="px-1 py-1 bg-slate-800 rounded text-[9px] font-bold">7.5分 超夢</button>
       </div>
     </div>
   </div>

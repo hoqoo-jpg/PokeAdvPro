@@ -362,8 +362,10 @@ window.GameApp = {
     document.getElementById("titleScreen")?.classList.add("hidden");
     document.getElementById("hudLayer")?.classList.remove("hidden");
 
-    const basePoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
-    const tr = this.selectedTrainer || TRAINERS[0];
+    if (!this.selectedTrainer && typeof TRAINERS !== "undefined") this.selectedTrainer = TRAINERS[0];
+    if (!this.selectedDifficulty && typeof GAME_DIFFICULTIES !== "undefined") this.selectedDifficulty = GAME_DIFFICULTIES[1] || GAME_DIFFICULTIES[0];
+    const basePoke = (typeof POKEMON_MAP !== "undefined" && POKEMON_MAP.get(this.selectedStarterId)) || (typeof POKEMON_MAP !== "undefined" ? POKEMON_MAP.get(25) : { id: 25, hp: 100, atk: 25, speed: 100, name_zh: "皮卡丘" });
+    const tr = this.selectedTrainer || (typeof TRAINERS !== "undefined" ? TRAINERS[0] : { name: "小智", skillCd: 25, mods: { hpMult: 1, dmgMult: 1, cdMult: 1, speedMult: 1, areaMult: 1, critBonus: 0, regen: 0 } });
     const upg = this.saveData.upgrades;
 
     const isBond = (tr.bondPokemonIds || []).includes(basePoke.id);
@@ -1094,7 +1096,8 @@ window.GameApp = {
     }
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)] || REGULAR_MOB_POOL[0];
-    const shinyChance = 0.0025 * (1 + (this.saveData.upgrades.shiny || 0) * 0.35) * (this.selectedTrainer.mods.shinyBoost || 1) * (diff.shinyBonus || 1.0);
+    const shinyBoost = (this.selectedTrainer?.mods?.shinyBoost) || 1;
+    const shinyChance = 0.0025 * (1 + (this.saveData.upgrades.shiny || 0) * 0.35) * shinyBoost * (diff.shinyBonus || 1.0);
     const isShiny = Math.random() < shinyChance;
 
     const timeHpScale = 1 + (minutes * 0.80) + Math.pow(minutes / 2.3, 2.0) * 0.90;
@@ -1765,7 +1768,7 @@ window.GameApp = {
 
   gainExp(amount) {
     const p = this.player;
-    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12);
+    const expMult = (this.selectedTrainer?.mods?.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12);
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;

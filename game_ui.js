@@ -101,7 +101,22 @@ Object.assign(window.GameApp, {
 
     const urls = [
       "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+      "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
       "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/1.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/4.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/7.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/133.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/150.png",
+      "https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/151.png",
       "images/Ash_01.png"
     ];
 
