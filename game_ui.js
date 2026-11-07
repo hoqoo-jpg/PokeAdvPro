@@ -243,17 +243,33 @@ Object.assign(window.GameApp, {
   },
 
   openSetupFlow(startStep = 3) {
-  SoundFX.init();
-  document.getElementById("titleScreen").classList.add("hidden");
-  document.getElementById("setupModal").classList.remove("hidden");
-  this.setWizardStep(startStep);
-  const scrollArea = document.querySelector("#setupModal .overflow-y-auto");
-  if (scrollArea) scrollArea.scrollTop = 0;
-},
+    SoundFX.init();
+    const titleEl = document.getElementById("titleScreen");
+    if (titleEl) {
+      titleEl.classList.add("hidden");
+      titleEl.style.display = "none";
+    }
+    const setupEl = document.getElementById("setupModal");
+    if (setupEl) {
+      setupEl.classList.remove("hidden");
+      setupEl.style.display = "flex";
+    }
+    this.setWizardStep(startStep);
+    const scrollArea = document.querySelector("#setupModal .overflow-y-auto");
+    if (scrollArea) scrollArea.scrollTop = 0;
+  },
 
   backToTitle() {
-    document.getElementById("setupModal").classList.add("hidden");
-    document.getElementById("titleScreen").classList.remove("hidden");
+    const setupEl = document.getElementById("setupModal");
+    if (setupEl) {
+      setupEl.classList.add("hidden");
+      setupEl.style.display = "none";
+    }
+    const titleEl = document.getElementById("titleScreen");
+    if (titleEl) {
+      titleEl.classList.remove("hidden");
+      titleEl.style.display = "flex";
+    }
     this.updateTitleUI();
   },
 
@@ -535,11 +551,19 @@ Object.assign(window.GameApp, {
       `;
     }
 
-    document.getElementById("unlock-confirm-modal").classList.remove("hidden");
+    const modal = document.getElementById("unlock-confirm-modal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
   },
 
   closeUnlockConfirmModal() {
-    document.getElementById("unlock-confirm-modal").classList.add("hidden");
+    const modal = document.getElementById("unlock-confirm-modal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
   },
 
   confirmUnlockAction() {
@@ -565,13 +589,21 @@ Object.assign(window.GameApp, {
   },
 
   openPokedexModal() {
-    document.getElementById("pokedexModal").classList.remove("hidden");
+    const modal = document.getElementById("pokedexModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
     this.renderPokedexFilterTabs();
     this.renderPokedexGrid("ALL");
   },
 
   closePokedexModal() {
-    document.getElementById("pokedexModal").classList.add("hidden");
+    const modal = document.getElementById("pokedexModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
     this.updateTitleUI();
   },
 
@@ -669,12 +701,20 @@ Object.assign(window.GameApp, {
   },
 
   openSkillTreeModal() {
-    document.getElementById("skillTreeModal").classList.remove("hidden");
+    const modal = document.getElementById("skillTreeModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
     this.switchCenterTab(this.centerTab || "pokemon");
   },
 
   closeSkillTreeModal() {
-    document.getElementById("skillTreeModal").classList.add("hidden");
+    const modal = document.getElementById("skillTreeModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
     this.updateTitleUI();
   },
 
@@ -740,12 +780,20 @@ Object.assign(window.GameApp, {
   },
 
   openAchievementModal() {
-    document.getElementById("achievementModal").classList.remove("hidden");
+    const modal = document.getElementById("achievementModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
     this.renderAchievements();
   },
 
   closeAchievementModal() {
-    document.getElementById("achievementModal").classList.add("hidden");
+    const modal = document.getElementById("achievementModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
     this.updateTitleUI();
   },
 
