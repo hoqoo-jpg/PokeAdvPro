@@ -835,7 +835,7 @@ window.GameApp = {
       if (p.statusTick <= 0) {
         p.statusTick = 0.65;
         if (p.status === "Burn" || p.status === "Poison") {
-          const dotDmg = Math.max(3, Math.round(p.maxHp * 0.015));
+          const dotDmg = Math.max(1, Math.round(p.maxHp * 0.008));
           p.hp = Math.max(1, p.hp - dotDmg);
           this.spawnFloatingText(p.x, p.y - 22, `${p.status === 'Burn' ? '灼傷' : '中毒'} -${dotDmg}`, p.status === 'Burn' ? "#F97316" : "#A855F7", 11);
         }
@@ -2032,17 +2032,20 @@ window.GameApp = {
     }
 
     const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
-    Object.values(HELD_ITEMS).forEach(hi => {
+    const eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
       const targetSkill = SKILLS_CATALOG[hi.skillReq];
-      if (targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id]) {
-        pool.push({
-          weight: 3, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
-          title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
-          isNew: true,
-          apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
-        });
-      }
+      return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
     });
+    // 控制攜帶物不氾濫：隨機選取至多 1 個符合條件的攜帶物加入選單池，權重設定為 2
+    if (eligibleHeld.length > 0) {
+      const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
+      pool.push({
+        weight: 2, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
+        title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
+        isNew: true,
+        apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
+      });
+    }
 
     const choices = [];
     const temp = [...pool];
@@ -2282,9 +2285,35 @@ window.GameApp = {
         ctx.fill();
       }
 
-      ctx.translate(tsx, tsy - bob + (tInWater ? 5 : 0));
+      ctx.translate(tsx, tsy - bob + (tInWater ? 11 : 0));
       if (needFlip) ctx.scale(-1, 1);
-      if (tRec && tRec.loaded) ctx.drawImage(tRec.img, -28, -28, 56, 56);
+      if (tRec && tRec.loaded) {
+        if (tInWater) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-28, -28, 56, 40);
+          ctx.clip();
+          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+          ctx.restore();
+        } else {
+          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+        }
+        if (tInGrass) {
+          ctx.save();
+          ctx.fillStyle = "#1E4A28";
+          ctx.strokeStyle = "#4ADE80";
+          ctx.lineWidth = 1.6;
+          for (let gx = -22; gx <= 22; gx += 7) {
+            const gH = 12 + Math.abs(Math.sin(gx * 2.5)) * 6;
+            ctx.beginPath();
+            ctx.moveTo(gx - 3, 24);
+            ctx.lineTo(gx, 24 - gH);
+            ctx.lineTo(gx + 3, 24);
+            ctx.fill(); ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
       ctx.restore();
     }
 
@@ -2357,15 +2386,44 @@ window.GameApp = {
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
-      ctx.translate(px, py - pBob + (p.jumpY || 0) + (inWater ? 4 : 0));
+      // 涉水時下沉 10px，造成半身浸在水面感
+      ctx.translate(px, py - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
       if (p.whiteFlashTimer > 0) {
         ctx.filter = "brightness(10) contrast(10)";
       } else if (p.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";
       }
-      ctx.drawImage(pRec.img, -26, -26, 52, 52);
+      
+      // 若在水中，裁剪下半身 14px，只露出上半身
+      if (inWater) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(-26, -26, 52, 38);
+        ctx.clip();
+        ctx.drawImage(pRec.img, -26, -26, 52, 52);
+        ctx.restore();
+      } else {
+        ctx.drawImage(pRec.img, -26, -26, 52, 52);
+      }
       ctx.filter = "none";
+
+      // 若在草叢中，繪製前置草堆掩映層遮蓋下半身
+      if (inGrass) {
+        ctx.save();
+        ctx.fillStyle = "#1E4A28";
+        ctx.strokeStyle = "#4ADE80";
+        ctx.lineWidth = 1.6;
+        for (let gx = -22; gx <= 22; gx += 7) {
+          const gH = 12 + Math.abs(Math.sin(gx * 2.5)) * 6;
+          ctx.beginPath();
+          ctx.moveTo(gx - 3, 22);
+          ctx.lineTo(gx, 22 - gH);
+          ctx.lineTo(gx + 3, 22);
+          ctx.fill(); ctx.stroke();
+        }
+        ctx.restore();
+      }
     }
     ctx.restore();
 
@@ -2651,8 +2709,11 @@ window.GameApp = {
       : "前往寶可夢中心強化能力後再次挑戰！";
     document.getElementById("btnResumeGame").classList.add("hidden");
     if (this.populateEndModalStats) this.populateEndModalStats();
-    document.getElementById("endModal").classList.add("hidden");
-    document.getElementById("endModal").classList.remove("hidden");
+    const endEl = document.getElementById("endModal");
+    if (endEl) {
+      endEl.classList.remove("hidden");
+      endEl.style.display = "flex";
+    }
   }
 };
 

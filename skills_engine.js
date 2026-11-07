@@ -24,16 +24,7 @@ const SkillsEngine = {
     this.lightningArcs = [];
   },
 
-  /**
-   * 招式發射核心
-   * @param {Object} caster 施法者 (玩家或雙打夥伴)
-   * @param {string} skillId 招式名稱
-   * @param {number} level 招式等級 (1~10)
-   * @param {boolean} isEvolved 是否已超武突破
-   * @param {number} dmgScale 傷害倍率係數
-   */
   fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0) {
-    // 揮指功隨機施放池
     if (skillId === "Metronome") {
       const pool = ["Flamethrower", "Hydro Pump", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
       const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -47,25 +38,20 @@ const SkillsEngine = {
       ? Math.atan2(target.y - caster.y, target.x - caster.x)
       : (caster.facingX >= 0 ? 0 : Math.PI);
 
-    // 彈幕發數加成
     const countBonus = (level >= 3 ? 1 : 0) + (level >= 6 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? GameApp.player.projBonus : 0);
     const count = Math.min(6, 1 + countBonus);
 
-    // 本系屬性一致加成 (STAB 1.35x)
     const isStab = (caster.data.type1 === meta.type || caster.data.type2 === meta.type);
     const stabMult = isStab ? 1.35 : 1.0;
 
-    // 1. 每級成長平滑化為 10% (10級覺醒補償 +20%)，避免後期傷害指數爆炸
     const lvDmgMult = 1 + (level - 1) * 0.10 + (level === 10 ? 0.20 : 0);
 
-    // 關卡生態屬性加成 (嚴格保留)
     let stageBuffMult = 1.0;
     const stId = MapEngine.currentStage.id;
     if (stId === "pallet" && (meta.type === "Grass" || meta.type === "Bug")) stageBuffMult = 1.20;
     if (stId === "cerulean_bay" && (meta.type === "Water" || meta.type === "Ice")) stageBuffMult = 1.20;
     if (stId === "sky_pillar" && (meta.type === "Psychic" || meta.type === "Ghost")) stageBuffMult = 1.20;
 
-    // 動態天氣傷害加成 (嚴格保留)
     const curW = MapEngine.weather;
     let weatherBuff = 1.0;
     if (curW === "RAIN") {
@@ -80,7 +66,6 @@ const SkillsEngine = {
       if (meta.type === "Electric") weatherBuff = 1.20;
     }
 
-    // 攜帶物獨立加成 (嚴格保留)
     let heldItemMult = 1.0;
     if (GameApp.player && GameApp.player.heldItems) {
       if (meta.type === "Fire" && GameApp.player.heldItems["charcoal"]) heldItemMult *= 1.20;
@@ -95,18 +80,14 @@ const SkillsEngine = {
       if (meta.type === "Flying" && GameApp.player.heldItems["sharp_beak"]) heldItemMult *= 1.20;
     }
 
-    // 2. 招式基數重構：防止傑尼龜出門水炮高達 158 傷害
-    // 基礎威力調度：meta.baseDmg * 0.55 + 攻擊力轉化 0.18
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
     const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
 
-    // A. 近戰型招式發動
     if (meta.isMelee) {
       this.executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg);
       return;
     }
 
-    // B. 十萬伏特金白交織高頻電漿鏈 (特例瞬發彈道)
     if (skillId === "Thunderbolt") {
       const maxStrikeRange = 210 * GameApp.player.areaMult;
       const nearby = GameApp.enemies
@@ -138,12 +119,9 @@ const SkillsEngine = {
       return;
     }
 
-    // C. 常規彈射遠程投射物 (專門為 iPhone 小視口縮減速度與射程)
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : 0;
       const ang = baseAngle + spread;
-      
-      // 速度微幅調整：水炮由 420 降至 320，空氣斬由 450 降至 350，一般投射物由 360 降至 300
       const spd = skillId === "Hydro Pump" ? 320 : (skillId === "Air Slash" ? 350 : 300);
       const isHoming = (skillId === "Shadow Ball" || skillId === "Psystrike" || skillId === "Moonblast");
 
@@ -162,7 +140,6 @@ const SkillsEngine = {
         color: meta.color,
         pierce: (level >= 6 ? 3 : 2),
         knockback: meta.knockback !== undefined ? meta.knockback : 0,
-        // 壽命由 1.40s 調整為 0.85s，讓極限射程收斂在約 270px 左右，精確覆蓋手機可視範圍
         life: 0.85,
         statusBonus: level >= 5 ? 0.30 : 0,
         hitSet: new Set()
@@ -171,15 +148,11 @@ const SkillsEngine = {
     SoundFX.play("hit");
   },
 
-  /**
-   * 近戰招式執行 (空手劈武道巨拳、地震重踏裂隙、刀光劍氣)
-   */
   executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg) {
     const style = meta.meleeStyle || "claw_slash";
     const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
-    // 空手劈 / 十字劈：金白氣勁巨拳
     if (style === "martial_fist") {
       const fistCount = Math.min(10, 4 + count + Math.floor(level / 2));
       for (let f = 0; f < fistCount; f++) {
@@ -212,7 +185,6 @@ const SkillsEngine = {
       return;
     }
 
-    // 地震 / 泰山壓頂
     if (style === "quake_wave" || style === "slam_wave") {
       const rad = (style === "quake_wave" ? (120 + level * 6) : 110) * areaScale;
       this.meleeEffects.push({
@@ -238,7 +210,6 @@ const SkillsEngine = {
       return;
     }
 
-    // 扇形刀光劍氣 (抓/劈開/十字剪)
     const maxReach = 98 * areaScale;
     const waves = Math.min(3, Math.ceil(count / 2));
     for (let w = 0; w < waves; w++) {
@@ -274,16 +245,12 @@ const SkillsEngine = {
     SoundFX.play("hit");
   },
 
-  /**
-   * 觸發究極超武全屏突破技能 (Lv.10 滿級突破)
-   */
   triggerUltimateSuperMove(meta, skSlot) {
     const p = GameApp.player;
     GameApp.camera.shakeTime = 0.30;
     GameApp.camera.shakeMagnitude = 8.5;
     SoundFX.play("ultimate");
 
-    // 平滑超武基礎係數，保持大後期割草爽感
     const ultDmg = (meta.baseDmg * 2.6 + p.baseAtk * 1.2) * p.dmgMult;
 
     this.ultimateVfxList.push({
@@ -356,11 +323,7 @@ const SkillsEngine = {
     this.lightningArcs.push({ pts, color, timer: 0.25 });
   },
 
-  /**
-   * 招式運動學更新
-   */
   update(dt) {
-    // 1. 投射物更新
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pr = this.projectiles[i];
 
@@ -402,30 +365,23 @@ const SkillsEngine = {
       }
     }
 
-    // 2. 近戰特效倒數
     for (let i = this.meleeEffects.length - 1; i >= 0; i--) {
       this.meleeEffects[i].timer -= dt;
       if (this.meleeEffects[i].timer <= 0) this.meleeEffects.splice(i, 1);
     }
 
-    // 3. 超武特效倒數
     for (let i = this.ultimateVfxList.length - 1; i >= 0; i--) {
       this.ultimateVfxList[i].timer -= dt;
       if (this.ultimateVfxList[i].timer <= 0) this.ultimateVfxList.splice(i, 1);
     }
 
-    // 4. 電弧電漿倒數
     for (let i = this.lightningArcs.length - 1; i >= 0; i--) {
       this.lightningArcs[i].timer -= dt;
       if (this.lightningArcs[i].timer <= 0) this.lightningArcs.splice(i, 1);
     }
   },
 
-  /**
-   * 專屬 Canvas 加色高光渲染 (必須由主循環在 lighter 模式下呼叫)
-   */
   render(ctx, toSx, toSy) {
-    // 1. 近戰刀光與巨拳印
     this.meleeEffects.forEach(m => {
       const prog = 1 - (m.timer / m.maxTime);
       ctx.save();
@@ -468,7 +424,6 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 2. 投射物向量繪製 (純白能量核高光)
     this.projectiles.forEach(pr => {
       const sx = toSx(pr.x), sy = toSy(pr.y);
       const r = pr.radius;
@@ -509,7 +464,6 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 3. 閃電弧線
     this.lightningArcs.forEach(arc => {
       ctx.save();
       ctx.strokeStyle = arc.color;

@@ -57,16 +57,14 @@ const STAGES = [
 const MapEngine = {
   currentStage: STAGES[0],
   chunkCache: new Map(),
-  tileCache: new Map(), // 60x60 離線 Tile 預渲染快取
+  tileCache: new Map(),
 
-  // 6 大天氣系統變數 (CLEAR, RAIN, THUNDER, BLIZZARD, HEATWAVE, PSYCHIC)
   weather: "CLEAR",
   rainOffset: 0,
   lightningTimer: 0,
   lightningFlashAlpha: 0,
   splashParticles: [],
 
-  // 雲影系統
   cloudTime: 0,
   clouds: [
     {
@@ -422,7 +420,6 @@ const MapEngine = {
       for (let cy = startCy; cy <= endCy; cy++) {
         const chunk = this.getBiomeChunk(cx, cy);
 
-        // A. 華藍海域動態浪花
         if (stage.id === "cerulean_bay") {
           const stepX = 54, stepY = 38;
           const swx = chunk.baseX - camX + width / 2;
@@ -456,7 +453,6 @@ const MapEngine = {
           }
         }
 
-        // B. 砂島與拍岸泡沫
         chunk.sandIslets.forEach(isl => {
           const ix = isl.x - camX + width / 2;
           const iy = isl.y - camY + height / 2;
@@ -472,7 +468,6 @@ const MapEngine = {
           ctx.strokeRect(ix - (8 - waveDist), iy - (8 - waveDist), isl.w + 16 - waveDist * 2, isl.h + 16 - waveDist * 2);
         });
 
-        // C. 道路與木棧道
         (chunk.roads || []).concat(chunk.piers || []).forEach(r => {
           const rx = r.x - camX + width / 2;
           const ry = r.y - camY + height / 2;
@@ -527,7 +522,6 @@ const MapEngine = {
           }
         });
 
-        // D. 草叢與 3D 等角超能陣
         chunk.grassTiles.forEach(g => {
           const gx = g.x - camX + width / 2;
           const gy = g.y - camY + height / 2;
@@ -647,7 +641,6 @@ const MapEngine = {
           }
         });
 
-        // E. 單向跳崖 (Ledges)
         chunk.ledges.forEach(l => {
           const lx = l.x - camX + width / 2;
           const ly = l.y - camY + height / 2;
@@ -673,7 +666,6 @@ const MapEngine = {
           }
         });
 
-        // F. 建築物與障礙物
         chunk.obstacles.forEach(ob => {
           const ox = ob.x - camX + width / 2;
           const oy = ob.y - camY + height / 2;
@@ -766,7 +758,6 @@ const MapEngine = {
           }
         });
 
-        // G. 微景飾物
         chunk.decorList.forEach(d => {
           const dx = d.x - camX + width / 2;
           const dy = d.y - camY + height / 2;
@@ -791,7 +782,6 @@ const MapEngine = {
       }
     }
 
-    // 雲影覆蓋層
     ctx.save();
     const plx = 0.45;
     const areaW = 1600;
@@ -824,12 +814,7 @@ const MapEngine = {
     ctx.restore();
   },
 
-  /**
-   * 6 大天氣全螢幕渲染覆蓋層
-   * 包含：RAIN(微雨), THUNDER(雷暴白閃), BLIZZARD(漫天風雪), HEATWAVE(地熱蒸騰), PSYCHIC(超能極光)
-   */
   renderWeatherOverlays(ctx, width, height) {
-    // 1. 微雨 & 狂暴雷暴
     if (this.weather === "RAIN" || this.weather === "THUNDER") {
       ctx.save();
       const isThunder = this.weather === "THUNDER";
@@ -860,7 +845,6 @@ const MapEngine = {
       }
       ctx.restore();
 
-    // 2. 極寒暴雪 (雪花飄落與冷光色調)
     } else if (this.weather === "BLIZZARD") {
       ctx.save();
       ctx.fillStyle = "rgba(224, 242, 254, 0.88)";
@@ -873,12 +857,10 @@ const MapEngine = {
         ctx.arc(sx, sy, sz, 0, Math.PI * 2);
         ctx.fill();
       }
-      // 冷色調薄霧
       ctx.fillStyle = "rgba(186, 230, 253, 0.12)";
       ctx.fillRect(0, 0, width, height);
       ctx.restore();
 
-    // 3. 烈日熱浪 (橘紅透光與地面蒸騰微粒)
     } else if (this.weather === "HEATWAVE") {
       ctx.save();
       ctx.fillStyle = "rgba(249, 115, 22, 0.11)";
@@ -895,7 +877,6 @@ const MapEngine = {
       }
       ctx.restore();
 
-    // 4. 超能極光 (紫色光球漂浮)
     } else if (this.weather === "PSYCHIC") {
       ctx.save();
       ctx.fillStyle = "rgba(192, 132, 252, 0.65)";

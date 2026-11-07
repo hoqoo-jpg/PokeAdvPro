@@ -946,9 +946,21 @@ renderMartModal(shelf) {
   quitToTitle() {
     this.saveToStorage();
     SoundFX.startBgm("lobby");
-    document.getElementById("endModal").classList.add("hidden");
-    document.getElementById("hudLayer").classList.add("hidden");
-    document.getElementById("titleScreen").classList.remove("hidden");
+    const endEl = document.getElementById("endModal");
+    if (endEl) {
+      endEl.classList.add("hidden");
+      endEl.style.display = "none";
+    }
+    const hudEl = document.getElementById("hudLayer");
+    if (hudEl) {
+      hudEl.classList.add("hidden");
+      hudEl.style.display = "none";
+    }
+    const titleEl = document.getElementById("titleScreen");
+    if (titleEl) {
+      titleEl.classList.remove("hidden");
+      titleEl.style.display = "flex";
+    }
     this.state = "TITLE";
     this.updateTitleUI();
   }
