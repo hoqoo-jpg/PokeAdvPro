@@ -317,6 +317,16 @@ const MapEngine = {
         const chunk = this.getBiomeChunk(cx + dx, cy + dy);
 
         for (const ob of chunk.obstacles) {
+          // 若為木樁且玩家正向下移動，觸發跨越跳木樁動作
+          if (ob.kind === "fallen_log" && isPlayer && ent.vy > 0 && ent.y >= ob.y - 12 && ent.y <= ob.y + 6 && ent.x >= ob.x - 4 && ent.x <= ob.x + ob.w + 4) {
+            if (!ent.isJumpingLedge) {
+              ent.isJumpingLedge = true;
+              ent.jumpTimer = 0;
+            }
+            continue;
+          }
+          if (ent.isJumpingLedge && ob.kind === "fallen_log") continue;
+
           const nearX = Math.max(ob.x, Math.min(ent.x, ob.x + ob.w));
           const nearY = Math.max(ob.y, Math.min(ent.y, ob.y + ob.h));
           const distX = ent.x - nearX;
@@ -331,12 +341,16 @@ const MapEngine = {
 
         for (const ledge of chunk.ledges) {
           if (ent.x >= ledge.x - 8 && ent.x <= ledge.x + ledge.w + 8) {
-            if (isPlayer && ent.y >= ledge.y - 12 && ent.y <= ledge.y && ent.vy > 0) {
-              ent.isJumpingLedge = true;
-              ent.jumpTimer = 0.22;
+            if (isPlayer && ent.y >= ledge.y - 14 && ent.y <= ledge.y && ent.vy > 0) {
+              if (!ent.isJumpingLedge) {
+                ent.isJumpingLedge = true;
+                ent.jumpTimer = 0;
+                ent.jumpStartX = ent.x;
+                ent.jumpStartY = ent.y;
+              }
             } else if (!isPlayer && ent.y >= ledge.y - 14 && ent.y <= ledge.y) {
               ent.y += 24;
-            } else if (ent.y >= ledge.y && ent.y <= ledge.y + ledge.h + 8 && ent.vy < 0) {
+            } else if (ent.y >= ledge.y && ent.y <= ledge.y + ledge.h + 8 && ent.vy < 0 && !ent.isJumpingLedge) {
               ent.y = ledge.y + ledge.h + 8;
             }
           }
