@@ -161,8 +161,8 @@ Object.assign(window.GameApp, {
     if (preEl) preEl.classList.add("hidden");
     if (splashEl) splashEl.classList.add("hidden");
     if (titleEl) {
+      titleEl.style.display = "";
       titleEl.classList.remove("hidden");
-      titleEl.style.display = "flex";
     }
 
     try {
