@@ -143,14 +143,33 @@ Object.assign(window.GameApp, {
   },
 
   enterLobbyFromSplash() {
-    if (this.state !== "SPLASH") return;
-    SoundFX.init();
-    SoundFX.play("levelup");
-    SoundFX.startBgm("lobby");
+    try {
+      if (typeof SoundFX !== "undefined") {
+        SoundFX.init();
+        SoundFX.play("levelup");
+        SoundFX.startBgm("lobby");
+      }
+    } catch (err) {
+      console.warn("AudioContext init warning:", err);
+    }
+
     this.state = "TITLE";
-    document.getElementById("splashScreen").classList.add("hidden");
-    document.getElementById("titleScreen").classList.remove("hidden");
-    this.updateTitleUI();
+    const splashEl = document.getElementById("splashScreen");
+    const titleEl = document.getElementById("titleScreen");
+    const preEl = document.getElementById("preloader-screen");
+
+    if (preEl) preEl.classList.add("hidden");
+    if (splashEl) splashEl.classList.add("hidden");
+    if (titleEl) {
+      titleEl.classList.remove("hidden");
+      titleEl.style.display = "flex";
+    }
+
+    try {
+      this.updateTitleUI();
+    } catch (e) {
+      console.error("updateTitleUI error:", e);
+    }
   },
 
   backToSplash() {
