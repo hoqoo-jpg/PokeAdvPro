@@ -878,18 +878,53 @@ const TM_CATALOG = {
 // 一階先發精靈天生三招階梯表 (起手 ➔ 中程牽制 ➔ 領域爆發)
 const POKEMON_NATURAL_SKILLS = {
   1:   { name: "妙蛙種子", skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
-  4:   { name: "小火龍",   skills: ["Tackle", "Flamethrower", "Flamethrower"] },
+  4:   { name: "小火龍",   skills: ["Tackle", "Flamethrower", "DragonRush"] },
   7:   { name: "傑尼龜",   skills: ["Tackle", "HydroPump", "IceBeam"] },
   10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
-  16:  { name: "波波",     skills: ["Tackle", "AirSlash", "AirSlash"] },
+  16:  { name: "波波",     skills: ["Tackle", "AirSlash", "Tackle"] },
   25:  { name: "皮卡丘",   skills: ["Tackle", "Thunderbolt", "AirSlash"] },
-  133: { name: "伊布",     skills: ["Tackle", "Tackle", "Tackle"] }, // 進化時根據分支完全替換
+  133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
   143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] }
 };
 
-// 伊布進化時的三系本系替換表
+// 伊布進化時的三系本系替換表 (第一招直接替換為代表屬性大招，繼承原本升高的招式等級！)
 const EEVEE_EVO_SKILLS = {
-  134: ["Tackle", "HydroPump", "IceBeam"],       // 水伊布
-  135: ["Tackle", "Thunderbolt", "Thunderbolt"], // 雷伊布
-  136: ["Tackle", "Flamethrower", "Flamethrower"]// 火伊布
+  134: ["HydroPump", "IceBeam", "Tackle"],       // 水伊布：第一招直接變水炮！
+  135: ["Thunderbolt", "AirSlash", "Tackle"],    // 雷伊布：第一招直接變十萬伏特！
+  136: ["Flamethrower", "DragonRush", "Tackle"]  // 火伊布：第一招直接變噴射火焰！
+};
+// 友好商店多元化道具庫 (TM 學習機、PP 提升劑、傷藥與戰鬥增益)
+const MART_SPECIAL_ITEMS = {
+  pp_up: {
+    id: "pp_up",
+    name: "PP 提升劑",
+    type: "item",
+    cost: 180,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/pp-up.png",
+    desc: "立即隨機提升當前一項已學會招式的等級 +1！"
+  },
+  full_restore: {
+    id: "full_restore",
+    name: "全滿傷藥",
+    type: "item",
+    cost: 120,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/full-restore.png",
+    desc: "立即恢復 45% 最大生命值，並完全淨化身上所有異常狀態！"
+  },
+  x_attack: {
+    id: "x_attack",
+    name: "力量強化 (X Attack)",
+    type: "buff",
+    cost: 110,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-attack.png",
+    desc: "30 秒內全招式傷害提升 +35%，伴隨戰意金光！"
+  },
+  x_speed: {
+    id: "x_speed",
+    name: "速度強化 (X Speed)",
+    type: "buff",
+    cost: 90,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-speed.png",
+    desc: "30 秒內移動速度提升 +30%，且踏入涉水/泥沼完全免疫減速！"
+  }
 };

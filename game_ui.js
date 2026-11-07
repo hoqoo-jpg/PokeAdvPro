@@ -803,28 +803,39 @@ renderMartModal(shelf) {
   document.getElementById("martRerollCostText").textContent = this.martRerollCost || 50;
 
   const box = document.getElementById("martShelfContainer");
-  box.innerHTML = shelf.map((tm, idx) => `
-    <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2.5">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
-          <img src="${tm.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${tm.name}"/>
-        </div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-1.5">
-            <span class="font-black text-xs text-white">${tm.tmNo} ${tm.name}</span>
-            <span class="px-1.5 py-0.2 bg-slate-700 text-[9px] font-bold rounded text-amber-300">${tm.type}</span>
-          </div>
-          <p class="text-[10px] text-slate-400 truncate mt-0.5">${tm.desc}</p>
-        </div>
-      </div>
-      <button onclick="GameApp.buyTM('${tm.id}', ${tm.cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
-        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
-        ${tm.cost}
-      </button>
-    </div>
-  `).join("");
+  box.innerHTML = shelf.map((it, idx) => {
+    const isTM = !!it.tmNo;
+    const badgeText = isTM ? `${it.type}系` : (it.type === "buff" ? "戰鬥增益" : "特製藥劑");
+    const badgeBg = isTM ? "bg-slate-700 text-amber-300" : (it.type === "buff" ? "bg-rose-900 text-rose-300" : "bg-emerald-900 text-emerald-300");
+    const titleText = isTM ? `${it.tmNo} ${it.name}` : it.name;
 
-  document.getElementById("pokeMartModal").classList.remove("hidden");
+    return `
+      <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
+            <img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-black text-xs text-white">${titleText}</span>
+              <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${badgeBg}">${badgeText}</span>
+            </div>
+            <p class="text-[10px] text-slate-400 truncate mt-0.5">${it.desc}</p>
+          </div>
+        </div>
+        <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
+          ${it.cost}
+        </button>
+      </div>
+    `;
+  }).join("");
+
+  const modal = document.getElementById("pokeMartModal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+  }
 },
 
   rerollMartShelf() {
@@ -840,21 +851,14 @@ renderMartModal(shelf) {
     this.openPokeMartModal();
   },
 
-  buyTM(skillId, cost) {
-    if (this.runCoins < cost) {
-      this.spawnFloatingText(this.player.x, this.player.y - 20, "代幣不足！", "#EF4444", 13);
-      return;
+  buyMartItem(itemId, cost) {
+    if (GameApp.buyMartItem && typeof GameApp.buyMartItem === "function") {
+      GameApp.buyMartItem(itemId, cost);
     }
-    this.runCoins -= cost;
-    this.saveData.coins = Math.max(0, this.saveData.coins - cost);
-    const p = this.player;
-    p.maxSkillSlots = 4; // 確保啟用第 4 槽
-    p.skills[skillId] = { id: skillId, level: 1, evolved: false, timer: 0.1 };
+  },
 
-    SoundFX.play("levelup");
-    const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[skillId]) ? SKILLS_CATALOG[skillId].name : skillId;
-    this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
-    this.closePokeMartModal();
+  buyTM(skillId, cost) {
+    this.buyMartItem(skillId, cost);
   },
 
   closePokeMartModal() {

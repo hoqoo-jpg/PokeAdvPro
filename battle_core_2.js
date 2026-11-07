@@ -472,9 +472,24 @@ window.GameApp = {
   startGameRun() {
     SoundFX.init();
     SoundFX.startBgm("battle");
-    document.getElementById("setupModal").classList.add("hidden");
-    document.getElementById("titleScreen").classList.add("hidden");
-    document.getElementById("hudLayer").classList.remove("hidden");
+
+    // 徹底隱藏大廳與設定彈窗，並重置行內 display 樣式
+    const setupEl = document.getElementById("setupModal");
+    if (setupEl) { setupEl.classList.add("hidden"); setupEl.style.display = "none"; }
+    const titleEl = document.getElementById("titleScreen");
+    if (titleEl) { titleEl.classList.add("hidden"); titleEl.style.display = "none"; }
+    const endEl = document.getElementById("endModal");
+    if (endEl) { endEl.classList.add("hidden"); endEl.style.display = "none"; }
+
+    // 關鍵修復：重新遊玩時，清除 quitToTitle 殘留的 inline style.display = "none"，強制展現 HUD UI
+    const hudEl = document.getElementById("hudLayer");
+    if (hudEl) {
+      hudEl.classList.remove("hidden");
+      hudEl.style.display = "block";
+    }
+
+    // 重置每局重抽次數
+    this.levelUpRerolls = 1;
 
     const basePoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
     const tr = this.selectedTrainer || TRAINERS[0];
