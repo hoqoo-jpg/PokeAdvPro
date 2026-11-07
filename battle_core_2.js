@@ -461,6 +461,7 @@ window.GameApp = {
     this.activeBoss = boss;
     document.getElementById("bossHudContainer").classList.remove("hidden");
   },
+	
   startGameRun() {
     SoundFX.init();
     SoundFX.startBgm("battle");
@@ -874,7 +875,6 @@ window.GameApp = {
       }
     }
 
-    const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
     if (terrain.inWater && MapEngine.currentStage.id === "cerulean_bay" && p.hp < p.maxHp) {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
