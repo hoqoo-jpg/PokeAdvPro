@@ -360,6 +360,8 @@ Object.assign(window.GameApp, {
     const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
 
     const baseFormPokemon = POKEMON_DB.filter(p => {
+      // 排除伊布的分支進化型 (水伊布 134, 雷伊布 135, 火伊布 136)
+      if (p.id === 134 || p.id === 135 || p.id === 136) return false;
       return !POKEMON_DB.some(parent => parent.evo_to === p.id);
     });
 

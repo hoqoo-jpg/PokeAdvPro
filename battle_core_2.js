@@ -1316,19 +1316,34 @@ window.GameApp = {
   openPokeMartModal() {
     this.state = "PAUSED";
     const p = this.player;
-    const catalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
+    const tmCatalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
+    const specItems = typeof MART_SPECIAL_ITEMS !== "undefined" ? MART_SPECIAL_ITEMS : {};
     
-    // 智慧比對：防範帶空格與不帶空格的技能名稱衝突
     const hasSkill = (sId) => {
       const clean = sId.replace(/\s+/g, '');
       return Object.keys(p.skills).some(k => k.replace(/\s+/g, '') === clean);
     };
-    const availableTMs = Object.values(catalog).filter(tm => !hasSkill(tm.id));
-    const shelf = availableTMs.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+    const shelf = [];
+    const availableTMs = Object.values(tmCatalog).filter(tm => !hasSkill(tm.id));
+    if (availableTMs.length > 0) {
+      shelf.push(availableTMs[Math.floor(Math.random() * availableTMs.length)]);
+    }
+
+    const medPool = [specItems.pp_up, specItems.full_restore].filter(Boolean);
+    if (medPool.length > 0) {
+      shelf.push(medPool[Math.floor(Math.random() * medPool.length)]);
+    }
+
+    const buffPool = [specItems.x_attack, specItems.x_speed].filter(Boolean);
+    if (buffPool.length > 0) {
+      shelf.push(buffPool[Math.floor(Math.random() * buffPool.length)]);
+    }
+
     if (this.renderMartModal) this.renderMartModal(shelf);
   },
 
-  buyTM(skillId, cost) {
+  buyMartItem(itemId, cost) {
     if (this.runCoins < cost) {
       this.spawnFloatingText(this.player.x, this.player.y - 20, "代幣不足！", "#EF4444", 13);
       return;
@@ -1336,13 +1351,48 @@ window.GameApp = {
     this.runCoins -= cost;
     this.saveData.coins = Math.max(0, this.saveData.coins - cost);
     const p = this.player;
-    p.maxSkillSlots = 4;
-    p.skills[skillId] = { id: skillId, level: 1, evolved: false, timer: 0.1 };
 
-    SoundFX.play("levelup");
-    const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[skillId]) ? SKILLS_CATALOG[skillId].name : skillId;
-    this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+    if (itemId === "pp_up") {
+      const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
+      if (upgradeable.length > 0) {
+        const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+        pick.level += 1;
+        const skMeta = SKILLS_CATALOG[pick.id];
+        SoundFX.play("levelup");
+        this.spawnFloatingText(p.x, p.y - 25, `【${skMeta ? skMeta.name : pick.id}】升級至 Lv.${pick.level}!`, "#FACC15", 15);
+      } else {
+        this.spawnFloatingText(p.x, p.y - 20, "所有招式已達 MAX 滿級！", "#38BDF8", 13);
+      }
+    } else if (itemId === "full_restore") {
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
+      p.status = null;
+      p.statusTimer = 0;
+      SoundFX.play("levelup");
+      this.spawnFloatingText(p.x, p.y - 25, "全滿傷藥：恢復 45% HP ＆ 淨化異常！", "#34D399", 15);
+    } else if (itemId === "x_attack") {
+      p.buffTimer = Math.max(p.buffTimer || 0, 30.0);
+      p.maxBuffTimer = 30.0;
+      SoundFX.play("super");
+      this.spawnFloatingText(p.x, p.y - 25, "力量強化：30秒內全傷害+35%！", "#EF4444", 15);
+      this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 24, "star", 1.2);
+    } else if (itemId === "x_speed") {
+      p.xSpeedTimer = 30.0;
+      SoundFX.play("super");
+      this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
+    } else {
+      p.maxSkillSlots = 4;
+      p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+      SoundFX.play("levelup");
+      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
+      this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+    }
+
     this.closePokeMartModal();
+  },
+
+  buyTM(skillId, cost) {
+    this.buyMartItem(skillId, cost);
   },
 
   closePokeMartModal() {
@@ -1886,18 +1936,17 @@ window.GameApp = {
     this.evolvePlayerPokemon(targetId);
 
     const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
-      134: ["Tackle", "HydroPump", "IceBeam"],
-      135: ["Tackle", "Thunderbolt", "AirSlash"],
-      136: ["Tackle", "Flamethrower", "DragonRush"]
+      134: ["HydroPump", "IceBeam", "Tackle"],
+      135: ["Thunderbolt", "AirSlash", "Tackle"],
+      136: ["Flamethrower", "DragonRush", "Tackle"]
     };
 
-    const newSkillIds = evoSkillMap[targetId] || ["Tackle", "HydroPump", "IceBeam"];
+    const newSkillIds = evoSkillMap[targetId] || ["HydroPump", "IceBeam", "Tackle"];
     p.skills = {};
     newSkillIds.forEach((sId, idx) => {
       p.skills[sId] = { id: sId, level: Math.max(1, savedLevels[idx] || 1), evolved: false, timer: 0.2 };
     });
 
-    // 關鍵修正：同步更新當前精靈的天生三招記憶庫
     p.naturalSkills = [...newSkillIds];
 	
     if (tmSkill) {
@@ -1934,152 +1983,194 @@ window.GameApp = {
   openLevelUpModal() {
     this.state = "PAUSED";
     const p = this.player;
-    const pool = [];
+    if (this.levelUpRerolls === undefined) this.levelUpRerolls = 1;
 
-    const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
-    if (evolvedCount < 2) {
+    const buildPool = () => {
+      const pool = [];
+      const addedKeys = new Set();
+
+      const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
+      if (evolvedCount < 2) {
+        Object.values(p.skills).forEach(sk => {
+          const meta = SKILLS_CATALOG[sk.id];
+          if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight: 100,
+              rarityClass: "rarity-legendary",
+              badge: "究極超武突破",
+              badgeBg: "bg-amber-500 text-slate-950 font-black",
+              title: meta.evolvedName,
+              subTitle: "★ MAX 滿級突破",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite,
+              desc: meta.evoDesc,
+              isNew: false,
+              apply: () => {
+                sk.evolved = true;
+                this.saveData.stats.superMoves += 1;
+                this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
+              }
+            });
+          }
+        });
+      }
+
       Object.values(p.skills).forEach(sk => {
-        const meta = SKILLS_CATALOG[sk.id];
-        if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
-          pool.push({
-            weight: 100,
-            rarityClass: "rarity-legendary",
-            badge: "究極超武突破",
-            badgeBg: "bg-amber-500 text-slate-950 font-black",
-            title: meta.evolvedName,
-            subTitle: "★ MAX 滿級突破",
-            typeBadge: renderTypeBadgeHTML(meta.type),
-            sprite: meta.sprite,
-            desc: meta.evoDesc,
-            isNew: false,
-            apply: () => {
-              sk.evolved = true;
-              this.saveData.stats.superMoves += 1;
-              this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
+        if (sk.level < 10) {
+          const meta = SKILLS_CATALOG[sk.id];
+          const nextLv = sk.level + 1;
+          if (meta && !addedKeys.has(meta.name)) {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight: 42,
+              rarityClass: "rarity-common",
+              badge: "招式階級提升",
+              badgeBg: "bg-slate-700 text-white font-bold",
+              title: meta.name,
+              subTitle: `Lv.${sk.level} ➔ Lv.${nextLv}`,
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite,
+              desc: getSkillNextLevelBonusDesc(nextLv),
+              isNew: false,
+              apply: () => { sk.level = nextLv; }
+            });
+          }
+        }
+      });
+
+      pool.push(
+        {
+          key: "protein",
+          weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
+          title: "蛋白藥劑", subTitle: "全傷 +8%", typeBadge: "", sprite: ITEM_SPRITES.protein,
+          desc: "全面提升寶可夢所有招式傷害 +8%！", isNew: false, apply: () => { p.dmgMult *= 1.08; }
+        },
+        {
+          key: "hpUp",
+          weight: 30, rarityClass: "rarity-common", badge: "體質強化", badgeBg: "bg-slate-700 text-white",
+          title: "HP提升劑", subTitle: "最大HP +12%", typeBadge: "", sprite: ITEM_SPRITES.hpUp,
+          desc: "最大生命值提升 12%，並立即恢復 25% 已損失生命！", isNew: false,
+          apply: () => { p.maxHp = Math.round(p.maxHp * 1.12); p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.25)); }
+        },
+        {
+          key: "carbos",
+          weight: 28, rarityClass: "rarity-common", badge: "敏捷連動", badgeBg: "bg-slate-700 text-white",
+          title: "敏捷強化劑", subTitle: "移速+5% ＆ CD-3%", typeBadge: "", sprite: ITEM_SPRITES.carbos,
+          desc: "提升移動速度 5%，縮短招式冷卻 -3%！", isNew: false, apply: () => { p.speedMult *= 1.05; p.cdMult *= 0.97; }
+        }
+      );
+
+      const currentCount = Object.keys(p.skills).length;
+      if (currentCount < p.maxSkillSlots) {
+        // 1. 優先推送天生尚未學會的招式 (高權重 60，嚴格去重)
+        const unlearnedNatural = (p.naturalSkills || []).filter(sId => {
+          const m = SKILLS_CATALOG[sId];
+          return m && !Object.values(p.skills).some(existing => existing.id === m.id || existing.id.replace(/\s+/g,'') === m.id.replace(/\s+/g,''));
+        });
+
+        if (unlearnedNatural.length > 0) {
+          unlearnedNatural.forEach(sId => {
+            const meta = SKILLS_CATALOG[sId];
+            if (meta && !addedKeys.has(meta.name)) {
+              addedKeys.add(meta.name);
+              pool.push({
+                key: meta.name,
+                weight: 60,
+                rarityClass: "rarity-rare",
+                badge: `天生招式 (${currentCount + 1}/${p.maxSkillSlots})`,
+                badgeBg: "bg-emerald-600 text-white font-black",
+                title: meta.name,
+                subTitle: "本系領悟 Lv.1",
+                typeBadge: renderTypeBadgeHTML(meta.type),
+                sprite: meta.sprite,
+                desc: meta.desc,
+                isNew: true,
+                apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+              });
+            }
+          });
+        } else {
+          // 2. 天生三招已學齊，才開放從全庫挑選普通新招
+          Object.values(SKILLS_CATALOG).forEach(meta => {
+            const alreadyHas = Object.values(p.skills).some(existing => existing.id === meta.id || existing.id.replace(/\s+/g,'') === meta.id.replace(/\s+/g,''));
+            if (!alreadyHas && meta.id !== "Metronome" && !addedKeys.has(meta.name)) {
+              addedKeys.add(meta.name);
+              pool.push({
+                key: meta.name,
+                weight: 15,
+                rarityClass: "rarity-rare",
+                badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
+                badgeBg: "bg-blue-600 text-white font-black",
+                title: meta.name,
+                subTitle: "新領悟 Lv.1",
+                typeBadge: renderTypeBadgeHTML(meta.type),
+                sprite: meta.sprite,
+                desc: meta.desc,
+                isNew: true,
+                apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+              });
             }
           });
         }
+      }
+
+      const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
+      const eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
+        const targetSkill = SKILLS_CATALOG[hi.skillReq];
+        return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
       });
-    }
-
-    Object.values(p.skills).forEach(sk => {
-      if (sk.level < 10) {
-        const meta = SKILLS_CATALOG[sk.id];
-        const nextLv = sk.level + 1;
-        pool.push({
-          weight: 42,
-          rarityClass: "rarity-common",
-          badge: "招式階級提升",
-          badgeBg: "bg-slate-700 text-white font-bold",
-          title: meta.name,
-          subTitle: `Lv.${sk.level} ➔ Lv.${nextLv}`,
-          typeBadge: renderTypeBadgeHTML(meta.type),
-          sprite: meta.sprite,
-          desc: getSkillNextLevelBonusDesc(nextLv),
-          isNew: false,
-          apply: () => { sk.level = nextLv; }
-        });
+      if (eligibleHeld.length > 0) {
+        const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
+        if (!addedKeys.has(hi.name)) {
+          addedKeys.add(hi.name);
+          pool.push({
+            key: hi.name,
+            weight: 2, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
+            title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
+            isNew: true,
+            apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
+          });
+        }
       }
-    });
 
-    pool.push(
-      {
-        weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
-        title: "蛋白藥劑", subTitle: "全傷 +8%", typeBadge: "", sprite: ITEM_SPRITES.protein,
-        desc: "全面提升寶可夢所有招式傷害 +8%！", isNew: false, apply: () => { p.dmgMult *= 1.08; }
-      },
-      {
-        weight: 30, rarityClass: "rarity-common", badge: "體質強化", badgeBg: "bg-slate-700 text-white",
-        title: "HP提升劑", subTitle: "最大HP +12%", typeBadge: "", sprite: ITEM_SPRITES.hpUp,
-        desc: "最大生命值提升 12%，並立即恢復 25% 已損失生命！", isNew: false,
-        apply: () => { p.maxHp = Math.round(p.maxHp * 1.12); p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.25)); }
-      },
-      {
-        weight: 28, rarityClass: "rarity-common", badge: "敏捷連動", badgeBg: "bg-slate-700 text-white",
-        title: "敏捷強化劑", subTitle: "移速+5% ＆ CD-3%", typeBadge: "", sprite: ITEM_SPRITES.carbos,
-        desc: "提升移動速度 5%，縮短招式冷卻 -3%！", isNew: false, apply: () => { p.speedMult *= 1.05; p.cdMult *= 0.97; }
+      return pool;
+    };
+
+    const drawChoices = () => {
+      const pool = buildPool();
+      const choices = [];
+      const temp = [...pool];
+      while (choices.length < 3 && temp.length > 0) {
+        const totalW = temp.reduce((s, x) => s + x.weight, 0);
+        let r = Math.random() * totalW;
+        let picked = 0;
+        for (let i = 0; i < temp.length; i++) {
+          r -= temp[i].weight;
+          if (r <= 0) { picked = i; break; }
+        }
+        choices.push(temp.splice(picked, 1)[0]);
       }
-    );
+      return choices;
+    };
 
-    const currentCount = Object.keys(p.skills).length;
-    if (currentCount < p.maxSkillSlots) {
-      // 1. 優先推送天生尚未學會的招式 (高權重 60)
-      const unlearnedNatural = (p.naturalSkills || []).filter(sId => !p.skills[sId]);
-      if (unlearnedNatural.length > 0) {
-        unlearnedNatural.forEach(sId => {
-          const meta = SKILLS_CATALOG[sId];
-          if (meta) {
-            pool.push({
-              weight: 60,
-              rarityClass: "rarity-rare",
-              badge: `天生招式 (${currentCount + 1}/${p.maxSkillSlots})`,
-              badgeBg: "bg-emerald-600 text-white font-black",
-              title: meta.name,
-              subTitle: "本系領悟 Lv.1",
-              typeBadge: renderTypeBadgeHTML(meta.type),
-              sprite: meta.sprite,
-              desc: meta.desc,
-              isNew: true,
-              apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
-            });
-          }
-        });
-      } else {
-        // 2. 天生三招已學齊，才開放從全庫挑選普通新招 (低權重 15)
-        Object.values(SKILLS_CATALOG).forEach(meta => {
-          if (!p.skills[meta.id] && meta.id !== "Metronome") {
-            pool.push({
-              weight: 15,
-              rarityClass: "rarity-rare",
-              badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
-              badgeBg: "bg-blue-600 text-white font-black",
-              title: meta.name,
-              subTitle: "新領悟 Lv.1",
-              typeBadge: renderTypeBadgeHTML(meta.type),
-              sprite: meta.sprite,
-              desc: meta.desc,
-              isNew: true,
-              apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
-            });
-          }
-        });
-      }
+    this._currentUpgradeChoices = drawChoices();
+    this.renderLevelUpModalContent();
+    const modal = document.getElementById("levelUpModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
     }
+  },
 
-    const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
-    const eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
-      const targetSkill = SKILLS_CATALOG[hi.skillReq];
-      return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
-    });
-    // 控制攜帶物不氾濫：隨機選取至多 1 個符合條件的攜帶物加入選單池，權重設定為 2
-    if (eligibleHeld.length > 0) {
-      const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
-      pool.push({
-        weight: 2, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
-        title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
-        isNew: true,
-        apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
-      });
-    }
-
-    const choices = [];
-    const temp = [...pool];
-    while (choices.length < 3 && temp.length > 0) {
-      const totalW = temp.reduce((s, x) => s + x.weight, 0);
-      let r = Math.random() * totalW;
-      let picked = 0;
-      for (let i = 0; i < temp.length; i++) {
-        r -= temp[i].weight;
-        if (r <= 0) { picked = i; break; }
-      }
-      choices.push(temp.splice(picked, 1)[0]);
-    }
-
-    this._currentUpgradeChoices = choices;
+  renderLevelUpModalContent() {
     const box = document.getElementById("upgradeChoicesContainer");
+    if (!box) return;
 
-    box.innerHTML = choices.map((c, idx) => `
-      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative">
+    const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
         ${c.isNew ? `
           <div class="absolute top-0 left-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-pixel text-[9px] px-2.5 py-0.5 rounded-tl-[13px] rounded-br-lg border-b border-r border-white/80 shadow-md flex items-center gap-1 z-10 animate-pulse">
             <i class="fa-solid fa-sparkles text-[8px] text-amber-200"></i>NEW!
@@ -2098,13 +2189,34 @@ window.GameApp = {
             <p class="text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
           </div>
         </div>
-        <button class="poke-btn-red px-4 py-2 text-xs font-black shrink-0 min-h-[38px]">
-          選擇
-        </button>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button class="poke-btn-red px-3 sm:px-4 py-2 text-xs font-black min-h-[38px] flex items-center gap-1">
+            <span>選擇</span>
+            <span class="font-pixel text-[10px] text-amber-200 opacity-90">[${idx + 1}]</span>
+          </button>
+        </div>
       </div>
     `).join("");
 
-    document.getElementById("levelUpModal").classList.remove("hidden");
+    const hasRerolls = (this.levelUpRerolls || 0) > 0;
+    const rerollBarHtml = `
+      <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-400">鍵盤提示：按 [1]、[2]、[3] 直接選取，[R] 鍵重新整理</span>
+        <button onclick="GameApp.rerollUpgradeChoices()" ${!hasRerolls ? 'disabled' : ''} class="${hasRerolls ? 'poke-btn-yellow' : 'poke-btn-white opacity-50 cursor-not-allowed'} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5">
+          <i class="fa-solid fa-dice text-xs"></i>
+          <span>重新整理 (剩餘 ${this.levelUpRerolls || 0} 次)</span>
+        </button>
+      </div>
+    `;
+
+    box.innerHTML = choicesHtml + rerollBarHtml;
+  },
+
+  rerollUpgradeChoices() {
+    if ((this.levelUpRerolls || 0) <= 0) return;
+    this.levelUpRerolls -= 1;
+    SoundFX.play("super");
+    this.openLevelUpModal();
   },
 
   selectUpgradeChoice(idx) {
@@ -2315,17 +2427,20 @@ window.GameApp = {
         }
         if (tInGrass) {
           ctx.save();
-          ctx.fillStyle = "#1E4A28";
-          ctx.strokeStyle = "#4ADE80";
-          ctx.lineWidth = 1.6;
-          for (let gx = -22; gx <= 22; gx += 7) {
-            const gH = 12 + Math.abs(Math.sin(gx * 2.5)) * 6;
+          const gNow = performance.now() * 0.003;
+          ctx.fillStyle = "#22C55E";
+          ctx.strokeStyle = "#166534";
+          ctx.lineWidth = 1.2;
+          const grassBlades = [-14, -5, 6, 15];
+          grassBlades.forEach((gx, gIdx) => {
+            const sway = Math.sin(gNow + gIdx * 1.5) * 2.2;
             ctx.beginPath();
-            ctx.moveTo(gx - 3, 24);
-            ctx.lineTo(gx, 24 - gH);
-            ctx.lineTo(gx + 3, 24);
+            ctx.moveTo(gx - 2.5, 24);
+            ctx.quadraticCurveTo(gx + sway, 17, gx + sway * 1.2, 15);
+            ctx.quadraticCurveTo(gx + 1, 19, gx + 2.5, 24);
+            ctx.closePath();
             ctx.fill(); ctx.stroke();
-          }
+          });
           ctx.restore();
         }
       }
@@ -2423,20 +2538,23 @@ window.GameApp = {
       }
       ctx.filter = "none";
 
-      // 若在草叢中，繪製前置草堆掩映層遮蓋下半身
+      // 若在草叢中，繪製 GBA 原版精緻少量微擺草尖遮擋腳踝
       if (inGrass) {
         ctx.save();
-        ctx.fillStyle = "#1E4A28";
-        ctx.strokeStyle = "#4ADE80";
-        ctx.lineWidth = 1.6;
-        for (let gx = -22; gx <= 22; gx += 7) {
-          const gH = 12 + Math.abs(Math.sin(gx * 2.5)) * 6;
+        const gNow = performance.now() * 0.003;
+        ctx.fillStyle = "#22C55E";
+        ctx.strokeStyle = "#166534";
+        ctx.lineWidth = 1.2;
+        const grassBlades = [-14, -5, 6, 15];
+        grassBlades.forEach((gx, gIdx) => {
+          const sway = Math.sin(gNow + gIdx * 1.5) * 2.2;
           ctx.beginPath();
-          ctx.moveTo(gx - 3, 22);
-          ctx.lineTo(gx, 22 - gH);
-          ctx.lineTo(gx + 3, 22);
+          ctx.moveTo(gx - 2.5, 22);
+          ctx.quadraticCurveTo(gx + sway, 15, gx + sway * 1.2, 13);
+          ctx.quadraticCurveTo(gx + 1, 17, gx + 2.5, 22);
+          ctx.closePath();
           ctx.fill(); ctx.stroke();
-        }
+        });
         ctx.restore();
       }
     }
