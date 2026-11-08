@@ -318,7 +318,7 @@ const MapEngine = {
 
         for (const ob of chunk.obstacles) {
           // 若為木樁且玩家正向下移動，觸發跨越跳木樁動作
-          if (ob.kind === "fallen_log" && isPlayer && ent.vy > 0 && ent.y >= ob.y - 12 && ent.y <= ob.y + 6 && ent.x >= ob.x - 4 && ent.x <= ob.x + ob.w + 4) {
+          if (ob.kind === "fallen_log" && (isPlayer || ent.isCompanion) && (ent.vy > 0 || ent.walkBob > 0) && ent.y >= ob.y - 12 && ent.y <= ob.y + 6 && ent.x >= ob.x - 4 && ent.x <= ob.x + ob.w + 4) {
             if (!ent.isJumpingLedge) {
               ent.isJumpingLedge = true;
               ent.jumpTimer = 0;
@@ -341,7 +341,7 @@ const MapEngine = {
 
         for (const ledge of chunk.ledges) {
           if (ent.x >= ledge.x - 8 && ent.x <= ledge.x + ledge.w + 8) {
-            if (isPlayer && ent.y >= ledge.y - 14 && ent.y <= ledge.y && ent.vy > 0) {
+            if ((isPlayer || ent.isCompanion) && ent.y >= ledge.y - 14 && ent.y <= ledge.y && (ent.vy > 0 || ent.walkBob > 0)) {
               if (!ent.isJumpingLedge) {
                 ent.isJumpingLedge = true;
                 ent.jumpTimer = 0;

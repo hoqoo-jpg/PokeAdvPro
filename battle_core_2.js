@@ -554,14 +554,18 @@ window.GameApp = {
       maxBuffTimer: tr.skillDuration || 6.0,
       shieldTimer: 0,
       maxShieldTimer: 5.0,
+      xAttackTimer: 0,
+      xSpeedTimer: 0,
       trainerSkillCd: 0,
       trainerSkillMaxCd,
       status: null,
       statusTimer: 0,
       statusTick: 0,
       whiteFlashTimer: 0,
+      isCompanion: true,
       isJumpingLedge: false,
-      jumpTimer: 0
+      jumpTimer: 0,
+      jumpY: 0
     };
 
     //const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
@@ -586,8 +590,10 @@ window.GameApp = {
       sprites: tr.sprites || null,
       name: tr.name,
       pixelColors: tr.pixelColors,
+      isCompanion: true,
       isJumpingLedge: false,
-      jumpTimer: 0
+      jumpTimer: 0,
+      jumpY: 0
     };
 
     this.partners = [];
@@ -852,6 +858,8 @@ window.GameApp = {
         p.trainerSkillCd = p.trainerSkillMaxCd;
       }
     }
+    if (p.xAttackTimer > 0) p.xAttackTimer = Math.max(0, p.xAttackTimer - dt);
+    if (p.xSpeedTimer > 0) p.xSpeedTimer = Math.max(0, p.xSpeedTimer - dt);
     if (p.buffTimer <= 0 && p.shieldTimer <= 0 && p.trainerSkillCd > 0) {
       p.trainerSkillCd = Math.max(0, p.trainerSkillCd - dt);
     }
@@ -933,12 +941,23 @@ window.GameApp = {
       const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
       pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
       pStatusEl.classList.remove("hidden");
+    } else if (p.xAttackTimer > 0) {
+      pStatusEl.textContent = `[力量強化] 傷害+35% (${Math.ceil(p.xAttackTimer)}s)`;
+      pStatusEl.className = "px-2 py-0.5 bg-amber-950/80 text-amber-300 border border-amber-500 rounded-full font-black text-[10px]";
+      pStatusEl.classList.remove("hidden");
+    } else if (p.xSpeedTimer > 0) {
+      pStatusEl.textContent = `[速度強化] 移速+30% (${Math.ceil(p.xSpeedTimer)}s)`;
+      pStatusEl.className = "px-2 py-0.5 bg-sky-950/80 text-sky-300 border border-sky-500 rounded-full font-black text-[10px]";
+      pStatusEl.classList.remove("hidden");
     } else {
+      pStatusEl.className = "hidden px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]";
       pStatusEl.classList.add("hidden");
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
-    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * terrain.speedMult * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0);
+    const hasSpeedBuff = (p.xSpeedTimer > 0);
+    const effTerrSpd = (hasSpeedBuff && terrain.inWater) ? 1.0 : terrain.speedMult;
+    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * effTerrSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * (hasSpeedBuff ? 1.30 : 1.0);
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
@@ -949,8 +968,9 @@ window.GameApp = {
 
     if (p.isJumpingLedge) {
       p.jumpTimer = (p.jumpTimer || 0) + dt;
-      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.35) * Math.PI) * -14;
-      if (p.jumpTimer >= 0.35) {
+      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.32) * Math.PI) * -16;
+      p.y += 65 * dt;
+      if (p.jumpTimer >= 0.32) {
         p.isJumpingLedge = false;
         p.jumpTimer = 0;
         p.jumpY = 0;
@@ -959,14 +979,33 @@ window.GameApp = {
       p.jumpY = 0;
     }
 
+    const tc = this.trainerCompanion;
     const sideOffset = (p.facingX < 0 ? 24 : -24);
     const targetTx = p.x + sideOffset;
     const targetTy = p.y;
-    this.trainerCompanion.x += (targetTx - this.trainerCompanion.x) * Math.min(1, dt * 30);
-    this.trainerCompanion.y += (targetTy - this.trainerCompanion.y) * Math.min(1, dt * 30);
-    this.trainerCompanion.facingX = p.facingX;
-    this.trainerCompanion.facingY = p.facingY;
-    this.trainerCompanion.walkBob = p.walkBob;
+    const tcOldX = tc.x, tcOldY = tc.y;
+    tc.x += (targetTx - tc.x) * Math.min(1, dt * 30);
+    tc.y += (targetTy - tc.y) * Math.min(1, dt * 30);
+    tc.vx = (tc.x - tcOldX) / (dt || 0.016);
+    tc.vy = (tc.y - tcOldY) / (dt || 0.016);
+    tc.facingX = p.facingX;
+    tc.facingY = p.facingY;
+    tc.walkBob = p.walkBob;
+
+    MapEngine.resolveObstacleCollision(tc, 18, false);
+
+    if (tc.isJumpingLedge) {
+      tc.jumpTimer = (tc.jumpTimer || 0) + dt;
+      tc.jumpY = Math.sin(Math.min(1, tc.jumpTimer / 0.32) * Math.PI) * -16;
+      tc.y += 65 * dt;
+      if (tc.jumpTimer >= 0.32) {
+        tc.isJumpingLedge = false;
+        tc.jumpTimer = 0;
+        tc.jumpY = 0;
+      }
+    } else {
+      tc.jumpY = 0;
+    }
 
     const midX = (p.x + this.trainerCompanion.x) * 0.5;
     const midY = (p.y + this.trainerCompanion.y) * 0.5;
