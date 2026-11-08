@@ -318,7 +318,7 @@ const MapEngine = {
 
         for (const ob of chunk.obstacles) {
           // 若為木樁且玩家正向下移動，觸發跨越跳木樁動作
-          if (ob.kind === "fallen_log" && isPlayer && ent.vy > 0 && ent.y >= ob.y - 12 && ent.y <= ob.y + 6 && ent.x >= ob.x - 4 && ent.x <= ob.x + ob.w + 4) {
+          if (ob.kind === "fallen_log" && isPlayer && ent.vy > 0 && ent.y >= ob.y - 18 && ent.y <= ob.y + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
             if (!ent.isJumpingLedge) {
               ent.isJumpingLedge = true;
               ent.jumpTimer = 0;

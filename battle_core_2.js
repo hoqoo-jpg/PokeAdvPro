@@ -964,7 +964,7 @@ window.GameApp = {
 
     if (p.isJumpingLedge) {
       p.jumpTimer = (p.jumpTimer || 0) + dt;
-      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.35) * Math.PI) * -14;
+      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.35) * Math.PI) * -18;
       if (p.jumpTimer >= 0.35) {
         p.isJumpingLedge = false;
         p.jumpTimer = 0;
@@ -986,13 +986,18 @@ window.GameApp = {
     tc.facingY = p.facingY;
     tc.walkBob = p.walkBob;
 
+    // 主角起跳跨越木頭/懸崖時，訓練家無縫同步跟進起跳
+    if (p.isJumpingLedge && !tc.isJumpingLedge) {
+      tc.isJumpingLedge = true;
+      tc.jumpTimer = 0;
+    }
+
     // 訓練家獨立障礙碰撞與跨木樁/跳崖運算
     MapEngine.resolveObstacleCollision(tc, 18, true);
     if (tc.isJumpingLedge) {
       tc.jumpTimer = (tc.jumpTimer || 0) + dt;
-      tc.jumpY = Math.sin(Math.min(1, tc.jumpTimer / 0.32) * Math.PI) * -16;
-      tc.y += 65 * dt;
-      if (tc.jumpTimer >= 0.32) {
+      tc.jumpY = Math.sin(Math.min(1, tc.jumpTimer / 0.35) * Math.PI) * -18;
+      if (tc.jumpTimer >= 0.35) {
         tc.isJumpingLedge = false;
         tc.jumpTimer = 0;
         tc.jumpY = 0;
@@ -2459,7 +2464,7 @@ window.GameApp = {
         ctx.fill();
       }
 
-      ctx.translate(tsx, tsy - bob + (tInWater ? 11 : 0));
+      ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) {
         if (tInWater) {
