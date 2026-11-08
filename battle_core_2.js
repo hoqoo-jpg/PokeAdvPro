@@ -1524,8 +1524,18 @@ window.GameApp = {
       const confDir = e.status === "Confusion" ? -0.75 : 1.0;
       let eTerrMult = 1.0;
       if (!e.isBoss) {
-        const rawTerrMult = MapEngine.getTerrainModifierAt(e.x, e.y).speedMult;
-        eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
+        const eTerr = MapEngine.getTerrainModifierAt(e.x, e.y);
+        const isWaterOrFlying = e.data && (
+          e.data.type1 === "Water" || e.data.type2 === "Water" ||
+          e.data.type1 === "Flying" || e.data.type2 === "Flying"
+        );
+        // 水系與飛行系敵人在水域中免疫減速，水系自在遊弋、飛行系掠空飛翔
+        if (eTerr.inWater && isWaterOrFlying) {
+          eTerrMult = 1.0;
+        } else {
+          const rawTerrMult = eTerr.speedMult;
+          eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
+        }
       }
 
       const dx = p.x - e.x;

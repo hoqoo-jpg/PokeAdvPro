@@ -214,11 +214,8 @@ const SkillsEngine = {
         maxTime: 0.50,
         color: meta.color
       });
-      // 地震移除晃動鏡頭，改以擴散地裂波與碎石塵土震撼呈現
-      if (style === "slam_wave") {
-        GameApp.camera.shakeTime = 0.12;
-        GameApp.camera.shakeMagnitude = 3.5;
-      }
+      // 常規招式（地震、撞擊等）全面移除螢幕強震，改以多層同心衝擊波與碎屑幾何展示
+      // 保持視野穩定舒適
 
       const dustCount = style === "quake_wave" ? 18 : 10;
       for (let d = 0; d < dustCount; d++) {
@@ -276,8 +273,9 @@ const SkillsEngine = {
 
   triggerUltimateSuperMove(meta, skSlot) {
     const p = GameApp.player;
-    GameApp.camera.shakeTime = 0.40;
-    GameApp.camera.shakeMagnitude = 10.0;
+    // 究極超武改為微弱柔和震動，絕不干擾走位與視覺
+    GameApp.camera.shakeTime = 0.15;
+    GameApp.camera.shakeMagnitude = 3.0;
     SoundFX.play("ultimate");
 
     const ultDmg = (meta.baseDmg * 2.8 + p.baseAtk * 1.3) * p.dmgMult;
