@@ -159,10 +159,12 @@ window.GameApp = {
 
           joyBase.style.left = `${t.clientX}px`;
           joyBase.style.top = `${t.clientY}px`;
+          joyBase.classList.remove("hidden");
           joyBase.style.display = "block";
 
           joyStick.style.left = `${t.clientX}px`;
           joyStick.style.top = `${t.clientY}px`;
+          joyStick.classList.remove("hidden");
           joyStick.style.display = "block";
           break;
         }
@@ -199,8 +201,14 @@ window.GameApp = {
       this.touchJoy.touchId = null;
       this.touchJoy.dx = 0;
       this.touchJoy.dy = 0;
-      if (joyBase) joyBase.style.display = "none";
-      if (joyStick) joyStick.style.display = "none";
+      if (joyBase) {
+        joyBase.classList.add("hidden");
+        joyBase.style.display = "none";
+      }
+      if (joyStick) {
+        joyStick.classList.add("hidden");
+        joyStick.style.display = "none";
+      }
     };
 
     const onTouchEnd = (e) => {
@@ -755,19 +763,27 @@ window.GameApp = {
       this.saveData.pokedexCaught[pData.id] = true;
       this.spawnFloatingText(this.player.x, this.player.y - 28, `收服雙打夥伴：${pData.name_zh}!`, "#EC4899", 14);
     } else {
+      let anyUpg = false;
       this.partners.forEach(pt => {
-        pt.level += 1;
-        if (pt.data.evo_level !== "None" && pt.level >= 5 && pt.data.evo_to) {
-          const nextData = POKEMON_MAP.get(pt.data.evo_to);
-          if (nextData) {
-            pt.id = nextData.id;
-            pt.data = nextData;
-            this.saveData.pokedexSeen[nextData.id] = true;
-            this.saveData.pokedexCaught[nextData.id] = true;
+        if (pt.level < 5) {
+          pt.level += 1;
+          anyUpg = true;
+          if (pt.data.evo_level !== "None" && pt.level >= 5 && pt.data.evo_to) {
+            const nextData = POKEMON_MAP.get(pt.data.evo_to);
+            if (nextData) {
+              pt.id = nextData.id;
+              pt.data = nextData;
+              this.saveData.pokedexSeen[nextData.id] = true;
+              this.saveData.pokedexCaught[nextData.id] = true;
+            }
           }
         }
       });
-      this.spawnFloatingText(this.player.x, this.player.y - 28, `雙打夥伴等級提升!`, "#EC4899", 14);
+      if (anyUpg) {
+        this.spawnFloatingText(this.player.x, this.player.y - 28, `雙打夥伴等級提升 (MAX Lv.5)!`, "#EC4899", 14);
+      } else {
+        this.spawnFloatingText(this.player.x, this.player.y - 28, `雙打夥伴已達上限 Lv.5!`, "#EC4899", 14);
+      }
     }
     this.refreshHUD();
   },
@@ -953,7 +969,9 @@ window.GameApp = {
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
     const xSpdMod = p.xSpeedTimer > 0 ? 1.30 : 1.0;
     const finalTerrainSpd = (p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult;
-    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
+    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
+    // 主角速度軟上限 180 px/s，確保微操靈敏但避免中後期無腦風箏
+    const moveSpd = Math.min(180, rawMoveSpd);
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
@@ -1051,17 +1069,30 @@ window.GameApp = {
     });
 
     if (!this.debugWeatherLock && !this.activeBoss) {
-      const minutes = this.runTime / 60;
-      let targetWeather = "CLEAR";
-      if (minutes >= 6.5) targetWeather = "PSYCHIC";
-      else if (minutes >= 5.0) targetWeather = "BLIZZARD";
-      else if (minutes >= 3.5) targetWeather = "THUNDER";
-      else if (minutes >= 2.0) targetWeather = "HEATWAVE";
-      else if (minutes >= 1.0) targetWeather = "RAIN";
-      
-      if (MapEngine.weather !== targetWeather) {
-        MapEngine.setWeather(targetWeather);
-        this.updateWeatherUI(targetWeather);
+      this.weatherCycleTimer = (this.weatherCycleTimer || 75) - dt;
+      if (this.weatherCycleTimer <= 0) {
+        this.weatherCycleTimer = 75; // 每 75 秒隨機輪替一次
+        const weatherPool = ["CLEAR", "RAIN", "THUNDER", "BLIZZARD", "HEATWAVE", "PSYCHIC"];
+        const available = weatherPool.filter(w => w !== MapEngine.weather);
+        const nextWeather = available[Math.floor(Math.random() * available.length)] || "CLEAR";
+        
+        MapEngine.setWeather(nextWeather);
+        this.updateWeatherUI(nextWeather);
+
+        const weatherNames = {
+          CLEAR: "晴天", RAIN: "微雨", THUNDER: "狂暴雷暴",
+          BLIZZARD: "極寒暴雪", HEATWAVE: "烈日熱浪", PSYCHIC: "超能極光"
+        };
+        const weatherEffects = {
+          CLEAR: "天候恢復平靜，標準視野與戰鬥環境。",
+          RAIN: "水系招式威力+25%，火系-20%！淺灘涉水每秒回血！",
+          THUNDER: "雷電狂暴！電系招式彈射+1，伴隨全屏天頂白閃！",
+          BLIZZARD: "極寒襲來！冰系威力+20%，地面精靈移速微緩！",
+          HEATWAVE: "炎熱高溫！火系威力+25%，灼傷扣血速率提升50%！",
+          PSYCHIC: "極光籠罩！超能/幽靈暴擊率+15%，技能冷卻-8%！"
+        };
+        this.showCutsceneBanner(`【氣候異變：${weatherNames[nextWeather]}】`, weatherEffects[nextWeather] || "環境異變！", 3200);
+        SoundFX.play("super");
       }
     }
 
@@ -1260,7 +1291,7 @@ window.GameApp = {
       hp,
       maxHp: hp,
       atk,
-      speed: (32 + pick.speed * 0.45) * diff.spdMult * (isElite ? 1.28 : 1.0),
+      speed: (48 + pick.speed * 0.52) * diff.spdMult * (isElite ? 1.25 : 1.0),
       radius: isElite ? 30 : 20,
       isElite,
       isBoss: false,
@@ -1549,11 +1580,23 @@ window.GameApp = {
       }
 
       let moveDir = confDir;
-      if (e.treasureType === "meowth") moveDir = dist < 340 ? -1.0 : 0.25;
-      else if (e.treasureType === "chansey") moveDir = dist < 240 ? -0.65 : 0.2;
+      if (e.treasureType === "meowth") moveDir = -1.0;
+      else if (e.treasureType === "chansey") moveDir = -0.85;
 
-      const vx = (dx / dist) * e.speed * paraMult * eTerrMult * moveDir;
-      const vy = (dy / dist) * e.speed * paraMult * eTerrMult * moveDir;
+      let vx = (dx / dist) * e.speed * paraMult * eTerrMult * moveDir;
+      let vy = (dy / dist) * e.speed * paraMult * eTerrMult * moveDir;
+
+      // 寶藏精靈防卡牆/障礙物滑動引導
+      if (e.treasureType) {
+        if (!e.slipAngle || Math.random() < 0.04) {
+          e.slipAngle = (Math.random() < 0.5 ? 0.45 : -0.45);
+        }
+        const curAng = Math.atan2(vy, vx) + e.slipAngle;
+        const curSpd = Math.hypot(vx, vy);
+        vx = Math.cos(curAng) * curSpd;
+        vy = Math.sin(curAng) * curSpd;
+      }
+
       e.x += vx * dt;
       e.y += vy * dt;
 
@@ -1586,6 +1629,25 @@ window.GameApp = {
         if (e.rangedCd <= 0) {
           e.rangedCd = e.isBoss ? 2.6 : 3.0;
           this.spawnEnemyTelegraphAttack(e);
+        }
+      } else if (inView && !e.treasureType && [23, 24, 69, 70, 109, 110, 116, 117].includes(e.id)) {
+        // 部分具備遠程習性的普通精靈（阿柏蛇/怪、喇叭芽/口呆花、瓦斯彈/雙彈瓦斯、墨海馬/海刺龍）定期噴吐慢速投射物
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (2.5 + Math.random() * 3.0)) - dt;
+        if (e.rangedCd <= 0) {
+          e.rangedCd = 4.2 + Math.random() * 2.0;
+          const sAng = Math.atan2(p.y - e.y, p.x - e.x);
+          this.telegraphs.push({
+            shape: "circle",
+            owner: e,
+            x: e.x + Math.cos(sAng) * 28,
+            y: e.y + Math.sin(sAng) * 28,
+            radius: 18,
+            timer: 0.90,
+            maxTime: 0.90,
+            dmg: Math.max(1, Math.round(e.atk * 0.75)),
+            color: [23, 24, 109, 110].includes(e.id) ? "#A855F7" : ([69, 70].includes(e.id) ? "#22C55E" : "#38BDF8"),
+            isBoss: false
+          });
         }
       }
 
@@ -1862,7 +1924,7 @@ window.GameApp = {
     }
 
     if (e.isElite && !e.isBoss) {
-      const dropId = Math.random() < 0.55 ? "partner_ball" : "rare_candy";
+      const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
       this.spawnMapLoot(dropId, e.x, e.y);
     }
 
