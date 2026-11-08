@@ -502,12 +502,12 @@ window.GameApp = {
       hudEl.style.display = "block";
     }
 
-    // 重置每局重抽次數 (基礎 1 次 + 永久商店戰術重擲等級加成)
-    this.levelUpRerolls = 1 + (upg.rerollCount || 0);
-
     const basePoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
     const tr = this.selectedTrainer || TRAINERS[0];
-    const upg = this.saveData.upgrades;
+    const upg = (this.saveData && this.saveData.upgrades) || {};
+
+    // 重置每局重抽次數 (基礎 1 次 + 永久商店戰術重擲等級加成)
+    this.levelUpRerolls = 1 + (upg.rerollCount || 0);
 
     const isBond = (tr.bondPokemonIds || []).includes(basePoke.id);
     const hasShiny = !!this.saveData.shinyUnlocked[basePoke.id] && !!this.useShinyStarter[basePoke.id];
@@ -2051,7 +2051,10 @@ window.GameApp = {
   openLevelUpModal() {
     this.state = "PAUSED";
     const p = this.player;
-    if (this.levelUpRerolls === undefined) this.levelUpRerolls = 1;
+    if (this.levelUpRerolls === undefined) {
+      const upgReroll = (this.saveData && this.saveData.upgrades && this.saveData.upgrades.rerollCount) || 0;
+      this.levelUpRerolls = 1 + upgReroll;
+    }
 
     const buildPool = () => {
       const pool = [];
