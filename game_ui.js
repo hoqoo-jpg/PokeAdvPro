@@ -853,14 +853,68 @@ renderMartModal(shelf) {
     this.openPokeMartModal();
   },
 
-  buyMartItem(itemId, cost) {
-    if (GameApp.buyMartItem && typeof GameApp.buyMartItem === "function") {
-      GameApp.buyMartItem(itemId, cost);
+    buyMartItem(itemId, cost) {
+    if (this.runCoins < cost) {
+      const coinDisplay = document.getElementById("martCoinsDisplay");
+      if (coinDisplay) {
+        coinDisplay.classList.add("text-rose-500", "animate-pulse");
+        setTimeout(() => coinDisplay.classList.remove("text-rose-500", "animate-pulse"), 1000);
+      }
+      const subTitle = document.querySelector("#pokeMartModal p");
+      if (subTitle) {
+        const oldText = subTitle.textContent;
+        subTitle.textContent = "⚠️ 代幣不足！無法購買此項道具！";
+        subTitle.classList.add("text-rose-400");
+        setTimeout(() => {
+          subTitle.textContent = oldText;
+          subTitle.classList.remove("text-rose-400");
+        }, 1200);
+      }
+      return;
     }
-  },
 
-  buyTM(skillId, cost) {
-    this.buyMartItem(skillId, cost);
+    this.runCoins -= cost;
+    this.saveData.coins = Math.max(0, this.saveData.coins - cost);
+    const p = this.player;
+
+    if (itemId === "pp_up") {
+      const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
+      if (upgradeable.length > 0) {
+        const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+        pick.level += 1;
+        const skMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[pick.id] : null;
+        SoundFX.play("levelup");
+        this.spawnFloatingText(p.x, p.y - 25, `【${skMeta ? skMeta.name : pick.id}】升級至 Lv.${pick.level}!`, "#FACC15", 15);
+      } else {
+        this.spawnFloatingText(p.x, p.y - 20, "所有招式已達 MAX 滿級！", "#38BDF8", 13);
+      }
+    } else if (itemId === "full_restore") {
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
+      p.status = null;
+      p.statusTimer = 0;
+      SoundFX.play("levelup");
+      this.spawnFloatingText(p.x, p.y - 25, "全滿傷藥：恢復 45% HP ＆ 淨化異常！", "#34D399", 15);
+    } else if (itemId === "x_attack") {
+      p.buffTimer = Math.max(p.buffTimer || 0, 30.0);
+      p.maxBuffTimer = 30.0;
+      SoundFX.play("super");
+      this.spawnFloatingText(p.x, p.y - 25, "力量強化：30秒內全傷害+35%！", "#EF4444", 15);
+      this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 24, "star", 1.2);
+    } else if (itemId === "x_speed") {
+      p.xSpeedTimer = 30.0;
+      SoundFX.play("super");
+      this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
+    } else {
+      // TM 招式學習機
+      p.maxSkillSlots = 4;
+      p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+      SoundFX.play("levelup");
+      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
+      this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+    }
+
+    this.closePokeMartModal();
   },
 
   closePokeMartModal() {

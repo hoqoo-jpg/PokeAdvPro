@@ -363,63 +363,62 @@
 
   <!-- 5. 戰鬥局內 HUD 圖層 (HUD Layer) -->
   <div id="hudLayer" class="absolute inset-0 z-20 hidden pointer-events-none overflow-hidden">
-    <!-- 頂部資訊條 (血條、等級、時間軸、擊退數、代幣與功能按鈕) -->
-    <div class="absolute top-2 left-2 right-2 flex items-start justify-between gap-2 pointer-events-auto">
+    <!-- 頂部資訊條 (血條、等級、時間軸、擊退數、代幣與功能按鈕 - iPhone 小屏自適應) -->
+    <div class="absolute top-2 left-1.5 right-1.5 sm:left-2 sm:right-2 flex items-start justify-between gap-1 sm:gap-2 pointer-events-auto">
       <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 -->
-      <div class="flex items-center gap-2 bg-slate-900/85 p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[55%] sm:max-w-xs">
-        <div class="relative w-11 h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
-          <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-10 h-10 pixel-sprite object-contain" alt="Current" />
-          <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[8px] rounded font-black">羈絆</span>
+      <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/85 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[44%] sm:max-w-xs shrink-0">
+        <div class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
+          <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-8 h-8 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="Current" />
+          <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[7px] sm:text-[8px] rounded font-black">羈絆</span>
         </div>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between text-[11px] font-black text-white mb-0.5">
-            <div class="flex items-center gap-1 truncate">
+          <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white mb-0.5">
+            <div class="flex items-center gap-0.5 sm:gap-1 truncate">
               <span id="hudPartnerName" class="truncate">皮卡丘</span>
-              <!-- 修正：補齊屬性徽章容器 hudTypeBadges，避免報錯 -->
               <span id="hudTypeBadges" class="flex items-center"></span>
             </div>
-            <span id="hudLevelText" class="font-pixel text-amber-400 text-[10px] ml-1 shrink-0">Lv.1</span>
+            <span id="hudLevelText" class="font-pixel text-amber-400 text-[9px] sm:text-[10px] ml-1 shrink-0">Lv.1</span>
           </div>
           <!-- HP 綠色生命條 -->
-          <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden mb-1 relative">
+          <div class="w-full bg-slate-950 rounded-full h-2 sm:h-2.5 p-0.5 border border-slate-700 overflow-hidden mb-0.5 relative">
             <div id="hudHpBar" class="h-full bg-emerald-500 rounded-full transition-all duration-100" style="width: 100%;"></div>
-            <span id="hudHpText" class="absolute inset-0 flex items-center justify-center text-[8px] font-pixel text-white leading-none">100/100</span>
+            <span id="hudHpText" class="absolute inset-0 flex items-center justify-center text-[7px] sm:text-[8px] font-pixel text-white leading-none">100/100</span>
           </div>
           <!-- EXP 藍色經驗條 -->
-          <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+          <div class="w-full bg-slate-950 rounded-full h-1 sm:h-1.5 overflow-hidden">
             <div id="hudExpBar" class="h-full bg-sky-400 rounded-full transition-all duration-100" style="width: 0%;"></div>
           </div>
         </div>
       </div>
 
       <!-- 中央：8分鐘計時鐘、殺敵與代幣 -->
-      <div class="flex flex-col items-center bg-slate-900/85 px-3 py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm">
-        <div id="hudTimer" class="font-pixel text-amber-400 text-sm sm:text-base font-black">00:00</div>
-        <div class="flex items-center gap-2 text-[10px] font-bold text-white mt-0.5">
-          <span class="flex items-center gap-0.5"><i class="fa-solid fa-skull text-red-400 text-[9px]"></i> <span id="hudKills">0</span></span>
-          <span class="flex items-center gap-0.5"><i class="fa-solid fa-coins text-amber-400 text-[9px]"></i> <span id="hudCoins">0</span></span>
+      <div class="flex flex-col items-center bg-slate-900/85 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm shrink-0">
+        <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black">00:00</div>
+        <div class="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-0.5">
+          <span class="flex items-center gap-0.5"><i class="fa-solid fa-skull text-red-400 text-[8px] sm:text-[9px]"></i> <span id="hudKills">0</span></span>
+          <span class="flex items-center gap-0.5"><i class="fa-solid fa-coins text-amber-400 text-[8px] sm:text-[9px]"></i> <span id="hudCoins">0</span></span>
         </div>
       </div>
 
-      <!-- 右側：倍速、靜音、暫停與開發者測試工具按鈕 -->
-      <div class="flex items-center gap-1 shrink-0">
-  <button onclick="GameApp.showWeatherInfoToast()" class="h-8 px-1.5 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center gap-1 shadow">
-    <i id="hudWeatherIcon" class="fa-solid fa-sun text-amber-400 text-xs"></i>
-    <span id="hudWeatherText" class="text-[9px] font-black">晴天</span>
-  </button>
-  <button onclick="GameApp.toggleTimeScale()" class="w-8 h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow font-pixel text-[9px]">
-    <span id="speedToggleText">1x</span>
-  </button>
-  <button onclick="GameApp.toggleBgm()" class="w-8 h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow">
-    <i id="hudBgmIcon" class="fa-solid fa-volume-high text-blue-400 text-xs"></i>
-  </button>
-  <button onclick="GameApp.togglePause()" class="w-8 h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow">
-    <i class="fa-solid fa-pause text-amber-400 text-xs"></i>
-  </button>
-  <button onclick="GameApp.toggleDebugMenu()" class="w-8 h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow" title="測試工具">
-    <i class="fa-solid fa-wrench text-slate-300 text-xs"></i>
-  </button>
-</div>
+      <!-- 右側：倍速、靜音、暫停與開發者測試工具按鈕 (緊湊排列確保全顯) -->
+      <div class="flex items-center gap-0.5 sm:gap-1 shrink-0">
+        <button onclick="GameApp.showWeatherInfoToast()" class="w-7 h-7 sm:w-8 sm:h-8 sm:px-1.5 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center gap-1 shadow">
+          <i id="hudWeatherIcon" class="fa-solid fa-sun text-amber-400 text-xs"></i>
+          <span id="hudWeatherText" class="text-[9px] font-black hidden sm:inline">晴天</span>
+        </button>
+        <button onclick="GameApp.toggleTimeScale()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow font-pixel text-[8px] sm:text-[9px]">
+          <span id="speedToggleText">1x</span>
+        </button>
+        <button onclick="GameApp.toggleBgm()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow">
+          <i id="hudBgmIcon" class="fa-solid fa-volume-high text-blue-400 text-xs"></i>
+        </button>
+        <button onclick="GameApp.togglePause()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow">
+          <i class="fa-solid fa-pause text-amber-400 text-xs"></i>
+        </button>
+        <button onclick="GameApp.toggleDebugMenu()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow" title="測試工具">
+          <i class="fa-solid fa-wrench text-slate-300 text-xs"></i>
+        </button>
+      </div>
     </div>
 
     <!-- 頂部中央：Boss 血條容器 (遇三聖鳥或超夢時自動展開) -->

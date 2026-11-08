@@ -100,6 +100,15 @@ window.GameApp = {
 
   bindInputs() {
     window.addEventListener("keydown", (e) => {
+      // 升級三選一視窗開啟時：支援頂層 1, 2, 3 與 R 鍵立即觸發
+      const lvlModal = document.getElementById("levelUpModal");
+      if (lvlModal && !lvlModal.classList.contains("hidden")) {
+        if (e.key === "1") { e.preventDefault(); e.stopPropagation(); this.selectUpgradeChoice(0); return; }
+        if (e.key === "2") { e.preventDefault(); e.stopPropagation(); this.selectUpgradeChoice(1); return; }
+        if (e.key === "3") { e.preventDefault(); e.stopPropagation(); this.selectUpgradeChoice(2); return; }
+        if (e.key === "r" || e.key === "R") { e.preventDefault(); e.stopPropagation(); this.rerollUpgradeChoices(); return; }
+      }
+
       if (this.state === "SPLASH") {
         if (this.enterLobbyFromSplash) this.enterLobbyFromSplash();
         return;
@@ -113,7 +122,7 @@ window.GameApp = {
       if (e.key === "Escape" && (this.state === "PLAYING" || this.state === "PAUSED")) {
         this.togglePause();
       }
-    });
+    }, true); // 使用 capture 捕獲階段，防止子元素搶焦點
     window.addEventListener("keyup", (e) => {
       this.keys[e.key.toLowerCase()] = false;
     });
@@ -165,6 +174,7 @@ window.GameApp = {
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         if (t.identifier === this.touchJoy.touchId) {
+          e.preventDefault(); // 強制阻止 iOS Safari 彈簧橡皮筋滾動，避免觸發 touchcancel
           const distX = t.clientX - this.touchJoy.startX;
           const distY = t.clientY - this.touchJoy.startY;
           const len = Math.hypot(distX, distY);
@@ -184,17 +194,21 @@ window.GameApp = {
       }
     };
 
+    const resetJoy = () => {
+      this.touchJoy.active = false;
+      this.touchJoy.touchId = null;
+      this.touchJoy.dx = 0;
+      this.touchJoy.dy = 0;
+      if (joyBase) joyBase.style.display = "none";
+      if (joyStick) joyStick.style.display = "none";
+    };
+
     const onTouchEnd = (e) => {
       if (!this.touchJoy.active) return;
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
         if (t.identifier === this.touchJoy.touchId) {
-          this.touchJoy.active = false;
-          this.touchJoy.touchId = null;
-          this.touchJoy.dx = 0;
-          this.touchJoy.dy = 0;
-          joyBase.style.display = "none";
-          joyStick.style.display = "none";
+          resetJoy();
           break;
         }
       }
@@ -202,8 +216,8 @@ window.GameApp = {
 
     window.addEventListener("touchstart", onTouchStart, { passive: false });
     window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd);
-    window.addEventListener("touchcancel", onTouchEnd);
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    window.addEventListener("touchcancel", () => resetJoy(), { passive: true }); // 防死鎖徹底重置
 
     // 解決移動中無法點擊大招：綁定原生 touchstart 支援多點觸控
     if (skillBtn) {
@@ -2427,19 +2441,19 @@ window.GameApp = {
         }
         if (tInGrass) {
           ctx.save();
-          const gNow = performance.now() * 0.003;
-          ctx.fillStyle = "#22C55E";
-          ctx.strokeStyle = "#166534";
-          ctx.lineWidth = 1.2;
-          const grassBlades = [-14, -5, 6, 15];
-          grassBlades.forEach((gx, gIdx) => {
-            const sway = Math.sin(gNow + gIdx * 1.5) * 2.2;
+          const gNow = performance.now() * 0.0025;
+          ctx.strokeStyle = "#4ADE80";
+          ctx.lineWidth = 1.6;
+          const vOffsets = [-15, -2, 11];
+          vOffsets.forEach((ox, i) => {
+            const sway = Math.sin(gNow * 1.8 + (tc.x + ox) * 0.05) * 2.5;
+            const rootY = 24;
             ctx.beginPath();
-            ctx.moveTo(gx - 2.5, 24);
-            ctx.quadraticCurveTo(gx + sway, 17, gx + sway * 1.2, 15);
-            ctx.quadraticCurveTo(gx + 1, 19, gx + 2.5, 24);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox - 3 + sway, rootY - 7);
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox + 3 + sway, rootY - 7);
+            ctx.stroke();
           });
           ctx.restore();
         }
@@ -2538,22 +2552,22 @@ window.GameApp = {
       }
       ctx.filter = "none";
 
-      // 若在草叢中，繪製 GBA 原版精緻少量微擺草尖遮擋腳踝
+      // 若在草叢中，直接沿用背景同款復古 V 形分叉像素小草，自然融入場景
       if (inGrass) {
         ctx.save();
-        const gNow = performance.now() * 0.003;
-        ctx.fillStyle = "#22C55E";
-        ctx.strokeStyle = "#166534";
-        ctx.lineWidth = 1.2;
-        const grassBlades = [-14, -5, 6, 15];
-        grassBlades.forEach((gx, gIdx) => {
-          const sway = Math.sin(gNow + gIdx * 1.5) * 2.2;
+        const gNow = performance.now() * 0.0025;
+        ctx.strokeStyle = "#4ADE80";
+        ctx.lineWidth = 1.6;
+        const vOffsets = [-15, -2, 11];
+        vOffsets.forEach((ox, i) => {
+          const sway = Math.sin(gNow * 1.8 + (p.x + ox) * 0.05) * 2.5;
+          const rootY = 22;
           ctx.beginPath();
-          ctx.moveTo(gx - 2.5, 22);
-          ctx.quadraticCurveTo(gx + sway, 15, gx + sway * 1.2, 13);
-          ctx.quadraticCurveTo(gx + 1, 17, gx + 2.5, 22);
-          ctx.closePath();
-          ctx.fill(); ctx.stroke();
+          ctx.moveTo(ox, rootY);
+          ctx.lineTo(ox - 3 + sway, rootY - 7);
+          ctx.moveTo(ox, rootY);
+          ctx.lineTo(ox + 3 + sway, rootY - 7);
+          ctx.stroke();
         });
         ctx.restore();
       }
