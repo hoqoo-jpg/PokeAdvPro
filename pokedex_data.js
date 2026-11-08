@@ -676,6 +676,7 @@ const CENTER_POKEMON_UPGRADES = [
 
 const CENTER_TRAINER_UPGRADES = [
   { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-case.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
+  { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 3, baseCost: 200, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-toy.png", desc: "升級三選一時的重新整理次數每級 +1 次！" },
   { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },
   { id: "partner", name: "雙打羈絆共鳴", maxLv: 3, baseCost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/destiny-knot.png", desc: "開局隨機召喚 1 隻夥伴，夥伴傷害+18%" },
   { id: "greed", name: "護身金幣 (COINS)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png", desc: "每局獲得代幣總量增加 +15%" }

@@ -194,7 +194,7 @@ Object.assign(window.GameApp, {
         coins: 800,
         unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
         unlockedTrainers: { ash: true, misty: true, brock: true },
-        upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, trainerCd: 0, partner: 0, greed: 0 },
+        upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
         stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
         pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
         pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
@@ -382,8 +382,9 @@ Object.assign(window.GameApp, {
       const sk = SKILLS_CATALOG[p.skill];
       const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
 
+      const seen = !!this.saveData.pokedexSeen[p.id];
       return `
-        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-80 bg-slate-100' : ''}">
+        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''} ${!seen && !unlocked ? 'opacity-65' : ''}">
           <div>
             <div class="flex items-center justify-between gap-1 mb-1">
               <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
@@ -393,29 +394,34 @@ Object.assign(window.GameApp, {
               }
             </div>
             <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
-              <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}" alt="${p.name_zh}" />
-              ${hasShiny ? `
+              <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''} ${!seen && !unlocked ? 'brightness-0 opacity-25' : ''}" alt="${p.name_zh}" />
+              ${hasShiny && (unlocked || seen) ? `
                 <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
                   <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
                 </button>
               ` : ''}
             </div>
-            <div class="font-black text-sm text-slate-800 text-center">${p.name_zh}</div>
+            <div class="font-black text-sm text-slate-800 text-center">${unlocked || seen ? p.name_zh : '？？？'}</div>
             <div class="flex items-center justify-center gap-1 my-1">
-              ${renderTypeBadgeHTML(p.type1)}
-              ${renderTypeBadgeHTML(p.type2)}
+              ${unlocked || seen ? (renderTypeBadgeHTML(p.type1) + renderTypeBadgeHTML(p.type2)) : '<span class="text-[9px] font-bold text-slate-400">未知屬性</span>'}
             </div>
             <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
-              <div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
-              <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>
+              ${unlocked || seen
+                ? `<div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
+                   <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>`
+                : `<div class="text-center text-slate-400 py-1 font-bold">需在野外遭遇登錄圖鑑</div>`
+              }
             </div>
           </div>
           <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
             ${unlocked
               ? `<span class="text-[11px] font-black text-emerald-600">已收服</span>`
-              : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${unlockCost}</span>`
+              : (seen
+                  ? `<span class="text-[11px] font-black text-amber-600 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>${unlockCost}</span>`
+                  : `<span class="text-[10px] font-black text-slate-400"><i class="fa-solid fa-eye-slash"></i> 未發現</span>`
+                )
             }
-            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${unlocked ? (selected ? '已出戰' : '選擇') : '解鎖'}</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black ${unlocked ? (selected ? 'bg-blue-600 text-white' : 'bg-red-600 text-white') : (seen ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-300 text-slate-500 cursor-not-allowed')}">${unlocked ? (selected ? '已出戰' : '選擇') : (seen ? '解鎖' : '未發現')}</span>
           </div>
         </div>
       `;
@@ -489,6 +495,11 @@ Object.assign(window.GameApp, {
       SoundFX.play("hit");
       this.renderWizardContent();
       this.updateTitleUI();
+      return;
+    }
+    // 要求：必須先在圖鑑中見過（在關卡中遭遇或登錄）才能購買解鎖
+    if (!this.saveData.pokedexSeen[pokeId]) {
+      alert("【圖鑑未登錄】此寶可夢尚未在野外遭遇！請先在冒險地圖中發現它後方可收服！");
       return;
     }
     this.openUnlockConfirmModal("pokemon", pokeId, cost);
@@ -905,12 +916,27 @@ renderMartModal(shelf) {
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
     } else {
-      // TM 招式學習機
-      p.maxSkillSlots = 4;
-      p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
-      SoundFX.play("levelup");
-      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
-      this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+      // 方案A：TM 招式槽位覆蓋替換機制，嚴格不超過當前上限
+      const currentSkills = Object.keys(p.skills);
+      const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
+
+      if (currentSkills.length >= maxSlots) {
+        // 已滿槽：優先替換非天生招式，若皆為天生招式則替換最後一招
+        let replaceKey = currentSkills.slice().reverse().find(k => !(p.naturalSkills || []).includes(k)) || currentSkills[currentSkills.length - 1];
+        const oldMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[replaceKey] : null;
+        delete p.skills[replaceKey];
+
+        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+        SoundFX.play("levelup");
+        const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
+        this.spawnFloatingText(p.x, p.y - 25, `【${oldMeta ? oldMeta.name : replaceKey}】已替換為【${newMeta ? newMeta.name : itemId}】！`, "#38BDF8", 15);
+      } else {
+        // 尚未滿槽：正常習得
+        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+        SoundFX.play("levelup");
+        const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
+        this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+      }
     }
 
     this.closePokeMartModal();

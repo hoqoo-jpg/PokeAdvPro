@@ -204,23 +204,27 @@ const SkillsEngine = {
     }
 
     if (style === "quake_wave" || style === "slam_wave") {
-      const rad = (style === "quake_wave" ? (125 + level * 7) : 115) * areaScale;
+      const rad = (style === "quake_wave" ? (130 + level * 8) : 115) * areaScale;
       this.meleeEffects.push({
         style,
         x: caster.x,
         y: caster.y,
         radius: rad,
-        timer: 0.45,
-        maxTime: 0.45,
+        timer: 0.50,
+        maxTime: 0.50,
         color: meta.color
       });
-      GameApp.camera.shakeTime = 0.20;
-      GameApp.camera.shakeMagnitude = 5.2;
+      // 地震移除晃動鏡頭，改以擴散地裂波與碎石塵土震撼呈現
+      if (style === "slam_wave") {
+        GameApp.camera.shakeTime = 0.12;
+        GameApp.camera.shakeMagnitude = 3.5;
+      }
 
-      for (let d = 0; d < 12; d++) {
+      const dustCount = style === "quake_wave" ? 18 : 10;
+      for (let d = 0; d < dustCount; d++) {
         const dAng = Math.random() * Math.PI * 2;
-        const dSpd = 40 + Math.random() * 80;
-        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, style === "quake_wave" ? "#92400E" : "#E2E8F0", 3.2, 0.4, "circle");
+        const dSpd = 45 + Math.random() * 95;
+        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, style === "quake_wave" ? (d % 2 === 0 ? "#92400E" : "#D97706") : "#E2E8F0", 3.2, 0.45, "circle");
       }
 
       GameApp.enemies.forEach(e => {
@@ -471,15 +475,24 @@ const SkillsEngine = {
         ctx.stroke();
 
         if (m.style === "quake_wave") {
-          ctx.strokeStyle = "rgba(146, 64, 14, 0.7)";
-          ctx.lineWidth = 2.0;
-          for (let crack = 0; crack < 6; crack++) {
-            const cAng = (crack * Math.PI * 2) / 6 + prog * 0.2;
+          // 八方放射地裂紋與多段土黃岩層
+          ctx.strokeStyle = "rgba(180, 83, 9, 0.85)";
+          ctx.lineWidth = 2.8 * (1 - prog * 0.5);
+          for (let crack = 0; crack < 8; crack++) {
+            const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.08 : -0.08);
+            const midR = curR * 0.55;
             ctx.beginPath();
-            ctx.moveTo(msx + Math.cos(cAng) * (curR * 0.3), msy + Math.sin(cAng) * (curR * 0.3));
-            ctx.lineTo(msx + Math.cos(cAng) * (curR * 0.9), msy + Math.sin(cAng) * (curR * 0.9));
+            ctx.moveTo(msx + Math.cos(cAng) * (curR * 0.2), msy + Math.sin(cAng) * (curR * 0.2));
+            ctx.lineTo(msx + Math.cos(cAng + 0.1) * midR, msy + Math.sin(cAng + 0.1) * midR);
+            ctx.lineTo(msx + Math.cos(cAng) * (curR * 0.95), msy + Math.sin(cAng) * (curR * 0.95));
             ctx.stroke();
           }
+          // 地裂同心土褐色環
+          ctx.strokeStyle = "rgba(217, 119, 6, 0.55)";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.arc(msx, msy, curR * 0.6, 0, Math.PI * 2);
+          ctx.stroke();
         }
       } else {
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);

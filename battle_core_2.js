@@ -22,7 +22,7 @@ window.GameApp = {
     coins: 800,
     unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     unlockedTrainers: { ash: true, misty: true, brock: true },
-    upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, trainerCd: 0, partner: 0, greed: 0 },
+    upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
     stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
     pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
     pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
@@ -502,8 +502,8 @@ window.GameApp = {
       hudEl.style.display = "block";
     }
 
-    // 重置每局重抽次數
-    this.levelUpRerolls = 1;
+    // 重置每局重抽次數 (基礎 1 次 + 永久商店戰術重擲等級加成)
+    this.levelUpRerolls = 1 + (upg.rerollCount || 0);
 
     const basePoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
     const tr = this.selectedTrainer || TRAINERS[0];
@@ -1432,11 +1432,27 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
     } else {
-      p.maxSkillSlots = 4;
-      p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
-      SoundFX.play("levelup");
-      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
-      this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+      // 方案A：TM 招式槽位覆蓋替換機制，嚴格不超過當前上限
+      const currentSkills = Object.keys(p.skills);
+      const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
+
+      if (currentSkills.length >= maxSlots) {
+        // 已滿槽：優先替換非天生招式，若皆為天生招式則替換最後一招
+        let replaceKey = currentSkills.slice().reverse().find(k => !(p.naturalSkills || []).includes(k)) || currentSkills[currentSkills.length - 1];
+        const oldMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[replaceKey] : null;
+        delete p.skills[replaceKey];
+
+        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+        SoundFX.play("levelup");
+        const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
+        this.spawnFloatingText(p.x, p.y - 25, `【${oldMeta ? oldMeta.name : replaceKey}】已替換為【${newMeta ? newMeta.name : itemId}】！`, "#38BDF8", 15);
+      } else {
+        // 尚未滿槽：正常習得
+        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+        SoundFX.play("levelup");
+        const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
+        this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
+      }
     }
 
     this.closePokeMartModal();
@@ -2871,15 +2887,22 @@ window.GameApp = {
   },
 
   togglePause() {
+    const endEl = document.getElementById("endModal");
     if (this.state === "PLAYING") {
       this.state = "PAUSED";
       document.getElementById("endModalTitle").textContent = "GAME PAUSED";
       document.getElementById("endModalSubtitle").textContent = "冒險暫停中，隨時可返回挑戰！";
       document.getElementById("btnResumeGame").classList.remove("hidden");
       if (this.populateEndModalStats) this.populateEndModalStats();
-      document.getElementById("endModal").classList.remove("hidden");
+      if (endEl) {
+        endEl.classList.remove("hidden");
+        endEl.style.display = "flex";
+      }
     } else if (this.state === "PAUSED") {
-      document.getElementById("endModal").classList.add("hidden");
+      if (endEl) {
+        endEl.classList.add("hidden");
+        endEl.style.display = "none";
+      }
       this.state = "PLAYING";
     }
   },
