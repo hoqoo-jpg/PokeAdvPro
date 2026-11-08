@@ -1,13 +1,13 @@
 /**
  * ============================================================================
  * skills_engine.js
- * 專屬招式與視覺特效引擎 (Skills & VFX Engine - 完整平滑與 iPhone 適配版)
+ * 專屬招式與視覺特效引擎 (Skills & VFX Engine - GBA 像素風粒子與超武全屏渲染升級版)
  * 職責：
  * 1. 技能發射判定 (彈道數、穿透、追蹤、散射角、傷害加成與擊退分配)
- * 2. 投射物實體生命週期運算與旋轉運動學 (適配 iPhone 螢幕射程與速度)
- * 3. 近戰刀光、空手劈氣勁巨拳、地震重踏裂痕與打擊幾何渲染
- * 4. 金白電漿鏈 (十萬伏特)、大字爆炎、高壓水柱粒子特效
- * 5. 全屏究極超武視覺爆發 (加色高光合成 lighter 模式)
+ * 2. 投射物實體生命週期運算、拖尾粒子流 (Particle Trails) 與旋轉運動學
+ * 3. 近戰刀光、空手劈氣勁巨拳、地震重踏裂痕與多段打擊幾何渲染
+ * 4. 金白電漿鏈 (十萬伏特)、大字爆炎、高壓水柱、冰晶、幽靈鬼火專屬特效
+ * 5. 全屏究極超武視覺爆發 (大字爆、潮旋激流、打雷風暴、瘋狂植物等專屬全屏動畫)
  * ============================================================================
  */
 
@@ -16,12 +16,23 @@ const SkillsEngine = {
   meleeEffects: [],
   ultimateVfxList: [],
   lightningArcs: [],
+  subParticles: [],
 
   reset() {
     this.projectiles = [];
     this.meleeEffects = [];
     this.ultimateVfxList = [];
     this.lightningArcs = [];
+    this.subParticles = [];
+  },
+
+  spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
+    if (this.subParticles.length > 250) this.subParticles.shift();
+    this.subParticles.push({
+      x, y, vx, vy, color, size, life, maxLife: life, shape,
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 8
+    });
   },
 
   fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0) {
@@ -81,6 +92,7 @@ const SkillsEngine = {
     }
 
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
+    // 依據最新版，xAtkMod 在 battle_core_2 的 dealDamageToEnemy 結算，此處不重複乘算
     const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
 
     if (meta.isMelee) {
@@ -89,7 +101,7 @@ const SkillsEngine = {
     }
 
     if (skillId === "Thunderbolt") {
-      const maxStrikeRange = 210 * GameApp.player.areaMult;
+      const maxStrikeRange = 220 * GameApp.player.areaMult;
       const nearby = GameApp.enemies
         .filter(e => Math.hypot(e.x - caster.x, e.y - caster.y) <= maxStrikeRange)
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y));
@@ -103,17 +115,21 @@ const SkillsEngine = {
           GameApp.dealDamageToEnemy(enemyTarget, rawDmg, meta.type, level >= 5 ? 0.55 : 0.35, meta.knockback !== undefined ? meta.knockback : 2);
         } else {
           const spreadAng = baseAngle + (b - (boltCount - 1) / 2) * 0.36;
-          const rDist = (120 + Math.random() * 80) * GameApp.player.areaMult;
+          const rDist = (120 + Math.random() * 85) * GameApp.player.areaMult;
           endX = caster.x + Math.cos(spreadAng) * rDist;
           endY = caster.y + Math.sin(spreadAng) * rDist;
           GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - endX, e.y - endY) <= 42 + e.radius) {
+            if (Math.hypot(e.x - endX, e.y - endY) <= 44 + e.radius) {
               GameApp.dealDamageToEnemy(e, rawDmg * 0.85, meta.type, 0.35, meta.knockback !== undefined ? meta.knockback : 2);
             }
           });
         }
         this.createLightningArc(caster.x, caster.y, endX, endY, "#FDE047");
-        GameApp.spawnParticleCluster(endX, endY, "#FFFFFF", "#F59E0B", 8, "star", 0.85);
+        for (let sp = 0; sp < 6; sp++) {
+          const sAng = Math.random() * Math.PI * 2;
+          const spd = 60 + Math.random() * 90;
+          this.spawnSubParticle(endX, endY, Math.cos(sAng) * spd, Math.sin(sAng) * spd, sp % 2 === 0 ? "#FEF08A" : "#FFFFFF", 2.5 + Math.random() * 2, 0.35, "star");
+        }
       }
       SoundFX.play("hit");
       return;
@@ -122,7 +138,7 @@ const SkillsEngine = {
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : 0;
       const ang = baseAngle + spread;
-      const spd = skillId === "Hydro Pump" ? 320 : (skillId === "Air Slash" ? 350 : 300);
+      const spd = skillId === "Hydro Pump" ? 330 : (skillId === "Air Slash" ? 360 : 310);
       const isHoming = (skillId === "Shadow Ball" || skillId === "Psystrike" || skillId === "Moonblast");
 
       this.projectiles.push({
@@ -140,9 +156,10 @@ const SkillsEngine = {
         color: meta.color,
         pierce: (level >= 6 ? 3 : 2),
         knockback: meta.knockback !== undefined ? meta.knockback : 0,
-        life: 0.85,
+        life: 0.88,
         statusBonus: level >= 5 ? 0.30 : 0,
-        hitSet: new Set()
+        hitSet: new Set(),
+        trailTimer: 0
       });
     }
     SoundFX.play("hit");
@@ -157,7 +174,7 @@ const SkillsEngine = {
       const fistCount = Math.min(10, 4 + count + Math.floor(level / 2));
       for (let f = 0; f < fistCount; f++) {
         const ang = baseAngle + (f * (Math.PI * 2) / fistCount) * (level >= 5 ? 1 : 0.45);
-        const spd = 240 + (f % 3) * 45;
+        const spd = 250 + (f % 3) * 45;
         this.projectiles.push({
           x: caster.x,
           y: caster.y,
@@ -177,7 +194,8 @@ const SkillsEngine = {
           life: 0.58,
           maxLife: 0.58,
           statusBonus: 0.25,
-          hitSet: new Set()
+          hitSet: new Set(),
+          trailTimer: 0
         });
       }
       GameApp.spawnParticleCluster(caster.x, caster.y, "#FFFFFF", "#FEF08A", 16, "star", 1.1);
@@ -186,18 +204,25 @@ const SkillsEngine = {
     }
 
     if (style === "quake_wave" || style === "slam_wave") {
-      const rad = (style === "quake_wave" ? (120 + level * 6) : 110) * areaScale;
+      const rad = (style === "quake_wave" ? (125 + level * 7) : 115) * areaScale;
       this.meleeEffects.push({
         style,
         x: caster.x,
         y: caster.y,
         radius: rad,
-        timer: 0.42,
-        maxTime: 0.42,
+        timer: 0.45,
+        maxTime: 0.45,
         color: meta.color
       });
-      GameApp.camera.shakeTime = 0.16;
-      GameApp.camera.shakeMagnitude = 4.8;
+      GameApp.camera.shakeTime = 0.20;
+      GameApp.camera.shakeMagnitude = 5.2;
+
+      for (let d = 0; d < 12; d++) {
+        const dAng = Math.random() * Math.PI * 2;
+        const dSpd = 40 + Math.random() * 80;
+        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, style === "quake_wave" ? "#92400E" : "#E2E8F0", 3.2, 0.4, "circle");
+      }
+
       GameApp.enemies.forEach(e => {
         if (Math.hypot(e.x - caster.x, e.y - caster.y) <= rad + e.radius) {
           GameApp.dealDamageToEnemy(e, rawDmg, meta.type, style === "slam_wave" ? 0.35 : 0.20, kb);
@@ -210,7 +235,7 @@ const SkillsEngine = {
       return;
     }
 
-    const maxReach = 98 * areaScale;
+    const maxReach = 105 * areaScale;
     const waves = Math.min(3, Math.ceil(count / 2));
     for (let w = 0; w < waves; w++) {
       const ang = baseAngle + (w - (waves - 1) / 2) * 0.48;
@@ -222,8 +247,8 @@ const SkillsEngine = {
         y: caster.y + Math.sin(ang) * (maxReach * 0.55),
         angle: ang,
         radius: maxReach,
-        timer: 0.32,
-        maxTime: 0.32,
+        timer: 0.34,
+        maxTime: 0.34,
         color: meta.color
       });
 
@@ -233,7 +258,7 @@ const SkillsEngine = {
         if (d <= maxReach + e.radius) {
           const eAng = Math.atan2(dy, dx);
           const diff = Math.abs(Math.atan2(Math.sin(eAng - ang), Math.cos(eAng - ang)));
-          if (diff <= 0.95 || d < 38) {
+          if (diff <= 0.95 || d < 40) {
             GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.28, kb);
             if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
               GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
@@ -247,40 +272,44 @@ const SkillsEngine = {
 
   triggerUltimateSuperMove(meta, skSlot) {
     const p = GameApp.player;
-    GameApp.camera.shakeTime = 0.30;
-    GameApp.camera.shakeMagnitude = 8.5;
+    GameApp.camera.shakeTime = 0.40;
+    GameApp.camera.shakeMagnitude = 10.0;
     SoundFX.play("ultimate");
 
-    const ultDmg = (meta.baseDmg * 2.6 + p.baseAtk * 1.2) * p.dmgMult;
+    const ultDmg = (meta.baseDmg * 2.8 + p.baseAtk * 1.3) * p.dmgMult;
 
     this.ultimateVfxList.push({
       type: meta.type,
       skillId: meta.id,
+      name: meta.evolvedName,
       x: p.x,
       y: p.y,
-      timer: 1.15,
-      maxTime: 1.15,
-      color: meta.color
+      timer: 1.35,
+      maxTime: 1.35,
+      color: meta.color,
+      radius: 260
     });
 
     if (meta.type === "Electric") {
-      for (let i = 0; i < 14; i++) {
-        const ang = (i * Math.PI * 2) / 14;
-        const dist = 240 + Math.random() * 70;
+      for (let i = 0; i < 16; i++) {
+        const ang = (i * Math.PI * 2) / 16;
+        const dist = 160 + Math.random() * 180;
         const tx = p.x + Math.cos(ang) * dist;
         const ty = p.y + Math.sin(ang) * dist;
         this.createLightningArc(p.x, p.y, tx, ty, "#FDE047");
-        GameApp.spawnParticleCluster(tx, ty, "#FEF08A", "#F59E0B", 5, "star", 0.85);
+        for (let k = 0; k < 5; k++) {
+          this.spawnSubParticle(tx, ty, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120, "#FFFFFF", 3.0, 0.4, "star");
+        }
       }
     } else if (meta.type === "Fire") {
       for (let i = 0; i < 8; i++) {
         const ang = (i * Math.PI * 2) / 8;
         this.projectiles.push({
           x: p.x, y: p.y,
-          vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320,
-          angle: ang, radius: 24, dmg: ultDmg * 0.65,
+          vx: Math.cos(ang) * 340, vy: Math.sin(ang) * 340,
+          angle: ang, radius: 26, dmg: ultDmg * 0.70,
           type: "Fire", skillId: "Flamethrower", vfx: "fire_stream",
-          color: "#F97316", pierce: 6, knockback: 0, life: 0.95, statusBonus: 0.5, hitSet: new Set()
+          color: "#EF4444", pierce: 8, knockback: 0, life: 1.05, statusBonus: 0.6, hitSet: new Set(), trailTimer: 0
         });
       }
     } else if (meta.type === "Water") {
@@ -288,19 +317,25 @@ const SkillsEngine = {
         const ang = (i * Math.PI * 2) / 10;
         this.projectiles.push({
           x: p.x, y: p.y,
-          vx: Math.cos(ang) * 360, vy: Math.sin(ang) * 360,
-          angle: ang, radius: 24, dmg: ultDmg * 0.65,
+          vx: Math.cos(ang) * 380, vy: Math.sin(ang) * 380,
+          angle: ang, radius: 26, dmg: ultDmg * 0.70,
           type: "Water", skillId: "Hydro Pump", vfx: "water_beam",
-          color: "#38BDF8", pierce: 6, knockback: 20, life: 0.95, statusBonus: 0.5, hitSet: new Set()
+          color: "#38BDF8", pierce: 8, knockback: 25, life: 1.05, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
         });
+      }
+    } else if (meta.type === "Grass") {
+      for (let g = 0; g < 30; g++) {
+        const gAng = Math.random() * Math.PI * 2;
+        const gSpd = 50 + Math.random() * 140;
+        this.spawnSubParticle(p.x, p.y, Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd, g % 2 === 0 ? "#22C55E" : "#86EFAC", 4.0, 0.9, "leaf");
       }
     }
 
-    const halfW = GameApp.width / 2 + 60;
-    const halfH = GameApp.height / 2 + 60;
+    const halfW = GameApp.width / 2 + 70;
+    const halfH = GameApp.height / 2 + 70;
     GameApp.enemies.forEach(e => {
       if (Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH) {
-        GameApp.dealDamageToEnemy(e, ultDmg, meta.type, 0.65, e.isBoss ? 0 : 35);
+        GameApp.dealDamageToEnemy(e, ultDmg, meta.type, 0.70, e.isBoss ? 0 : 35);
       }
     });
 
@@ -311,16 +346,16 @@ const SkillsEngine = {
 
   createLightningArc(x1, y1, x2, y2, color) {
     const pts = [{ x: x1, y: y1 }];
-    const steps = 6;
+    const steps = 7;
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
       pts.push({
-        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 34,
-        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 34
+        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 36,
+        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 36
       });
     }
     pts.push({ x: x2, y: y2 });
-    this.lightningArcs.push({ pts, color, timer: 0.25 });
+    this.lightningArcs.push({ pts, color, timer: 0.28 });
   },
 
   update(dt) {
@@ -348,13 +383,36 @@ const SkillsEngine = {
       pr.y += pr.vy * dt;
       pr.life -= dt;
 
+      pr.trailTimer = (pr.trailTimer || 0) - dt;
+      if (pr.trailTimer <= 0) {
+        pr.trailTimer = 0.045;
+        if (pr.vfx === "fire_stream") {
+          this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, Math.random() < 0.6 ? "#EF4444" : "#FBBF24", 3.0, 0.25, "circle");
+        } else if (pr.vfx === "water_beam") {
+          this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 25, (Math.random() - 0.5) * 25, "#7DD3FC", 2.6, 0.22, "circle");
+        } else if (pr.vfx === "seed_cluster") {
+          this.spawnSubParticle(pr.x, pr.y, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, "#4ADE80", 2.8, 0.28, "leaf");
+        } else if (pr.vfx === "frost_beam") {
+          this.spawnSubParticle(pr.x, pr.y, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, "#E0F2FE", 2.5, 0.25, "diamond");
+        } else if (pr.vfx === "shadow_orb" || pr.vfx === "sludge_ball") {
+          this.spawnSubParticle(pr.x, pr.y, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, pr.color || "#C084FC", 3.0, 0.30, "circle");
+        }
+      }
+
       for (let j = GameApp.enemies.length - 1; j >= 0; j--) {
         const e = GameApp.enemies[j];
         if (pr.hitSet.has(e)) continue;
         if (Math.hypot(e.x - pr.x, e.y - pr.y) <= pr.radius + e.radius) {
           pr.hitSet.add(e);
           GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0);
-          GameApp.spawnParticleCluster(pr.x, pr.y, pr.color, "#FFFFFF", 7, "star", 0.75);
+
+          const pColor = pr.color || "#FFFFFF";
+          for (let k = 0; k < 5; k++) {
+            const hAng = Math.random() * Math.PI * 2;
+            const hSpd = 40 + Math.random() * 70;
+            this.spawnSubParticle(pr.x, pr.y, Math.cos(hAng) * hSpd, Math.sin(hAng) * hSpd, k % 2 === 0 ? pColor : "#FFFFFF", 2.8, 0.3, "star");
+          }
+
           pr.pierce -= 1;
           if (pr.pierce <= 0) break;
         }
@@ -379,6 +437,15 @@ const SkillsEngine = {
       this.lightningArcs[i].timer -= dt;
       if (this.lightningArcs[i].timer <= 0) this.lightningArcs.splice(i, 1);
     }
+
+    for (let i = this.subParticles.length - 1; i >= 0; i--) {
+      const sp = this.subParticles[i];
+      sp.x += sp.vx * dt;
+      sp.y += sp.vy * dt;
+      sp.rot += sp.rotSpeed * dt;
+      sp.life -= dt;
+      if (sp.life <= 0) this.subParticles.splice(i, 1);
+    }
   },
 
   render(ctx, toSx, toSy) {
@@ -390,6 +457,7 @@ const SkillsEngine = {
       if (m.style === "quake_wave" || m.style === "slam_wave") {
         const msx = toSx(m.x), msy = toSy(m.y);
         const curR = m.radius * (0.28 + prog * 0.72);
+
         ctx.strokeStyle = m.color;
         ctx.lineWidth = 6 * (1 - prog * 0.5);
         ctx.beginPath();
@@ -401,6 +469,18 @@ const SkillsEngine = {
         ctx.beginPath();
         ctx.arc(msx, msy, curR * 0.8, 0, Math.PI * 2);
         ctx.stroke();
+
+        if (m.style === "quake_wave") {
+          ctx.strokeStyle = "rgba(146, 64, 14, 0.7)";
+          ctx.lineWidth = 2.0;
+          for (let crack = 0; crack < 6; crack++) {
+            const cAng = (crack * Math.PI * 2) / 6 + prog * 0.2;
+            ctx.beginPath();
+            ctx.moveTo(msx + Math.cos(cAng) * (curR * 0.3), msy + Math.sin(cAng) * (curR * 0.3));
+            ctx.lineTo(msx + Math.cos(cAng) * (curR * 0.9), msy + Math.sin(cAng) * (curR * 0.9));
+            ctx.stroke();
+          }
+        }
       } else {
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
@@ -416,9 +496,87 @@ const SkillsEngine = {
         ctx.fill();
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3.5;
         ctx.beginPath();
         ctx.arc(0, 0, curR, -0.85, 0.85);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    this.ultimateVfxList.forEach(u => {
+      const prog = 1 - (u.timer / u.maxTime);
+      const usx = toSx(u.x), usy = toSy(u.y);
+      ctx.save();
+
+      if (u.type === "Fire") {
+        ctx.translate(usx, usy);
+        const curR = u.radius * (0.4 + prog * 0.7);
+        ctx.globalAlpha = Math.max(0, 1 - prog * 0.8);
+
+        ctx.strokeStyle = "#EF4444";
+        ctx.lineWidth = 8 * (1 - prog * 0.6);
+        ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.strokeStyle = "#FDE047";
+        ctx.lineWidth = 4 * (1 - prog * 0.6);
+        ctx.beginPath(); ctx.arc(0, 0, curR * 0.85, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.rotate(prog * 1.5);
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 6 * (1 - prog * 0.5);
+        ctx.lineCap = "round";
+        const sz = 55 * (1 + prog * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(-sz, 0); ctx.lineTo(sz, 0);
+        ctx.moveTo(0, -sz * 0.9); ctx.lineTo(0, sz * 0.9);
+        ctx.moveTo(0, 0); ctx.lineTo(-sz * 0.7, sz * 0.9);
+        ctx.moveTo(0, 0); ctx.lineTo(sz * 0.7, sz * 0.9);
+        ctx.stroke();
+
+      } else if (u.type === "Water") {
+        ctx.translate(usx, usy);
+        ctx.globalAlpha = Math.max(0, 1 - prog * 0.75);
+        ctx.rotate(-prog * 4.5);
+
+        for (let arm = 0; arm < 4; arm++) {
+          const aAng = (arm * Math.PI * 2) / 4;
+          ctx.strokeStyle = arm % 2 === 0 ? "#0284C7" : "#38BDF8";
+          ctx.lineWidth = 5 * (1 - prog * 0.5);
+          ctx.beginPath();
+          ctx.arc(0, 0, 70 + prog * 130, aAng, aAng + 1.2);
+          ctx.stroke();
+        }
+      } else if (u.type === "Grass") {
+        ctx.translate(usx, usy);
+        ctx.globalAlpha = Math.max(0, 1 - prog * 0.7);
+        ctx.strokeStyle = "#22C55E";
+        ctx.lineWidth = 5 * (1 - prog * 0.6);
+        ctx.beginPath();
+        ctx.arc(0, 0, 80 + prog * 110, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#86EFAC";
+        ctx.lineWidth = 2.5;
+        for (let k = 0; k < 8; k++) {
+          const kAng = (k * Math.PI * 2) / 8 + prog;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(kAng) * (70 + prog * 90), Math.sin(kAng) * (70 + prog * 90));
+          ctx.stroke();
+        }
+      } else {
+        ctx.translate(usx, usy);
+        ctx.globalAlpha = Math.max(0, 1 - prog * 0.8);
+        ctx.strokeStyle = u.color || "#FACC15";
+        ctx.lineWidth = 6 * (1 - prog * 0.5);
+        ctx.beginPath();
+        ctx.arc(0, 0, 50 + prog * 170, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 30 + prog * 140, 0, Math.PI * 2);
         ctx.stroke();
       }
       ctx.restore();
@@ -432,11 +590,11 @@ const SkillsEngine = {
       ctx.rotate(pr.angle || 0);
 
       if (pr.vfx === "giant_fist") {
-        ctx.fillStyle = pr.color;
+        ctx.fillStyle = pr.color || "#DC2626";
         ctx.strokeStyle = "#FEF08A";
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.roundRect(-18, -16, 30, 32, 9);
+        ctx.roundRect(-18, -16, 32, 32, 9);
         ctx.fill(); ctx.stroke();
 
         ctx.fillStyle = "#FFFFFF";
@@ -445,21 +603,59 @@ const SkillsEngine = {
         }
       } else if (pr.vfx === "fire_stream") {
         ctx.fillStyle = "#DC2626";
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(r * 1.1, 0);
+        ctx.lineTo(-r * 0.9, -r * 0.65);
+        ctx.lineTo(-r * 0.5, 0);
+        ctx.lineTo(-r * 0.9, r * 0.65);
+        ctx.closePath();
+        ctx.fill();
+
         ctx.fillStyle = "#F97316";
-        ctx.beginPath(); ctx.arc(r * 0.15, 0, r * 0.55, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.65, r * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(r * 0.25, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(r * 0.2, 0, r * 0.35, r * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
       } else if (pr.vfx === "water_beam") {
         ctx.fillStyle = "#0284C7";
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(0, 0, r * 0.9, r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#38BDF8";
+        ctx.beginPath(); ctx.ellipse(r * 0.1, 0, r * 0.65, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.2, r * 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(r * 0.25, -r * 0.15, r * 0.22, 0, Math.PI * 2); ctx.fill();
+      } else if (pr.vfx === "seed_cluster") {
+        ctx.fillStyle = "#15803D";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#4ADE80";
+        ctx.beginPath(); ctx.arc(-r * 0.15, -r * 0.15, r * 0.45, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath(); ctx.arc(r * 0.15, r * 0.15, r * 0.22, 0, Math.PI * 2); ctx.fill();
+      } else if (pr.vfx === "frost_beam") {
+        ctx.fillStyle = "#0284C7";
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(r * 1.1, 0); ctx.lineTo(0, -r * 0.55); ctx.lineTo(-r * 0.9, 0); ctx.lineTo(0, r * 0.55);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      } else if (pr.vfx === "wind_blade") {
+        ctx.fillStyle = "rgba(224, 231, 255, 0.9)";
+        ctx.strokeStyle = "#818CF8";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.9, -1.2, 1.2);
+        ctx.arc(r * 0.4, 0, r * 0.7, 1.2, -1.2, true);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
       } else {
-        ctx.fillStyle = pr.color;
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = pr.color || "#FACC15";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.72, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(r * 0.35, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.15, r * 0.32, 0, Math.PI * 2); ctx.fill();
       }
       ctx.restore();
     });
@@ -467,7 +663,7 @@ const SkillsEngine = {
     this.lightningArcs.forEach(arc => {
       ctx.save();
       ctx.strokeStyle = arc.color;
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 5.5;
       ctx.lineJoin = "round";
       ctx.beginPath();
       arc.pts.forEach((pt, idx) => {
@@ -478,7 +674,7 @@ const SkillsEngine = {
       ctx.stroke();
 
       ctx.strokeStyle = "#FFFFFF";
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
       arc.pts.forEach((pt, idx) => {
         const sx = toSx(pt.x), sy = toSy(pt.y);
@@ -486,6 +682,36 @@ const SkillsEngine = {
         else ctx.lineTo(sx, sy);
       });
       ctx.stroke();
+      ctx.restore();
+    });
+
+    this.subParticles.forEach(sp => {
+      const sx = toSx(sp.x), sy = toSy(sp.y);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, sp.life / sp.maxLife);
+      ctx.translate(sx, sy);
+      ctx.rotate(sp.rot || 0);
+
+      if (sp.shape === "leaf") {
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, sp.size * 1.5, sp.size * 0.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (sp.shape === "diamond") {
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.moveTo(0, -sp.size); ctx.lineTo(sp.size, 0); ctx.lineTo(0, sp.size); ctx.lineTo(-sp.size, 0);
+        ctx.closePath();
+        ctx.fill();
+      } else if (sp.shape === "star") {
+        ctx.fillStyle = sp.color;
+        ctx.fillRect(-sp.size * 0.5, -sp.size * 0.5, sp.size, sp.size);
+      } else {
+        ctx.fillStyle = sp.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, sp.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     });
   }
