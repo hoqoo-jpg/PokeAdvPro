@@ -554,18 +554,17 @@ window.GameApp = {
       maxBuffTimer: tr.skillDuration || 6.0,
       shieldTimer: 0,
       maxShieldTimer: 5.0,
-      xAttackTimer: 0,
-      xSpeedTimer: 0,
       trainerSkillCd: 0,
       trainerSkillMaxCd,
       status: null,
       statusTimer: 0,
       statusTick: 0,
       whiteFlashTimer: 0,
-      isCompanion: true,
       isJumpingLedge: false,
       jumpTimer: 0,
-      jumpY: 0
+      jumpY: 0,
+      xAttackTimer: 0,
+      xSpeedTimer: 0
     };
 
     //const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
@@ -590,7 +589,6 @@ window.GameApp = {
       sprites: tr.sprites || null,
       name: tr.name,
       pixelColors: tr.pixelColors,
-      isCompanion: true,
       isJumpingLedge: false,
       jumpTimer: 0,
       jumpY: 0
@@ -858,11 +856,11 @@ window.GameApp = {
         p.trainerSkillCd = p.trainerSkillMaxCd;
       }
     }
-    if (p.xAttackTimer > 0) p.xAttackTimer = Math.max(0, p.xAttackTimer - dt);
-    if (p.xSpeedTimer > 0) p.xSpeedTimer = Math.max(0, p.xSpeedTimer - dt);
     if (p.buffTimer <= 0 && p.shieldTimer <= 0 && p.trainerSkillCd > 0) {
       p.trainerSkillCd = Math.max(0, p.trainerSkillCd - dt);
     }
+    if (p.xAttackTimer > 0) p.xAttackTimer -= dt;
+    if (p.xSpeedTimer > 0) p.xSpeedTimer -= dt;
 
     if (this.camera.shakeTime > 0) this.camera.shakeTime -= dt;
 
@@ -941,23 +939,21 @@ window.GameApp = {
       const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
       pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
       pStatusEl.classList.remove("hidden");
-    } else if (p.xAttackTimer > 0) {
-      pStatusEl.textContent = `[力量強化] 傷害+35% (${Math.ceil(p.xAttackTimer)}s)`;
+    } else if (p.xAttackTimer > 0 || p.xSpeedTimer > 0) {
+      const buffLabels = [];
+      if (p.xAttackTimer > 0) buffLabels.push(`力量強化(${Math.ceil(p.xAttackTimer)}s)`);
+      if (p.xSpeedTimer > 0) buffLabels.push(`速度強化(${Math.ceil(p.xSpeedTimer)}s)`);
+      pStatusEl.textContent = `[增益] ${buffLabels.join(" ")}`;
       pStatusEl.className = "px-2 py-0.5 bg-amber-950/80 text-amber-300 border border-amber-500 rounded-full font-black text-[10px]";
       pStatusEl.classList.remove("hidden");
-    } else if (p.xSpeedTimer > 0) {
-      pStatusEl.textContent = `[速度強化] 移速+30% (${Math.ceil(p.xSpeedTimer)}s)`;
-      pStatusEl.className = "px-2 py-0.5 bg-sky-950/80 text-sky-300 border border-sky-500 rounded-full font-black text-[10px]";
-      pStatusEl.classList.remove("hidden");
     } else {
-      pStatusEl.className = "hidden px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]";
       pStatusEl.classList.add("hidden");
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
-    const hasSpeedBuff = (p.xSpeedTimer > 0);
-    const effTerrSpd = (hasSpeedBuff && terrain.inWater) ? 1.0 : terrain.speedMult;
-    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * effTerrSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * (hasSpeedBuff ? 1.30 : 1.0);
+    const xSpdMod = p.xSpeedTimer > 0 ? 1.30 : 1.0;
+    const finalTerrainSpd = (p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult;
+    const moveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
@@ -968,9 +964,8 @@ window.GameApp = {
 
     if (p.isJumpingLedge) {
       p.jumpTimer = (p.jumpTimer || 0) + dt;
-      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.32) * Math.PI) * -16;
-      p.y += 65 * dt;
-      if (p.jumpTimer >= 0.32) {
+      p.jumpY = Math.sin(Math.min(1, p.jumpTimer / 0.35) * Math.PI) * -14;
+      if (p.jumpTimer >= 0.35) {
         p.isJumpingLedge = false;
         p.jumpTimer = 0;
         p.jumpY = 0;
@@ -983,17 +978,16 @@ window.GameApp = {
     const sideOffset = (p.facingX < 0 ? 24 : -24);
     const targetTx = p.x + sideOffset;
     const targetTy = p.y;
-    const tcOldX = tc.x, tcOldY = tc.y;
+    tc.vy = (targetTy - tc.y);
+    tc.vx = (targetTx - tc.x);
     tc.x += (targetTx - tc.x) * Math.min(1, dt * 30);
     tc.y += (targetTy - tc.y) * Math.min(1, dt * 30);
-    tc.vx = (tc.x - tcOldX) / (dt || 0.016);
-    tc.vy = (tc.y - tcOldY) / (dt || 0.016);
     tc.facingX = p.facingX;
     tc.facingY = p.facingY;
     tc.walkBob = p.walkBob;
 
-    MapEngine.resolveObstacleCollision(tc, 18, false);
-
+    // 訓練家獨立障礙碰撞與跨木樁/跳崖運算
+    MapEngine.resolveObstacleCollision(tc, 18, true);
     if (tc.isJumpingLedge) {
       tc.jumpTimer = (tc.jumpTimer || 0) + dt;
       tc.jumpY = Math.sin(Math.min(1, tc.jumpTimer / 0.32) * Math.PI) * -16;
@@ -1423,8 +1417,7 @@ window.GameApp = {
       SoundFX.play("levelup");
       this.spawnFloatingText(p.x, p.y - 25, "全滿傷藥：恢復 45% HP ＆ 淨化異常！", "#34D399", 15);
     } else if (itemId === "x_attack") {
-      p.buffTimer = Math.max(p.buffTimer || 0, 30.0);
-      p.maxBuffTimer = 30.0;
+      p.xAttackTimer = 30.0;
       SoundFX.play("super");
       this.spawnFloatingText(p.x, p.y - 25, "力量強化：30秒內全傷害+35%！", "#EF4444", 15);
       this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 24, "star", 1.2);
@@ -1759,7 +1752,8 @@ window.GameApp = {
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0));
-    let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0));
+    const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
+    let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0) * xAtkMod);
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
     enemy.hp -= finalDmg;

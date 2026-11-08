@@ -895,8 +895,7 @@ renderMartModal(shelf) {
       SoundFX.play("levelup");
       this.spawnFloatingText(p.x, p.y - 25, "全滿傷藥：恢復 45% HP ＆ 淨化異常！", "#34D399", 15);
     } else if (itemId === "x_attack") {
-      p.buffTimer = Math.max(p.buffTimer || 0, 30.0);
-      p.maxBuffTimer = 30.0;
+      p.xAttackTimer = 30.0;
       SoundFX.play("super");
       this.spawnFloatingText(p.x, p.y - 25, "力量強化：30秒內全傷害+35%！", "#EF4444", 15);
       this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 24, "star", 1.2);

@@ -81,8 +81,7 @@ const SkillsEngine = {
     }
 
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
-    const xAtkMult = (GameApp.player && GameApp.player.xAttackTimer > 0) ? 1.35 : 1.0;
-    const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * xAtkMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
+    const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
 
     if (meta.isMelee) {
       this.executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg);
