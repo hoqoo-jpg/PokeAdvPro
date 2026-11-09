@@ -1053,7 +1053,8 @@ window.GameApp = {
     this.camera.x = p.x;
     this.camera.y = p.y;
 
-    const cdFactor = Math.max(0.55, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0));
+    const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
+    const cdFactor = Math.max(0.50, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod);
     Object.values(p.skills).forEach(skSlot => {
       skSlot.timer -= dt;
       if (skSlot.timer <= 0) {
@@ -1536,7 +1537,8 @@ window.GameApp = {
         if (e.statusTick <= 0) {
           e.statusTick = 0.55;
           if (e.status === "Burn") {
-            const bDmg = Math.max(6, Math.round(e.maxHp * 0.018));
+            const heatwaveMod = (MapEngine.weather === "HEATWAVE" ? 1.5 : 1.0);
+            const bDmg = Math.max(6, Math.round(e.maxHp * 0.018 * heatwaveMod));
             e.hp -= bDmg;
             this.spawnFloatingText(e.x, e.y - 14, `灼傷 -${bDmg}`, "#F97316", 11);
           } else if (e.status === "Poison") {
@@ -1569,6 +1571,11 @@ window.GameApp = {
         } else {
           const rawTerrMult = eTerr.speedMult;
           eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
+        }
+        // 暴雪天候：非冰系且非飛行系的地面怪物移速受到極寒微緩 (-15%)
+        if (MapEngine.weather === "BLIZZARD" && e.data) {
+          const isIceOrFlying = (e.data.type1 === "Ice" || e.data.type2 === "Ice" || e.data.type1 === "Flying" || e.data.type2 === "Flying");
+          if (!isIceOrFlying) eTerrMult *= 0.85;
         }
       }
 
@@ -1633,20 +1640,22 @@ window.GameApp = {
           e.rangedCd = e.isBoss ? 2.6 : 3.0;
           this.spawnEnemyTelegraphAttack(e);
         }
-      } else if (inView && !e.treasureType && [23, 24, 41, 42, 69, 70, 109, 110, 116, 117, 120].includes(e.id)) {
+      } else if (inView && !e.treasureType && [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(e.id)) {
         // 具備遠程習性的普通精靈定期向主角發射動態飛行道具 (彈道射擊)
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (2.0 + Math.random() * 2.5)) - dt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (0.8 + Math.random() * 1.5)) - dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = 3.6 + Math.random() * 1.8;
+          e.rangedCd = 2.4 + Math.random() * 1.2; // 縮短至 2.4~3.6s，形成有節奏的躲避挑戰
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
-          const pSpd = 135; // 慢速清晰的飛行子彈，方便玩家走位躲避
+          const pSpd = 135;
           
           let pColor = "#A855F7";
           let pVfx = "poison_orb";
           if ([69, 70].includes(e.id)) { pColor = "#22C55E"; pVfx = "leaf_bullet"; }
-          else if ([116, 117].includes(e.id)) { pColor = "#38BDF8"; pVfx = "water_drop"; }
+          else if ([60, 116, 117].includes(e.id)) { pColor = "#38BDF8"; pVfx = "water_drop"; }
           else if ([41, 42].includes(e.id)) { pColor = "#818CF8"; pVfx = "wind_bullet"; }
-          else if (e.id === 120) { pColor = "#FACC15"; pVfx = "swift_star"; }
+          else if ([81, 120].includes(e.id)) { pColor = "#FACC15"; pVfx = "swift_star"; }
+          else if (e.id === 35) { pColor = "#F472B6"; pVfx = "moon_bullet"; }
+          else if (e.id === 48) { pColor = "#C084FC"; pVfx = "psy_wave"; }
 
           this.enemyProjectiles.push({
             x: e.x + Math.cos(sAng) * (e.radius + 6),
@@ -1655,10 +1664,10 @@ window.GameApp = {
             vy: Math.sin(sAng) * pSpd,
             angle: sAng,
             radius: 8.5,
-            dmg: Math.max(1, Math.round(e.atk * 0.75)),
+            dmg: Math.max(1, Math.round(e.atk * 0.70)),
             color: pColor,
             vfx: pVfx,
-            life: 3.2,
+            life: 3.5,
             rot: 0
           });
         }
@@ -1910,7 +1919,8 @@ window.GameApp = {
 
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0));
+    const psychicCritBonus = (MapEngine.weather === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) ? 0.15 : 0;
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus);
     const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
     let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0) * xAtkMod);
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
@@ -2815,31 +2825,96 @@ window.GameApp = {
     ctx.globalCompositeOperation = "lighter";
     SkillsEngine.render(ctx, toSx, toSy);
 
-    // 繪製敵方動態飛行道具
+    // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形)
     this.enemyProjectiles.forEach(ep => {
       const esx = toSx(ep.x), esy = toSy(ep.y);
-      if (esx < -20 || esx > this.width + 20 || esy < -20 || esy > this.height + 20) return;
+      if (esx < -24 || esx > this.width + 24 || esy < -24 || esy > this.height + 24) return;
 
       ctx.save();
       ctx.translate(esx, esy);
-      ctx.rotate(ep.rot);
+      const r = ep.radius;
 
-      // 外層屬性光暈
-      ctx.fillStyle = ep.color;
-      ctx.beginPath();
-      ctx.arc(0, 0, ep.radius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 內層高光核心
-      ctx.fillStyle = "#FFFFFF";
-      ctx.beginPath();
-      ctx.arc(0, 0, ep.radius * 0.45, 0, Math.PI * 2);
-      ctx.fill();
-
-      // 像素黑邊描繪
-      ctx.strokeStyle = "#0F172A";
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
+      if (ep.vfx === "swift_star") {
+        // 旋轉金黃星芒
+        ctx.rotate(ep.rot * 2);
+        ctx.fillStyle = ep.color;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let s = 0; s < 5; s++) {
+          const a1 = (s * Math.PI * 2) / 5 - Math.PI / 2;
+          const a2 = a1 + Math.PI / 5;
+          if (s === 0) ctx.moveTo(Math.cos(a1) * (r * 1.25), Math.sin(a1) * (r * 1.25));
+          else ctx.lineTo(Math.cos(a1) * (r * 1.25), Math.sin(a1) * (r * 1.25));
+          ctx.lineTo(Math.cos(a2) * (r * 0.55), Math.sin(a2) * (r * 0.55));
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (ep.vfx === "leaf_bullet") {
+        // 旋轉翠綠飛葉
+        ctx.rotate(ep.angle || ep.rot);
+        ctx.fillStyle = ep.color;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 1.4, r * 0.65, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#86EFAC";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-r * 1.1, 0); ctx.lineTo(r * 1.1, 0);
+        ctx.stroke();
+      } else if (ep.vfx === "wind_bullet") {
+        // 月牙風刃
+        ctx.rotate(ep.angle || ep.rot);
+        ctx.fillStyle = ep.color;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.2, -1.2, 1.2);
+        ctx.arc(r * 0.5, 0, r * 0.9, 1.2, -1.2, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      } else if (ep.vfx === "water_drop") {
+        // 水滴彈頭
+        ctx.rotate(ep.angle || ep.rot);
+        ctx.fillStyle = ep.color;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(r * 1.3, 0);
+        ctx.lineTo(-r * 0.8, -r * 0.7);
+        ctx.lineTo(-r * 0.4, 0);
+        ctx.lineTo(-r * 0.8, r * 0.7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // 毒氣/能量球：外溢光環與白色高光核心
+        ctx.rotate(ep.rot);
+        ctx.fillStyle = ep.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(r * 0.2, -r * 0.2, r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       ctx.restore();
     });

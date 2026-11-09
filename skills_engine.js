@@ -75,6 +75,8 @@ const SkillsEngine = {
       if (meta.type === "Ice") weatherBuff = 1.20;
     } else if (curW === "THUNDER") {
       if (meta.type === "Electric") weatherBuff = 1.20;
+    } else if (curW === "PSYCHIC") {
+      if (meta.type === "Psychic" || meta.type === "Ghost") weatherBuff = 1.20;
     }
 
     let heldItemMult = 1.0;
@@ -106,7 +108,8 @@ const SkillsEngine = {
         .filter(e => Math.hypot(e.x - caster.x, e.y - caster.y) <= maxStrikeRange)
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y));
 
-      const boltCount = Math.max(3, count + 2);
+      const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0);
+      const boltCount = Math.max(3, count + 2 + thunderBonus);
       for (let b = 0; b < boltCount; b++) {
         const enemyTarget = nearby[b];
         let endX, endY;
