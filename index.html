@@ -23,7 +23,6 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
-      touch-action: none;
     }
 
     html, body {
@@ -37,7 +36,18 @@
       font-family: 'Noto Sans TC', sans-serif;
       color: #1e293b;
       -webkit-text-size-adjust: none;
-      touch-action: none;
+    }
+
+    /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
+    #gameCanvas, #hudLayer, #cutInLayer {
+      touch-action: none !important;
+    }
+
+    /* 放行所有彈窗、大廳與滾動列表的觸控垂直滑動 */
+    #titleScreen, #setupModal, #pokedexModal, #skillTreeModal, #achievementModal,
+    .overflow-y-auto, [class*="overflow-y-auto"] {
+      touch-action: pan-y !important;
+      -webkit-overflow-scrolling: touch !important;
     }
 
     .font-pixel {
@@ -285,82 +295,82 @@
   </div>
 
   <!-- 4. 大廳主畫面層 (Title / Lobby Screen) -->
-  <div id="titleScreen" class="absolute inset-0 z-30 hidden flex flex-col justify-between p-4 sm:p-6 overflow-y-auto">
+  <div id="titleScreen" class="absolute inset-0 z-30 hidden flex flex-col justify-between p-3 sm:p-5 overflow-y-auto">
     <!-- 頂部大廳導航資訊列 -->
-    <div class="flex items-center justify-between z-10">
+    <div class="flex items-center justify-between z-10 shrink-0 mb-1">
       <!-- 左側：音效與版本 -->
       <div class="flex items-center gap-2">
-        <button onclick="GameApp.toggleBgm()" class="w-10 h-10 bg-white/95 rounded-2xl border-2 border-slate-800 flex items-center justify-center shadow active:scale-95 transition-transform" title="音效/BGM開關">
-          <i id="lobbyBgmIcon" class="fa-solid fa-volume-high text-blue-600 text-sm"></i>
+        <button onclick="GameApp.toggleBgm()" class="w-9 h-9 bg-white/95 rounded-2xl border-2 border-slate-800 flex items-center justify-center shadow active:scale-95 transition-transform" title="音效/BGM開關">
+          <i id="lobbyBgmIcon" class="fa-solid fa-volume-high text-blue-600 text-xs"></i>
         </button>
-        <button onclick="GameApp.backToSplash()" class="px-3 py-2 bg-white/95 rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-xs shadow active:scale-95 transition-transform flex items-center gap-1.5">
+        <button onclick="GameApp.backToSplash()" class="px-2.5 py-1.5 bg-white/95 rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-xs shadow active:scale-95 transition-transform flex items-center gap-1">
           <i class="fa-solid fa-arrow-left"></i> 封面
         </button>
       </div>
 
       <!-- 右側：代幣存量與已解鎖閃光數量 -->
-      <div class="flex items-center gap-2">
-        <div class="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 rounded-2xl border-2 border-slate-800 shadow">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-5 h-5 pixel-sprite" alt="Coins" />
-          <span id="titleCoinDisplay" class="font-pixel text-xs font-black text-amber-600">0</span>
+      <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1 px-2.5 py-1 bg-white/95 rounded-2xl border-2 border-slate-800 shadow">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="Coins" />
+          <span id="titleCoinDisplay" class="font-pixel text-[11px] font-black text-amber-600">0</span>
         </div>
-        <div class="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 rounded-2xl border-2 border-slate-800 shadow">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="w-5 h-5 pixel-sprite" alt="Shiny" />
-          <span id="titleShinyCount" class="font-pixel text-xs font-black text-purple-600">0</span>
+        <div class="flex items-center gap-1 px-2.5 py-1 bg-white/95 rounded-2xl border-2 border-slate-800 shadow">
+          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="w-4 h-4 pixel-sprite" alt="Shiny" />
+          <span id="titleShinyCount" class="font-pixel text-[11px] font-black text-purple-600">0</span>
         </div>
       </div>
     </div>
 
-    <!-- 中央出戰搭檔預覽卡 (點擊直接進入快速調整) -->
-    <div class="w-full max-w-md mx-auto my-auto z-10">
-      <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-4 bg-white/90 backdrop-blur-sm hover:scale-[1.02] transition-transform flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="relative w-16 h-16 rounded-2xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-            <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-14 h-14 pixel-sprite object-contain" alt="Trainer" />
+    <!-- 中央出戰搭檔預覽卡 (緊湊間距，不強佔全屏高度) -->
+    <div class="w-full max-w-md mx-auto my-1.5 z-10 shrink-0">
+      <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+            <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Trainer" />
           </div>
-          <div class="relative w-16 h-16 rounded-2xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-            <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-14 h-14 pixel-sprite object-contain" alt="Pokemon" />
+          <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+            <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Pokemon" />
           </div>
         </div>
         <div class="min-w-0 flex-1">
-          <div class="text-[10px] font-black text-red-600 uppercase tracking-wider">CURRENT PARTNER</div>
-          <div id="lobbyTrainerName" class="font-black text-sm text-slate-800 truncate">小智 (Ash)</div>
-          <div id="lobbyPokemonName" class="font-black text-xs text-blue-700 truncate">皮卡丘 (#025)</div>
-          <div class="text-[9px] font-bold text-slate-500 mt-0.5">點擊卡片更換訓練家與先發精靈 ➔</div>
+          <div class="text-[9px] font-black text-red-600 uppercase tracking-wider">CURRENT PARTNER</div>
+          <div id="lobbyTrainerName" class="font-black text-xs sm:text-sm text-slate-800 truncate">小智 (Ash)</div>
+          <div id="lobbyPokemonName" class="font-black text-[11px] sm:text-xs text-blue-700 truncate">皮卡丘 (#025)</div>
+          <div class="text-[9px] font-bold text-slate-500 mt-0.5">點擊更換搭檔 ➔</div>
         </div>
       </div>
     </div>
 
-    <!-- 底部主要功能按鈕群 -->
-    <div class="w-full max-w-md mx-auto flex flex-col gap-2.5 z-10">
+    <!-- 底部主要功能按鈕群 (確保在手機直向視口完整展現) -->
+    <div class="w-full max-w-md mx-auto flex flex-col gap-2 z-10 shrink-0 mb-1">
       <!-- 立即出發冒險 (主按鈕) -->
-      <button onclick="GameApp.openSetupFlow(3)" class="poke-btn-red w-full py-3.5 text-base sm:text-lg font-black flex items-center justify-center gap-2 shadow-2xl active:scale-95">
+      <button onclick="GameApp.openSetupFlow(3)" class="poke-btn-red w-full py-2.5 sm:py-3.5 text-sm sm:text-base font-black flex items-center justify-center gap-2 shadow-xl active:scale-95">
         <i class="fa-solid fa-play"></i> 立即出發冒險
       </button>
 
       <!-- 輔助三大功能列：151圖鑑、中心天賦、道館榮譽 -->
-      <div class="grid grid-cols-3 gap-2">
-        <button onclick="GameApp.openPokedexModal()" class="poke-btn-white relative py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-1 shadow">
+      <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
+        <button onclick="GameApp.openPokedexModal()" class="poke-btn-white relative py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-book-open text-red-500 text-sm"></i>
+            <i class="fa-solid fa-book-open text-red-500 text-xs sm:text-sm"></i>
             <span>151 圖鑑</span>
           </div>
-          <span id="pokedexRewardBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
+          <span id="pokedexRewardBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
         </button>
 
-        <button onclick="GameApp.openSkillTreeModal()" class="poke-btn-white py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-1 shadow">
+        <button onclick="GameApp.openSkillTreeModal()" class="poke-btn-white py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-house-medical text-emerald-600 text-sm"></i>
+            <i class="fa-solid fa-house-medical text-emerald-600 text-xs sm:text-sm"></i>
             <span>研究所</span>
           </div>
         </button>
 
-        <button onclick="GameApp.openAchievementModal()" class="poke-btn-white relative py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-1 shadow">
+        <button onclick="GameApp.openAchievementModal()" class="poke-btn-white relative py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-medal text-amber-500 text-sm"></i>
+            <i class="fa-solid fa-medal text-amber-500 text-xs sm:text-sm"></i>
             <span>道館榮譽</span>
           </div>
-          <span id="achClaimBadge" class="hidden absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
+          <span id="achClaimBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
         </button>
       </div>
     </div>
@@ -370,20 +380,18 @@
   <div id="hudLayer" class="absolute inset-0 z-20 hidden pointer-events-none overflow-hidden">
     <!-- 頂部資訊條 (血條、等級、時間軸、擊退數、代幣與功能按鈕 - iPhone 小屏自適應) -->
     <div class="absolute top-2 left-1.5 right-1.5 sm:left-2 sm:right-2 flex items-start justify-between gap-1 sm:gap-2 pointer-events-auto">
-      <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 -->
-      <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/85 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[44%] sm:max-w-xs shrink-0">
+      <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 (優化雙屬性佈局，不遮擋名字) -->
+      <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[48%] sm:max-w-xs shrink-0">
         <div class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
           <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-8 h-8 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="Current" />
           <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[7px] sm:text-[8px] rounded font-black">羈絆</span>
         </div>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white mb-0.5">
-            <div class="flex items-center gap-0.5 sm:gap-1 truncate">
-              <span id="hudPartnerName" class="truncate">皮卡丘</span>
-              <span id="hudTypeBadges" class="flex items-center"></span>
-            </div>
-            <span id="hudLevelText" class="font-pixel text-amber-400 text-[9px] sm:text-[10px] ml-1 shrink-0">Lv.1</span>
+          <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white leading-tight mb-0.5">
+            <span id="hudPartnerName" class="truncate font-black text-white mr-1">皮卡丘</span>
+            <span id="hudLevelText" class="font-pixel text-amber-400 text-[8px] sm:text-[9px] shrink-0">Lv.1</span>
           </div>
+          <div id="hudTypeBadges" class="flex items-center gap-0.5 mb-0.5"></div>
           <!-- HP 綠色生命條 -->
           <div class="w-full bg-slate-950 rounded-full h-2 sm:h-2.5 p-0.5 border border-slate-700 overflow-hidden mb-0.5 relative">
             <div id="hudHpBar" class="h-full bg-emerald-500 rounded-full transition-all duration-100" style="width: 100%;"></div>

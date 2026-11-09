@@ -401,8 +401,8 @@ Object.assign(window.GameApp, {
                 </button>
               ` : ''}
             </div>
-            <div class="font-black text-sm text-slate-800 text-center">${unlocked || seen ? p.name_zh : '？？？'}</div>
-            <div class="flex items-center justify-center gap-1 my-1">
+            <div class="font-black text-xs sm:text-sm text-slate-800 text-center truncate px-0.5">${unlocked || seen ? p.name_zh : '？？？'}</div>
+            <div class="flex items-center justify-center gap-0.5 my-1 flex-wrap">
               ${unlocked || seen ? (renderTypeBadgeHTML(p.type1) + renderTypeBadgeHTML(p.type2)) : '<span class="text-[9px] font-bold text-slate-400">未知屬性</span>'}
             </div>
             <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">

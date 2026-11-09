@@ -458,7 +458,7 @@ window.GameApp = {
     const diff = this.selectedDifficulty;
     const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
 
-    SoundFX.playBgm("boss", true);
+    SoundFX.startBgm("boss");
     this.camera.shakeTime = 0.65;
     this.camera.shakeMagnitude = 16;
     SoundFX.play("ultimate");
@@ -508,8 +508,7 @@ window.GameApp = {
   },
   startGameRun() {
     SoundFX.init();
-    const stageId = (this.selectedStage && this.selectedStage.id) ? this.selectedStage.id : "pallet";
-    SoundFX.playBgm(stageId, true);
+    SoundFX.startBgm("battle");
 
     // 徹底隱藏大廳與設定彈窗，並重置行內 display 樣式
     const setupEl = document.getElementById("setupModal");
@@ -2030,8 +2029,7 @@ window.GameApp = {
       if (!this.activeBoss) {
         MapEngine.setWeather("CLEAR");
         this.updateWeatherUI("CLEAR");
-        const stageTrack = (this.selectedStage && this.selectedStage.id) ? this.selectedStage.id : "pallet";
-        SoundFX.playBgm(stageTrack, true);
+        SoundFX.startBgm("battle");
         document.getElementById("bossHudContainer").classList.add("hidden");
       }
       this.spawnMapLoot("evo_chest", e.x, e.y);
@@ -3176,7 +3174,7 @@ window.GameApp = {
 
   triggerGameOver(isVictory) {
     this.state = "GAMEOVER";
-    SoundFX.playBgm(isVictory ? "victory" : "lobby", !isVictory);
+    SoundFX.startBgm("lobby");
     if (this.saveToStorage) this.saveToStorage();
     document.getElementById("endModalTitle").textContent = isVictory ? "VICTORY! 關都冠軍!" : "BATTLE FINISHED";
     document.getElementById("endModalSubtitle").textContent = isVictory
