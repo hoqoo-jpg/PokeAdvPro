@@ -120,6 +120,13 @@ window.GameApp = {
         e.preventDefault();
         this.triggerTrainerActiveSkill();
       }
+      if ((k === "e" || k === "E") && this.state === "PLAYING") {
+        const mart = this.mapItems.find(it => it.id === "poke_mart");
+        if (mart && Math.hypot(this.player.x - mart.x, this.player.y - mart.y) < 75) {
+          e.preventDefault();
+          this.openPokeMartModal();
+        }
+      }
       if (e.key === "Escape" && (this.state === "PLAYING" || this.state === "PAUSED")) {
         this.togglePause();
       }
@@ -1415,24 +1422,45 @@ window.GameApp = {
     if (!this.player || this.state !== "PLAYING") return;
     const p = this.player;
     const mart = this.mapItems.find(it => it.id === "poke_mart");
-    if (!mart) return;
+    const promptBtn = document.getElementById("hudEnterMartPrompt");
+
+    if (!mart) {
+      if (promptBtn) promptBtn.classList.add("hidden");
+      return;
+    }
 
     const d = Math.hypot(p.x - mart.x, p.y - mart.y);
-    const isStationary = Math.hypot(p.vx, p.vy) < 15;
+    const inRange = d < 75;
 
-    if (d < 40 && isStationary) {
+    // 方案A：靠近範圍內時顯示右側快捷進入按鈕
+    if (promptBtn) {
+      promptBtn.classList.toggle("hidden", !inRange);
+    }
+
+    // 同步支援站定 0.35 秒自動開門 (帶有環形進度條)
+    const isStationary = Math.hypot(p.vx, p.vy) < 18;
+    if (inRange && isStationary) {
       mart.standTimer = (mart.standTimer || 0) + dt;
-      if (mart.standTimer >= 0.5) {
+      if (mart.standTimer >= 0.35) {
         mart.standTimer = 0;
+        if (promptBtn) promptBtn.classList.add("hidden");
         this.openPokeMartModal();
       }
     } else {
-      mart.standTimer = 0;
+      mart.standTimer = Math.max(0, (mart.standTimer || 0) - dt * 2);
     }
   },
 
   openPokeMartModal() {
     this.state = "PAUSED";
+    // 強制重置搖桿與輸入，防止多點觸控狀態殘留死鎖
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
     const p = this.player;
     const tmCatalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
     const specItems = typeof MART_SPECIAL_ITEMS !== "undefined" ? MART_SPECIAL_ITEMS : {};
@@ -2461,6 +2489,14 @@ window.GameApp = {
 
   openLevelUpModal() {
     this.state = "PAUSED";
+    // 強制重置搖桿與輸入，防止多點觸控狀態殘留死鎖
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
     const p = this.player;
     if (this.levelUpRerolls === undefined) {
       const upgReroll = (this.saveData && this.saveData.upgrades && this.saveData.upgrades.rerollCount) || 0;
@@ -2846,17 +2882,101 @@ window.GameApp = {
 
     this.mapItems.forEach(it => {
       const sx = toSx(it.x);
-      const sy = toSy(it.y) + Math.sin(it.bobPhase) * 4;
-      const rec = SpriteCache.get(it.meta.sprite);
-      ctx.save();
-      ctx.fillStyle = "rgba(15,23,42,0.65)";
-      ctx.strokeStyle = it.meta.color;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(sx, sy, 16, 0, Math.PI * 2);
-      ctx.fill(); ctx.stroke();
-      if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 12, sy - 12, 24, 24);
-      ctx.restore();
+      const sy = toSy(it.y);
+
+      // 專屬繪製：GBA 經典友好商店 (藍頂白牆建築風格 + 亮金色 SHOP 招牌)
+      if (it.id === "poke_mart") {
+        ctx.save();
+        // 1. 地面投影
+        ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+        ctx.beginPath();
+        ctx.ellipse(sx, sy + 18, 30, 11, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. 建築物主體白牆 (38 x 26)
+        ctx.fillStyle = "#F8FAFC";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.2;
+        ctx.fillRect(sx - 19, sy - 6, 38, 24);
+        ctx.strokeRect(sx - 19, sy - 6, 38, 24);
+
+        // 3. 經典深藍色斜屋頂 (雙層立體像素屋頂)
+        ctx.fillStyle = "#0284C7";
+        ctx.beginPath();
+        ctx.moveTo(sx - 24, sy - 6);
+        ctx.lineTo(sx, sy - 22);
+        ctx.lineTo(sx + 24, sy - 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#38BDF8";
+        ctx.beginPath();
+        ctx.moveTo(sx - 20, sy - 7);
+        ctx.lineTo(sx, sy - 20);
+        ctx.lineTo(sx + 20, sy - 7);
+        ctx.closePath();
+        ctx.fill();
+
+        // 4. 玻璃櫥窗與紅色大門
+        ctx.fillStyle = "#BAE6FD";
+        ctx.fillRect(sx - 14, sy + 2, 9, 8);
+        ctx.strokeRect(sx - 14, sy + 2, 9, 8);
+
+        ctx.fillStyle = "#EF4444";
+        ctx.fillRect(sx + 2, sy + 1, 10, 17);
+        ctx.strokeRect(sx + 2, sy + 1, 10, 17);
+
+        // 5. 屋頂上方常駐霓虹招牌：【SHOP】亮金標籤
+        const bounce = Math.sin(performance.now() * 0.005) * 3;
+        const signY = sy - 30 + bounce;
+        ctx.fillStyle = "#FDE047";
+        ctx.strokeStyle = "#78350F";
+        ctx.lineWidth = 1.8;
+        ctx.fillRect(sx - 18, signY - 7, 36, 13);
+        ctx.strokeRect(sx - 18, signY - 7, 36, 13);
+
+        ctx.font = "900 8px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#1E293B";
+        ctx.fillText("SHOP", sx, signY + 3);
+
+        // 6. 玩家靠近範圍 (<75px) 時：繪製地面互動光圈與進度條
+        const distToP = Math.hypot(this.player.x - it.x, this.player.y - it.y);
+        if (distToP < 75) {
+          ctx.strokeStyle = "rgba(56, 189, 248, 0.75)";
+          ctx.lineWidth = 2.0;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.ellipse(sx, sy + 10, 42, 22, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // 站定時的環形填充進度條
+          if (it.standTimer > 0) {
+            const fillPct = Math.min(1, it.standTimer / 0.35);
+            ctx.strokeStyle = "#FDE047";
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.arc(sx, sy + 10, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fillPct);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      } else {
+        // 其他常規掉落物 (磁鐵、糖果、寶箱、精靈球)
+        const yOffset = Math.sin(it.bobPhase) * 4;
+        const rec = SpriteCache.get(it.meta.sprite);
+        ctx.save();
+        ctx.fillStyle = "rgba(15,23,42,0.65)";
+        ctx.strokeStyle = it.meta.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy + yOffset, 16, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+        if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 12, sy + yOffset - 12, 24, 24);
+        ctx.restore();
+      }
     });
 
     if (this.trainerCompanion) {

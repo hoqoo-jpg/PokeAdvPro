@@ -40,10 +40,28 @@
     }
 
     /* 支援 iOS Safari 底部安全區與動態視口 */
-    #titleScreen {
+    #titleScreen, #setupModal, #pokedexModal, #skillTreeModal, #achievementModal, #pokeMartModal, #endModal {
       height: 100% !important;
       height: 100dvh !important;
+      max-height: 100dvh !important;
+    }
+
+    #titleScreen {
       padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 16px) !important;
+    }
+
+    /* 選人畫面底部按鈕列：安全墊高，防止被 Safari 工具列與全面屏橫條遮擋 */
+    .setup-footer-safe {
+      padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 14px) !important;
+    }
+
+    /* 戰鬥局內底部安全距離 */
+    .hud-bottom-safe {
+      bottom: calc(env(safe-area-inset-bottom, 14px) + 14px) !important;
+    }
+
+    .hud-partner-safe {
+      bottom: calc(env(safe-area-inset-bottom, 14px) + 78px) !important;
     }
 
     /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
@@ -460,18 +478,26 @@
     </div>
 
     <!-- 左下角：雙打夥伴動態狀態與等級 (hudPartnerList) -->
-    <div id="hudPartnerList" class="absolute bottom-20 left-4 flex gap-1.5 pointer-events-auto"></div>
+    <div id="hudPartnerList" class="absolute hud-partner-safe left-4 flex gap-1.5 pointer-events-auto"></div>
 
     <!-- 左下角：已裝備攜帶物 (hudHeldItemList) 與 招式微標籤 (hudSkillList) -->
-    <div class="absolute bottom-4 left-4 flex flex-col gap-1 pointer-events-auto max-w-[65%]">
+    <div class="absolute hud-bottom-safe left-4 flex flex-col gap-1 pointer-events-auto max-w-[65%]">
       <!-- 攜帶道具欄位 -->
       <div id="hudHeldItemList" class="flex gap-1"></div>
       <!-- 招式微型標籤欄位 -->
       <div id="hudSkillList" class="flex flex-wrap gap-1"></div>
     </div>
 
+    <!-- 方案A 友好商店快捷進入按鈕（靠近商店時自動浮現，點擊直接進店） -->
+    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(env(safe-area-inset-bottom, 14px) + 98px);">
+      <button onclick="GameApp.openPokeMartModal()" class="poke-btn-blue px-3 py-1.5 text-xs font-black flex items-center gap-1.5 shadow-2xl border-2 border-white">
+        <i class="fa-solid fa-store text-amber-300"></i>
+        <span>進入商店 [E]</span>
+      </button>
+    </div>
+
     <!-- 右下角：隨行訓練家三態戰術大招按鈕 (Tactical Command Button) -->
-    <div class="absolute bottom-4 right-4 pointer-events-auto flex flex-col items-center">
+    <div class="absolute hud-bottom-safe right-4 pointer-events-auto flex flex-col items-center">
       <button id="btnTrainerActiveSkill" onclick="GameApp.triggerTrainerActiveSkill()" class="tactical-btn-ready relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex flex-col items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl">
         <img id="hudActiveTrainerImg" src="images/Ash_01.png" class="w-12 h-12 pixel-sprite object-contain mt-0.5" alt="Trainer" />
         <span id="hudActiveSkillName" class="font-black text-[9px] text-slate-950 bg-amber-200/90 px-1.5 py-0.2 rounded-full border border-slate-900 truncate max-w-[85%] -mt-1">就決定是你了！</span>
@@ -554,7 +580,7 @@
       </div>
     </div>
 
-    <div class="bg-white border-t-2 border-slate-800 p-3 sm:p-4 flex items-center justify-between shrink-0 shadow-lg">
+    <div class="bg-white border-t-2 border-slate-800 p-3 sm:p-4 flex items-center justify-between shrink-0 shadow-lg setup-footer-safe">
       <button id="btnWizardPrev" onclick="GameApp.prevWizardStep()" class="poke-btn-white px-5 py-2.5 text-xs font-black">
         ← 上一步
       </button>
