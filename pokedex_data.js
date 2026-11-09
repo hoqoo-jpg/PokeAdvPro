@@ -733,25 +733,194 @@ const SpriteCache = {
 const SoundFX = {
   ctx: null,
   muted: false,
-  bgmOsc: null,
   bgmGain: null,
-  bgmTimer: null,
-  currentBgmMode: "lobby",
+  sfxGain: null,
+  currentTrack: null,
+  currentSource: null,
+  currentTrackGain: null,
+  audioBuffers: {},
+  fallbackTimer: null,
+
+  // 音訊檔案路徑配置 (支援本地 audio/ 或 CDN 外部連結)
+  bgmUrls: {
+    lobby: "audio/lobby.mp3",
+    pallet: "audio/stage_pallet.mp3",
+    cerulean_bay: "audio/stage_cerulean.mp3",
+    sky_pillar: "audio/stage_sky.mp3",
+    boss: "audio/boss_battle.mp3",
+    victory: "audio/victory.mp3"
+  },
 
   init() {
-    if (this.ctx) return;
+    if (this.ctx) {
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
+      return;
+    }
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) this.ctx = new AudioCtx();
+    if (AudioCtx) {
+      this.ctx = new AudioCtx();
+      this.bgmGain = this.ctx.createGain();
+      this.sfxGain = this.ctx.createGain();
+      this.bgmGain.connect(this.ctx.destination);
+      this.sfxGain.connect(this.ctx.destination);
+      this.bgmGain.gain.setValueAtTime(this.muted ? 0 : 0.35, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.muted ? 0 : 0.40, this.ctx.currentTime);
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+  },
+
+  async preloadTrack(key, url) {
+    if (!this.ctx || this.audioBuffers[key]) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const arrayBuffer = await res.arrayBuffer();
+      this.audioBuffers[key] = await this.ctx.decodeAudioData(arrayBuffer);
+    } catch (e) {}
+  },
+
+  playBgm(trackKey, loop = true) {
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+    if (this.currentTrack === trackKey && this.currentSource) return;
+
+    const now = this.ctx.currentTime;
+    const fadeTime = 0.8;
+
+    if (this.currentSource && this.currentTrackGain) {
+      const oldSrc = this.currentSource;
+      const oldGain = this.currentTrackGain;
+      oldGain.gain.setValueAtTime(oldGain.gain.value, now);
+      oldGain.gain.linearRampToValueAtTime(0.001, now + fadeTime);
+      setTimeout(() => {
+        try { oldSrc.stop(); } catch(e){}
+      }, fadeTime * 1000);
+      this.currentSource = null;
+      this.currentTrackGain = null;
+    }
+
+    this.stopFallbackBgm();
+    this.currentTrack = trackKey;
+
+    const buffer = this.audioBuffers[trackKey];
+    if (buffer) {
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.loop = loop;
+
+      const trackGain = this.ctx.createGain();
+      trackGain.gain.setValueAtTime(0.001, now);
+      trackGain.gain.linearRampToValueAtTime(0.35, now + fadeTime);
+
+      source.connect(trackGain);
+      trackGain.connect(this.bgmGain);
+
+      source.start(0);
+      this.currentSource = source;
+      this.currentTrackGain = trackGain;
+    } else {
+      const url = this.bgmUrls[trackKey];
+      if (url) {
+        this.preloadTrack(trackKey, url).then(() => {
+          if (this.currentTrack === trackKey && this.audioBuffers[trackKey]) {
+            this.playBgm(trackKey, loop);
+          }
+        });
+      }
+      this.startFallbackBgm(trackKey);
+    }
+  },
+
+  startBgm(mode = "battle") {
+    let target = mode;
+    if (mode === "battle") {
+      target = (typeof GameApp !== "undefined" && GameApp.selectedStage) ? GameApp.selectedStage.id : "pallet";
+    }
+    this.playBgm(target, true);
+  },
+
+  stopBgm() {
+    this.stopFallbackBgm();
+    if (this.currentSource) {
+      try { this.currentSource.stop(); } catch(e){}
+      this.currentSource = null;
+    }
+    this.currentTrack = null;
+  },
+
+  startFallbackBgm(mode) {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+    this.stopFallbackBgm();
+
+    const isBoss = mode === "boss";
+    const isLobby = mode === "lobby";
+    const bpm = isBoss ? 148 : (isLobby ? 110 : 132);
+    const stepTime = 60 / bpm / 2;
+    const battleNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 329.63, 293.66, 392.00];
+    const bossNotes   = [196.00, 220.00, 246.94, 261.63, 329.63, 246.94, 220.00, 196.00];
+    const lobbyNotes  = [329.63, 392.00, 440.00, 523.25, 440.00, 392.00, 349.23, 293.66];
+    const notes = isBoss ? bossNotes : (isLobby ? lobbyNotes : battleNotes);
+    let noteIdx = 0;
+
+    this.fallbackTimer = setInterval(() => {
+      if (this.muted || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.bgmGain);
+
+        osc.type = isBoss ? "sawtooth" : (isLobby ? "triangle" : "square");
+        osc.frequency.setValueAtTime(notes[noteIdx % notes.length], now);
+        gain.gain.setValueAtTime(0.025, now);
+        gain.gain.exponentialRampToValueAtTime(0.002, now + stepTime * 0.85);
+
+        osc.start(now);
+        osc.stop(now + stepTime * 0.9);
+        noteIdx++;
+      } catch (e) {}
+    }, stepTime * 1000);
+  },
+
+  stopFallbackBgm() {
+    if (this.fallbackTimer) {
+      clearInterval(this.fallbackTimer);
+      this.fallbackTimer = null;
+    }
+  },
+
+  toggleMute() {
+    this.muted = !this.muted;
+    if (this.bgmGain && this.ctx) {
+      this.bgmGain.gain.setValueAtTime(this.muted ? 0 : 0.35, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.muted ? 0 : 0.40, this.ctx.currentTime);
+    }
+    return this.muted;
   },
 
   play(type) {
-    if (this.muted || !this.ctx) return;
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.sfxGain || this.ctx.destination);
 
       if (type === "hit") {
         osc.type = "sawtooth";
@@ -806,63 +975,9 @@ const SoundFX = {
         osc.stop(now + 0.35);
       }
     } catch (e) {}
-  },
-
-  startBgm(mode = "battle") {
-    this.currentBgmMode = mode;
-    if (this.muted || !this.ctx) return;
-    this.stopBgm();
-
-    const bpm = mode === "boss" ? 148 : (mode === "battle" ? 132 : 110);
-    const stepTime = 60 / bpm / 2;
-    const battleNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 329.63, 293.66, 392.00];
-    const bossNotes   = [196.00, 220.00, 246.94, 261.63, 329.63, 246.94, 220.00, 196.00];
-    const lobbyNotes  = [329.63, 392.00, 440.00, 523.25, 440.00, 392.00, 349.23, 293.66];
-    const notes = mode === "boss" ? bossNotes : (mode === "battle" ? battleNotes : lobbyNotes);
-    let noteIdx = 0;
-
-    this.bgmTimer = setInterval(() => {
-      if (this.muted || !this.ctx) return;
-      try {
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.type = mode === "boss" ? "sawtooth" : (mode === "battle" ? "square" : "triangle");
-        osc.frequency.setValueAtTime(notes[noteIdx % notes.length], now);
-        gain.gain.setValueAtTime(0.035, now);
-        gain.gain.exponentialRampToValueAtTime(0.005, now + stepTime * 0.85);
-
-        osc.start(now);
-        osc.stop(now + stepTime * 0.9);
-        noteIdx++;
-      } catch (e) {}
-    }, stepTime * 1000);
-  },
-
-  stopBgm() {
-    if (this.bgmTimer) {
-      clearInterval(this.bgmTimer);
-      this.bgmTimer = null;
-    }
-  },
-
-  toggleMute() {
-    this.muted = !this.muted;
-    if (this.muted) this.stopBgm();
-    else if (this.ctx) this.startBgm(this.currentBgmMode);
-    return this.muted;
   }
 };
-/**
- * ============================================================================
- * 新增：友好商店 TM 招式學習機貨架資料庫 & 精靈天生三招對照表
- * ============================================================================
- */
 
-// 友好商店專用跨屬性 TM 學習機清單 (售價、編號、屬性與圖示)
 const TM_CATALOG = {
   Flamethrower: { id: "Flamethrower", tmNo: "TM35", name: "噴射火焰", type: "Fire", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-fire.png", desc: "朝身前噴吐直線貫穿高溫烈焰，造成高頻灼傷輸出。" },
   HydroPump:    { id: "HydroPump",    tmNo: "TM55", name: "水炮",     type: "Water", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-water.png", desc: "發射高壓衝擊水流，強力推開身前一整排敵人。" },

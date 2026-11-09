@@ -1019,6 +1019,7 @@ window.GameApp = {
     tc.facingX = p.facingX;
     tc.facingY = p.facingY;
     tc.walkBob = p.walkBob;
+    if (tc.whiteFlashTimer > 0) tc.whiteFlashTimer -= dt;
 
     // 主角起跳跨越木頭/懸崖時，訓練家無縫同步跟進起跳
     if (p.isJumpingLedge && !tc.isJumpingLedge) {
@@ -1654,10 +1655,154 @@ window.GameApp = {
       }
 
       const inView = Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH;
-      if (inView && (e.isElite || e.isBoss) && !e.treasureType) {
+      if (inView && e.isBoss && !e.treasureType) {
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 1.5) - dt;
+        if (e.rangedCd <= 0) {
+          const isEnraged = (e.hp / e.maxHp) <= 0.5; // 血量低於 50% 觸發狂暴強化
+          e.rangedCd = isEnraged ? (1.8 + Math.random() * 0.7) : (2.4 + Math.random() * 0.9);
+
+          const baseAng = Math.atan2(p.y - e.y, p.x - e.x);
+
+          // 1. 急凍鳥 (#144) —— 扇形三叉冰錐 (速度 220px/s，快於玩家跑速，附帶 40% 減速)
+          if (e.id === 144) {
+            const spreadAngles = [-0.26, 0, 0.26];
+            spreadAngles.forEach(angOffset => {
+              const ang = baseAng + angOffset;
+              this.enemyProjectiles.push({
+                x: e.x + Math.cos(ang) * (e.radius + 10),
+                y: e.y + Math.sin(ang) * (e.radius + 10),
+                vx: Math.cos(ang) * 220,
+                vy: Math.sin(ang) * 220,
+                angle: ang, radius: 10,
+                dmg: Math.round(e.atk * 0.85),
+                color: "#38BDF8", vfx: "frost_lance",
+                statusEffect: "Freeze", statusChance: 0.45,
+                life: 3.5, rot: 0
+              });
+            });
+
+            // 狂暴強化 (<50% HP)：原地爆發 8 向環形暴風雪冰晶
+            if (isEnraged) {
+              for (let k = 0; k < 8; k++) {
+                const ringAng = (k * Math.PI * 2) / 8 + Math.random() * 0.2;
+                this.enemyProjectiles.push({
+                  x: e.x, y: e.y,
+                  vx: Math.cos(ringAng) * 175,
+                  vy: Math.sin(ringAng) * 175,
+                  angle: ringAng, radius: 9,
+                  dmg: Math.round(e.atk * 0.75),
+                  color: "#BAE6FD", vfx: "frost_lance",
+                  statusEffect: "Freeze", statusChance: 0.35,
+                  life: 3.0, rot: 0
+                });
+              }
+              this.spawnParticleCluster(e.x, e.y, "#BAE6FD", "#38BDF8", 16, "star", 1.2);
+            }
+          }
+
+          // 2. 閃電鳥 (#145) —— 預判高速雙聯金羽 (255px/s) + 慢速引力追蹤雷球
+          else if (e.id === 145) {
+            [-0.12, 0.12].forEach(angOffset => {
+              const ang = baseAng + angOffset;
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(ang) * 255, vy: Math.sin(ang) * 255,
+                angle: ang, radius: 9,
+                dmg: Math.round(e.atk * 0.80),
+                color: "#FACC15", vfx: "swift_star",
+                statusEffect: "Paralysis", statusChance: 0.35,
+                life: 3.0, rot: 0
+              });
+            });
+
+            const homingCount = isEnraged ? 2 : 1;
+            for (let h = 0; h < homingCount; h++) {
+              const hAng = baseAng + (h === 0 ? 0 : 0.4);
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(hAng) * 105, vy: Math.sin(hAng) * 105,
+                angle: hAng, radius: 14,
+                dmg: Math.round(e.atk * 0.95),
+                color: "#FDE047", vfx: "storm_orb",
+                homing: true, statusEffect: "Paralysis", statusChance: 0.60,
+                life: 4.5, rot: 0
+              });
+            }
+          }
+
+          // 3. 火焰鳥 (#146) —— 大字巨炎彈 (半徑 15px，命中灼傷)，撞擊後十字二次分裂
+          else if (e.id === 146) {
+            const count = isEnraged ? 2 : 1;
+            for (let f = 0; f < count; f++) {
+              const fAng = baseAng + (count > 1 ? (f === 0 ? -0.2 : 0.2) : 0);
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(fAng) * 195, vy: Math.sin(fAng) * 195,
+                angle: fAng, radius: 15,
+                dmg: Math.round(e.atk * 1.10),
+                color: "#EF4444", vfx: "fire_blast_orb",
+                statusEffect: "Burn", statusChance: 0.50,
+                canSplit: true, isEnragedSplit: isEnraged,
+                life: 2.5, rot: 0
+              });
+            }
+          }
+
+          // 4. 超夢 (#150) —— 巨型引力黑核 (直徑 36px，微牽引走位) + 8向暗影波
+          else if (e.id === 150) {
+            this.enemyProjectiles.push({
+              x: e.x, y: e.y,
+              vx: Math.cos(baseAng) * 155, vy: Math.sin(baseAng) * 155,
+              angle: baseAng, radius: 18,
+              dmg: Math.round(e.atk * 1.30),
+              color: "#A855F7", vfx: "psychic_core",
+              isSuction: true, statusEffect: "Confusion", statusChance: 0.40,
+              life: 4.0, rot: 0
+            });
+
+            if (isEnraged) {
+              for (let p = 0; p < 8; p++) {
+                const pAng = (p * Math.PI * 2) / 8 + baseAng;
+                this.enemyProjectiles.push({
+                  x: e.x, y: e.y,
+                  vx: Math.cos(pAng) * 210, vy: Math.sin(pAng) * 210,
+                  angle: pAng, radius: 10,
+                  dmg: Math.round(e.atk * 0.80),
+                  color: "#C084FC", vfx: "psy_wave",
+                  statusEffect: "Confusion", statusChance: 0.25,
+                  life: 3.0, rot: 0
+                });
+              }
+            }
+          }
+
+          // 5. 夢幻 (#151) —— 5 連發（狂暴 10 連發）彩虹混色速射彈
+          else if (e.id === 151) {
+            const mCount = isEnraged ? 10 : 5;
+            for (let m = 0; m < mCount; m++) {
+              const spread = (Math.random() - 0.5) * 0.75;
+              const mAng = baseAng + spread;
+              const rainbowColors = ["#EF4444", "#38BDF8", "#FACC15", "#22C55E", "#EC4899"];
+              const pickColor = rainbowColors[m % rainbowColors.length];
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(mAng) * 230, vy: Math.sin(mAng) * 230,
+                angle: mAng, radius: 9,
+                dmg: Math.round(e.atk * 0.70),
+                color: pickColor, vfx: "rainbow_star",
+                statusEffect: m % 2 === 0 ? "Paralysis" : "Burn", statusChance: 0.20,
+                life: 3.0, rot: 0
+              });
+            }
+          }
+
+          // 保持觸發原本的地面大招
+          this.spawnEnemyTelegraphAttack(e);
+        }
+      } else if (inView && e.isElite && !e.treasureType) {
         e.rangedCd -= dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = e.isBoss ? 2.6 : 3.0;
+          e.rangedCd = 3.0;
           this.spawnEnemyTelegraphAttack(e);
         }
       } else if (inView && !e.treasureType && [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(e.id)) {
@@ -1709,18 +1854,26 @@ window.GameApp = {
         p.invulnTimer = hasMelee ? 0.75 : 0.50;
 
         if (hitTrainer && !hitPoke) {
-          this.camera.shakeTime = 0.24;
-          this.camera.shakeMagnitude = 7.5;
+          this.camera.shakeTime = 0.28;
+          this.camera.shakeMagnitude = 8.0;
           p.trainerSkillCd = Math.min(p.trainerSkillMaxCd, p.trainerSkillCd + 1.5);
+
+          // 訓練家受創被撞退 12px 踉蹌反饋
+          const stumbleAng = Math.atan2(tc.y - e.y, tc.x - e.x);
+          tc.x += Math.cos(stumbleAng) * 12;
+          tc.y += Math.sin(stumbleAng) * 12;
+          tc.whiteFlashTimer = 0.16;
+
           this.spawnFloatingText(tc.x, tc.y - 25, `訓練家受創 -${dmg}!`, "#EF4444", 15);
-          this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 10, "star", 0.8);
+          this.spawnFloatingText(tc.x, tc.y - 42, "⏳ 大招冷卻 +1.5s!", "#F59E0B", 13);
+          this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 12, "star", 0.8);
           SoundFX.play("hit");
         } else {
-          p.whiteFlashTimer = 0.12;
-          this.camera.shakeTime = 0.15;
-          this.camera.shakeMagnitude = 4.5;
+          p.whiteFlashTimer = 0.18; // 延長至 0.18s
+          this.camera.shakeTime = 0.18;
+          this.camera.shakeMagnitude = 5.0;
           this.hitStopTimer = 0.05;
-          this.spawnParticleCluster(p.x, p.y, "#EF4444", "#FFFFFF", 8, "star", 0.7);
+          this.spawnParticleCluster(p.x, p.y, "#EF4444", "#FFFFFF", 10, "star", 0.7);
           this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 15);
           SoundFX.play("hit");
         }
@@ -1891,12 +2044,32 @@ window.GameApp = {
 
     for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
       const ep = this.enemyProjectiles[i];
+
+      // 追蹤彈微修正角度 (閃電鳥追蹤電磁核等)
+      if (ep.homing) {
+        const curDesired = Math.atan2(p.y - ep.y, p.x - ep.x);
+        const curSpd = Math.hypot(ep.vx, ep.vy);
+        ep.vx = ep.vx * 0.92 + Math.cos(curDesired) * curSpd * 0.08;
+        ep.vy = ep.vy * 0.92 + Math.sin(curDesired) * curSpd * 0.08;
+        ep.angle = Math.atan2(ep.vy, ep.vx);
+      }
+
+      // 引力黑核微弱吸扯玩家 (超夢巨型黑核)
+      if (ep.isSuction) {
+        const d = Math.hypot(p.x - ep.x, p.y - ep.y);
+        if (d < 180 && d > 20) {
+          const pullAng = Math.atan2(ep.y - p.y, ep.x - p.x);
+          p.x += Math.cos(pullAng) * 35 * dt;
+          p.y += Math.sin(pullAng) * 35 * dt;
+        }
+      }
+
       ep.x += ep.vx * dt;
       ep.y += ep.vy * dt;
-      ep.rot += dt * 4;
+      ep.rot += dt * 5;
       ep.life -= dt;
 
-      // 檢查是否擊中主角或隨行訓練家
+      // 檢查是否擊中主角精靈或隨行訓練家
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
@@ -1906,23 +2079,75 @@ window.GameApp = {
         const shieldMult = p.shieldTimer > 0 ? 0.5 : 1.0;
         const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
         p.hp -= dmg;
-        p.invulnTimer = 0.40;
+        p.invulnTimer = 0.55; // 賦予無敵硬直時間
 
-        if (hitTrainer && !hitPoke) {
-          this.camera.shakeTime = 0.24;
-          this.camera.shakeMagnitude = 7.5;
-          p.trainerSkillCd = Math.min(p.trainerSkillMaxCd, p.trainerSkillCd + 1.5);
-          this.spawnFloatingText(tc.x, tc.y - 20, `訓練家受創 -${dmg}!`, "#EF4444", 14);
-          this.spawnParticleCluster(tc.x, tc.y, ep.color, "#EF4444", 8, "star", 0.7);
-        } else {
-          p.whiteFlashTimer = 0.12;
-          this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 14);
-          this.spawnParticleCluster(ep.x, ep.y, ep.color, "#FFFFFF", 8, "star", 0.7);
+        // 狀態賦予判定 (普通怪子彈依 vfx 判定，神獸子彈依 statusEffect 判定)
+        let inflictedStatus = ep.statusEffect || null;
+        let inflictedChance = ep.statusChance || 0;
+        let duration = 2.5;
+
+        if (!inflictedStatus) {
+          if (ep.vfx === "poison_orb")   { inflictedStatus = "Poison"; inflictedChance = 0.30; duration = 3.5; }
+          else if (ep.vfx === "swift_star") { inflictedStatus = "Paralysis"; inflictedChance = 0.25; duration = 1.8; }
+          else if (ep.vfx === "wind_bullet") { inflictedStatus = "Confusion"; inflictedChance = 0.20; duration = 1.2; }
+          else if (ep.vfx === "water_drop") { inflictedStatus = "Freeze"; inflictedChance = 0.20; duration = 1.5; }
+          else if (ep.vfx === "leaf_bullet") {
+            // 物理擊退：將精靈推後 10px
+            const pushAng = Math.atan2(p.y - ep.y, p.x - ep.x);
+            p.x += Math.cos(pushAng) * 10;
+            p.y += Math.sin(pushAng) * 10;
+          }
         }
 
-        SoundFX.play("hit");
-        this.enemyProjectiles.splice(i, 1);
+        if (inflictedStatus && Math.random() < inflictedChance && !p.status) {
+          p.status = inflictedStatus;
+          p.statusTimer = duration;
+          const statusNames = { Poison: "中毒!", Paralysis: "麻痺!", Confusion: "混亂反向!", Freeze: "減速遲緩!", Burn: "灼傷!" };
+          this.spawnFloatingText(p.x, p.y - 32, statusNames[inflictedStatus] || "異常!", "#F43F5E", 14);
+        }
 
+        // 火焰鳥大字炎巨彈分裂火星
+        if (ep.canSplit) {
+          const splitAngles = ep.isEnragedSplit ? [0, 0.78, 1.57, 2.35, 3.14, 3.92, 4.71, 5.49] : [0, Math.PI/2, Math.PI, Math.PI * 1.5];
+          splitAngles.forEach(sAng => {
+            this.enemyProjectiles.push({
+              x: ep.x, y: ep.y,
+              vx: Math.cos(sAng) * 160, vy: Math.sin(sAng) * 160,
+              angle: sAng, radius: 7, dmg: Math.round(ep.dmg * 0.45),
+              color: "#F97316", vfx: "fire_spark",
+              life: 1.2, rot: 0
+            });
+          });
+        }
+
+        // A. 訓練家受創反饋 (強化版)
+        if (hitTrainer && !hitPoke) {
+          this.camera.shakeTime = 0.28;
+          this.camera.shakeMagnitude = 8.0;
+          p.trainerSkillCd = Math.min(p.trainerSkillMaxCd, p.trainerSkillCd + 1.5);
+
+          // 踉蹌後退：遠離子彈向量被推開 12px
+          const stumbleAng = Math.atan2(tc.y - ep.y, tc.x - ep.x);
+          tc.x += Math.cos(stumbleAng) * 12;
+          tc.y += Math.sin(stumbleAng) * 12;
+          tc.whiteFlashTimer = 0.16; // 訓練家受創閃爍
+
+          this.spawnFloatingText(tc.x, tc.y - 25, `訓練家受創 -${dmg}!`, "#EF4444", 15);
+          this.spawnFloatingText(tc.x, tc.y - 42, "⏳ 大招冷卻 +1.5s!", "#F59E0B", 13);
+          this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 12, "star", 0.8);
+          SoundFX.play("hit");
+        } 
+        // B. 精靈主角受創反饋 (強化版)
+        else {
+          p.whiteFlashTimer = 0.18; // 延長至 0.18s 白閃
+          this.camera.shakeTime = 0.18;
+          this.camera.shakeMagnitude = 5.0;
+          this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 15);
+          this.spawnParticleCluster(ep.x, ep.y, ep.color || "#FFFFFF", "#EF4444", 10, "star", 0.7);
+          SoundFX.play("hit");
+        }
+
+        this.enemyProjectiles.splice(i, 1);
         if (p.hp <= 0) {
           p.hp = 0;
           this.triggerGameOver(false);
@@ -2654,6 +2879,10 @@ window.GameApp = {
       ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) {
+        // 訓練家受創橙紅閃爍
+        if (tc.whiteFlashTimer > 0) {
+          ctx.filter = "sepia(1) saturate(5) hue-rotate(-30deg) brightness(1.2)";
+        }
         if (tInWater) {
           ctx.save();
           ctx.beginPath();
@@ -2755,6 +2984,12 @@ window.GameApp = {
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
+      // 受傷無敵時間高頻半透明閃爍 (Sprite Blinking，經典 GBA 受創無敵反饋)
+      if (p.invulnTimer > 0) {
+        const blinkCycle = Math.floor(p.invulnTimer * 24) % 2;
+        ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
+      }
+
       // 涉水時下沉 10px，造成半身浸在水面感
       ctx.translate(px, py - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
@@ -2920,6 +3155,63 @@ window.GameApp = {
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
         ctx.fill();
+      } else if (ep.vfx === "frost_lance") {
+        // 急凍鳥：高速三叉尖銳冰錐
+        ctx.rotate(ep.angle);
+        ctx.fillStyle = "#38BDF8";
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(r * 1.6, 0); ctx.lineTo(-r * 0.8, -r * 0.6); ctx.lineTo(-r * 0.3, 0); ctx.lineTo(-r * 0.8, r * 0.6);
+        ctx.closePath();
+        ctx.fill(); ctx.stroke();
+      } else if (ep.vfx === "storm_orb") {
+        // 閃電鳥：旋轉追蹤電磁核
+        ctx.rotate(ep.rot * 3);
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.2; ctx.stroke();
+        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.stroke();
+      } else if (ep.vfx === "fire_blast_orb") {
+        // 火焰鳥：大字炎巨彈
+        ctx.rotate(ep.rot * 2);
+        ctx.fillStyle = "#EF4444";
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#FDE047";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#7F1D1D"; ctx.lineWidth = 1.8; ctx.stroke();
+      } else if (ep.vfx === "fire_spark") {
+        // 大字炎分裂小火星
+        ctx.rotate(ep.rot * 4);
+        ctx.fillStyle = "#F97316";
+        ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
+      } else if (ep.vfx === "psychic_core") {
+        // 超夢：暗影引力黑核
+        ctx.rotate(-ep.rot);
+        ctx.fillStyle = "#581C87";
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#C084FC"; ctx.lineWidth = 3.0; ctx.stroke();
+        ctx.fillStyle = "#F3E8FF";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      } else if (ep.vfx === "rainbow_star") {
+        // 夢幻：五色彩虹星芒
+        ctx.rotate(ep.rot * 4);
+        ctx.fillStyle = ep.color || "#EC4899";
+        ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
+      } else if (ep.vfx === "psy_wave") {
+        // 超能精神衝擊波：旋轉雙層同心光環
+        ctx.rotate(ep.rot * 3);
+        ctx.strokeStyle = ep.color || "#C084FC";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.stroke();
       } else {
         // 毒氣/能量球：外溢光環與白色高光核心
         ctx.rotate(ep.rot);
