@@ -23,16 +23,21 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
-      touch-action: manipulation;
+      touch-action: none;
     }
 
-    body {
+    html, body {
       margin: 0;
       padding: 0;
-      overflow: hidden;
+      overflow: hidden !important;
+      position: fixed;
+      width: 100%;
+      height: 100%;
       background-color: #0f172a;
       font-family: 'Noto Sans TC', sans-serif;
       color: #1e293b;
+      -webkit-text-size-adjust: none;
+      touch-action: none;
     }
 
     .font-pixel {

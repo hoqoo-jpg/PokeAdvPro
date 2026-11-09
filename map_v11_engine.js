@@ -317,13 +317,19 @@ const MapEngine = {
         const chunk = this.getBiomeChunk(cx + dx, cy + dy);
 
         for (const ob of chunk.obstacles) {
-          // 若為木樁且玩家正向下移動，觸發跨越跳木樁動作
-          if (ob.kind === "fallen_log" && isPlayer && ent.vy > 0 && ent.y >= ob.y - 18 && ent.y <= ob.y + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
-            if (!ent.isJumpingLedge) {
-              ent.isJumpingLedge = true;
-              ent.jumpTimer = 0;
+          // 方案 A：橫木 (fallen_log) 跨越與防卡邏輯
+          if (ob.kind === "fallen_log") {
+            // 怪物追擊主角時，直接允許跨越橫木忽略剛體碰撞，不再被卡死！
+            if (!isPlayer) continue;
+
+            // 玩家向下移動時觸發跨躍起跳
+            if (ent.vy > 0 && ent.y >= ob.y - 18 && ent.y <= ob.y + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
+              if (!ent.isJumpingLedge) {
+                ent.isJumpingLedge = true;
+                ent.jumpTimer = 0;
+              }
+              continue;
             }
-            continue;
           }
           if (ent.isJumpingLedge && ob.kind === "fallen_log") continue;
 

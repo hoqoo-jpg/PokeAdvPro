@@ -244,6 +244,20 @@ window.GameApp = {
         e.stopPropagation();
       }, { passive: true });
     });
+
+    // 解決 iOS 搖桿卡死與畫面被誤縮放放大：徹底攔截 Safari 雙指手勢與快速雙擊放大
+    document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
+    document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
+
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = performance.now();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
   },
 
   // 開發者測試工具全套實裝
@@ -1072,9 +1086,9 @@ window.GameApp = {
     });
 
     if (!this.debugWeatherLock && !this.activeBoss) {
-      this.weatherCycleTimer = (this.weatherCycleTimer || 75) - dt;
+      this.weatherCycleTimer = (this.weatherCycleTimer || 80) - dt;
       if (this.weatherCycleTimer <= 0) {
-        this.weatherCycleTimer = 75; // 每 75 秒隨機輪替一次
+        this.weatherCycleTimer = 80; // 每 80 秒隨機輪替一次，錯開吉利蛋 38s 刷新
         const weatherPool = ["CLEAR", "RAIN", "THUNDER", "BLIZZARD", "HEATWAVE", "PSYCHIC"];
         const available = weatherPool.filter(w => w !== MapEngine.weather);
         const nextWeather = available[Math.floor(Math.random() * available.length)] || "CLEAR";
@@ -1094,7 +1108,7 @@ window.GameApp = {
           HEATWAVE: "炎熱高溫！火系威力+25%，灼傷扣血速率提升50%！",
           PSYCHIC: "極光籠罩！超能/幽靈暴擊率+15%，技能冷卻-8%！"
         };
-        this.showCutsceneBanner(`【氣候異變：${weatherNames[nextWeather]}】`, weatherEffects[nextWeather] || "環境異變！", 3200);
+        this.showCutsceneBanner(`【氣候異變：${weatherNames[nextWeather]}】`, weatherEffects[nextWeather] || "環境異變！", 3800);
         SoundFX.play("super");
       }
     }
@@ -1313,7 +1327,7 @@ window.GameApp = {
       statusTimer: 0,
       statusTick: 0,
       ccImmunityTimer: 0,
-      rangedCd: 2.5 + Math.random() * 2.0,
+      rangedCd: 0.05, // 生成時即刻準備，進場立即開火第一發！
       whiteFlashTimer: 0,
       weightTier: pick.weightTier || "light",
       kbResist: pick.kbResist !== undefined ? pick.kbResist : 0.0
@@ -1648,9 +1662,9 @@ window.GameApp = {
         }
       } else if (inView && !e.treasureType && [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(e.id)) {
         // 具備遠程習性的普通精靈定期向主角發射動態飛行道具 (彈道射擊)
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (0.35 + Math.random() * 0.30)) - dt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.05) - dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = 2.4 + Math.random() * 1.2; // 縮短至 2.4~3.6s，形成有節奏的躲避挑戰
+          e.rangedCd = 2.5 + Math.random() * 1.3; // 射出後進入 2.5~3.8s 常規冷卻
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
           const pSpd = 135;
           
