@@ -46,6 +46,7 @@ window.GameApp = {
   mapItems: [],
   activeBoss: null,
   telegraphs: [],
+  enemyProjectiles: [],
 
   // 8 分鐘快局時間軸
   runTime: 0,
@@ -609,6 +610,7 @@ window.GameApp = {
     this.gems = [];
     this.mapItems = [];
     this.telegraphs = [];
+    this.enemyProjectiles = [];
     this.activeBoss = null;
     this.debugWeatherLock = false;
     this.skillDamageStats = {};
@@ -1100,6 +1102,7 @@ window.GameApp = {
     SkillsEngine.update(dt);
     this.updateSpawners(dt);
     this.updateTelegraphs(dt);
+    this.updateEnemyProjectiles(dt);
     this.updateEnemies(dt);
     this.updateLootAndGems(dt);
     this.updateMartInteraction(dt);
@@ -1630,23 +1633,33 @@ window.GameApp = {
           e.rangedCd = e.isBoss ? 2.6 : 3.0;
           this.spawnEnemyTelegraphAttack(e);
         }
-      } else if (inView && !e.treasureType && [23, 24, 69, 70, 109, 110, 116, 117].includes(e.id)) {
-        // 部分具備遠程習性的普通精靈（阿柏蛇/怪、喇叭芽/口呆花、瓦斯彈/雙彈瓦斯、墨海馬/海刺龍）定期噴吐慢速投射物
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (2.5 + Math.random() * 3.0)) - dt;
+      } else if (inView && !e.treasureType && [23, 24, 41, 42, 69, 70, 109, 110, 116, 117, 120].includes(e.id)) {
+        // 具備遠程習性的普通精靈定期向主角發射動態飛行道具 (彈道射擊)
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (2.0 + Math.random() * 2.5)) - dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = 4.2 + Math.random() * 2.0;
+          e.rangedCd = 3.6 + Math.random() * 1.8;
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
-          this.telegraphs.push({
-            shape: "circle",
-            owner: e,
-            x: e.x + Math.cos(sAng) * 28,
-            y: e.y + Math.sin(sAng) * 28,
-            radius: 18,
-            timer: 0.90,
-            maxTime: 0.90,
+          const pSpd = 135; // 慢速清晰的飛行子彈，方便玩家走位躲避
+          
+          let pColor = "#A855F7";
+          let pVfx = "poison_orb";
+          if ([69, 70].includes(e.id)) { pColor = "#22C55E"; pVfx = "leaf_bullet"; }
+          else if ([116, 117].includes(e.id)) { pColor = "#38BDF8"; pVfx = "water_drop"; }
+          else if ([41, 42].includes(e.id)) { pColor = "#818CF8"; pVfx = "wind_bullet"; }
+          else if (e.id === 120) { pColor = "#FACC15"; pVfx = "swift_star"; }
+
+          this.enemyProjectiles.push({
+            x: e.x + Math.cos(sAng) * (e.radius + 6),
+            y: e.y + Math.sin(sAng) * (e.radius + 6),
+            vx: Math.cos(sAng) * pSpd,
+            vy: Math.sin(sAng) * pSpd,
+            angle: sAng,
+            radius: 8.5,
             dmg: Math.max(1, Math.round(e.atk * 0.75)),
-            color: [23, 24, 109, 110].includes(e.id) ? "#A855F7" : ([69, 70].includes(e.id) ? "#22C55E" : "#38BDF8"),
-            isBoss: false
+            color: pColor,
+            vfx: pVfx,
+            life: 3.2,
+            rot: 0
           });
         }
       }
@@ -1838,6 +1851,59 @@ window.GameApp = {
         });
 
         this.telegraphs.splice(i, 1);
+      }
+    }
+  },
+
+  updateEnemyProjectiles(dt) {
+    const p = this.player;
+    if (!p) return;
+    const tc = this.trainerCompanion;
+
+    for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
+      const ep = this.enemyProjectiles[i];
+      ep.x += ep.vx * dt;
+      ep.y += ep.vy * dt;
+      ep.rot += dt * 4;
+      ep.life -= dt;
+
+      // 檢查是否擊中主角或隨行訓練家
+      const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
+      const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
+      const hitPoke = distToPoke < ep.radius + 14;
+      const hitTrainer = tc && (distToTrainer < ep.radius + 15);
+
+      if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        const shieldMult = p.shieldTimer > 0 ? 0.5 : 1.0;
+        const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
+        p.hp -= dmg;
+        p.invulnTimer = 0.40;
+
+        if (hitTrainer && !hitPoke) {
+          this.camera.shakeTime = 0.24;
+          this.camera.shakeMagnitude = 7.5;
+          p.trainerSkillCd = Math.min(p.trainerSkillMaxCd, p.trainerSkillCd + 1.5);
+          this.spawnFloatingText(tc.x, tc.y - 20, `訓練家受創 -${dmg}!`, "#EF4444", 14);
+          this.spawnParticleCluster(tc.x, tc.y, ep.color, "#EF4444", 8, "star", 0.7);
+        } else {
+          p.whiteFlashTimer = 0.12;
+          this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 14);
+          this.spawnParticleCluster(ep.x, ep.y, ep.color, "#FFFFFF", 8, "star", 0.7);
+        }
+
+        SoundFX.play("hit");
+        this.enemyProjectiles.splice(i, 1);
+
+        if (p.hp <= 0) {
+          p.hp = 0;
+          this.triggerGameOver(false);
+          return;
+        }
+        continue;
+      }
+
+      if (ep.life <= 0) {
+        this.enemyProjectiles.splice(i, 1);
       }
     }
   },
@@ -2748,6 +2814,35 @@ window.GameApp = {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
     SkillsEngine.render(ctx, toSx, toSy);
+
+    // 繪製敵方動態飛行道具
+    this.enemyProjectiles.forEach(ep => {
+      const esx = toSx(ep.x), esy = toSy(ep.y);
+      if (esx < -20 || esx > this.width + 20 || esy < -20 || esy > this.height + 20) return;
+
+      ctx.save();
+      ctx.translate(esx, esy);
+      ctx.rotate(ep.rot);
+
+      // 外層屬性光暈
+      ctx.fillStyle = ep.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, ep.radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 內層高光核心
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.arc(0, 0, ep.radius * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 像素黑邊描繪
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+
+      ctx.restore();
+    });
 
     this.particles.forEach(pt => {
       const sx = toSx(pt.x), sy = toSy(pt.y);
