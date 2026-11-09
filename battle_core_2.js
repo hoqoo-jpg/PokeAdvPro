@@ -508,15 +508,23 @@ window.GameApp = {
   },
   startGameRun() {
     SoundFX.init();
-    SoundFX.startBgm("battle");
+    const stageId = (this.selectedStage && this.selectedStage.id) ? this.selectedStage.id : "pallet";
+    SoundFX.playBgm(stageId, true);
 
-    // 徹底隱藏大廳與設定彈窗，並重置行內 display 樣式
-    const setupEl = document.getElementById("setupModal");
-    if (setupEl) { setupEl.classList.add("hidden"); setupEl.style.display = "none"; }
-    const titleEl = document.getElementById("titleScreen");
-    if (titleEl) { titleEl.classList.add("hidden"); titleEl.style.display = "none"; }
-    const endEl = document.getElementById("endModal");
-    if (endEl) { endEl.classList.add("hidden"); endEl.style.display = "none"; }
+    // 徹底隱藏大廳、結算以及所有局內可能殘留的彈窗
+    ["setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal"].forEach(mId => {
+      const el = document.getElementById(mId);
+      if (el) { el.classList.add("hidden"); el.style.display = "none"; }
+    });
+
+    // 重置幀時間戳與打擊停頓，防止首幀時間差爆炸造成瞬移或物理崩潰
+    this.lastFrameTime = performance.now();
+    this.hitStopTimer = 0;
+    this.camera.shakeTime = 0;
+    this.camera.shakeMagnitude = 0;
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
 
     // 關鍵修復：重新遊玩時，清除 quitToTitle 殘留的 inline style.display = "none"，強制展現 HUD UI
     const hudEl = document.getElementById("hudLayer");
@@ -641,6 +649,8 @@ window.GameApp = {
     this.treasureSpawnTimer = 38;
     this.magnetSpawnTimer = 35;
 	this.martSpawnTimer = 110;
+    this.rocketEventTriggered = false;
+    this.taurosStampedeTriggered = false;
     this.birdBossSpawned = false;
     this.mewtwoBossSpawned = false;
     this.secretMewSpawned = false;
@@ -1655,6 +1665,8 @@ window.GameApp = {
       }
 
       const inView = Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH;
+
+      // 1. 神獸 Boss 彈幕與地毯技能
       if (inView && e.isBoss && !e.treasureType) {
         e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 1.5) - dt;
         if (e.rangedCd <= 0) {
@@ -1799,20 +1811,26 @@ window.GameApp = {
           // 保持觸發原本的地面大招
           this.spawnEnemyTelegraphAttack(e);
         }
-      } else if (inView && e.isElite && !e.treasureType) {
-        e.rangedCd -= dt;
-        if (e.rangedCd <= 0) {
-          e.rangedCd = 3.0;
+      }
+
+      // 2. 精英怪地面預警招式 (獨立執行，不再阻斷遠程射擊)
+      if (inView && e.isElite && !e.treasureType && !e.isBoss) {
+        e.eliteTelegraphCd = (e.eliteTelegraphCd !== undefined ? e.eliteTelegraphCd : 3.0) - dt;
+        if (e.eliteTelegraphCd <= 0) {
+          e.eliteTelegraphCd = 3.5;
           this.spawnEnemyTelegraphAttack(e);
         }
-      } else if (inView && !e.treasureType && [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(e.id)) {
-        // 具備遠程習性的普通精靈定期向主角發射動態飛行道具 (彈道射擊)
+      }
+
+      // 3. 所有具備遠程習性的怪獸 (無論是普通怪、火箭隊精英阿柏怪 24 或雙彈瓦斯 110，均正常發射子彈！)
+      const rangedIds = [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120];
+      if (inView && !e.treasureType && !e.isBoss && rangedIds.includes(e.id)) {
         e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.05) - dt;
         if (e.rangedCd <= 0) {
-          e.rangedCd = 2.5 + Math.random() * 1.3; // 射出後進入 2.5~3.8s 常規冷卻
+          e.rangedCd = 2.4 + Math.random() * 1.3;
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
-          const pSpd = 135;
-          
+          const pSpd = 140;
+
           let pColor = "#A855F7";
           let pVfx = "poison_orb";
           if ([69, 70].includes(e.id)) { pColor = "#22C55E"; pVfx = "leaf_bullet"; }

@@ -32,10 +32,18 @@
       position: fixed;
       width: 100%;
       height: 100%;
+      height: 100dvh;
       background-color: #0f172a;
       font-family: 'Noto Sans TC', sans-serif;
       color: #1e293b;
       -webkit-text-size-adjust: none;
+    }
+
+    /* 支援 iOS Safari 底部安全區與動態視口 */
+    #titleScreen {
+      height: 100% !important;
+      height: 100dvh !important;
+      padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 16px) !important;
     }
 
     /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
@@ -778,10 +786,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js"></script>
-  <script src="map_v11_engine.js"></script>
-  <script src="skills_engine.js"></script>
-  <script src="battle_core_2.js"></script>
-  <script src="game_ui.js"></script>
+  <script src="pokedex_data.js?v=7.2"></script>
+  <script src="map_v11_engine.js?v=7.2"></script>
+  <script src="skills_engine.js?v=7.2"></script>
+  <script src="battle_core_2.js?v=7.2"></script>
+  <script src="game_ui.js?v=7.2"></script>
 </body>
 </html>
