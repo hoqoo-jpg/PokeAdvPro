@@ -49,13 +49,13 @@ const SkillsEngine = {
       ? Math.atan2(target.y - caster.y, target.x - caster.x)
       : (caster.facingX >= 0 ? 0 : Math.PI);
 
-    const countBonus = (level >= 3 ? 1 : 0) + (level >= 6 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? GameApp.player.projBonus : 0);
-    const count = Math.min(6, 1 + countBonus);
+    const countBonus = (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? GameApp.player.projBonus : 0);
+    const count = Math.min(4, 1 + countBonus);
 
     const isStab = (caster.data.type1 === meta.type || caster.data.type2 === meta.type);
     const stabMult = isStab ? 1.35 : 1.0;
 
-    const lvDmgMult = 1 + (level - 1) * 0.10 + (level === 10 ? 0.20 : 0);
+    const lvDmgMult = 1 + (level - 1) * 0.06 + (level === 10 ? 0.12 : 0);
 
     let stageBuffMult = 1.0;
     const stId = MapEngine.currentStage.id;
@@ -103,19 +103,19 @@ const SkillsEngine = {
     }
 
     if (skillId === "Thunderbolt") {
-      const maxStrikeRange = 220 * GameApp.player.areaMult;
+      const maxStrikeRange = 165 * GameApp.player.areaMult;
       const nearby = GameApp.enemies
         .filter(e => Math.hypot(e.x - caster.x, e.y - caster.y) <= maxStrikeRange)
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y));
 
       const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0);
-      const boltCount = Math.max(3, count + 2 + thunderBonus);
+      const boltCount = Math.max(3, count + 1 + thunderBonus);
       for (let b = 0; b < boltCount; b++) {
         const enemyTarget = nearby[b];
         let endX, endY;
         if (enemyTarget) {
           endX = enemyTarget.x; endY = enemyTarget.y;
-          GameApp.dealDamageToEnemy(enemyTarget, rawDmg, meta.type, level >= 5 ? 0.55 : 0.35, meta.knockback !== undefined ? meta.knockback : 2);
+          GameApp.dealDamageToEnemy(enemyTarget, rawDmg, meta.type, level >= 5 ? 0.25 : 0.18, meta.knockback !== undefined ? meta.knockback : 2);
         } else {
           const spreadAng = baseAngle + (b - (boltCount - 1) / 2) * 0.36;
           const rDist = (120 + Math.random() * 85) * GameApp.player.areaMult;
@@ -174,40 +174,35 @@ const SkillsEngine = {
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
     if (style === "martial_fist") {
-      const fistCount = Math.min(10, 4 + count + Math.floor(level / 2));
-      for (let f = 0; f < fistCount; f++) {
-        const ang = baseAngle + (f * (Math.PI * 2) / fistCount) * (level >= 5 ? 1 : 0.45);
-        const spd = 250 + (f % 3) * 45;
-        this.projectiles.push({
-          x: caster.x,
-          y: caster.y,
-          vx: Math.cos(ang) * spd,
-          vy: Math.sin(ang) * spd,
-          angle: ang,
-          spinSpeed: 2.8,
-          radius: 28 * areaScale,
-          dmg: rawDmg,
-          type: meta.type,
-          skillId: meta.id,
-          vfx: "giant_fist",
-          homing: false,
-          color: meta.color,
-          pierce: 4,
-          knockback: kb,
-          life: 0.58,
-          maxLife: 0.58,
-          statusBonus: 0.25,
-          hitSet: new Set(),
-          trailTimer: 0
+      // 空手劈回歸近身剛猛拳打：身前小半徑爆發短打連擊
+      const reach = 85 * areaScale;
+      const strikes = Math.min(3, 1 + Math.floor(level / 4));
+      for (let s = 0; s < strikes; s++) {
+        const fAng = baseAngle + (s - (strikes - 1) / 2) * 0.28;
+        const fx = caster.x + Math.cos(fAng) * (reach * 0.6);
+        const fy = caster.y + Math.sin(fAng) * (reach * 0.6);
+        this.meleeEffects.push({
+          style: "slam_wave",
+          x: fx,
+          y: fy,
+          radius: reach * 0.65,
+          timer: 0.28,
+          maxTime: 0.28,
+          color: meta.color
+        });
+        GameApp.enemies.forEach(e => {
+          if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.65 + e.radius) {
+            GameApp.dealDamageToEnemy(e, rawDmg * 1.25, meta.type, 0.30, kb * 1.35);
+          }
         });
       }
-      GameApp.spawnParticleCluster(caster.x, caster.y, "#FFFFFF", "#FEF08A", 16, "star", 1.1);
+      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 30, caster.y + Math.sin(baseAngle) * 30, "#FFFFFF", "#FEF08A", 12, "star", 1.0);
       SoundFX.play("hit");
       return;
     }
 
     if (style === "quake_wave" || style === "slam_wave") {
-      const rad = (style === "quake_wave" ? (130 + level * 8) : 115) * areaScale;
+      const rad = (style === "quake_wave" ? (85 + level * 4) : 95) * areaScale;
       this.meleeEffects.push({
         style,
         x: caster.x,

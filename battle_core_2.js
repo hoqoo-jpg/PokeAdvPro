@@ -1280,7 +1280,13 @@ window.GameApp = {
     const isShiny = Math.random() < shinyChance;
 
     const timeHpScale = 1 + (minutes * 0.80) + Math.pow(minutes / 2.3, 2.0) * 0.90;
-    let hp = Math.round((35 + pick.hp * 0.55) * timeHpScale * diff.hpMult * (isElite ? 3.8 : 1.0) * (isShiny ? 1.6 : 1.0));
+    let rawHp = (35 + pick.hp * 0.55) * timeHpScale * diff.hpMult * (isElite ? 3.8 : 1.0) * (isShiny ? 1.6 : 1.0);
+    // 遠程怪體質保底：防止在手機小螢幕邊界被一擊瞬秒，確保有機會出招
+    const isRangedMob = [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(pick.id);
+    if (isRangedMob && !isElite) {
+      rawHp = Math.max(110 * timeHpScale * diff.hpMult, rawHp * 1.35);
+    }
+    let hp = Math.round(rawHp);
     if (isElite && minutes >= 4.0) hp = Math.round(hp * 1.25);
 
     const atk = Math.round((8 + pick.atk * 0.35) * (1 + minutes * 0.15) * diff.atkMult * (isElite ? 1.45 : 1.0));
@@ -1642,7 +1648,7 @@ window.GameApp = {
         }
       } else if (inView && !e.treasureType && [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120].includes(e.id)) {
         // 具備遠程習性的普通精靈定期向主角發射動態飛行道具 (彈道射擊)
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (0.8 + Math.random() * 1.5)) - dt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : (0.35 + Math.random() * 0.30)) - dt;
         if (e.rangedCd <= 0) {
           e.rangedCd = 2.4 + Math.random() * 1.2; // 縮短至 2.4~3.6s，形成有節奏的躲避挑戰
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
@@ -2264,8 +2270,8 @@ window.GameApp = {
         {
           key: "protein",
           weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
-          title: "蛋白藥劑", subTitle: "全傷 +8%", typeBadge: "", sprite: ITEM_SPRITES.protein,
-          desc: "全面提升寶可夢所有招式傷害 +8%！", isNew: false, apply: () => { p.dmgMult *= 1.08; }
+          title: "蛋白藥劑", subTitle: "全傷 +5%", typeBadge: "", sprite: ITEM_SPRITES.protein,
+          desc: "全面提升寶可夢所有招式傷害 +5%！", isNew: false, apply: () => { p.dmgMult *= 1.05; }
         },
         {
           key: "hpUp",
