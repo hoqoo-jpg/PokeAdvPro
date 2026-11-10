@@ -84,6 +84,30 @@ function renderTypeBadgeHTML(type) {
 
 // 2. 招式資料庫 (已優化 iPhone 擊退抗性 knockback)
 const SKILLS_CATALOG = {
+      VineWhip: {
+    id: "VineWhip", name: "藤鞭", type: "Grass", baseDmg: 28, baseCd: 0.75,
+    knockback: 6, isMelee: true, meleeStyle: "vine_whip", reqItem: "miracle_seed",
+    evolvedName: "瘋狂植物", color: "#15803D",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+    desc: "甩動帶刺S型雙層藤蔓，兩側生出嫩芽，末端音爆鞭笞身前敵人！",
+    evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
+  },
+Ember: {
+    id: "Ember", name: "火花", type: "Fire", baseDmg: 25, baseCd: 0.85,
+    knockback: 0, isMelee: false, vfx: "ember_spark", reqItem: "charcoal",
+    evolvedName: "大字爆炎", color: "#F97316",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
+    desc: "噴吐數團跳動小火花，攻速極快，高頻引發灼傷！",
+    evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
+  },
+  WaterGun: {
+    id: "WaterGun", name: "水槍", type: "Water", baseDmg: 26, baseCd: 0.90,
+    knockback: 8, isMelee: false, vfx: "water_gun", reqItem: "mystic_water",
+    evolvedName: "潮旋激流", color: "#38BDF8",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
+    desc: "射出輕型高壓水流束，穿透身前小群敵人並產生推阻。",
+    evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
+  },
   Tackle: {
     id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 24, baseCd: 1.05,
     knockback: 8, isMelee: true, meleeStyle: "slam_wave", reqItem: "silk_scarf",
@@ -341,13 +365,13 @@ const BOSS_ATTACK_PATTERNS = {
 
 // 5. 關都 151 隻完整圖鑑資料庫
 const POKEMON_DB = [
-  { id: 1, name_zh: "妙蛙種子", type1: "Grass", type2: "Poison", hp: 120, atk: 49, speed: 45, skill: "Seed Bomb", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 2 },
+  { id: 1, name_zh: "妙蛙種子", type1: "Grass", type2: "Poison", hp: 120, atk: 49, speed: 45, skill: "VineWhip", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 2 },
   { id: 2, name_zh: "妙蛙草", type1: "Grass", type2: "Poison", hp: 160, atk: 62, speed: 60, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 32, evo_to: 3 },
   { id: 3, name_zh: "妙蛙花", type1: "Grass", type2: "Poison", hp: 220, atk: 82, speed: 80, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
-  { id: 4, name_zh: "小火龍", type1: "Fire", type2: "None", hp: 115, atk: 52, speed: 65, skill: "Flamethrower", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 5 },
+  { id: 4, name_zh: "小火龍", type1: "Fire", type2: "None", hp: 115, atk: 52, speed: 65, skill: "Ember", weightTier: "light", kbResist: 0.10, evo_level: 16, evo_to: 5 },
   { id: 5, name_zh: "火恐龍", type1: "Fire", type2: "None", hp: 155, atk: 64, speed: 80, skill: "Flamethrower", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 6 },
   { id: 6, name_zh: "噴火龍", type1: "Fire", type2: "Flying", hp: 215, atk: 84, speed: 100, skill: "Flamethrower", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
-  { id: 7, name_zh: "傑尼龜", type1: "Water", type2: "None", hp: 133, atk: 48, speed: 43, skill: "Hydro Pump", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 8 },
+  { id: 7, name_zh: "傑尼龜", type1: "Water", type2: "None", hp: 133, atk: 48, speed: 43, skill: "WaterGun", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 8 },
   { id: 8, name_zh: "卡咪龜", type1: "Water", type2: "None", hp: 170, atk: 63, speed: 58, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.40, evo_level: 36, evo_to: 9 },
   { id: 9, name_zh: "水箭龜", type1: "Water", type2: "None", hp: 230, atk: 83, speed: 78, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.90, evo_level: "None", evo_to: null },
   { id: 10, name_zh: "綠毛蟲", type1: "Bug", type2: "None", hp: 95, atk: 30, speed: 45, skill: "Tackle", weightTier: "light", kbResist: 0.0, evo_level: 7, evo_to: 11 },
@@ -993,9 +1017,9 @@ const TM_CATALOG = {
 
 // 一階先發精靈天生三招階梯表 (起手 ➔ 中程牽制 ➔ 領域爆發)
 const POKEMON_NATURAL_SKILLS = {
-  1:   { name: "妙蛙種子", skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
-  4:   { name: "小火龍",   skills: ["Tackle", "Flamethrower", "DragonRush"] },
-  7:   { name: "傑尼龜",   skills: ["Tackle", "HydroPump", "IceBeam"] },
+  1:   { name: "妙蛙種子", skills: ["VineWhip", "SeedBomb", "SludgeBomb"] },
+  4:   { name: "小火龍",   skills: ["Ember", "Flamethrower", "DragonRush"] },
+  7:   { name: "傑尼龜",   skills: ["WaterGun", "HydroPump", "IceBeam"] },
   10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
   16:  { name: "波波",     skills: ["Tackle", "AirSlash", "Tackle"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },

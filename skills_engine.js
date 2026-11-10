@@ -141,7 +141,7 @@ const SkillsEngine = {
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : 0;
       const ang = baseAngle + spread;
-      const spd = skillId === "Hydro Pump" ? 330 : (skillId === "Air Slash" ? 360 : 310);
+      const spd = (skillId === "WaterGun" || skillId === "Ember") ? 340 : (skillId === "Hydro Pump" ? 330 : (skillId === "Air Slash" ? 360 : 310));
       const isHoming = (skillId === "Shadow Ball" || skillId === "Psystrike" || skillId === "Moonblast");
 
       this.projectiles.push({
@@ -173,6 +173,57 @@ const SkillsEngine = {
     const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
+    // 0. 妙蛙種子：沙盒 V10 正弦波倒刺 S 藤鞭 (Vine Whip)
+    if (style === "vine_whip") {
+      const whipCount = 1 + (level >= 5 ? 1 : 0);
+      const reach = (130 + level * 7) * areaScale;
+      for (let w = 0; w < whipCount; w++) {
+        const spread = (w - (whipCount - 1) / 2) * 0.32;
+        const ang = baseAngle + spread;
+        this.meleeEffects.push({
+          style: "vine_whip",
+          ox: caster.x,
+          oy: caster.y,
+          x: caster.x,
+          y: caster.y,
+          angle: ang,
+          reach: reach,
+          timer: 0.38,
+          maxTime: 0.38,
+          color: "#15803D"
+        });
+
+        // 沿藤鞭路徑判定傷害與擊退
+        GameApp.enemies.forEach(e => {
+          const dx = e.x - caster.x, dy = e.y - caster.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist <= reach + e.radius) {
+            const eAng = Math.atan2(dy, dx);
+            const diff = Math.abs(Math.atan2(Math.sin(eAng - ang), Math.cos(eAng - ang)));
+            if (diff <= 0.62 || dist < 35) {
+              GameApp.dealDamageToEnemy(e, rawDmg * 1.15, meta.type, 0.28, kb * 1.2);
+            }
+          }
+        });
+
+        // 藤鞭末端噴發微量飛葉粒子
+        const tipX = caster.x + Math.cos(ang) * reach;
+        const tipY = caster.y + Math.sin(ang) * reach;
+        for (let lf = -1; lf <= 1; lf++) {
+          const leafAng = ang + lf * 0.25;
+          this.spawnSubParticle(
+            tipX, tipY,
+            Math.cos(leafAng) * (60 + Math.random() * 35),
+            Math.sin(leafAng) * (60 + Math.random() * 35),
+            lf === 0 ? "#15803D" : "#4ADE80",
+            3.0, 0.32, "leaf"
+          );
+        }
+      }
+      SoundFX.play("hit");
+      return;
+    }
+
     if (style === "martial_fist") {
       // 空手劈回歸近身剛猛拳打：身前小半徑爆發短打連擊
       const reach = 85 * areaScale;
@@ -201,8 +252,52 @@ const SkillsEngine = {
       return;
     }
 
-    if (style === "quake_wave" || style === "slam_wave") {
-      const rad = (style === "quake_wave" ? (85 + level * 4) : 95) * areaScale;
+    // 1. 撞擊專屬：身前俐落小衝鋒氣浪 (Forward Arc) ＋ 輕量微型碎屑，不遮擋子彈
+    if (style === "slam_wave") {
+      const fDist = 32 * areaScale;
+      const hitX = caster.x + Math.cos(baseAngle) * fDist;
+      const hitY = caster.y + Math.sin(baseAngle) * fDist;
+      const rad = 46 * areaScale;
+
+      this.meleeEffects.push({
+        style: "slam_wave",
+        ox: caster.x,
+        oy: caster.y,
+        x: hitX,
+        y: hitY,
+        angle: baseAngle,
+        radius: rad,
+        timer: 0.22,
+        maxTime: 0.22,
+        color: "rgba(203, 213, 225, 0.40)"
+      });
+
+      // 輕量保留 3 顆極淡的微型菱形碎屑，保留反饋但尺寸僅 1.8px，絕不遮擋或混淆敵方飛行道具
+      for (let d = 0; d < 3; d++) {
+        const dAng = baseAngle + (Math.random() - 0.5) * 0.8;
+        const dSpd = 30 + Math.random() * 35;
+        this.spawnSubParticle(
+          hitX, hitY,
+          Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd,
+          "rgba(226, 232, 240, 0.45)", 1.8, 0.25, "diamond"
+        );
+      }
+
+      GameApp.enemies.forEach(e => {
+        if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
+          GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.20, kb);
+          if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
+            GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
+          }
+        }
+      });
+      SoundFX.play("hit");
+      return;
+    }
+
+    // 2. 地震專屬：大範圍環形地裂
+    if (style === "quake_wave") {
+      const rad = (85 + level * 4) * areaScale;
       this.meleeEffects.push({
         style,
         x: caster.x,
@@ -212,19 +307,17 @@ const SkillsEngine = {
         maxTime: 0.50,
         color: meta.color
       });
-      // 常規招式（地震、撞擊等）全面移除螢幕強震，改以多層同心衝擊波與碎屑幾何展示
-      // 保持視野穩定舒適
 
-      const dustCount = style === "quake_wave" ? 18 : 10;
+      const dustCount = 18;
       for (let d = 0; d < dustCount; d++) {
         const dAng = Math.random() * Math.PI * 2;
         const dSpd = 45 + Math.random() * 95;
-        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, style === "quake_wave" ? (d % 2 === 0 ? "#92400E" : "#D97706") : "#E2E8F0", 3.2, 0.45, "circle");
+        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, d % 2 === 0 ? "#92400E" : "#D97706", 3.2, 0.45, "circle");
       }
 
       GameApp.enemies.forEach(e => {
         if (Math.hypot(e.x - caster.x, e.y - caster.y) <= rad + e.radius) {
-          GameApp.dealDamageToEnemy(e, rawDmg, meta.type, style === "slam_wave" ? 0.35 : 0.20, kb);
+          GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.20, kb);
           if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
             GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
           }
@@ -386,7 +479,11 @@ const SkillsEngine = {
       pr.trailTimer = (pr.trailTimer || 0) - dt;
       if (pr.trailTimer <= 0) {
         pr.trailTimer = 0.045;
-        if (pr.vfx === "fire_stream") {
+        if (pr.vfx === "ember_spark") {
+          this.spawnSubParticle(pr.x - pr.vx * 0.02, pr.y - pr.vy * 0.02, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, "#F97316", 2.0, 0.20, "circle");
+        } else if (pr.vfx === "water_gun") {
+          this.spawnSubParticle(pr.x - pr.vx * 0.02, pr.y - pr.vy * 0.02, (Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16, "#BAE6FD", 2.0, 0.18, "circle");
+        } else if (pr.vfx === "fire_stream") {
           this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, Math.random() < 0.6 ? "#EF4444" : "#FBBF24", 3.0, 0.25, "circle");
         } else if (pr.vfx === "water_beam") {
           this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 25, (Math.random() - 0.5) * 25, "#7DD3FC", 2.6, 0.22, "circle");
@@ -454,42 +551,129 @@ const SkillsEngine = {
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.75);
 
-      if (m.style === "quake_wave" || m.style === "slam_wave") {
+      // 0. 妙蛙種子：沙盒 V10 正弦波倒刺 S 藤鞭 (Vine Whip)
+      if (m.style === "vine_whip") {
+        const osx = toSx(m.ox !== undefined ? m.ox : m.x);
+        const osy = toSy(m.oy !== undefined ? m.oy : m.y);
+        ctx.save();
+        ctx.translate(osx, osy);
+        ctx.rotate(m.angle || 0);
+
+        const reach = m.reach * Math.min(1, prog * 1.7);
+        const thickness = 7;
+        const waveFreq = 2.4;
+        const waveAmp = (1 - prog * 0.45) * 22;
+
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        // 外層深綠描邊
+        ctx.strokeStyle = "#14532D";
+        ctx.lineWidth = thickness + 3;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        for (let x = 0; x <= reach; x += 8) {
+          const t = x / reach;
+          const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 內層亮綠主幹
+        ctx.strokeStyle = "#22C55E";
+        ctx.lineWidth = thickness;
+        ctx.stroke();
+
+        // 沿途生長立體倒刺與嫩芽圓點
+        for (let step = 25; step < reach - 16; step += 22) {
+          const t = step / reach;
+          const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
+          const side = (step % 44 === 0) ? 1 : -1;
+
+          // 倒刺三角形
+          ctx.fillStyle = "#15803D";
+          ctx.beginPath();
+          ctx.moveTo(step, y);
+          ctx.lineTo(step + 5, y + side * (thickness + 5));
+          ctx.lineTo(step - 3, y + side * (thickness + 1.5));
+          ctx.closePath();
+          ctx.fill();
+
+          // 芽苞嫩綠圓點
+          ctx.fillStyle = "#86EFAC";
+          ctx.beginPath();
+          ctx.arc(step, y + side * (thickness * 0.55), 2.0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 末端雙層微型破空音爆環
+        ctx.strokeStyle = "rgba(187, 247, 208, 0.85)";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(reach, 0, 14 * prog, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(reach, 0, 8 * prog, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+      } else if (m.style === "slam_wave") {
+        // 撞擊專屬：身前扇形俐落半透明小氣浪，低飽和灰白，不遮擋任何敵方子彈
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const curR = m.radius * (0.35 + prog * 0.65);
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.rotate(m.angle || 0);
+
+        ctx.strokeStyle = "rgba(203, 213, 225, 0.35)";
+        ctx.lineWidth = 2.0 * (1 - prog * 0.5);
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, -0.65, 0.65);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.45)";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 0.8, -0.5, 0.5);
+        ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "quake_wave") {
         const msx = toSx(m.x), msy = toSy(m.y);
         const curR = m.radius * (0.28 + prog * 0.72);
 
         ctx.strokeStyle = m.color;
-        ctx.lineWidth = 6 * (1 - prog * 0.5);
+        ctx.lineWidth = 5 * (1 - prog * 0.5);
         ctx.beginPath();
         ctx.arc(msx, msy, curR, 0, Math.PI * 2);
         ctx.stroke();
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.5;
+        ctx.lineWidth = 2.2;
         ctx.beginPath();
         ctx.arc(msx, msy, curR * 0.8, 0, Math.PI * 2);
         ctx.stroke();
 
-        if (m.style === "quake_wave") {
-          // 八方放射地裂紋與多段土黃岩層
-          ctx.strokeStyle = "rgba(180, 83, 9, 0.85)";
-          ctx.lineWidth = 2.8 * (1 - prog * 0.5);
-          for (let crack = 0; crack < 8; crack++) {
-            const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.08 : -0.08);
-            const midR = curR * 0.55;
-            ctx.beginPath();
-            ctx.moveTo(msx + Math.cos(cAng) * (curR * 0.2), msy + Math.sin(cAng) * (curR * 0.2));
-            ctx.lineTo(msx + Math.cos(cAng + 0.1) * midR, msy + Math.sin(cAng + 0.1) * midR);
-            ctx.lineTo(msx + Math.cos(cAng) * (curR * 0.95), msy + Math.sin(cAng) * (curR * 0.95));
-            ctx.stroke();
-          }
-          // 地裂同心土褐色環
-          ctx.strokeStyle = "rgba(217, 119, 6, 0.55)";
-          ctx.lineWidth = 1.8;
+        // 八方放射地裂紋與多段土黃岩層
+        ctx.strokeStyle = "rgba(180, 83, 9, 0.85)";
+        ctx.lineWidth = 2.8 * (1 - prog * 0.5);
+        for (let crack = 0; crack < 8; crack++) {
+          const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.08 : -0.08);
+          const midR = curR * 0.55;
           ctx.beginPath();
-          ctx.arc(msx, msy, curR * 0.6, 0, Math.PI * 2);
+          ctx.moveTo(msx + Math.cos(cAng) * (curR * 0.2), msy + Math.sin(cAng) * (curR * 0.2));
+          ctx.lineTo(msx + Math.cos(cAng + 0.1) * midR, msy + Math.sin(cAng + 0.1) * midR);
+          ctx.lineTo(msx + Math.cos(cAng) * (curR * 0.95), msy + Math.sin(cAng) * (curR * 0.95));
           ctx.stroke();
         }
+        // 地裂同心土褐色環
+        ctx.strokeStyle = "rgba(217, 119, 6, 0.55)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(msx, msy, curR * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
       } else {
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
@@ -598,7 +782,22 @@ const SkillsEngine = {
       ctx.translate(sx, sy);
       ctx.rotate(pr.angle || 0);
 
-      if (pr.vfx === "giant_fist") {
+      if (pr.vfx === "ember_spark") {
+        // 火花：輕快跳動的橙紅小火核
+        ctx.fillStyle = "#F97316";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath(); ctx.arc(r * 0.2, -r * 0.2, r * 0.35, 0, Math.PI * 2); ctx.fill();
+      } else if (pr.vfx === "water_gun") {
+        // 水槍：破空梭形水箭彈束
+        ctx.fillStyle = "#38BDF8";
+        ctx.beginPath();
+        ctx.moveTo(r * 1.3, 0); ctx.lineTo(-r * 0.6, -r * 0.45); ctx.lineTo(-r * 0.2, 0); ctx.lineTo(-r * 0.6, r * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2); ctx.fill();
+      } else if (pr.vfx === "giant_fist") {
         ctx.fillStyle = pr.color || "#DC2626";
         ctx.strokeStyle = "#FEF08A";
         ctx.lineWidth = 2.5;

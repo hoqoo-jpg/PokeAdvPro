@@ -3209,6 +3209,67 @@ window.GameApp = {
       }
 
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
+
+      // --- 沙盒 V10 狀態視覺效果 (告別純色濾鏡，辨識度極高且不遮擋彈道) ---
+      // 1. 麻痺 (Paralysis)：周身跳動 2 條隨機白金微電弧
+      if (e.status === "Paralysis") {
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2.0;
+        const now = performance.now();
+        for (let arc = 0; arc < 2; arc++) {
+          ctx.beginPath();
+          ctx.moveTo(-sz * 0.35, -4 + arc * 10);
+          ctx.lineTo(0, -sz * 0.25 + Math.sin(now * 0.02 + arc) * 8);
+          ctx.lineTo(sz * 0.35, 4 + arc * 10);
+          ctx.stroke();
+        }
+      }
+
+      // 2. 冰凍 (Freeze)：沙盒 V10 六角透明折射稜柱冰棺
+      if (e.status === "Freeze") {
+        ctx.save();
+        ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 2.4;
+        const r = sz * 0.48;
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3 - Math.PI / 6;
+          const ix = Math.cos(a) * r;
+          const iy = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(ix, iy);
+          else ctx.lineTo(ix, iy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 冰棺白色反光斜切高光線
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.45, -r * 0.65);
+        ctx.lineTo(r * 0.45, r * 0.65);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // 3. 混亂 (Confusion)：傾斜星芒
+      if (e.status === "Confusion") {
+        ctx.save();
+        const rot = performance.now() * 0.006;
+        for (let c = 0; c < 2; c++) {
+          const cAng = rot + c * Math.PI;
+          const sx = Math.cos(cAng) * (sz * 0.42);
+          const sy = Math.sin(cAng) * (sz * 0.22) - sz * 0.45;
+          ctx.fillStyle = "#FACC15";
+          ctx.beginPath();
+          ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
       ctx.restore();
 
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
