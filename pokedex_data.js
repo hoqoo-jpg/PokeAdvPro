@@ -998,7 +998,7 @@ const POKEMON_NATURAL_SKILLS = {
   7:   { name: "傑尼龜",   skills: ["Tackle", "HydroPump", "IceBeam"] },
   10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
   16:  { name: "波波",     skills: ["Tackle", "AirSlash", "Tackle"] },
-  25:  { name: "皮卡丘",   skills: ["Tackle", "Thunderbolt", "AirSlash"] },
+  25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
   133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
   143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] }
 };

@@ -1048,6 +1048,11 @@ renderMartModal(shelf) {
     }
     this.state = "TITLE";
     this.updateTitleUI();
+    // 解決 iOS Safari 在局間彈出工具列導致視口被擠壓遮擋問題
+    window.scrollTo(0, 0);
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
   }
 });
 

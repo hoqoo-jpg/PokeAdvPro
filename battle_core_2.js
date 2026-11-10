@@ -164,6 +164,10 @@ window.GameApp = {
           this.touchJoy.currY = t.clientY;
           this.touchJoy.dx = 0;
           this.touchJoy.dy = 0;
+    window.scrollTo(0, 0);
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
 
           joyBase.style.left = `${t.clientX}px`;
           joyBase.style.top = `${t.clientY}px`;
@@ -244,12 +248,14 @@ window.GameApp = {
       }, { passive: false });
     }
 
-    // 手機端多點觸控委派：確保左手按住虛擬搖桿時，右手點擊頂部功能按鈕（暫停、倍速、測試扳手等）能即刻響應
+    // 手機端多點觸控委派：確保左手按住虛擬搖桿時，右手點擊頂部功能按鈕能即刻執行
     const topHudBtns = document.querySelectorAll("#hudLayer .pointer-events-auto button");
     topHudBtns.forEach(btn => {
       btn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
         e.stopPropagation();
-      }, { passive: true });
+        btn.click();
+      }, { passive: false });
     });
 
     // 解決 iOS 搖桿卡死與畫面被誤縮放放大：徹底攔截 Safari 雙指手勢與快速雙擊放大
@@ -2688,7 +2694,7 @@ window.GameApp = {
     if (!box) return;
 
     const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
-      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
         ${c.isNew ? `
           <div class="absolute top-0 left-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-pixel text-[9px] px-2.5 py-0.5 rounded-tl-[13px] rounded-br-lg border-b border-r border-white/80 shadow-md flex items-center gap-1 z-10 animate-pulse">
             <i class="fa-solid fa-sparkles text-[8px] text-amber-200"></i>NEW!
@@ -2720,7 +2726,7 @@ window.GameApp = {
     const rerollBarHtml = `
       <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between">
         <span class="text-xs font-bold text-slate-400">鍵盤提示：按 [1]、[2]、[3] 直接選取，[R] 鍵重新整理</span>
-        <button onclick="GameApp.rerollUpgradeChoices()" ${!hasRerolls ? 'disabled' : ''} class="${hasRerolls ? 'poke-btn-yellow' : 'poke-btn-white opacity-50 cursor-not-allowed'} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5">
+        <button onclick="GameApp.rerollUpgradeChoices()" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.rerollUpgradeChoices()" ${!hasRerolls ? 'disabled' : ''} class="${hasRerolls ? 'poke-btn-yellow' : 'poke-btn-white opacity-50 cursor-not-allowed'} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5">
           <i class="fa-solid fa-dice text-xs"></i>
           <span>重新整理 (剩餘 ${this.levelUpRerolls || 0} 次)</span>
         </button>
