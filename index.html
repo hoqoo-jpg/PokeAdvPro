@@ -32,6 +32,7 @@
       position: fixed;
       width: 100%;
       height: 100%;
+      height: -webkit-fill-available;
       height: 100dvh;
       background-color: #0f172a;
       font-family: 'Noto Sans TC', sans-serif;
@@ -39,29 +40,30 @@
       -webkit-text-size-adjust: none;
     }
 
-    /* 支援 iOS Safari 底部安全區與動態視口 */
+    /* 支援 iOS Safari 底部安全區與動態視口，徹底解決底部被遮蔽問題 */
     #titleScreen, #setupModal, #pokedexModal, #skillTreeModal, #achievementModal, #pokeMartModal, #endModal {
       height: 100% !important;
+      height: -webkit-fill-available !important;
       height: 100dvh !important;
       max-height: 100dvh !important;
     }
 
     #titleScreen {
-      padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 16px) !important;
+      padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 16px) !important;
     }
 
-    /* 選人畫面底部按鈕列：安全墊高，防止被 Safari 工具列與全面屏橫條遮擋 */
+    /* 選人畫面底部按鈕列：充足安全墊高，防止被 Safari 工具列與全面屏橫條遮擋 */
     .setup-footer-safe {
-      padding-bottom: calc(env(safe-area-inset-bottom, 16px) + 14px) !important;
+      padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 14px) !important;
     }
 
-    /* 戰鬥局內底部安全距離 */
+    /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 */
     .hud-bottom-safe {
-      bottom: calc(env(safe-area-inset-bottom, 14px) + 14px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 12px) !important;
     }
 
     .hud-partner-safe {
-      bottom: calc(env(safe-area-inset-bottom, 14px) + 78px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 82px) !important;
     }
 
     /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
@@ -489,7 +491,7 @@
     </div>
 
     <!-- 方案A 友好商店快捷進入按鈕（靠近商店時自動浮現，點擊直接進店） -->
-    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(env(safe-area-inset-bottom, 14px) + 98px);">
+    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 104px);">
       <button onclick="GameApp.openPokeMartModal()" class="poke-btn-blue px-3 py-1.5 text-xs font-black flex items-center gap-1.5 shadow-2xl border-2 border-white">
         <i class="fa-solid fa-store text-amber-300"></i>
         <span>進入商店 [E]</span>
