@@ -164,10 +164,6 @@ window.GameApp = {
           this.touchJoy.currY = t.clientY;
           this.touchJoy.dx = 0;
           this.touchJoy.dy = 0;
-    window.scrollTo(0, 0);
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 50);
 
           joyBase.style.left = `${t.clientX}px`;
           joyBase.style.top = `${t.clientY}px`;

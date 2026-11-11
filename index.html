@@ -59,11 +59,11 @@
 
     /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 */
     .hud-bottom-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 20px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 22px) !important;
     }
 
     .hud-partner-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 90px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 96px) !important;
     }
 
     /* 封面毛玻璃朦朧濾鏡與暗角效果，凸顯標題與提示 */
@@ -499,7 +499,7 @@
     </div>
 
     <!-- 方案A 友好商店快捷進入按鈕（靠近商店時自動浮現，點擊直接進店） -->
-    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 104px);">
+    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 118px);">
       <button onclick="GameApp.openPokeMartModal()" class="poke-btn-blue px-3 py-1.5 text-xs font-black flex items-center gap-1.5 shadow-2xl border-2 border-white">
         <i class="fa-solid fa-store text-amber-300"></i>
         <span>進入商店 [E]</span>
@@ -822,10 +822,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.2"></script>
-  <script src="map_v11_engine.js?v=7.2"></script>
-  <script src="skills_engine.js?v=7.2"></script>
-  <script src="battle_core_2.js?v=7.2"></script>
-  <script src="game_ui.js?v=7.2"></script>
+  <script src="pokedex_data.js?v=8.0"></script>
+  <script src="map_v11_engine.js?v=8.0"></script>
+  <script src="skills_engine.js?v=8.0"></script>
+  <script src="battle_core_2.js?v=8.0"></script>
+  <script src="game_ui.js?v=8.0"></script>
 </body>
 </html>
