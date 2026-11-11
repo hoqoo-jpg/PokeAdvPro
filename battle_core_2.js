@@ -3268,8 +3268,9 @@ window.GameApp = {
 
       ctx.restore();
 
-      // 遠程怪射擊前 0.3s 嘴邊/頭頂凝聚微型光點蓄力預警 (避免滿屏紅線干擾視線)
-      if (inView && !e.treasureType && !e.isBoss && rangedIds.includes(e.id) && e.rangedCd !== undefined && e.rangedCd > 0 && e.rangedCd <= 0.35) {
+      // 遠程怪射擊前 0.35s 嘴邊/頭頂凝聚微型光點蓄力預警 (避免滿屏紅線干擾視線)
+      const rangedMobSet = [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120];
+      if (!e.treasureType && !e.isBoss && rangedMobSet.includes(e.id) && e.rangedCd !== undefined && e.rangedCd > 0 && e.rangedCd <= 0.35) {
         const chargeProgress = 1 - (e.rangedCd / 0.35);
         const glowR = 2.5 + chargeProgress * 3.5;
         const targetAng = Math.atan2(p.y - e.y, p.x - e.x);

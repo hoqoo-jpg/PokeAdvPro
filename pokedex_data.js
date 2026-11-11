@@ -801,10 +801,15 @@ const SoundFX = {
     if (!this.ctx || this.audioBuffers[key]) return;
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // 音訊資源尚未齊全時靜默略過，由 startFallbackBgm 自動無縫回退至 8-bit 原生合成音源
+        return;
+      }
       const arrayBuffer = await res.arrayBuffer();
       this.audioBuffers[key] = await this.ctx.decodeAudioData(arrayBuffer);
-    } catch (e) {}
+    } catch (e) {
+      // 捕獲網路異常或音檔不存在，確保遊戲引擎不中斷運行
+    }
   },
 
   playBgm(trackKey, loop = true) {
