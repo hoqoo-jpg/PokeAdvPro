@@ -59,11 +59,19 @@
 
     /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 */
     .hud-bottom-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 12px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 20px) !important;
     }
 
     .hud-partner-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 82px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 90px) !important;
+    }
+
+    /* 封面毛玻璃朦朧濾鏡與暗角效果，凸顯標題與提示 */
+    #splashScreen {
+      backdrop-filter: blur(6px) brightness(0.82);
+      -webkit-backdrop-filter: blur(6px) brightness(0.82);
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.72) 100%);
+      padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 24px) !important;
     }
 
     /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
@@ -295,7 +303,7 @@
   </div>
 
   <!-- 3. 原版經典透明穿透封面 (Splash Screen - 完全還原截圖樣式) -->
-  <div id="splashScreen" onclick="GameApp.enterLobbyFromSplash()" class="absolute inset-0 z-40 hidden flex flex-col justify-between py-12 px-6 cursor-pointer select-none">
+  <div id="splashScreen" onclick="GameApp.enterLobbyFromSplash()" class="absolute inset-0 z-40 hidden flex flex-col justify-between pt-12 px-6 cursor-pointer select-none">
     <!-- 頂部與中央：★ GBA 復古像素重構版 ★ 與 金色立體 POKÉMON ADV SURVIVORS 標題 -->
     <div class="self-center text-center my-auto flex flex-col items-center pointer-events-none">
       <!-- 經典紅色頂部標籤 -->

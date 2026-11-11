@@ -1921,7 +1921,7 @@ window.GameApp = {
           this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 12, "star", 0.8);
           SoundFX.play("hit");
         } else {
-          p.whiteFlashTimer = 0.18; // 延長至 0.18s
+          p.whiteFlashTimer = 0.24; // 延長至 0.24s 扎實受創反饋
           this.camera.shakeTime = 0.18;
           this.camera.shakeMagnitude = 5.0;
           this.hitStopTimer = 0.05;
@@ -2191,7 +2191,7 @@ window.GameApp = {
         } 
         // B. 精靈主角受創反饋 (強化版)
         else {
-          p.whiteFlashTimer = 0.18; // 延長至 0.18s 白閃
+          p.whiteFlashTimer = 0.24; // 延長至 0.24s 扎實受創反饋
           this.camera.shakeTime = 0.18;
           this.camera.shakeMagnitude = 5.0;
           this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 15);
@@ -3272,12 +3272,61 @@ window.GameApp = {
 
       ctx.restore();
 
+      // 遠程怪射擊前 0.3s 嘴邊/頭頂凝聚微型光點蓄力預警 (避免滿屏紅線干擾視線)
+      if (inView && !e.treasureType && !e.isBoss && rangedIds.includes(e.id) && e.rangedCd !== undefined && e.rangedCd > 0 && e.rangedCd <= 0.35) {
+        const chargeProgress = 1 - (e.rangedCd / 0.35);
+        const glowR = 2.5 + chargeProgress * 3.5;
+        const targetAng = Math.atan2(p.y - e.y, p.x - e.x);
+        const muzzleX = esx + Math.cos(targetAng) * (sz * 0.32);
+        const muzzleY = esy + Math.sin(targetAng) * (sz * 0.32) - 4;
+
+        ctx.save();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(muzzleX, muzzleY, glowR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = [69, 70].includes(e.id) ? "#4ADE80" : ([60, 116, 117].includes(e.id) ? "#38BDF8" : "#C084FC");
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(muzzleX, muzzleY, glowR * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // --- 血條升級：加長至 44px + 1px 黑色硬描邊 + 綠/黃/紅三段變色 (殘血瀕危呼吸) ---
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
-        const bw = e.isBoss ? 66 : 36;
-        ctx.fillStyle = "rgba(15,23,42,0.85)";
-        ctx.fillRect(esx - bw / 2, esy - sz / 2 - 8, bw, 5);
-        ctx.fillStyle = e.treasureType ? "#FACC15" : "#22C55E";
-        ctx.fillRect(esx - bw / 2, esy - sz / 2 - 8, bw * Math.max(0, e.hp / e.maxHp), 5);
+        const bw = e.isBoss ? 72 : 44;
+        const bh = e.isBoss ? 6 : 5.5;
+        const barX = esx - bw / 2;
+        const barY = esy - sz / 2 - 10;
+        const hpRatio = Math.max(0, e.hp / e.maxHp);
+
+        // 黑色外描邊 + 深黑底槽 (確保在草地、水面與任何地貌均有強烈輪廓對比)
+        ctx.save();
+        ctx.fillStyle = "rgba(10, 15, 29, 0.92)";
+        ctx.strokeStyle = "#000000";
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(barX, barY, bw, bh);
+        ctx.strokeRect(barX, barY, bw, bh);
+
+        // 三段式色溫判定 (經典 GBA 寶可夢血條機制)
+        let barColor = "#22C55E"; // > 50%: 翠綠
+        if (e.treasureType) {
+          barColor = "#FACC15";
+        } else if (hpRatio <= 0.20) {
+          // <= 20%: 鮮紅 + 瀕死呼吸脈動
+          const pulse = 0.75 + Math.sin(performance.now() * 0.015) * 0.25;
+          ctx.globalAlpha = pulse;
+          barColor = "#EF4444";
+        } else if (hpRatio <= 0.50) {
+          // 20% ~ 50%: 警告金黃
+          barColor = "#FACC15";
+        }
+
+        ctx.fillStyle = barColor;
+        ctx.fillRect(barX + 0.5, barY + 0.5, (bw - 1) * hpRatio, bh - 1);
+        ctx.restore();
       }
     });
 
