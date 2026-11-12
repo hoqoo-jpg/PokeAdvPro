@@ -586,7 +586,8 @@ const SkillsEngine = {
             }
           });
           SoundFX.play("hit");
-          this.projectiles.splice(i, 1);
+          this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
+          this.projectiles.pop();
         }
         continue;
       }
@@ -637,23 +638,33 @@ const SkillsEngine = {
       }
 
       if (pr.life <= 0 || pr.pierce <= 0) {
-        this.projectiles.splice(i, 1);
+        this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
+        this.projectiles.pop();
       }
     }
 
     for (let i = this.meleeEffects.length - 1; i >= 0; i--) {
       this.meleeEffects[i].timer -= dt;
-      if (this.meleeEffects[i].timer <= 0) this.meleeEffects.splice(i, 1);
+      if (this.meleeEffects[i].timer <= 0) {
+        this.meleeEffects[i] = this.meleeEffects[this.meleeEffects.length - 1];
+        this.meleeEffects.pop();
+      }
     }
 
     for (let i = this.ultimateVfxList.length - 1; i >= 0; i--) {
       this.ultimateVfxList[i].timer -= dt;
-      if (this.ultimateVfxList[i].timer <= 0) this.ultimateVfxList.splice(i, 1);
+      if (this.ultimateVfxList[i].timer <= 0) {
+        this.ultimateVfxList[i] = this.ultimateVfxList[this.ultimateVfxList.length - 1];
+        this.ultimateVfxList.pop();
+      }
     }
 
     for (let i = this.lightningArcs.length - 1; i >= 0; i--) {
       this.lightningArcs[i].timer -= dt;
-      if (this.lightningArcs[i].timer <= 0) this.lightningArcs.splice(i, 1);
+      if (this.lightningArcs[i].timer <= 0) {
+        this.lightningArcs[i] = this.lightningArcs[this.lightningArcs.length - 1];
+        this.lightningArcs.pop();
+      }
     }
 
     for (let i = this.subParticles.length - 1; i >= 0; i--) {
@@ -662,7 +673,10 @@ const SkillsEngine = {
       sp.y += sp.vy * dt;
       sp.rot += sp.rotSpeed * dt;
       sp.life -= dt;
-      if (sp.life <= 0) this.subParticles.splice(i, 1);
+      if (sp.life <= 0) {
+        this.subParticles[i] = this.subParticles[this.subParticles.length - 1];
+        this.subParticles.pop();
+      }
     }
   },
 

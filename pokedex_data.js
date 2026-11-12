@@ -699,7 +699,6 @@ const CENTER_POKEMON_UPGRADES = [
   { id: "atk", name: "基礎攻擊力 (ATK)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/protein.png", desc: "所有招式基礎傷害提升 +8%" },
   { id: "cd",  name: "招式冷卻縮減 (CDR)", maxLv: 5, baseCost: 160, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png", desc: "所有招式冷卻時間縮短 -3.5%" },
   { id: "hp",  name: "最大體質生命 (HP)", maxLv: 5, baseCost: 140, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hp-up.png", desc: "出戰生命值提升 +12%，每秒回血 +0.4" },
-  { id: "rerollCount", name: "免費重擲次數 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-toy.png", desc: "每局升級三選一免費重抽次數 +1（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "shiny", name: "閃光護符 (SHINY)", maxLv: 3, baseCost: 350, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-charm.png", desc: "局內野生閃光怪遭遇率提升 +35%" }
 ];
 
@@ -900,18 +899,46 @@ const SoundFX = {
 
     const isBoss = mode === "boss";
     const isLobby = mode === "lobby";
-    const bpm = isBoss ? 148 : (isLobby ? 110 : 132);
+    const bpm = isBoss ? 152 : (isLobby ? 112 : 136);
     const stepTime = 60 / bpm / 2;
-    const battleNotes = [261.63, 293.66, 329.63, 349.23, 392.00, 329.63, 293.66, 392.00];
-    const bossNotes   = [196.00, 220.00, 246.94, 261.63, 329.63, 246.94, 220.00, 196.00];
-    const lobbyNotes  = [329.63, 392.00, 440.00, 523.25, 440.00, 392.00, 349.23, 293.66];
-    const notes = isBoss ? bossNotes : (isLobby ? lobbyNotes : battleNotes);
+
+    // 雙軌 16 拍 GameBoy 晶片音樂編曲 (主旋律 + 根音低音 Bassline)
+    const battleLead = [
+      329.63, 392.00, 440.00, 523.25, 493.88, 392.00, 329.63, 392.00,
+      349.23, 440.00, 523.25, 587.33, 523.25, 493.88, 440.00, 392.00
+    ];
+    const battleBass = [
+      130.81, 196.00, 130.81, 196.00, 164.81, 196.00, 164.81, 196.00,
+      174.61, 220.00, 174.61, 220.00, 196.00, 246.94, 196.00, 146.83
+    ];
+
+    const bossLead = [
+      220.00, 261.63, 246.94, 220.00, 329.63, 293.66, 261.63, 246.94,
+      220.00, 261.63, 329.63, 349.23, 329.63, 293.66, 246.94, 196.00
+    ];
+    const bossBass = [
+      110.00, 110.00, 123.47, 110.00, 130.81, 130.81, 123.47, 98.00,
+      110.00, 110.00, 146.83, 146.83, 130.81, 123.47, 110.00, 98.00
+    ];
+
+    const lobbyLead = [
+      392.00, 493.88, 587.33, 659.25, 587.33, 493.88, 392.00, 440.00,
+      349.23, 440.00, 523.25, 587.33, 523.25, 440.00, 392.00, 329.63
+    ];
+    const lobbyBass = [
+      196.00, 246.94, 293.66, 246.94, 164.81, 196.00, 246.94, 196.00,
+      174.61, 220.00, 261.63, 220.00, 146.83, 196.00, 246.94, 196.00
+    ];
+
+    const notes = isBoss ? bossLead : (isLobby ? lobbyLead : battleLead);
+    const bassNotes = isBoss ? bossBass : (isLobby ? lobbyBass : battleBass);
     let noteIdx = 0;
 
     this.fallbackTimer = setInterval(() => {
       if (this.muted || !this.ctx) return;
       try {
         const now = this.ctx.currentTime;
+        // 第一軌：主旋律 (Square / Sawtooth)
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.connect(gain);
@@ -919,11 +946,25 @@ const SoundFX = {
 
         osc.type = isBoss ? "sawtooth" : (isLobby ? "triangle" : "square");
         osc.frequency.setValueAtTime(notes[noteIdx % notes.length], now);
-        gain.gain.setValueAtTime(0.025, now);
+        gain.gain.setValueAtTime(0.022, now);
         gain.gain.exponentialRampToValueAtTime(0.002, now + stepTime * 0.85);
-
         osc.start(now);
         osc.stop(now + stepTime * 0.9);
+
+        // 第二軌：GBA 低音伴奏 (Triangle Bassline，每拍與偶數拍觸發)
+        if (noteIdx % 2 === 0 || isBoss) {
+          const bOsc = this.ctx.createOscillator();
+          const bGain = this.ctx.createGain();
+          bOsc.connect(bGain);
+          bGain.connect(this.bgmGain);
+          bOsc.type = "triangle";
+          bOsc.frequency.setValueAtTime(bassNotes[noteIdx % bassNotes.length], now);
+          bGain.gain.setValueAtTime(0.032, now);
+          bGain.gain.exponentialRampToValueAtTime(0.003, now + stepTime * 1.4);
+          bOsc.start(now);
+          bOsc.stop(now + stepTime * 1.45);
+        }
+
         noteIdx++;
       } catch (e) {}
     }, stepTime * 1000);

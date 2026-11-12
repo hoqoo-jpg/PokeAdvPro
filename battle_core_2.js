@@ -1082,7 +1082,8 @@ window.GameApp = {
         }
       }
       if (lf.life <= 0) {
-        this.lavaFootprints.splice(i, 1);
+        this.lavaFootprints[i] = this.lavaFootprints[this.lavaFootprints.length - 1];
+        this.lavaFootprints.pop();
       }
     }
 
@@ -1662,6 +1663,22 @@ window.GameApp = {
     const halfW = this.width / 2 - 16;
     const halfH = this.height / 2 - 16;
 
+    // 建立 80x80 空間雜湊網格 (Spatial Hash Grid)，將怪物推擠判定由 O(N^2) 降至 O(N)
+    const gridCellSize = 80;
+    const spatialGrid = new Map();
+    for (let idx = 0; idx < this.enemies.length; idx++) {
+      const ent = this.enemies[idx];
+      const gx = Math.floor(ent.x / gridCellSize);
+      const gy = Math.floor(ent.y / gridCellSize);
+      const key = `${gx},${gy}`;
+      let cell = spatialGrid.get(key);
+      if (!cell) {
+        cell = [];
+        spatialGrid.set(key, cell);
+      }
+      cell.push(ent);
+    }
+
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
       if (e.isBoss && e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
@@ -1764,17 +1781,25 @@ window.GameApp = {
       e.y += vy * dt;
 
       if (!e.isBoss) {
-        for (let j = 0; j < this.enemies.length; j++) {
-          if (i === j) continue;
-          const other = this.enemies[j];
-          const sepDx = e.x - other.x, sepDy = e.y - other.y;
-          const minDist = (e.radius + other.radius) * 0.95;
-          const sepSq = sepDx * sepDx + sepDy * sepDy;
-          if (sepSq > 0 && sepSq < minDist * minDist) {
-            const sepD = Math.sqrt(sepSq);
-            const overlap = minDist - sepD;
-            e.x += (sepDx / sepD) * overlap * (other.isBoss ? 1.0 : 0.5) * 0.35;
-            e.y += (sepDy / sepD) * overlap * (other.isBoss ? 1.0 : 0.5) * 0.35;
+        const gx = Math.floor(e.x / gridCellSize);
+        const gy = Math.floor(e.y / gridCellSize);
+        for (let ox = -1; ox <= 1; ox++) {
+          for (let oy = -1; oy <= 1; oy++) {
+            const cell = spatialGrid.get(`${gx + ox},${gy + oy}`);
+            if (!cell) continue;
+            for (let c = 0; c < cell.length; c++) {
+              const other = cell[c];
+              if (e === other) continue;
+              const sepDx = e.x - other.x, sepDy = e.y - other.y;
+              const minDist = (e.radius + other.radius) * 0.95;
+              const sepSq = sepDx * sepDx + sepDy * sepDy;
+              if (sepSq > 0 && sepSq < minDist * minDist) {
+                const sepD = Math.sqrt(sepSq);
+                const overlap = minDist - sepD;
+                e.x += (sepDx / sepD) * overlap * (other.isBoss ? 1.0 : 0.5) * 0.35;
+                e.y += (sepDy / sepD) * overlap * (other.isBoss ? 1.0 : 0.5) * 0.35;
+              }
+            }
           }
         }
       }
@@ -2318,7 +2343,8 @@ window.GameApp = {
           SoundFX.play("hit");
         }
 
-        this.enemyProjectiles.splice(i, 1);
+        this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
+        this.enemyProjectiles.pop();
         if (p.hp <= 0) {
           p.hp = 0;
           this.triggerGameOver(false);
@@ -2328,7 +2354,8 @@ window.GameApp = {
       }
 
       if (ep.life <= 0) {
-        this.enemyProjectiles.splice(i, 1);
+        this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
+        this.enemyProjectiles.pop();
       }
     }
   },
@@ -2881,6 +2908,36 @@ window.GameApp = {
   renderLevelUpModalContent() {
     const box = document.getElementById("upgradeChoicesContainer");
     if (!box) return;
+    const p = this.player;
+
+    // 頂部超武合成配方速查條 (顯示當前已學招式對應的超武攜帶物與持有狀態)
+    const recipePills = p ? Object.values(p.skills).map(sk => {
+      const meta = SKILLS_CATALOG[sk.id];
+      if (!meta) return "";
+      const reqMeta = meta.reqItem ? HELD_ITEMS[meta.reqItem] : null;
+      const hasItem = reqMeta ? !!(p.heldItems && p.heldItems[reqMeta.id]) : true;
+      return `
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border ${sk.evolved ? 'border-amber-400' : (hasItem ? 'border-emerald-500/70' : 'border-slate-700')} text-[10px]">
+          <img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/>
+          <span class="font-bold text-slate-200">${meta.name}</span>
+          <span class="text-slate-500">+</span>
+          ${reqMeta ? `<img src="${reqMeta.sprite}" class="w-3.5 h-3.5 pixel-sprite ${hasItem ? '' : 'opacity-40 grayscale'}"/>` : ''}
+          <span class="${sk.evolved ? 'text-amber-300 font-black' : (hasItem ? 'text-emerald-400 font-black' : 'text-slate-400')}">
+            ${sk.evolved ? '★已突破' : (reqMeta ? `${reqMeta.name}${hasItem ? '✓' : ''}` : '滿級突破')}
+          </span>
+        </div>
+      `;
+    }).join("") : "";
+
+    const recipeBarHtml = recipePills ? `
+      <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-2 mb-2.5">
+        <div class="text-[10px] font-bold text-amber-300/90 mb-1 flex items-center gap-1">
+          <i class="fa-solid fa-flask text-[9px]"></i>
+          <span>超武合成配方提示（招式 Lv.10 ＋ 對應攜帶物 ＝ 究極超武）：</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5">${recipePills}</div>
+      </div>
+    ` : "";
 
     const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
       <div onclick="GameApp.selectUpgradeChoice(${idx})" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
@@ -2935,7 +2992,7 @@ window.GameApp = {
       </div>
     `;
 
-    box.innerHTML = choicesHtml + rerollBarHtml;
+    box.innerHTML = recipeBarHtml + choicesHtml + rerollBarHtml;
   },
 
   rerollUpgradeChoices() {
@@ -2985,7 +3042,10 @@ window.GameApp = {
       pt.x += pt.vx * dt;
       pt.y += pt.vy * dt;
       pt.life -= dt;
-      if (pt.life <= 0) this.particles.splice(i, 1);
+      if (pt.life <= 0) {
+        this.particles[i] = this.particles[this.particles.length - 1];
+        this.particles.pop();
+      }
     }
     for (let i = this.floatingTexts.length - 1; i >= 0; i--) {
       const ft = this.floatingTexts[i];
@@ -3262,6 +3322,13 @@ window.GameApp = {
         ctx.ellipse(tsx, tsy + 18, 14, 5.5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // 隨行訓練家腳底戰術光環（平時淡青藍，受創時閃爍鮮紅警戒圈，直觀提示訓練家受擊判定區）
+      ctx.strokeStyle = tc.whiteFlashTimer > 0 ? "rgba(239, 68, 68, 0.95)" : "rgba(56, 189, 248, 0.45)";
+      ctx.lineWidth = tc.whiteFlashTimer > 0 ? 3.0 : 1.6;
+      ctx.beginPath();
+      ctx.ellipse(tsx, tsy + 18, 18, 7, 0, 0, Math.PI * 2);
+      ctx.stroke();
 
       ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
       if (needFlip) ctx.scale(-1, 1);

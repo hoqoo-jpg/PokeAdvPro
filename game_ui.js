@@ -10,6 +10,7 @@ window.GameApp = window.GameApp || {};
 
 Object.assign(window.GameApp, {
   wizardStep: 1,
+  wizardPokeFilter: "ALL",
   centerTab: "pokemon",
   selectedTrainer: TRAINERS[0],
   selectedStarterId: 25,
@@ -357,12 +358,36 @@ Object.assign(window.GameApp, {
     }).join("");
 
     const pBox = document.getElementById("wizardStep2");
+    pBox.className = this.wizardStep === 2 ? "space-y-3" : "hidden space-y-3";
     const bondSet = new Set(this.selectedTrainer.bondPokemonIds || []);
+
+    const filterTabs = [
+      { key: "ALL", label: "全部一階" },
+      { key: "BOND_UNLOCKED", label: "★ 羈絆 / 已收服" },
+      { key: "Grass", label: "草 / 蟲系" },
+      { key: "Fire", label: "火 / 龍系" },
+      { key: "Water", label: "水 / 冰系" },
+      { key: "Electric", label: "電 / 飛行" },
+      { key: "Psychic", label: "超能 / 幽靈 / 毒" },
+      { key: "Physical", label: "格鬥 / 地面 / 岩 / 一般" }
+    ];
+    const activeFilter = this.wizardPokeFilter || "ALL";
 
     const baseFormPokemon = POKEMON_DB.filter(p => {
       // 排除伊布的分支進化型 (水伊布 134, 雷伊布 135, 火伊布 136)
       if (p.id === 134 || p.id === 135 || p.id === 136) return false;
       return !POKEMON_DB.some(parent => parent.evo_to === p.id);
+    }).filter(p => {
+      if (activeFilter === "ALL") return true;
+      if (activeFilter === "BOND_UNLOCKED") return bondSet.has(p.id) || !!this.saveData.unlockedPokemon[p.id];
+      const types = [p.type1, p.type2];
+      if (activeFilter === "Grass") return types.includes("Grass") || types.includes("Bug");
+      if (activeFilter === "Fire") return types.includes("Fire") || types.includes("Dragon");
+      if (activeFilter === "Water") return types.includes("Water") || types.includes("Ice");
+      if (activeFilter === "Electric") return types.includes("Electric") || types.includes("Flying");
+      if (activeFilter === "Psychic") return types.includes("Psychic") || types.includes("Ghost") || types.includes("Poison");
+      if (activeFilter === "Physical") return types.includes("Fighting") || types.includes("Ground") || types.includes("Rock") || types.includes("Normal");
+      return true;
     });
 
     const sortedRoster = [...baseFormPokemon].sort((a, b) => {
@@ -373,7 +398,17 @@ Object.assign(window.GameApp, {
       return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
     });
 
-    pBox.innerHTML = sortedRoster.map(p => {
+    const filterBarHtml = `
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+        ${filterTabs.map(t => `
+          <button onclick="GameApp.setWizardPokeFilter('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${activeFilter === t.key ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+            ${t.label}
+          </button>
+        `).join("")}
+      </div>
+    `;
+
+    const cardsHtml = sortedRoster.map(p => {
       const unlocked = !!this.saveData.unlockedPokemon[p.id];
       const selected = this.selectedStarterId === p.id;
       const hasShiny = !!this.saveData.shinyUnlocked[p.id];
@@ -427,6 +462,8 @@ Object.assign(window.GameApp, {
       `;
     }).join("");
 
+    pBox.innerHTML = filterBarHtml + `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">${cardsHtml}</div>`;
+
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
       return `
@@ -469,6 +506,12 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }).join("");
+  },
+
+  setWizardPokeFilter(filterKey) {
+    this.wizardPokeFilter = filterKey;
+    if (typeof SoundFX !== "undefined") SoundFX.play("hit");
+    this.renderWizardContent();
   },
 
   handleTrainerCardClick(trainerId) {
@@ -1102,8 +1145,45 @@ Object.assign(window.GameApp, {
       const totalDmg = Object.values(stats).reduce((sum, val) => sum + val, 0) || 1;
       const sortedSkills = Object.entries(stats).sort((a, b) => b[1] - a[1]);
 
+      const p = this.player;
+      const recipeRows = p ? Object.values(p.skills).map(sk => {
+        const meta = SKILLS_CATALOG[sk.id];
+        if (!meta) return "";
+        const reqItemMeta = meta.reqItem ? HELD_ITEMS[meta.reqItem] : null;
+        const hasItem = reqItemMeta ? !!(p.heldItems && p.heldItems[reqItemMeta.id]) : true;
+        return `
+          <div class="flex items-center justify-between bg-slate-900/90 px-2 py-1 rounded-lg border ${sk.evolved ? 'border-amber-400' : 'border-slate-700'} text-[10px]">
+            <div class="flex items-center gap-1.5 min-w-0">
+              <img src="${meta.sprite}" class="w-4 h-4 pixel-sprite shrink-0"/>
+              <span class="text-white font-black truncate">${sk.evolved ? meta.evolvedName : meta.name}</span>
+              <span class="text-amber-300 font-pixel text-[8px]">Lv.${sk.level}</span>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              ${sk.evolved
+                ? `<span class="px-1.5 py-0.2 bg-amber-400 text-slate-950 font-black rounded text-[9px]">★ 已突破超武</span>`
+                : (reqItemMeta
+                    ? `<span class="text-slate-400">需</span>
+                       <img src="${reqItemMeta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/>
+                       <span class="${hasItem ? 'text-emerald-400 font-black' : 'text-slate-400'}">${reqItemMeta.name}${hasItem ? ' ✓' : ''}</span>
+                       <span class="text-amber-300 font-bold">➔ ${meta.evolvedName}</span>`
+                    : `<span class="text-slate-400">Lv.10 可突破</span>`)
+              }
+            </div>
+          </div>
+        `;
+      }).join("") : "";
+
       dpsBox.innerHTML = `
-        <div class="mt-3 pt-2.5 border-t border-slate-700/80">
+        <div class="mt-2.5 pt-2 border-t border-slate-700/80">
+          <div class="text-[11px] font-black text-amber-300 mb-1.5 flex items-center gap-1">
+            <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+            <span>當前招式 ＆ 超武合成配方表</span>
+          </div>
+          <div class="space-y-1 mb-2.5">
+            ${recipeRows}
+          </div>
+        </div>
+        <div class="mt-2.5 pt-2 border-t border-slate-700/80">
           <div class="text-[11px] font-black text-slate-300 mb-1.5 flex justify-between">
             <span>招式傷害統計 (DPS Breakdown)</span>
             <span class="text-amber-400">總輸出: ${totalDmg.toLocaleString()}</span>
