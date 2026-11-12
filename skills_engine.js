@@ -105,6 +105,9 @@ const SkillsEngine = {
       if (meta.type === "Ground" && GameApp.player.heldItems["soft_sand"]) heldItemMult *= 1.20;
       if (meta.type === "Fighting" && GameApp.player.heldItems["black_belt"]) heldItemMult *= 1.20;
       if (meta.type === "Flying" && GameApp.player.heldItems["sharp_beak"]) heldItemMult *= 1.20;
+      if (meta.type === "Normal" && GameApp.player.heldItems["silk_scarf"]) heldItemMult *= 1.20;
+      if (meta.type === "Poison" && GameApp.player.heldItems["poison_barb"]) heldItemMult *= 1.20;
+      if (meta.type === "Dragon" && GameApp.player.heldItems["dragon_scale"]) heldItemMult *= 1.20;
     }
 
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
@@ -496,7 +499,12 @@ const SkillsEngine = {
     const halfH = GameApp.height / 2 + 70;
     GameApp.enemies.forEach(e => {
       if (Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH) {
-        GameApp.dealDamageToEnemy(e, ultDmg, meta.type, 0.70, e.isBoss ? 0 : 35);
+        // 地裂斷層破：飛濺巨岩可對飛行系造成相當於 75% 的重擊，突破地面系對三聖鳥的刮痧限制
+        let adjustedDmg = ultDmg;
+        if (meta.type === "Ground" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
+          adjustedDmg = ultDmg * 7.5; // 抵銷 0.1x 後達 0.75x 實質傷害
+        }
+        GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 35);
       }
     });
 

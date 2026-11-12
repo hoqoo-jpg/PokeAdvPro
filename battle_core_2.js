@@ -44,6 +44,7 @@ window.GameApp = {
   floatingTexts: [],
   gems: [],
   mapItems: [],
+  lavaFootprints: [],
   activeBoss: null,
   telegraphs: [],
   enemyProjectiles: [],
@@ -610,14 +611,16 @@ window.GameApp = {
     //const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
     //this.player.skills[initSkillId] = { id: initSkillId, level: 1, evolved: false, timer: 0.2 };
 
-// 讀取天生三招配置
-    const natConfig = (typeof POKEMON_NATURAL_SKILLS !== "undefined" && POKEMON_NATURAL_SKILLS[basePoke.id])
-      ? POKEMON_NATURAL_SKILLS[basePoke.id]
-      : null;
+    // 讀取或動態推導全 151 圖鑑專屬天生三招配置
+    const derivedNatSkills = (typeof getNaturalSkillsForPokemon === "function")
+      ? getNaturalSkillsForPokemon(basePoke)
+      : ((typeof POKEMON_NATURAL_SKILLS !== "undefined" && POKEMON_NATURAL_SKILLS[basePoke.id])
+          ? POKEMON_NATURAL_SKILLS[basePoke.id].skills
+          : [SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle"]);
 
-    const firstSkillId = natConfig ? natConfig.skills[0] : (SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle");
+    const firstSkillId = derivedNatSkills[0] || "Tackle";
     this.player.skills[firstSkillId] = { id: firstSkillId, level: 1, evolved: false, timer: 0.2 };
-    this.player.naturalSkills = natConfig ? [...natConfig.skills] : [firstSkillId];
+    this.player.naturalSkills = [...derivedNatSkills];
 	
     this.trainerCompanion = {
       x: 26,
@@ -640,6 +643,7 @@ window.GameApp = {
     this.floatingTexts = [];
     this.gems = [];
     this.mapItems = [];
+    this.lavaFootprints = [];
     this.telegraphs = [];
     this.enemyProjectiles = [];
     this.activeBoss = null;
@@ -977,6 +981,91 @@ window.GameApp = {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
 
+    // 【攜帶物：奇蹟種子】站在草叢中每秒回復 1.5% 最大生命值
+    if (p.heldItems && p.heldItems["miracle_seed"] && terrain.label && terrain.label.includes("草叢") && p.hp < p.maxHp) {
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.015 * dt);
+    }
+
+    // 【攜帶物：神秘水滴】生命低於 30% 時自動釋放環形高壓水幕擊退身周敵人 (內置 8 秒冷卻)
+    if (p.mysticWaterCd > 0) p.mysticWaterCd -= dt;
+    if (p.heldItems && p.heldItems["mystic_water"] && (p.hp / p.maxHp) <= 0.30 && (!p.mysticWaterCd || p.mysticWaterCd <= 0)) {
+      p.mysticWaterCd = 8.0;
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: p.x,
+        y: p.y,
+        radius: 145,
+        timer: 0.40,
+        maxTime: 0.40,
+        color: "#38BDF8"
+      });
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 24, "circle", 1.2);
+      this.spawnFloatingText(p.x, p.y - 28, "神秘水滴：護體水幕擊退！", "#38BDF8", 13);
+      SoundFX.play("super");
+      this.enemies.forEach(e => {
+        if (!e.isBoss && Math.hypot(e.x - p.x, e.y - p.y) <= 155) {
+          const ang = Math.atan2(e.y - p.y, e.x - p.x);
+          e.x += Math.cos(ang) * 90;
+          e.y += Math.sin(ang) * 90;
+          this.dealDamageToEnemy(e, p.baseAtk * 0.8 * p.dmgMult, "Water", 0.25, 20);
+        }
+      });
+    }
+
+    // 【攜帶物：磁鐵】每 20 秒自動吸取全場最近一顆經驗水晶
+    if (p.heldItems && p.heldItems["magnet"]) {
+      p.heldMagnetTimer = (p.heldMagnetTimer === undefined ? 5.0 : p.heldMagnetTimer - dt);
+      if (p.heldMagnetTimer <= 0) {
+        p.heldMagnetTimer = 20.0;
+        let nearestGem = null;
+        let minGDist = Infinity;
+        for (const g of this.gems) {
+          if (!g.magnetized) {
+            const gd = Math.hypot(g.x - p.x, g.y - p.y);
+            if (gd < minGDist) { minGDist = gd; nearestGem = g; }
+          }
+        }
+        if (nearestGem) {
+          nearestGem.magnetized = true;
+          this.spawnFloatingText(p.x, p.y - 24, "磁鐵引力牽引！", "#FACC15", 11);
+        }
+      }
+    }
+
+    // 【攜帶物：木炭】走過的路徑留下持續 2 秒的熔岩灼燒腳印
+    if (p.heldItems && p.heldItems["charcoal"] && ilen > 0.05) {
+      p.charcoalStepTimer = (p.charcoalStepTimer || 0) - dt;
+      if (p.charcoalStepTimer <= 0) {
+        p.charcoalStepTimer = 0.24;
+        this.lavaFootprints.push({
+          x: p.x,
+          y: p.y + 12,
+          radius: 24,
+          life: 2.0,
+          maxLife: 2.0,
+          tickTimer: 0.1
+        });
+      }
+    }
+    for (let i = this.lavaFootprints.length - 1; i >= 0; i--) {
+      const lf = this.lavaFootprints[i];
+      lf.life -= dt;
+      lf.tickTimer -= dt;
+      if (lf.tickTimer <= 0) {
+        lf.tickTimer = 0.45;
+        const lavaDmg = Math.max(4, Math.round((8 + p.baseAtk * 0.22) * p.dmgMult));
+        for (let j = this.enemies.length - 1; j >= 0; j--) {
+          const e = this.enemies[j];
+          if (Math.hypot(e.x - lf.x, e.y - lf.y) <= lf.radius + e.radius) {
+            this.dealDamageToEnemy(e, lavaDmg, "Fire", 0.20, 0);
+          }
+        }
+      }
+      if (lf.life <= 0) {
+        this.lavaFootprints.splice(i, 1);
+      }
+    }
+
     const tBadge = document.getElementById("hudTerrainBadge");
     if (terrain.label) {
       tBadge.textContent = terrain.label;
@@ -1003,8 +1092,12 @@ window.GameApp = {
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
     const xSpdMod = p.xSpeedTimer > 0 ? 1.30 : 1.0;
-    const finalTerrainSpd = (p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult;
-    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
+    const hasSharpBeak = !!(p.heldItems && p.heldItems["sharp_beak"]);
+    const sharpBeakSpdMod = hasSharpBeak ? 1.12 : 1.0;
+    const finalTerrainSpd = (hasSharpBeak && terrain.speedMult < 1.0)
+      ? 1.0
+      : ((p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult);
+    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
     // 主角速度軟上限 180 px/s，確保微操靈敏但避免中後期無腦風箏
     const moveSpd = Math.min(180, rawMoveSpd);
 
@@ -1088,7 +1181,9 @@ window.GameApp = {
     this.camera.y = p.y;
 
     const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
-    const cdFactor = Math.max(0.50, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod);
+    const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
+    const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
+    const cdFactor = Math.max(0.45, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
     Object.values(p.skills).forEach(skSlot => {
       skSlot.timer -= dt;
       if (skSlot.timer <= 0) {
@@ -1609,6 +1704,11 @@ window.GameApp = {
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
 
+      // 【攜帶物：不融冰】身周 80px 形成霜凍光環，踏入光環的怪獸移速 -30%
+      if (p.heldItems && p.heldItems["never_melt_ice"] && dist <= 80 + e.radius) {
+        eTerrMult *= 0.70;
+      }
+
       if (dist > Math.max(this.width, this.height) * 0.85 && !e.isBoss && !e.isElite && !e.treasureType) {
         const rAng = Math.random() * Math.PI * 2;
         e.x = p.x + Math.cos(rAng) * (Math.max(this.width, this.height) * 0.55);
@@ -1858,14 +1958,24 @@ window.GameApp = {
       const hitTrainer = tc && (distToTrainer < e.radius + 18);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        // 【攜帶物：柔軟沙子】受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！
+        if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
+          p.invulnTimer = 0.45;
+          this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.8);
+          this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+          continue;
+        }
+
         const armorMult = 1 - (p.finalEvoArmor || 0);
-        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult;
+        const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
+        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
         const burnMod = e.status === "Burn" ? 0.72 : 1.0;
         const dmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
         p.hp -= dmg;
 
         const hasMelee = Object.values(p.skills).some(s => SKILLS_CATALOG[s.id] && SKILLS_CATALOG[s.id].isMelee);
-        p.invulnTimer = hasMelee ? 0.75 : 0.50;
+        const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
+        p.invulnTimer = (hasMelee ? 0.75 : 0.50) + scarfBonus;
 
         if (hitTrainer && !hitPoke) {
           this.camera.shakeTime = 0.28;
@@ -2024,9 +2134,12 @@ window.GameApp = {
         }
 
         if (hitPlayer && p.invulnTimer <= 0) {
-          const dmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.5 : 1.0)));
+          const armorMult = 1 - (p.finalEvoArmor || 0);
+          const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
+          const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
+          const dmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult));
           p.hp -= dmg;
-          p.invulnTimer = 0.45;
+          p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
           SoundFX.play("hit");
           if (p.hp <= 0) {
@@ -2091,10 +2204,12 @@ window.GameApp = {
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         const armorMult = 1 - (p.finalEvoArmor || 0);
-        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult;
+        const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
+        const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
+        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
         const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
         p.hp -= dmg;
-        p.invulnTimer = 0.55; // 賦予無敵硬直時間
+        p.invulnTimer = 0.55 + scarfBonus; // 賦予無敵硬直時間（含絲綢圍巾加成）
 
         // 狀態賦予判定 (普通怪子彈依 vfx 判定，神獸子彈依 statusEffect 判定)
         let inflictedStatus = ep.statusEffect || null;
@@ -2180,9 +2295,13 @@ window.GameApp = {
   dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const psychicCritBonus = (MapEngine.weather === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) ? 0.15 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus);
+    // 【攜帶物：毒針】對處於中毒狀態的敵人額外暴擊率 +25%
+    const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus);
+    // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
+    const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
     const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
-    let finalDmg = Math.round(rawDmg * eff * (isCrit ? 1.35 : 1.0) * xAtkMod);
+    let finalDmg = Math.round(rawDmg * eff * critMult * xAtkMod);
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
     enemy.hp -= finalDmg;
@@ -2204,6 +2323,15 @@ window.GameApp = {
       const ang = Math.atan2(enemy.y - this.player.y, enemy.x - this.player.x);
       enemy.x += Math.cos(ang) * actualKb;
       enemy.y += Math.sin(ang) * actualKb;
+    }
+
+    // 【攜帶物：彎曲湯匙】攻擊有 15% 機率使敵人混亂
+    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && !enemy.status && Math.random() < 0.15) {
+      if (!(enemy.isBoss && enemy.ccImmunityTimer > 0)) {
+        enemy.status = "Confusion";
+        enemy.statusTimer = enemy.isBoss ? 1.5 : 3.5;
+        if (enemy.isBoss) enemy.ccImmunityTimer = 3.0;
+      }
     }
 
     const tMeta = TYPE_META[moveType];
@@ -2237,6 +2365,33 @@ window.GameApp = {
     this.kills += 1;
     this.saveData.stats.totalKills += 1;
     this.saveData.pokedexCaught[e.id] = true;
+
+    // 【攜帶物：詛咒之符】擊敗敵人時 10% 機率將其靈魂轉化為追蹤自爆鬼火
+    if (this.player && this.player.heldItems && this.player.heldItems["spell_tag"] && Math.random() < 0.10) {
+      const p = this.player;
+      const wispDmg = Math.round((28 + p.baseAtk * 0.45) * p.dmgMult);
+      SkillsEngine.projectiles.push({
+        x: e.x,
+        y: e.y,
+        vx: (Math.random() - 0.5) * 180,
+        vy: (Math.random() - 0.5) * 180,
+        angle: 0,
+        radius: 17 * p.areaMult,
+        dmg: wispDmg,
+        type: "Ghost",
+        skillId: "Shadow Ball",
+        vfx: "shadow_orb",
+        homing: true,
+        color: "#C084FC",
+        pierce: 2,
+        knockback: 6,
+        life: 2.2,
+        statusBonus: 0.35,
+        hitSet: new Set(),
+        trailTimer: 0
+      });
+      this.spawnFloatingText(e.x, e.y - 16, "靈魂鬼火！", "#C084FC", 11);
+    }
 
     const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15);
 
@@ -2307,10 +2462,14 @@ window.GameApp = {
 
   updateLootAndGems(dt) {
     const p = this.player;
+    const palletBonus = (MapEngine.currentStage.id === "pallet") ? 1.20 : 1.0;
+    const magnetHeldBonus = (p.heldItems && p.heldItems["magnet"]) ? 1.50 : 1.0;
+    const effectiveMagnetR = p.magnetRadius * palletBonus * magnetHeldBonus;
+
     for (let i = this.gems.length - 1; i >= 0; i--) {
       const g = this.gems[i];
       const d = Math.hypot(p.x - g.x, p.y - g.y);
-      if (d < p.magnetRadius || g.magnetized) {
+      if (d < effectiveMagnetR || g.magnetized) {
         g.magnetized = true;
         const ang = Math.atan2(p.y - g.y, p.x - g.x);
         g.x += Math.cos(ang) * 440 * dt;
@@ -2330,7 +2489,22 @@ window.GameApp = {
       if (Math.hypot(p.x - it.x, p.y - it.y) < 30) {
         this.mapItems.splice(i, 1);
         if (it.id === "magnet") {
-          this.gems.forEach(g => { g.magnetized = true; });
+          // 繪製【木炭】熔岩灼燒腳印
+    this.lavaFootprints.forEach(lf => {
+      const lsx = toSx(lf.x), lsy = toSy(lf.y);
+      const alpha = Math.max(0, (lf.life / lf.maxLife) * 0.65);
+      ctx.save();
+      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+      ctx.strokeStyle = `rgba(253, 224, 71, ${alpha * 1.1})`;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.ellipse(lsx, lsy, lf.radius, lf.radius * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    this.gems.forEach(g => { g.magnetized = true; });
           SoundFX.play("super");
           this.spawnFloatingText(p.x, p.y - 24, "經驗磁鐵吸取!", "#38BDF8", 14);
         } else if (it.id === "partner_ball") {
@@ -2845,6 +3019,21 @@ window.GameApp = {
       ctx.restore();
     });
 
+    // 繪製【木炭】熔岩灼燒腳印
+    this.lavaFootprints.forEach(lf => {
+      const lsx = toSx(lf.x), lsy = toSy(lf.y);
+      const alpha = Math.max(0, (lf.life / lf.maxLife) * 0.65);
+      ctx.save();
+      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
+      ctx.strokeStyle = `rgba(253, 224, 71, ${alpha * 1.1})`;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.ellipse(lsx, lsy, lf.radius, lf.radius * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    });
+
     this.gems.forEach(g => {
       const sx = toSx(g.x), sy = toSy(g.y);
       ctx.save();
@@ -3078,6 +3267,20 @@ window.GameApp = {
       ctx.beginPath();
       ctx.ellipse(px, py + 19, 22, 7.5, 0, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    // 繪製【不融冰】80px 霜凍減速光環
+    if (p.heldItems && p.heldItems["never_melt_ice"]) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(103, 232, 249, 0.45)";
+      ctx.fillStyle = "rgba(103, 232, 249, 0.08)";
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.arc(px, py, 80, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
     }
 
     if (p.shieldTimer > 0) {

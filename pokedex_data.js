@@ -1039,11 +1039,60 @@ const POKEMON_NATURAL_SKILLS = {
   4:   { name: "小火龍",   skills: ["Ember", "Flamethrower", "DragonRush"] },
   7:   { name: "傑尼龜",   skills: ["WaterGun", "HydroPump", "IceBeam"] },
   10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
+  13:  { name: "獨角蟲",   skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
+  132: { name: "百變怪",   skills: ["Metronome", "Tackle", "Psystrike"] },
   133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
-  143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] }
+  143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] },
+  147: { name: "迷你龍",   skills: ["DragonRush", "Thunderbolt", "IceBeam"] }
 };
+
+// 根據屬性對應的代表招式池（供全 151 圖鑑動態推導天生三招）
+const TYPE_SKILL_POOLS = {
+  Grass:    ["VineWhip", "SeedBomb", "SludgeBomb"],
+  Fire:     ["Ember", "Flamethrower", "DragonRush"],
+  Water:    ["WaterGun", "HydroPump", "IceBeam"],
+  Electric: ["Thunderbolt", "AirSlash", "Tackle"],
+  Ice:      ["IceBeam", "WaterGun", "HydroPump"],
+  Fighting: ["KarateChop", "Earthquake", "Tackle"],
+  Poison:   ["SludgeBomb", "ShadowBall", "SeedBomb"],
+  Ground:   ["Earthquake", "KarateChop", "Tackle"],
+  Flying:   ["AirSlash", "DragonRush", "Tackle"],
+  Psychic:  ["Psystrike", "Moonblast", "ShadowBall"],
+  Bug:      ["SeedBomb", "SludgeBomb", "AirSlash"],
+  Rock:     ["Earthquake", "KarateChop", "Tackle"],
+  Ghost:    ["ShadowBall", "SludgeBomb", "Psystrike"],
+  Dragon:   ["DragonRush", "Flamethrower", "Thunderbolt"],
+  Steel:    ["Thunderbolt", "Earthquake", "Tackle"],
+  Normal:   ["Tackle", "AirSlash", "Earthquake"]
+};
+
+function getNaturalSkillsForPokemon(pokeData) {
+  if (!pokeData) return ["Tackle", "AirSlash", "Earthquake"];
+  if (POKEMON_NATURAL_SKILLS[pokeData.id]) {
+    return [...POKEMON_NATURAL_SKILLS[pokeData.id].skills];
+  }
+  const result = [];
+  const addUnique = (skId) => {
+    if (!skId) return;
+    const clean = skId.replace(/\s+/g, '');
+    if (SKILLS_CATALOG[clean] && !result.includes(clean)) {
+      result.push(clean);
+    }
+  };
+  // 1. 優先放入圖鑑預設主招式
+  addUnique(pokeData.skill);
+  // 2. 放入第一屬性代表招式
+  (TYPE_SKILL_POOLS[pokeData.type1] || []).forEach(s => { if (result.length < 3) addUnique(s); });
+  // 3. 放入第二屬性代表招式
+  if (pokeData.type2 && pokeData.type2 !== "None") {
+    (TYPE_SKILL_POOLS[pokeData.type2] || []).forEach(s => { if (result.length < 3) addUnique(s); });
+  }
+  // 4. 兜底補齊至 3 招
+  ["Tackle", "AirSlash", "Earthquake"].forEach(s => { if (result.length < 3) addUnique(s); });
+  return result;
+}
 
 // 伊布進化時的三系本系替換表 (第一招直接替換為代表屬性大招，繼承原本升高的招式等級！)
 const EEVEE_EVO_SKILLS = {
