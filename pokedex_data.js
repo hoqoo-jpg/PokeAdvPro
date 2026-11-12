@@ -236,11 +236,15 @@ Object.values(SKILLS_CATALOG).forEach(sk => {
 });
 
 function getSkillNextLevelBonusDesc(nextLv) {
-  if (nextLv === 10) return "★ 滿級覺醒！攻擊力大幅躍升 +50%，解鎖超武進化前置！";
-  if (nextLv === 3 || nextLv === 6 || nextLv === 9) return `彈幕數量/打擊次數 +1！基礎傷害提升至 ${(1 + (nextLv-1)*0.10).toFixed(2)}x！`;
-  if (nextLv === 4 || nextLv === 8) return `冷卻時間縮短 -12%！範圍擴大 +15%！傷害大幅提升！`;
-  if (nextLv === 5) return `異常狀態觸發率提升 +30%！傷害提升至 ${(1 + (nextLv-1)*0.10).toFixed(2)}x！`;
-  return `基礎傷害提升至 ${(1 + (nextLv-1)*0.10).toFixed(2)}x！打擊硬直提升！`;
+  const dmgMultStr = (1 + (nextLv - 1) * 0.06 + (nextLv === 10 ? 0.12 : 0)).toFixed(2);
+  if (nextLv === 10) return `★ 滿級覺醒！傷害倍率躍升至 ${dmgMultStr}x，解鎖超武進化前置！`;
+  if (nextLv === 4) return `彈幕/打擊數 +1！冷卻時間縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 8) return `彈幕/打擊數 +1！攻擊範圍擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 9) return `極限連發！冷卻時間大幅縮短 -25%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 6) return `穿透力/近戰波次強化！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 5) return `異常狀態觸發率提升 +30%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 3) return `近戰/打擊範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+  return `基礎傷害提升至 ${dmgMultStr}x！打擊威力強化！`;
 }
 
 // 3. 攜帶道具資料庫 (已修正黑帶暴擊倍率描述)
@@ -940,8 +944,15 @@ const SoundFX = {
     return this.muted;
   },
 
+  lastHitTime: 0,
+
   play(type) {
     if (this.muted) return;
+    if (type === "hit") {
+      const perfNow = performance.now();
+      if (perfNow - (this.lastHitTime || 0) < 40) return;
+      this.lastHitTime = perfNow;
+    }
     this.init();
     if (!this.ctx) return;
     try {
@@ -953,9 +964,11 @@ const SoundFX = {
 
       if (type === "hit") {
         osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(140, now);
-        osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
-        gain.gain.setValueAtTime(0.18, now);
+        const startFreq = 140 + (Math.random() - 0.5) * 30;
+        const endFreq = Math.max(25, 40 + (Math.random() - 0.5) * 12);
+        osc.frequency.setValueAtTime(startFreq, now);
+        osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.08);
+        gain.gain.setValueAtTime(0.16, now);
         gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
         osc.start(now);
         osc.stop(now + 0.08);
@@ -1026,7 +1039,7 @@ const POKEMON_NATURAL_SKILLS = {
   4:   { name: "小火龍",   skills: ["Ember", "Flamethrower", "DragonRush"] },
   7:   { name: "傑尼龜",   skills: ["WaterGun", "HydroPump", "IceBeam"] },
   10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
-  16:  { name: "波波",     skills: ["Tackle", "AirSlash", "Tackle"] },
+  16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
   133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
   143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] }

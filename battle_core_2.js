@@ -1533,85 +1533,9 @@ window.GameApp = {
     if (this.renderMartModal) this.renderMartModal(shelf);
   },
 
-  buyMartItem(itemId, cost) {
-    if (this.runCoins < cost) {
-      this.spawnFloatingText(this.player.x, this.player.y - 20, "代幣不足！", "#EF4444", 13);
-      return;
-    }
-    this.runCoins -= cost;
-    this.saveData.coins = Math.max(0, this.saveData.coins - cost);
-    const p = this.player;
-
-    if (itemId === "pp_up") {
-      const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
-      if (upgradeable.length > 0) {
-        const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
-        pick.level += 1;
-        const skMeta = SKILLS_CATALOG[pick.id];
-        SoundFX.play("levelup");
-        this.spawnFloatingText(p.x, p.y - 25, `【${skMeta ? skMeta.name : pick.id}】升級至 Lv.${pick.level}!`, "#FACC15", 15);
-      } else {
-        this.spawnFloatingText(p.x, p.y - 20, "所有招式已達 MAX 滿級！", "#38BDF8", 13);
-      }
-    } else if (itemId === "full_restore") {
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
-      p.status = null;
-      p.statusTimer = 0;
-      SoundFX.play("levelup");
-      this.spawnFloatingText(p.x, p.y - 25, "全滿傷藥：恢復 45% HP ＆ 淨化異常！", "#34D399", 15);
-    } else if (itemId === "x_attack") {
-      p.xAttackTimer = 30.0;
-      SoundFX.play("super");
-      this.spawnFloatingText(p.x, p.y - 25, "力量強化：30秒內全傷害+35%！", "#EF4444", 15);
-      this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 24, "star", 1.2);
-    } else if (itemId === "x_speed") {
-      p.xSpeedTimer = 30.0;
-      SoundFX.play("super");
-      this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
-      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
-    } else {
-      // 滿槽時打開「自選遺忘」介面，交由玩家決定替換哪一招（不直接覆蓋高練度技能）
-      const currentSkills = Object.keys(p.skills);
-      const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
-
-      if (currentSkills.length >= maxSlots) {
-        // 暫不扣款，開啟自選遺忘清單
-        this.runCoins += cost;
-        this.saveData.coins += cost;
-        if (this.promptMartForgetSkill) {
-          this.promptMartForgetSkill(itemId, cost);
-        }
-        return;
-      } else {
-        // 尚未滿槽：正常習得並給予相位錯開
-        const stagger = currentSkills.length * 0.22;
-        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };
-        SoundFX.play("levelup");
-        const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
-        this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
-      }
-    }
-
-    this.closePokeMartModal();
-  },
-
+  // 友好商店購買與關閉邏輯統一由 game_ui.js 接管 (Single Source of Truth)
   buyTM(skillId, cost) {
-    this.buyMartItem(skillId, cost);
-  },
-
-  closePokeMartModal() {
-    const modal = document.getElementById("pokeMartModal");
-    if (modal) modal.classList.add("hidden");
-    this.state = "PLAYING";
-    const idx = this.mapItems.findIndex(it => it.id === "poke_mart");
-    if (idx !== -1) {
-      const it = this.mapItems[idx];
-      this.spawnParticleCluster(it.x, it.y, "#94A3B8", "#FFFFFF", 20, "circle", 1.2);
-      this.mapItems.splice(idx, 1);
-      SoundFX.play("hit");
-    }
-    this.martRerollCost = 50;
-    this.refreshHUD();
+    if (this.buyMartItem) this.buyMartItem(skillId, cost);
   },
 
   updateEnemies(dt) {
