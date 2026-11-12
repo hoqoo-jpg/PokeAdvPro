@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="寶可夢大冒險" />
   <title>POKÉMON ADV SURVIVORS</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -57,13 +61,13 @@
       padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 14px) !important;
     }
 
-    /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 */
+    /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 (兼容 PWA 獨立模式橫豎屏) */
     .hud-bottom-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 22px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 18px) !important;
     }
 
     .hud-partner-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 96px) !important;
+      bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 94px) !important;
     }
 
     /* 封面毛玻璃朦朧濾鏡與暗角效果，凸顯標題與提示 */
@@ -71,7 +75,23 @@
       backdrop-filter: blur(6px) brightness(0.82);
       -webkit-backdrop-filter: blur(6px) brightness(0.82);
       background: radial-gradient(circle, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.72) 100%);
-      padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 24px) !important;
+      padding-bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 24px) !important;
+    }
+
+    /* iPhone PWA 主畫面獨立模式（Standalone）與橫屏強制安全留白，徹底杜絕底部圓角與 Home 橫條切邊 */
+    @media (display-mode: standalone), (orientation: landscape) {
+      .hud-bottom-safe {
+        bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 22px) !important;
+      }
+      .hud-partner-safe {
+        bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 98px) !important;
+      }
+      #splashScreen {
+        padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 28px) !important;
+      }
+      .setup-footer-safe {
+        padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 18px) !important;
+      }
     }
 
     /* 僅對遊戲畫布與戰鬥 HUD 禁用手勢，確保搖桿靈敏且不觸發 iOS 縮放 */
@@ -717,7 +737,7 @@
     </div>
   </div>
   
-  <!-- 友好商店採購彈窗 (Poké Mart Modal) -->
+  <!-- 友好商店採購彈窗 (Poké Mart Modal - 支援滿槽自選遺忘) -->
 <div id="pokeMartModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
   <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-sky-400 text-white shadow-2xl">
     <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-2.5">
@@ -730,16 +750,35 @@
         <span id="martCoinsDisplay" class="font-pixel text-xs text-amber-300">0</span>
       </div>
     </div>
-    <p class="text-[11px] text-slate-300 font-bold mb-3">
-      採購跨屬性 TM 招式學習機以解鎖／覆蓋第 4 技能槽！
-    </p>
-    <div id="martShelfContainer" class="space-y-2 mb-3"></div>
-    <div class="flex gap-2">
-      <button id="btnMartReroll" onclick="GameApp.rerollMartShelf()" class="poke-btn-yellow flex-1 py-2 text-xs font-black flex items-center justify-center gap-1">
-        <i class="fa-solid fa-arrows-rotate"></i> 刷新貨架 (<span id="martRerollCostText">50</span>金)
-      </button>
-      <button onclick="GameApp.closePokeMartModal()" class="poke-btn-white flex-1 py-2 text-xs font-black">
-        離開商店
+
+    <!-- 常規貨架視圖 -->
+    <div id="martMainView">
+      <p id="martSlotHintText" class="text-[11px] text-slate-300 font-bold mb-3">
+        採購跨屬性 TM 招式學習機或戰鬥補給道具！
+      </p>
+      <div id="martShelfContainer" class="space-y-2 mb-3"></div>
+      <div class="flex gap-2">
+        <button id="btnMartReroll" onclick="GameApp.rerollMartShelf()" class="poke-btn-yellow flex-1 py-2 text-xs font-black flex items-center justify-center gap-1">
+          <i class="fa-solid fa-arrows-rotate"></i> 刷新貨架 (<span id="martRerollCostText">50</span>金)
+        </button>
+        <button onclick="GameApp.closePokeMartModal()" class="poke-btn-white flex-1 py-2 text-xs font-black">
+          離開商店
+        </button>
+      </div>
+    </div>
+
+    <!-- 滿槽自選遺忘視圖 -->
+    <div id="martForgetView" class="hidden">
+      <div class="bg-amber-950/70 border border-amber-400/80 rounded-xl p-2.5 mb-2.5 text-xs">
+        <div class="font-black text-amber-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-exclamation"></i>
+          <span>招式槽已滿！請選擇要遺忘的舊招式：</span>
+        </div>
+        <div id="martPendingTmDesc" class="text-[11px] text-slate-200 mt-1 font-bold"></div>
+      </div>
+      <div id="martForgetListContainer" class="space-y-2 mb-3"></div>
+      <button onclick="GameApp.cancelMartForget()" class="poke-btn-white w-full py-2 text-xs font-black">
+        放棄學習（返回貨架，不扣代幣）
       </button>
     </div>
   </div>
@@ -822,10 +861,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=8.0"></script>
-  <script src="map_v11_engine.js?v=8.0"></script>
-  <script src="skills_engine.js?v=8.0"></script>
-  <script src="battle_core_2.js?v=8.0"></script>
-  <script src="game_ui.js?v=8.0"></script>
+  <script src="pokedex_data.js?v=9.0"></script>
+  <script src="map_v11_engine.js?v=9.0"></script>
+  <script src="skills_engine.js?v=9.0"></script>
+  <script src="battle_core_2.js?v=9.0"></script>
+  <script src="game_ui.js?v=9.0"></script>
 </body>
 </html>

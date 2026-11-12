@@ -1161,6 +1161,48 @@ window.GameApp = {
     return best;
   },
 
+  findPriorityTargetInViewport(ox, oy, maxRange = 400, mode = "highest_hp") {
+    const halfW = this.width / 2 + 40;
+    const halfH = this.height / 2 + 40;
+    const candidates = [];
+    for (const e of this.enemies) {
+      if (Math.abs(e.x - this.player.x) > halfW || Math.abs(e.y - this.player.y) > halfH) continue;
+      const d = Math.hypot(e.x - ox, e.y - oy);
+      if (d <= maxRange) candidates.push({ e, d });
+    }
+    if (candidates.length === 0) return null;
+
+    if (mode === "highest_hp") {
+      // 優先鎖定視野內最高血量目標（Boss / 精英怪 / 滿血怪），若只有一群普通怪則取次近目標實現分流
+      candidates.sort((a, b) => (b.e.hp - a.e.hp) || (a.d - b.d));
+      if (candidates.length >= 2 && candidates[0].e.hp === candidates[1].e.hp) {
+        candidates.sort((a, b) => a.d - b.d);
+        return candidates[1].e;
+      }
+      return candidates[0].e;
+    }
+
+    if (mode === "cluster") {
+      // 尋找周圍 85px 內怪物數量最密集的怪群核心
+      let bestTarget = candidates[0].e;
+      let bestScore = -1;
+      for (const c of candidates) {
+        let neighbors = 0;
+        for (const other of candidates) {
+          if (Math.hypot(other.e.x - c.e.x, other.e.y - c.e.y) <= 85) neighbors++;
+        }
+        const score = neighbors * 100 - c.d * 0.1;
+        if (score > bestScore) {
+          bestScore = score;
+          bestTarget = c.e;
+        }
+      }
+      return bestTarget;
+    }
+
+    return candidates[0].e;
+  },
+
   spawnParticleCluster(x, y, c1, c2, count = 14, shape = "circle", speedScale = 1.0) {
     for (let i = 0; i < count; i++) {
       if (this.particles.length > 300) this.particles.shift();
@@ -1528,23 +1570,22 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
     } else {
-      // 方案A：TM 招式槽位覆蓋替換機制，嚴格不超過當前上限
+      // 滿槽時打開「自選遺忘」介面，交由玩家決定替換哪一招（不直接覆蓋高練度技能）
       const currentSkills = Object.keys(p.skills);
       const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
 
       if (currentSkills.length >= maxSlots) {
-        // 已滿槽：優先替換非天生招式，若皆為天生招式則替換最後一招
-        let replaceKey = currentSkills.slice().reverse().find(k => !(p.naturalSkills || []).includes(k)) || currentSkills[currentSkills.length - 1];
-        const oldMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[replaceKey] : null;
-        delete p.skills[replaceKey];
-
-        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
-        SoundFX.play("levelup");
-        const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
-        this.spawnFloatingText(p.x, p.y - 25, `【${oldMeta ? oldMeta.name : replaceKey}】已替換為【${newMeta ? newMeta.name : itemId}】！`, "#38BDF8", 15);
+        // 暫不扣款，開啟自選遺忘清單
+        this.runCoins += cost;
+        this.saveData.coins += cost;
+        if (this.promptMartForgetSkill) {
+          this.promptMartForgetSkill(itemId, cost);
+        }
+        return;
       } else {
-        // 尚未滿槽：正常習得
-        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
+        // 尚未滿槽：正常習得並給予相位錯開
+        const stagger = currentSkills.length * 0.22;
+        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };
         SoundFX.play("levelup");
         const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
         this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
@@ -1893,7 +1934,8 @@ window.GameApp = {
       const hitTrainer = tc && (distToTrainer < e.radius + 18);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
-        const shieldMult = p.shieldTimer > 0 ? 0.5 : 1.0;
+        const armorMult = 1 - (p.finalEvoArmor || 0);
+        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult;
         const burnMod = e.status === "Burn" ? 0.72 : 1.0;
         const dmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
         p.hp -= dmg;
@@ -2124,7 +2166,8 @@ window.GameApp = {
       const hitTrainer = tc && (distToTrainer < ep.radius + 15);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
-        const shieldMult = p.shieldTimer > 0 ? 0.5 : 1.0;
+        const armorMult = 1 - (p.finalEvoArmor || 0);
+        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult;
         const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
         p.hp -= dmg;
         p.invulnTimer = 0.55; // 賦予無敵硬直時間
@@ -2471,10 +2514,17 @@ window.GameApp = {
     const nextData = POKEMON_MAP.get(targetId);
     if (!nextData) return;
     const oldName = p.data.name_zh;
+    const isFinalForm = (nextData.evo_level === "None" || !nextData.evo_to);
+    const hpBoostMult = isFinalForm ? 1.50 : 1.30;
+
     p.id = nextData.id;
     p.data = nextData;
-    p.maxHp = Math.round(p.maxHp * 1.32);
+    p.maxHp = Math.round(p.maxHp * hpBoostMult);
     p.hp = p.maxHp;
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 1.5);
+    if (isFinalForm) {
+      p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷
+    }
     p.baseAtk = nextData.atk * (p.isShiny ? 1.2 : 1.0);
     p.baseSpeed = nextData.speed;
 
@@ -2485,8 +2535,11 @@ window.GameApp = {
     this.saveToStorage();
 
     SoundFX.play("levelup");
-    this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 40, "star", 1.4);
-    this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, "生命全滿且戰鬥數值大幅躍升！", 3200);
+    this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 44, "star", 1.5);
+    const evoBannerSub = isFinalForm
+      ? `【最終完全體覺醒】血量上限暴增 +50%（${p.maxHp} HP）並獲得 12% 霸體減傷！`
+      : `生命上限提升 +30%（${p.maxHp} HP）並立即回滿狀態！`;
+    this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, evoBannerSub, 3400);
   },
 
   openLevelUpModal() {
@@ -2608,7 +2661,7 @@ window.GameApp = {
                 sprite: meta.sprite,
                 desc: meta.desc,
                 isNew: true,
-                apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+                apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
               });
             }
           });
@@ -2630,7 +2683,7 @@ window.GameApp = {
                 sprite: meta.sprite,
                 desc: meta.desc,
                 isNew: true,
-                apply: () => { p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.2 }; }
+                apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
               });
             }
           });

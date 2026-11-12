@@ -44,7 +44,21 @@ const SkillsEngine = {
     }
 
     const meta = SKILLS_CATALOG[skillId] || SKILLS_CATALOG["Tackle"];
-    const target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+    const cleanSkillId = skillId.replace(/\s+/g, '');
+
+    // 1. 多招式防重疊：差異化智能索敵 (貼身自衛 vs 精英狙擊 vs 怪群轟炸)
+    let target = null;
+    if (["Thunderbolt", "Psystrike", "IceBeam", "ShadowBall"].includes(cleanSkillId)) {
+      // 狙擊型招式：優先鎖定視野內最高血量（精英/Boss）或次近目標，避免全體疊打前排殘血小怪
+      target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 400, "highest_hp") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 400);
+    } else if (["SeedBomb", "SludgeBomb"].includes(cleanSkillId)) {
+      // 投擲轟炸型：優先鎖定怪物密集區中心
+      target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 360, "cluster") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360);
+    } else {
+      // 貼身自衛型（藤鞭、水槍、火花等）：鎖定最近威脅
+      target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+    }
+
     const baseAngle = target
       ? Math.atan2(target.y - caster.y, target.x - caster.x)
       : (caster.facingX >= 0 ? 0 : Math.PI);
@@ -138,19 +152,73 @@ const SkillsEngine = {
       return;
     }
 
+    // 2. 沙盒 V10 物理高拋拋物線：種子炸彈 (Seed Bomb / seed_nut)
+    if (cleanSkillId === "SeedBomb" || meta.vfx === "seed_nut") {
+      const nutCount = Math.min(4, count);
+      for (let i = 0; i < nutCount; i++) {
+        const spreadAng = baseAngle + (nutCount > 1 ? (i - (nutCount - 1) / 2) * 0.24 : 0) + (Math.random() - 0.5) * 0.10;
+        const baseDist = target ? Math.min(310, Math.max(85, Math.hypot(target.x - caster.x, target.y - caster.y))) : 185;
+        const targetDist = baseDist + (i - (nutCount - 1) / 2) * 24;
+        const tx = caster.x + Math.cos(spreadAng) * targetDist;
+        const ty = caster.y + Math.sin(spreadAng) * targetDist;
+
+        this.projectiles.push({
+          x: caster.x,
+          y: caster.y,
+          startX: caster.x,
+          startY: caster.y,
+          targetX: tx,
+          targetY: ty,
+          vx: 0,
+          vy: 0,
+          angle: spreadAng,
+          progress: 0,
+          arcHeight: 68 + i * 8,
+          radius: (13 + level * 0.5) * GameApp.player.areaMult,
+          dmg: rawDmg * 1.15,
+          type: "Grass",
+          skillId: "Seed Bomb",
+          vfx: "seed_nut",
+          color: "#65A30D",
+          pierce: 99,
+          knockback: meta.knockback !== undefined ? meta.knockback : 10,
+          life: 0.62 + i * 0.05,
+          maxLife: 0.62 + i * 0.05,
+          statusBonus: level >= 5 ? 0.35 : 0.15,
+          hitSet: new Set(),
+          trailTimer: 0
+        });
+      }
+      SoundFX.play("hit");
+      return;
+    }
+
+    // 3. 多招式幾何發射偏移與微序列交錯（防止同點疊彈）
+    const perpAng = baseAngle + Math.PI / 2;
+    const isWingSkill = ["AirSlash", "RazorLeaf", "IceBeam"].includes(cleanSkillId);
+
     for (let i = 0; i < count; i++) {
-      const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : 0;
+      const spread = count > 1 ? (i - (count - 1) / 2) * 0.17 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
-      const spd = (skillId === "WaterGun" || skillId === "Ember") ? 340 : (skillId === "Hydro Pump" ? 330 : (skillId === "Air Slash" ? 360 : 310));
-      const isHoming = (skillId === "Shadow Ball" || skillId === "Psystrike" || skillId === "Moonblast");
+      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 345 : (cleanSkillId === "HydroPump" ? 330 : (cleanSkillId === "AirSlash" ? 365 : 310));
+      const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast");
+
+      // 左右側翼平行偏移 (±15px) 與前向微錯開，使彈幕呈雙軌或扇形展開不重疊
+      const lateralOffset = isWingSkill
+        ? ((i % 2 === 0 ? 1 : -1) * 15)
+        : (count > 1 ? (i - (count - 1) / 2) * 10 : 0);
+      const forwardStagger = i * 10;
+
+      const spawnX = caster.x + Math.cos(perpAng) * lateralOffset + Math.cos(ang) * forwardStagger;
+      const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
 
       this.projectiles.push({
-        x: caster.x,
-        y: caster.y,
+        x: spawnX,
+        y: spawnY,
         vx: Math.cos(ang) * spd,
         vy: Math.sin(ang) * spd,
         angle: ang,
-        radius: (skillId === "Hydro Pump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
+        radius: (cleanSkillId === "HydroPump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
         dmg: rawDmg,
         type: meta.type,
         skillId,
@@ -470,6 +538,49 @@ const SkillsEngine = {
           pr.vy = pr.vy * 0.90 + Math.sin(desired) * spd * 0.10;
           pr.angle = Math.atan2(pr.vy, pr.vx);
         }
+      }
+
+      // 種子炸彈正弦物理高拋拋物線 (飛越前排障礙並定點引爆)
+      if (pr.vfx === "seed_nut") {
+        pr.progress = (pr.progress || 0) + dt / pr.maxLife;
+        const t = Math.min(1, pr.progress);
+        pr.x = pr.startX + (pr.targetX - pr.startX) * t;
+        pr.y = pr.startY + (pr.targetY - pr.startY) * t - Math.sin(t * Math.PI) * (pr.arcHeight || 68);
+        pr.angle = (pr.angle || 0) + dt * 9;
+
+        if (t >= 1) {
+          // 落地第一層：6 枚深褐堅果碎殼向四周彈飛
+          for (let k = 0; k < 6; k++) {
+            const a = (k * Math.PI * 2) / 6 + Math.random() * 0.25;
+            const spd = 65 + Math.random() * 45;
+            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, k % 2 === 0 ? "#78350F" : "#84CC16", 3.6, 0.36, "diamond");
+          }
+          // 落地第二層：12 團翠綠與草綠色孢子毒霧擴散
+          for (let s = 0; s < 12; s++) {
+            const a = Math.random() * Math.PI * 2;
+            const spd = 25 + Math.random() * 55;
+            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? "#4ADE80" : "#BEF264", 5.2, 0.48, "circle");
+          }
+          // 落地範圍轟炸傷害判定
+          const blastRadius = 68 * GameApp.player.areaMult;
+          this.meleeEffects.push({
+            style: "slam_wave",
+            x: pr.targetX,
+            y: pr.targetY,
+            radius: blastRadius,
+            timer: 0.26,
+            maxTime: 0.26,
+            color: "#65A30D"
+          });
+          GameApp.enemies.forEach(e => {
+            if (Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= blastRadius + e.radius) {
+              GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 10);
+            }
+          });
+          SoundFX.play("hit");
+          this.projectiles.splice(i, 1);
+        }
+        continue;
       }
 
       pr.x += pr.vx * dt;
@@ -835,6 +946,42 @@ const SkillsEngine = {
         ctx.beginPath(); ctx.ellipse(r * 0.1, 0, r * 0.65, r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath(); ctx.arc(r * 0.25, -r * 0.15, r * 0.22, 0, Math.PI * 2); ctx.fill();
+      } else if (pr.vfx === "seed_nut") {
+        // 沙盒 V10 立體木紋橡子 (Acorn) 渲染
+        // 下半身草綠色飽滿果實
+        ctx.fillStyle = "#65A30D";
+        ctx.beginPath();
+        ctx.ellipse(0, r * 0.18, r * 0.72, r * 0.85, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 縱向深綠溝槽木紋
+        ctx.strokeStyle = "#3F6212";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.28, -r * 0.25); ctx.quadraticCurveTo(-r * 0.35, r * 0.25, -r * 0.15, r * 0.85);
+        ctx.moveTo(r * 0.28, -r * 0.25);  ctx.quadraticCurveTo(r * 0.35, r * 0.25, r * 0.15, r * 0.85);
+        ctx.stroke();
+
+        // 頂部深褐色橡子帽
+        ctx.fillStyle = "#78350F";
+        ctx.beginPath();
+        ctx.arc(0, -r * 0.22, r * 0.82, Math.PI, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // 橡子帽網格刻紋與頂蒂
+        ctx.strokeStyle = "#451A03";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.04); ctx.lineTo(0, -r * 1.28);
+        ctx.stroke();
+
+        // 亮綠高光點
+        ctx.fillStyle = "#BEF264";
+        ctx.beginPath();
+        ctx.arc(-r * 0.25, r * 0.1, r * 0.2, 0, Math.PI * 2);
+        ctx.fill();
       } else if (pr.vfx === "seed_cluster") {
         ctx.fillStyle = "#15803D";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.75, 0, Math.PI * 2); ctx.fill();

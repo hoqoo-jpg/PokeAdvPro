@@ -810,46 +810,153 @@ Object.assign(window.GameApp, {
     this.updateTitleUI();
   },
 
-  // 友好商店貨架渲染
-renderMartModal(shelf) {
-  document.getElementById("martCoinsDisplay").textContent = this.runCoins;
-  document.getElementById("martRerollCostText").textContent = this.martRerollCost || 50;
+  // 友好商店貨架渲染（支援滿槽自選遺忘視圖切換）
+  renderMartModal(shelf) {
+    this._pendingMartTM = null;
+    const mainView = document.getElementById("martMainView");
+    const forgetView = document.getElementById("martForgetView");
+    if (mainView) mainView.classList.remove("hidden");
+    if (forgetView) forgetView.classList.add("hidden");
 
-  const box = document.getElementById("martShelfContainer");
-  box.innerHTML = shelf.map((it, idx) => {
-    const isTM = !!it.tmNo;
-    const badgeText = isTM ? `${it.type}系` : (it.type === "buff" ? "戰鬥增益" : "特製藥劑");
-    const badgeBg = isTM ? "bg-slate-700 text-amber-300" : (it.type === "buff" ? "bg-rose-900 text-rose-300" : "bg-emerald-900 text-emerald-300");
-    const titleText = isTM ? `${it.tmNo} ${it.name}` : it.name;
+    document.getElementById("martCoinsDisplay").textContent = this.runCoins;
+    document.getElementById("martRerollCostText").textContent = this.martRerollCost || 50;
 
-    return `
-      <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2.5">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
-            <img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>
-          </div>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5">
-              <span class="font-black text-xs text-white">${titleText}</span>
-              <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${badgeBg}">${badgeText}</span>
+    const p = this.player;
+    const curCount = p ? Object.keys(p.skills).length : 0;
+    const maxSlots = p ? (p.maxSkillSlots || 3) : 3;
+    const hintEl = document.getElementById("martSlotHintText");
+    if (hintEl) {
+      hintEl.innerHTML = curCount >= maxSlots
+        ? `目前招式槽已滿 (<span class="text-amber-300">${curCount}/${maxSlots}</span>)，購買 TM 可<span class="text-amber-300">自選遺忘</span>舊招式！`
+        : `目前招式槽 (<span class="text-emerald-300">${curCount}/${maxSlots}</span>)，可直接學習新 TM 招式或補給道具！`;
+    }
+
+    const box = document.getElementById("martShelfContainer");
+    box.innerHTML = shelf.map((it) => {
+      const isTM = !!it.tmNo;
+      const badgeText = isTM ? `${it.type}系` : (it.type === "buff" ? "戰鬥增益" : "特製藥劑");
+      const badgeBg = isTM ? "bg-slate-700 text-amber-300" : (it.type === "buff" ? "bg-rose-900 text-rose-300" : "bg-emerald-900 text-emerald-300");
+      const titleText = isTM ? `${it.tmNo} ${it.name}` : it.name;
+      const fullTag = (isTM && curCount >= maxSlots)
+        ? `<span class="px-1.5 py-0.2 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-400/50">自選替換</span>`
+        : '';
+
+      return `
+        <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
+              <img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>
             </div>
-            <p class="text-[10px] text-slate-400 truncate mt-0.5">${it.desc}</p>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-black text-xs text-white">${titleText}</span>
+                <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${badgeBg}">${badgeText}</span>
+                ${fullTag}
+              </div>
+              <p class="text-[10px] text-slate-400 truncate mt-0.5">${it.desc}</p>
+            </div>
           </div>
+          <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
+            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
+            ${it.cost}
+          </button>
         </div>
-        <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
-          <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
-          ${it.cost}
-        </button>
-      </div>
-    `;
-  }).join("");
+      `;
+    }).join("");
 
-  const modal = document.getElementById("pokeMartModal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    modal.style.display = "flex";
-  }
-},
+    const modal = document.getElementById("pokeMartModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+  },
+
+  promptMartForgetSkill(itemId, cost) {
+    const p = this.player;
+    const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
+    this._pendingMartTM = { itemId, cost };
+
+    const mainView = document.getElementById("martMainView");
+    const forgetView = document.getElementById("martForgetView");
+    if (mainView) mainView.classList.add("hidden");
+    if (forgetView) forgetView.classList.remove("hidden");
+
+    const descEl = document.getElementById("martPendingTmDesc");
+    if (descEl) {
+      descEl.innerHTML = `準備學習：<span class="text-sky-300">【${newMeta ? newMeta.name : itemId}】</span>（花費 ${cost} 代幣），請點選下方要遺忘的招式：`;
+    }
+
+    const listBox = document.getElementById("martForgetListContainer");
+    if (listBox) {
+      listBox.innerHTML = Object.entries(p.skills).map(([key, sk]) => {
+        const meta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[sk.id] : null;
+        const skName = meta ? (sk.evolved ? meta.evolvedName : meta.name) : sk.id;
+        const typeHtml = meta ? renderTypeBadgeHTML(meta.type) : "";
+        const isHighLv = sk.level >= 5 || sk.evolved;
+
+        return `
+          <div class="bg-slate-800/95 p-2.5 rounded-xl border ${isHighLv ? 'border-amber-500/60' : 'border-slate-700'} flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-9 h-9 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
+                ${meta ? `<img src="${meta.sprite}" class="w-6 h-6 pixel-sprite object-contain" alt="${skName}"/>` : ''}
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-black text-xs text-white truncate">${skName}</span>
+                  ${typeHtml}
+                  <span class="px-1.5 py-0.2 rounded bg-slate-700 font-pixel text-[9px] text-amber-300">Lv.${sk.level}${sk.evolved ? ' MAX' : ''}</span>
+                </div>
+                <div class="text-[10px] ${isHighLv ? 'text-amber-300 font-bold' : 'text-slate-400'} truncate mt-0.5">
+                  ${isHighLv ? '⚠️ 高階練度招式，遺忘後將失去當前等級' : '點擊右側按鈕遺忘並替換'}
+                </div>
+              </div>
+            </div>
+            <button onclick="GameApp.confirmMartForget('${key}')" class="poke-btn-red px-3 py-1.5 text-xs font-black shrink-0">
+              遺忘此招
+            </button>
+          </div>
+        `;
+      }).join("");
+    }
+  },
+
+  confirmMartForget(oldSkillKey) {
+    if (!this._pendingMartTM) return;
+    const { itemId, cost } = this._pendingMartTM;
+    if (this.runCoins < cost) {
+      this.cancelMartForget();
+      return;
+    }
+
+    const p = this.player;
+    this.runCoins -= cost;
+    this.saveData.coins = Math.max(0, this.saveData.coins - cost);
+
+    const oldSk = p.skills[oldSkillKey];
+    const oldMeta = (typeof SKILLS_CATALOG !== "undefined" && oldSk) ? SKILLS_CATALOG[oldSk.id] : null;
+    delete p.skills[oldSkillKey];
+
+    const stagger = Object.keys(p.skills).length * 0.22;
+    p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };
+    const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
+
+    SoundFX.play("levelup");
+    this.spawnFloatingText(
+      p.x, p.y - 25,
+      `遺忘了【${oldMeta ? oldMeta.name : oldSkillKey}】，習得【${newMeta ? newMeta.name : itemId}】！`,
+      "#38BDF8", 15
+    );
+    this._pendingMartTM = null;
+    this.closePokeMartModal();
+  },
+
+  cancelMartForget() {
+    this._pendingMartTM = null;
+    const mainView = document.getElementById("martMainView");
+    const forgetView = document.getElementById("martForgetView");
+    if (forgetView) forgetView.classList.add("hidden");
+    if (mainView) mainView.classList.remove("hidden");
+  },
 
   rerollMartShelf() {
     const cost = this.martRerollCost || 50;
@@ -864,29 +971,41 @@ renderMartModal(shelf) {
     this.openPokeMartModal();
   },
 
-    buyMartItem(itemId, cost) {
+  buyMartItem(itemId, cost) {
     if (this.runCoins < cost) {
       const coinDisplay = document.getElementById("martCoinsDisplay");
       if (coinDisplay) {
         coinDisplay.classList.add("text-rose-500", "animate-pulse");
         setTimeout(() => coinDisplay.classList.remove("text-rose-500", "animate-pulse"), 1000);
       }
-      const subTitle = document.querySelector("#pokeMartModal p");
+      const subTitle = document.getElementById("martSlotHintText");
       if (subTitle) {
-        const oldText = subTitle.textContent;
+        const oldHtml = subTitle.innerHTML;
         subTitle.textContent = "⚠️ 代幣不足！無法購買此項道具！";
         subTitle.classList.add("text-rose-400");
         setTimeout(() => {
-          subTitle.textContent = oldText;
+          subTitle.innerHTML = oldHtml;
           subTitle.classList.remove("text-rose-400");
         }, 1200);
       }
       return;
     }
 
+    const p = this.player;
+    const isConsumable = ["pp_up", "full_restore", "x_attack", "x_speed"].includes(itemId);
+
+    if (!isConsumable) {
+      const currentSkills = Object.keys(p.skills);
+      const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
+      if (currentSkills.length >= maxSlots) {
+        // 滿槽時不直接扣款覆蓋，進入自選遺忘選擇介面
+        this.promptMartForgetSkill(itemId, cost);
+        return;
+      }
+    }
+
     this.runCoins -= cost;
     this.saveData.coins = Math.max(0, this.saveData.coins - cost);
-    const p = this.player;
 
     if (itemId === "pp_up") {
       const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
@@ -916,27 +1035,11 @@ renderMartModal(shelf) {
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
     } else {
-      // 方案A：TM 招式槽位覆蓋替換機制，嚴格不超過當前上限
-      const currentSkills = Object.keys(p.skills);
-      const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
-
-      if (currentSkills.length >= maxSlots) {
-        // 已滿槽：優先替換非天生招式，若皆為天生招式則替換最後一招
-        let replaceKey = currentSkills.slice().reverse().find(k => !(p.naturalSkills || []).includes(k)) || currentSkills[currentSkills.length - 1];
-        const oldMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[replaceKey] : null;
-        delete p.skills[replaceKey];
-
-        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
-        SoundFX.play("levelup");
-        const newMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[itemId] : null;
-        this.spawnFloatingText(p.x, p.y - 25, `【${oldMeta ? oldMeta.name : replaceKey}】已替換為【${newMeta ? newMeta.name : itemId}】！`, "#38BDF8", 15);
-      } else {
-        // 尚未滿槽：正常習得
-        p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.1 };
-        SoundFX.play("levelup");
-        const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
-        this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
-      }
+      const stagger = Object.keys(p.skills).length * 0.22;
+      p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };
+      SoundFX.play("levelup");
+      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[itemId]) ? SKILLS_CATALOG[itemId].name : itemId;
+      this.spawnFloatingText(p.x, p.y - 25, `習得【${skName}】！`, "#38BDF8", 15);
     }
 
     this.closePokeMartModal();
