@@ -547,8 +547,9 @@ window.GameApp = {
     const tr = this.selectedTrainer || TRAINERS[0];
     const upg = (this.saveData && this.saveData.upgrades) || {};
 
-    // 重置每局重抽次數 (基礎 1 次 + 永久商店戰術重擲等級加成)
+    // 重置每局免費重抽次數 (基礎 1 次 + 永久商店戰術重擲等級加成) 與代幣重抽計數
     this.levelUpRerolls = 1 + (upg.rerollCount || 0);
+    this.paidRerollCount = 0;
 
     const isBond = (tr.bondPokemonIds || []).includes(basePoke.id);
     const hasShiny = !!this.saveData.shinyUnlocked[basePoke.id] && !!this.useShinyStarter[basePoke.id];
@@ -981,53 +982,72 @@ window.GameApp = {
       p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
     }
 
-    // 【攜帶物：奇蹟種子】站在草叢中每秒回復 1.5% 最大生命值
-    if (p.heldItems && p.heldItems["miracle_seed"] && terrain.label && terrain.label.includes("草叢") && p.hp < p.maxHp) {
-      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.015 * dt);
+    // 【攜帶物：奇蹟種子】常駐光合作用回血 (0.8%/s)，處於草叢/淺灘/超能陣等特殊地形時提升至 1.8%/s，並每 1.2 秒跳出綠字與嫩葉粒子
+    if (p.heldItems && p.heldItems["miracle_seed"] && p.hp < p.maxHp) {
+      const inSpecialZone = !!(terrain.inWater || (terrain.label && (terrain.label.includes("草叢") || terrain.label.includes("重力陣"))));
+      const healRate = inSpecialZone ? 0.018 : 0.008;
+      p.hp = Math.min(p.maxHp, p.hp + p.maxHp * healRate * dt);
+      p.miracleSeedTick = (p.miracleSeedTick || 0) - dt;
+      if (p.miracleSeedTick <= 0) {
+        p.miracleSeedTick = 1.2;
+        const healAmt = Math.max(1, Math.round(p.maxHp * healRate * 1.2));
+        this.spawnFloatingText(p.x, p.y - 24, `🌱 奇蹟種子 +${healAmt}`, "#4ADE80", 12);
+        this.spawnParticleCluster(p.x, p.y, "#22C55E", "#86EFAC", 5, "leaf", 0.5);
+      }
     }
 
-    // 【攜帶物：神秘水滴】生命低於 30% 時自動釋放環形高壓水幕擊退身周敵人 (內置 8 秒冷卻)
+    // 【攜帶物：神秘水滴】生命低於 40% 時自動釋放環形高壓水幕擊退身周敵人 (內置 8 秒冷卻)
     if (p.mysticWaterCd > 0) p.mysticWaterCd -= dt;
-    if (p.heldItems && p.heldItems["mystic_water"] && (p.hp / p.maxHp) <= 0.30 && (!p.mysticWaterCd || p.mysticWaterCd <= 0)) {
+    if (p.heldItems && p.heldItems["mystic_water"] && (p.hp / p.maxHp) <= 0.40 && (!p.mysticWaterCd || p.mysticWaterCd <= 0)) {
       p.mysticWaterCd = 8.0;
       SkillsEngine.meleeEffects.push({
         style: "slam_wave",
         x: p.x,
         y: p.y,
-        radius: 145,
-        timer: 0.40,
-        maxTime: 0.40,
+        radius: 155,
+        timer: 0.42,
+        maxTime: 0.42,
         color: "#38BDF8"
       });
-      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 24, "circle", 1.2);
-      this.spawnFloatingText(p.x, p.y - 28, "神秘水滴：護體水幕擊退！", "#38BDF8", 13);
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 26, "circle", 1.25);
+      this.spawnFloatingText(p.x, p.y - 28, "💧 神秘水滴：護體水幕擊退！", "#38BDF8", 14);
       SoundFX.play("super");
       this.enemies.forEach(e => {
-        if (!e.isBoss && Math.hypot(e.x - p.x, e.y - p.y) <= 155) {
+        if (!e.isBoss && Math.hypot(e.x - p.x, e.y - p.y) <= 165) {
           const ang = Math.atan2(e.y - p.y, e.x - p.x);
-          e.x += Math.cos(ang) * 90;
-          e.y += Math.sin(ang) * 90;
-          this.dealDamageToEnemy(e, p.baseAtk * 0.8 * p.dmgMult, "Water", 0.25, 20);
+          e.x += Math.cos(ang) * 95;
+          e.y += Math.sin(ang) * 95;
+          this.dealDamageToEnemy(e, p.baseAtk * 0.9 * p.dmgMult, "Water", 0.35, 22);
         }
       });
     }
 
-    // 【攜帶物：磁鐵】每 20 秒自動吸取全場最近一顆經驗水晶
+    // 【攜帶物：磁鐵】每 12 秒釋放電磁脈衝，自動吸取全場散落的經驗水晶 (最多 8 顆遠處水晶，無水晶時不空轉)
     if (p.heldItems && p.heldItems["magnet"]) {
-      p.heldMagnetTimer = (p.heldMagnetTimer === undefined ? 5.0 : p.heldMagnetTimer - dt);
+      p.heldMagnetTimer = (p.heldMagnetTimer === undefined ? 4.0 : p.heldMagnetTimer - dt);
       if (p.heldMagnetTimer <= 0) {
-        p.heldMagnetTimer = 20.0;
-        let nearestGem = null;
-        let minGDist = Infinity;
-        for (const g of this.gems) {
-          if (!g.magnetized) {
-            const gd = Math.hypot(g.x - p.x, g.y - p.y);
-            if (gd < minGDist) { minGDist = gd; nearestGem = g; }
-          }
-        }
-        if (nearestGem) {
-          nearestGem.magnetized = true;
-          this.spawnFloatingText(p.x, p.y - 24, "磁鐵引力牽引！", "#FACC15", 11);
+        const unmagnetized = this.gems.filter(g => !g.magnetized);
+        if (unmagnetized.length > 0) {
+          p.heldMagnetTimer = 12.0;
+          unmagnetized
+            .sort((a, b) => Math.hypot(b.x - p.x, b.y - p.y) - Math.hypot(a.x - p.x, a.y - p.y))
+            .slice(0, 8)
+            .forEach(g => { g.magnetized = true; });
+
+          SkillsEngine.meleeEffects.push({
+            style: "slam_wave",
+            x: p.x,
+            y: p.y,
+            radius: 130,
+            timer: 0.35,
+            maxTime: 0.35,
+            color: "#FACC15"
+          });
+          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#FFFFFF", 14, "star", 0.9);
+          this.spawnFloatingText(p.x, p.y - 28, "⚡ 磁鐵脈衝：遠程水晶牽引！", "#FACC15", 14);
+          SoundFX.play("super");
+        } else {
+          p.heldMagnetTimer = 1.0;
         }
       }
     }
@@ -1068,7 +1088,11 @@ window.GameApp = {
 
     const tBadge = document.getElementById("hudTerrainBadge");
     if (terrain.label) {
-      tBadge.textContent = terrain.label;
+      if (p.heldItems && p.heldItems["sharp_beak"] && terrain.speedMult < 1.0) {
+        tBadge.textContent = `${terrain.label.split(' ')[0]} [銳利之喙：免疫減速]`;
+      } else {
+        tBadge.textContent = terrain.label;
+      }
       tBadge.classList.remove("hidden");
     } else {
       tBadge.classList.add("hidden");
@@ -1704,9 +1728,12 @@ window.GameApp = {
       const dy = p.y - e.y;
       const dist = Math.hypot(dx, dy) || 1;
 
-      // 【攜帶物：不融冰】身周 80px 形成霜凍光環，踏入光環的怪獸移速 -30%
-      if (p.heldItems && p.heldItems["never_melt_ice"] && dist <= 80 + e.radius) {
-        eTerrMult *= 0.70;
+      // 【攜帶物：不融冰】身周 125px 形成極寒霜凍結界，踏入光環的怪獸移速 -35% 並顯示結霜視覺
+      if (p.heldItems && p.heldItems["never_melt_ice"] && dist <= 125 + e.radius) {
+        eTerrMult *= 0.65;
+        e.inFrostAura = true;
+      } else {
+        e.inFrostAura = false;
       }
 
       if (dist > Math.max(this.width, this.height) * 0.85 && !e.isBoss && !e.isElite && !e.treasureType) {
@@ -2134,6 +2161,13 @@ window.GameApp = {
         }
 
         if (hitPlayer && p.invulnTimer <= 0) {
+          if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
+            p.invulnTimer = 0.45;
+            this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 16, "circle", 0.9);
+            this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+            this.telegraphs.splice(i, 1);
+            continue;
+          }
           const armorMult = 1 - (p.finalEvoArmor || 0);
           const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
           const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
@@ -2203,6 +2237,13 @@ window.GameApp = {
       const hitTrainer = tc && (distToTrainer < ep.radius + 15);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
+          p.invulnTimer = 0.45;
+          this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.85);
+          this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+          this.enemyProjectiles.splice(i, 1);
+          continue;
+        }
         const armorMult = 1 - (p.finalEvoArmor || 0);
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
@@ -2325,15 +2366,6 @@ window.GameApp = {
       enemy.y += Math.sin(ang) * actualKb;
     }
 
-    // 【攜帶物：彎曲湯匙】攻擊有 15% 機率使敵人混亂
-    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && !enemy.status && Math.random() < 0.15) {
-      if (!(enemy.isBoss && enemy.ccImmunityTimer > 0)) {
-        enemy.status = "Confusion";
-        enemy.statusTimer = enemy.isBoss ? 1.5 : 3.5;
-        if (enemy.isBoss) enemy.ccImmunityTimer = 3.0;
-      }
-    }
-
     const tMeta = TYPE_META[moveType];
     if (tMeta && tMeta.status) {
       if (checkStatusImmunity(enemy, tMeta.status)) {
@@ -2350,8 +2382,30 @@ window.GameApp = {
       }
     }
 
-    const label = eff > 1.1 ? `克制 ${finalDmg}!` : (isCrit ? `暴擊 ${finalDmg}!` : `${finalDmg}`);
-    const col = eff > 1.1 ? "#F97316" : (isCrit ? "#FACC15" : "#FFFFFF");
+    // 【攜帶物：彎曲湯匙】攻擊有 15% 機率引發念力震盪與混亂（後置判定，不被其他狀態吃掉，並帶有粉紫念力波圈）
+    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && Math.random() < 0.15) {
+      if (!(enemy.isBoss && enemy.ccImmunityTimer > 0)) {
+        enemy.status = "Confusion";
+        enemy.statusTimer = enemy.isBoss ? 1.6 : 3.6;
+        if (enemy.isBoss) enemy.ccImmunityTimer = 3.0;
+        SkillsEngine.meleeEffects.push({
+          style: "slam_wave",
+          x: enemy.x,
+          y: enemy.y,
+          radius: 42,
+          timer: 0.22,
+          maxTime: 0.22,
+          color: "#EC4899"
+        });
+        this.spawnFloatingText(enemy.x, enemy.y - 24, "🌀 念力混亂!", "#F472B6", 12);
+      }
+    }
+
+    const hasBlackBelt = !!(this.player.heldItems && this.player.heldItems["black_belt"]);
+    const isPoisonCrit = isCrit && poisonBarbCritBonus > 0;
+    const critPrefix = isPoisonCrit ? "劇毒暴擊" : (hasBlackBelt ? "極限暴擊" : "暴擊");
+    const label = eff > 1.1 ? (isCrit ? `克制${critPrefix} ${finalDmg}!` : `克制 ${finalDmg}!`) : (isCrit ? `${critPrefix} ${finalDmg}!` : `${finalDmg}`);
+    const col = isPoisonCrit ? "#C084FC" : (eff > 1.1 ? "#F97316" : (isCrit ? (hasBlackBelt ? "#FB7185" : "#FACC15") : "#FFFFFF"));
     this.spawnFloatingText(enemy.x, enemy.y - 12, label, col, eff > 1.1 || isCrit ? 15 : 12);
 
     if (enemy.hp <= 0) {
@@ -2366,31 +2420,34 @@ window.GameApp = {
     this.saveData.stats.totalKills += 1;
     this.saveData.pokedexCaught[e.id] = true;
 
-    // 【攜帶物：詛咒之符】擊敗敵人時 10% 機率將其靈魂轉化為追蹤自爆鬼火
-    if (this.player && this.player.heldItems && this.player.heldItems["spell_tag"] && Math.random() < 0.10) {
+    // 【攜帶物：詛咒之符】擊敗敵人時 15% 機率將其靈魂轉化為騰空追蹤自爆鬼火 (帶 0.18 秒升空展示期，不被身邊屍群秒吃)
+    if (this.player && this.player.heldItems && this.player.heldItems["spell_tag"] && Math.random() < 0.15) {
       const p = this.player;
-      const wispDmg = Math.round((28 + p.baseAtk * 0.45) * p.dmgMult);
+      const wispDmg = Math.round((34 + p.baseAtk * 0.55) * p.dmgMult);
+      const launchAng = -Math.PI / 2 + (Math.random() - 0.5) * 1.2;
       SkillsEngine.projectiles.push({
         x: e.x,
-        y: e.y,
-        vx: (Math.random() - 0.5) * 180,
-        vy: (Math.random() - 0.5) * 180,
-        angle: 0,
-        radius: 17 * p.areaMult,
+        y: e.y - 24,
+        vx: Math.cos(launchAng) * 240,
+        vy: Math.sin(launchAng) * 240,
+        angle: launchAng,
+        radius: 18 * p.areaMult,
         dmg: wispDmg,
         type: "Ghost",
         skillId: "Shadow Ball",
         vfx: "shadow_orb",
         homing: true,
         color: "#C084FC",
-        pierce: 2,
-        knockback: 6,
-        life: 2.2,
-        statusBonus: 0.35,
+        pierce: 3,
+        knockback: 8,
+        life: 2.6,
+        spawnGraceTimer: 0.18,
+        statusBonus: 0.40,
         hitSet: new Set(),
         trailTimer: 0
       });
-      this.spawnFloatingText(e.x, e.y - 16, "靈魂鬼火！", "#C084FC", 11);
+      this.spawnParticleCluster(e.x, e.y - 20, "#A855F7", "#E9D5FF", 10, "star", 0.8);
+      this.spawnFloatingText(e.x, e.y - 28, "👻 詛咒鬼火！", "#C084FC", 13);
     }
 
     const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15);
@@ -2489,22 +2546,7 @@ window.GameApp = {
       if (Math.hypot(p.x - it.x, p.y - it.y) < 30) {
         this.mapItems.splice(i, 1);
         if (it.id === "magnet") {
-          // 繪製【木炭】熔岩灼燒腳印
-    this.lavaFootprints.forEach(lf => {
-      const lsx = toSx(lf.x), lsy = toSy(lf.y);
-      const alpha = Math.max(0, (lf.life / lf.maxLife) * 0.65);
-      ctx.save();
-      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
-      ctx.strokeStyle = `rgba(253, 224, 71, ${alpha * 1.1})`;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.ellipse(lsx, lsy, lf.radius, lf.radius * 0.55, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    });
-
-    this.gems.forEach(g => { g.magnetized = true; });
+          this.gems.forEach(g => { g.magnetized = true; });
           SoundFX.play("super");
           this.spawnFloatingText(p.x, p.y - 24, "經驗磁鐵吸取!", "#38BDF8", 14);
         } else if (it.id === "partner_ball") {
@@ -2869,13 +2911,26 @@ window.GameApp = {
       </div>
     `).join("");
 
-    const hasRerolls = (this.levelUpRerolls || 0) > 0;
+    const freeRerolls = this.levelUpRerolls || 0;
+    const paidCount = this.paidRerollCount || 0;
+    const coinCost = 30 + paidCount * 30;
+    const availableCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
+    const canFreeReroll = freeRerolls > 0;
+    const canCoinReroll = !canFreeReroll && availableCoins >= coinCost;
+    const canReroll = canFreeReroll || canCoinReroll;
+
+    let rerollLabelHtml = "";
+    if (canFreeReroll) {
+      rerollLabelHtml = `<i class="fa-solid fa-dice text-xs"></i><span>免費重抽 (剩餘 ${freeRerolls} 次) [R]</span>`;
+    } else {
+      rerollLabelHtml = `<img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/><span>代幣重抽 (${coinCost} 金 / 持有 ${availableCoins}) [R]</span>`;
+    }
+
     const rerollBarHtml = `
-      <div class="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between">
-        <span class="text-xs font-bold text-slate-400">鍵盤提示：按 [1]、[2]、[3] 直接選取，[R] 鍵重新整理</span>
-        <button onclick="GameApp.rerollUpgradeChoices()" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.rerollUpgradeChoices()" ${!hasRerolls ? 'disabled' : ''} class="${hasRerolls ? 'poke-btn-yellow' : 'poke-btn-white opacity-50 cursor-not-allowed'} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5">
-          <i class="fa-solid fa-dice text-xs"></i>
-          <span>重新整理 (剩餘 ${this.levelUpRerolls || 0} 次)</span>
+      <div class="mt-3 pt-2.5 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <span id="levelUpRerollHint" class="text-[11px] font-bold text-slate-400">鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用代幣重抽）</span>
+        <button onclick="GameApp.rerollUpgradeChoices()" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.rerollUpgradeChoices()" ${!canReroll ? 'disabled' : ''} class="${canFreeReroll ? 'poke-btn-yellow' : (canCoinReroll ? 'poke-btn-blue' : 'poke-btn-white opacity-50 cursor-not-allowed')} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5 shrink-0">
+          ${rerollLabelHtml}
         </button>
       </div>
     `;
@@ -2884,9 +2939,35 @@ window.GameApp = {
   },
 
   rerollUpgradeChoices() {
-    if ((this.levelUpRerolls || 0) <= 0) return;
-    this.levelUpRerolls -= 1;
+    const freeRerolls = this.levelUpRerolls || 0;
+    if (freeRerolls > 0) {
+      this.levelUpRerolls -= 1;
+      SoundFX.play("super");
+      this.openLevelUpModal();
+      return;
+    }
+
+    const paidCount = this.paidRerollCount || 0;
+    const coinCost = 30 + paidCount * 30;
+    const availableCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
+
+    if (availableCoins < coinCost) {
+      const hintEl = document.getElementById("levelUpRerollHint");
+      if (hintEl) {
+        hintEl.textContent = `⚠️ 代幣不足！需要 ${coinCost} 代幣才能繼續重抽！`;
+        hintEl.classList.remove("text-slate-400");
+        hintEl.classList.add("text-rose-400", "animate-pulse");
+      }
+      return;
+    }
+
+    if (this.saveData) {
+      this.saveData.coins = Math.max(0, (this.saveData.coins || 0) - coinCost);
+    }
+    this.runCoins = Math.max(0, (this.runCoins || 0) - coinCost);
+    this.paidRerollCount = paidCount + 1;
     SoundFX.play("super");
+    this.refreshHUD();
     this.openLevelUpModal();
   },
 
@@ -3269,15 +3350,15 @@ window.GameApp = {
       ctx.stroke();
     }
 
-    // 繪製【不融冰】80px 霜凍減速光環
+    // 繪製【不融冰】125px 極寒霜凍結界光環
     if (p.heldItems && p.heldItems["never_melt_ice"]) {
       ctx.save();
-      ctx.strokeStyle = "rgba(103, 232, 249, 0.45)";
-      ctx.fillStyle = "rgba(103, 232, 249, 0.08)";
-      ctx.lineWidth = 1.8;
-      ctx.setLineDash([6, 6]);
+      ctx.strokeStyle = "rgba(103, 232, 249, 0.60)";
+      ctx.fillStyle = "rgba(56, 189, 248, 0.10)";
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([8, 6]);
       ctx.beginPath();
-      ctx.arc(px, py, 80, 0, Math.PI * 2);
+      ctx.arc(px, py, 125, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
       ctx.restore();
@@ -3382,6 +3463,8 @@ window.GameApp = {
         ctx.filter = "hue-rotate(240deg) saturate(1.8)";
       } else if (e.status === "Burn") {
         ctx.filter = "sepia(0.8) saturate(2.5) hue-rotate(-25deg)";
+      } else if (e.inFrostAura) {
+        ctx.filter = "hue-rotate(155deg) saturate(1.6) brightness(1.18)";
       }
 
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);

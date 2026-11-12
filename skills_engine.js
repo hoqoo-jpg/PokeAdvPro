@@ -594,6 +594,7 @@ const SkillsEngine = {
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;
       pr.life -= dt;
+      if (pr.spawnGraceTimer > 0) pr.spawnGraceTimer -= dt;
 
       pr.trailTimer = (pr.trailTimer || 0) - dt;
       if (pr.trailTimer <= 0) {
@@ -615,6 +616,7 @@ const SkillsEngine = {
         }
       }
 
+      if (pr.spawnGraceTimer && pr.spawnGraceTimer > 0) continue;
       for (let j = GameApp.enemies.length - 1; j >= 0; j--) {
         const e = GameApp.enemies[j];
         if (pr.hitSet.has(e)) continue;

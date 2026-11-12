@@ -247,7 +247,7 @@ function getSkillNextLevelBonusDesc(nextLv) {
   return `基礎傷害提升至 ${dmgMultStr}x！打擊威力強化！`;
 }
 
-// 3. 攜帶道具資料庫 (已修正黑帶暴擊倍率描述)
+// 3. 攜帶道具資料庫 (Phase 2.1 全詞綴與視覺反饋強化版)
 const HELD_ITEMS = {
   charcoal: {
     id: "charcoal", name: "木炭", skillReq: "Flamethrower",
@@ -257,47 +257,47 @@ const HELD_ITEMS = {
   mystic_water: {
     id: "mystic_water", name: "神秘水滴", skillReq: "Hydro Pump",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
-    desc: "水傷+20%，生命低於30%時自動釋放環形高壓水幕擊退身周敵人！"
+    desc: "水傷+20%，生命低於40%時自動釋放環形高壓水幕擊退身周敵人！"
   },
   miracle_seed: {
     id: "miracle_seed", name: "奇蹟種子", skillReq: "Seed Bomb",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
-    desc: "草傷+20%，站在草叢中每秒回復 1.5% 最大生命值！"
+    desc: "草傷+20%，常駐光合作用回血，踏入草叢/淺灘/超能陣回復翻倍！"
   },
   magnet: {
     id: "magnet", name: "磁鐵", skillReq: "Thunderbolt",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
-    desc: "電傷+20%，拾取範圍+50%，每20秒自動吸取全場最近一顆經驗水晶！"
+    desc: "電傷+20%，拾取範圍+50%，每12秒釋放電磁波牽引遠處最多8顆水晶！"
   },
   spell_tag: {
     id: "spell_tag", name: "詛咒之符", skillReq: "Shadow Ball",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
-    desc: "幽靈傷+20%，擊敗敵人時 10% 機率將其靈魂轉化為跟隨自爆鬼火！"
+    desc: "幽靈傷+20%，擊敗敵人時 15% 機率騰空釋放穿透索敵靈魂鬼火！"
   },
   twisted_spoon: {
     id: "twisted_spoon", name: "彎曲湯匙", skillReq: "Psystrike",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
-    desc: "超能傷+20%，全技能冷卻縮減-8%，且攻擊有 15% 機率使敵人混亂！"
+    desc: "超能傷+20%，全技能冷卻縮減-8%，攻擊 15% 機率引發念力震盪與混亂！"
   },
   never_melt_ice: {
     id: "never_melt_ice", name: "不融冰", skillReq: "Ice Beam",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
-    desc: "冰傷+20%，身周 80px 形成霜凍光環，踏入光環的怪獸移速-30%！"
+    desc: "冰傷+20%，身周 125px 展開極寒霜凍結界，踏入的怪獸結霜移速-35%！"
   },
   soft_sand: {
     id: "soft_sand", name: "柔軟沙子", skillReq: "Earthquake",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soft-sand.png",
-    desc: "地面傷+20%，受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！"
+    desc: "地面傷+20%，受到近戰、彈幕或紅圈攻擊時 25% 機率揚起沙塵完全閃避！"
   },
   black_belt: {
     id: "black_belt", name: "黑帶", skillReq: "Karate Chop",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
-    desc: "格鬥傷+20%，暴擊傷害從 1.35x 提升至 1.75x！"
+    desc: "格鬥傷+20%，暴擊傷害從 1.35x 提升至 1.75x（觸發極限暴擊特效）！"
   },
   sharp_beak: {
     id: "sharp_beak", name: "銳利之喙", skillReq: "Air Slash",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sharp-beak.png",
-    desc: "飛行傷+20%，移動速度額外提升 +12%，免疫任何減速地形！"
+    desc: "飛行傷+20%，移動速度額外提升 +12%，且完全免疫任何減速地形！"
   },
   silk_scarf: {
     id: "silk_scarf", name: "絲綢圍巾", skillReq: "Tackle",
@@ -699,12 +699,13 @@ const CENTER_POKEMON_UPGRADES = [
   { id: "atk", name: "基礎攻擊力 (ATK)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/protein.png", desc: "所有招式基礎傷害提升 +8%" },
   { id: "cd",  name: "招式冷卻縮減 (CDR)", maxLv: 5, baseCost: 160, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png", desc: "所有招式冷卻時間縮短 -3.5%" },
   { id: "hp",  name: "最大體質生命 (HP)", maxLv: 5, baseCost: 140, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/hp-up.png", desc: "出戰生命值提升 +12%，每秒回血 +0.4" },
+  { id: "rerollCount", name: "免費重擲次數 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-toy.png", desc: "每局升級三選一免費重抽次數 +1（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "shiny", name: "閃光護符 (SHINY)", maxLv: 3, baseCost: 350, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-charm.png", desc: "局內野生閃光怪遭遇率提升 +35%" }
 ];
 
 const CENTER_TRAINER_UPGRADES = [
   { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-case.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
-  { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 3, baseCost: 200, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-toy.png", desc: "升級三選一時的重新整理次數每級 +1 次！" },
+  { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-toy.png", desc: "升級三選一免費重抽次數每級 +1 次（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },
   { id: "partner", name: "雙打羈絆共鳴", maxLv: 3, baseCost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/destiny-knot.png", desc: "開局隨機召喚 1 隻夥伴，夥伴傷害+18%" },
   { id: "greed", name: "護身金幣 (COINS)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png", desc: "每局獲得代幣總量增加 +15%" }
