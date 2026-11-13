@@ -48,17 +48,17 @@ const SkillsEngine = {
     const meta = SKILLS_CATALOG[skillId] || SKILLS_CATALOG["Tackle"];
     const cleanSkillId = skillId.replace(/\s+/g, '');
 
-    // 1. 多招式防重疊：差異化智能索敵 (貼身自衛 vs 精英狙擊 vs 怪群轟炸)
-    let target = null;
-    if (["Thunderbolt", "Psystrike", "IceBeam", "ShadowBall"].includes(cleanSkillId)) {
-      // 狙擊型招式：優先鎖定視野內最高血量（精英/Boss）或次近目標，避免全體疊打前排殘血小怪
-      target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 400, "highest_hp") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 400);
-    } else if (["SeedBomb", "SludgeBomb"].includes(cleanSkillId)) {
-      // 投擲轟炸型：優先鎖定怪物密集區中心
-      target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 360, "cluster") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360);
-    } else {
-      // 貼身自衛型（藤鞭、水槍、火花等）：鎖定最近威脅
-      target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+    // 1. 貼身自衛最高優先級 + 差異化智能索敵：
+    // 若怪獸已逼近主角 105px 警戒圈內，強制最優先鎖定貼身最近目標，徹底消除鬼斯/拉普拉斯近身死區！
+    let target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 105);
+    if (!target) {
+      if (["Thunderbolt", "Psystrike", "IceBeam", "ShadowBall"].includes(cleanSkillId)) {
+        target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 400, "highest_hp") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 400);
+      } else if (["SeedBomb", "SludgeBomb"].includes(cleanSkillId)) {
+        target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 360, "cluster") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360);
+      } else {
+        target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+      }
     }
 
     const useManualAim = (caster === GameApp.player && GameApp.manualAimMode);
@@ -286,8 +286,10 @@ const SkillsEngine = {
       const waveCount = Math.min(3, count);
       for (let i = 0; i < waveCount; i++) {
         const ang = baseAngle + (waveCount > 1 ? (i - (waveCount - 1) / 2) * 0.24 : 0);
-        const startX = caster.x + Math.cos(ang) * 30;
-        const startY = caster.y + Math.sin(ang) * 30;
+        const psyDist = target ? Math.hypot(target.x - caster.x, target.y - caster.y) : 999;
+        const muzzleR = psyDist < 75 ? 8 : 28;
+        const startX = caster.x + Math.cos(ang) * muzzleR;
+        const startY = caster.y + Math.sin(ang) * muzzleR;
         const spd = 340;
         this.projectiles.push({
           x: startX,
@@ -372,16 +374,22 @@ const SkillsEngine = {
     const isWingSkill = ["AirSlash", "RazorLeaf", "IceBeam"].includes(cleanSkillId);
     const isTwinCannon = ["WaterGun", "HydroPump"].includes(cleanSkillId);
 
+    const targetDist = target ? Math.hypot(target.x - caster.x, target.y - caster.y) : 999;
+    const isCloseQuarters = targetDist < 75;
+
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
       const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 350 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315));
-      const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast");
+      // 冷凍光線 (IceBeam) 同步開啟自動轉向追蹤！
+      const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast" || cleanSkillId === "IceBeam");
 
-      const lateralOffset = slotBaseLat + ((isWingSkill || isTwinCannon)
+      // 當敵人貼近至 75px 內時，自動收攏側向與前推偏移，避免子彈跨過貼身怪背後
+      const lateralScale = isCloseQuarters ? 0.25 : 1.0;
+      const lateralOffset = (slotBaseLat + ((isWingSkill || isTwinCannon)
         ? ((i % 2 === 0 ? 1 : -1) * 13)
-        : (count > 1 ? (i - (count - 1) / 2) * 10 : 0));
-      const forwardStagger = slotBaseFwd + i * 10;
+        : (count > 1 ? (i - (count - 1) / 2) * 10 : 0))) * lateralScale;
+      const forwardStagger = (isCloseQuarters ? 8 : slotBaseFwd) + i * (isCloseQuarters ? 5 : 10);
 
       const spawnX = caster.x + Math.cos(perpAng) * lateralOffset + Math.cos(ang) * forwardStagger;
       const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
@@ -971,8 +979,10 @@ const SkillsEngine = {
         if (target) {
           const curAng = pr.angle !== undefined ? pr.angle : Math.atan2(pr.vy, pr.vx);
           const desired = Math.atan2(target.y - pr.y, target.x - pr.x);
+          const distToTarget = Math.hypot(target.x - pr.x, target.y - pr.y);
           const diff = Math.atan2(Math.sin(desired - curAng), Math.cos(desired - curAng));
-          const maxTurn = 6.8 * dt;
+          const turnRate = distToTarget < 95 ? 14.5 : 7.5;
+          const maxTurn = turnRate * dt;
           const nextAng = curAng + Math.max(-maxTurn, Math.min(maxTurn, diff));
           pr.angle = nextAng;
           pr.vx = Math.cos(nextAng) * baseSpd;

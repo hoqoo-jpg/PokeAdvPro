@@ -1375,12 +1375,10 @@ window.GameApp = {
     if (candidates.length === 0) return null;
 
     if (mode === "highest_hp") {
-      // 優先鎖定視野內最高血量目標（Boss / 精英怪 / 滿血怪），若只有一群普通怪則取次近目標實現分流
+      // 若最近目標已在 120px 內，直接優先鎖定最近目標自衛；否則鎖定視野內高血量精英/Boss
+      candidates.sort((a, b) => a.d - b.d);
+      if (candidates[0].d <= 120) return candidates[0].e;
       candidates.sort((a, b) => (b.e.hp - a.e.hp) || (a.d - b.d));
-      if (candidates.length >= 2 && candidates[0].e.hp === candidates[1].e.hp) {
-        candidates.sort((a, b) => a.d - b.d);
-        return candidates[1].e;
-      }
       return candidates[0].e;
     }
 

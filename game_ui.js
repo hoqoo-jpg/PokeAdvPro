@@ -311,6 +311,8 @@ Object.assign(window.GameApp, {
   },
 
   renderWizardContent() {
+    const scrollArea = document.querySelector("#setupModal .overflow-y-auto");
+    const prevVertScroll = scrollArea ? scrollArea.scrollTop : 0;
     const tBox = document.getElementById("wizardStep1");
     const isRedUnlocked = !!this.saveData.unlockedTrainers["red"] || (this.saveData.stats.mewtwoDefeated >= 1);
     if (isRedUnlocked) this.saveData.unlockedTrainers["red"] = true;
@@ -460,9 +462,9 @@ Object.assign(window.GameApp, {
               }
             </div>
             ${unlocked ? `
-              <div class="mt-1.5">
-                <button onclick="event.stopPropagation(); GameApp.upgradePokemonStar(${p.id})" ${starLv >= 3 ? 'disabled' : ''} class="w-full py-1 px-1.5 rounded-lg text-[9px] font-black border flex items-center justify-center gap-1 ${starLv >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-800 text-amber-300 border-slate-900 hover:bg-slate-700'}">
-                  <i class="fa-solid fa-crown text-[8px]"></i>
+              <div class="mt-2 flex justify-center">
+                <button onclick="event.stopPropagation(); GameApp.upgradePokemonStar(${p.id})" ${starLv >= 3 ? 'disabled' : ''} class="px-2.5 py-1 rounded-full text-[9px] font-black border flex items-center justify-center gap-1 shadow-sm ${starLv >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-800 text-amber-300 border-amber-500/80 hover:bg-slate-700 active:scale-95'}">
+                  <i class="fa-solid fa-crown text-[8px] text-amber-400"></i>
                   <span>${starLv >= 3 ? '★3 金冠滿星覺醒' : `王冠突破 ★${starLv + 1} (${nextStarCost}金)`}</span>
                 </button>
               </div>
@@ -486,10 +488,6 @@ Object.assign(window.GameApp, {
     const newFilterBarEl = document.getElementById("wizardStep2FilterBar");
     if (newFilterBarEl) {
       newFilterBarEl.scrollLeft = prevFilterScroll;
-      const activeBtn = newFilterBarEl.querySelector(`[data-filter-key="${activeFilter}"]`);
-      if (activeBtn && activeBtn.scrollIntoView) {
-        activeBtn.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" });
-      }
     }
 
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
@@ -534,6 +532,11 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }).join("");
+
+    // 恢復外層滾動容器的垂直捲動位置，防止點選下方精靈或升星時跳回頂部
+    if (scrollArea) {
+      scrollArea.scrollTop = prevVertScroll;
+    }
   },
 
   setWizardPokeFilter(filterKey) {
@@ -582,15 +585,7 @@ Object.assign(window.GameApp, {
     if (curLv >= 3) return;
     const starCosts = [400, 800, 1500];
     const cost = starCosts[curLv];
-    if ((this.saveData.coins || 0) < cost) {
-      alert(`【王冠極限突破】代幣不足！升至 ★${curLv + 1} 需要 ${cost} 代幣（每星永久提升該寶可夢 +12% 基礎HP與攻擊，★3 金冠開局主招式直接 Lv.2）！`);
-      return;
-    }
-    this.saveData.coins -= cost;
-    this.saveData.pokemonStars[pokeId] = curLv + 1;
-    SoundFX.play("levelup");
-    this.saveToStorage();
-    this.renderWizardContent();
+    this.openUnlockConfirmModal("star_upgrade", pokeId, cost);
   },
 
   exportSaveDataCode() {
@@ -679,6 +674,30 @@ Object.assign(window.GameApp, {
         <div>生命 HP：<strong>${p.hp}</strong> ｜ 攻擊：<strong>${p.atk}</strong> ｜ 速度：<strong>${p.speed}</strong></div>
         <div class="text-blue-700">初始招式：【${sk ? sk.name : p.skill}】</div>
       `;
+    } else if (type === "star_upgrade") {
+      const p = POKEMON_MAP.get(id);
+      const sk = SKILLS_CATALOG[p.skill];
+      const curLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[id]) || 0;
+      const nextLv = curLv + 1;
+      const curMult = 1 + curLv * 0.12;
+      const nextMult = 1 + nextLv * 0.12;
+      const curHp = Math.round(p.hp * curMult), nextHp = Math.round(p.hp * nextMult);
+      const curAtk = Math.round(p.atk * curMult), nextAtk = Math.round(p.atk * nextMult);
+
+      document.getElementById("unlockModalHeaderTitle").textContent = `👑 王冠極限突破確認 (★${curLv} ➔ ★${nextLv})`;
+      document.getElementById("unlockConfirmFrontImg").src = p.forward_sprite;
+      document.getElementById("unlockConfirmBackImg").src = p.back_sprite;
+      document.getElementById("unlockBackCol").classList.remove("hidden");
+      document.getElementById("unlockConfirmName").textContent = `${p.name_zh} ${'★'.repeat(nextLv)}`;
+      document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
+      document.getElementById("unlockConfirmStats").innerHTML = `
+        <div class="text-slate-700">基礎體質永久提升 <strong class="text-amber-600">+12%</strong>（當前持有：<strong class="text-amber-600">${(this.saveData.coins || 0).toLocaleString()}</strong> 代幣）</div>
+        <div>生命 HP：<strong>${curHp}</strong> ➔ <strong class="text-emerald-600">${nextHp}</strong> ｜ 攻擊：<strong>${curAtk}</strong> ➔ <strong class="text-emerald-600">${nextAtk}</strong></div>
+        ${nextLv === 3
+          ? `<div class="text-amber-700 bg-amber-100 px-2 py-1 rounded border border-amber-300 font-black mt-1">★3 金冠滿星特典：開局初始招式【${sk ? sk.name : p.skill}】直接升為 Lv.2！</div>`
+          : `<div class="text-blue-700">升至 ★3 金冠滿星時，開局主招式將直接以 Lv.2 出戰！</div>`
+        }
+      `;
     } else {
       const t = TRAINERS.find(x => x.id === id);
       document.getElementById("unlockModalHeaderTitle").textContent = "隨行訓練家解鎖確認";
@@ -718,6 +737,10 @@ Object.assign(window.GameApp, {
       this.saveData.pokedexSeen[this.pendingUnlockId] = true;
       this.saveData.pokedexCaught[this.pendingUnlockId] = true;
       this.selectedStarterId = this.pendingUnlockId;
+    } else if (this.pendingUnlockType === "star_upgrade") {
+      if (!this.saveData.pokemonStars) this.saveData.pokemonStars = {};
+      const curLv = this.saveData.pokemonStars[this.pendingUnlockId] || 0;
+      this.saveData.pokemonStars[this.pendingUnlockId] = Math.min(3, curLv + 1);
     } else {
       this.saveData.unlockedTrainers[this.pendingUnlockId] = true;
       const found = TRAINERS.find(x => x.id === this.pendingUnlockId);
