@@ -11,6 +11,7 @@ window.GameApp = window.GameApp || {};
 Object.assign(window.GameApp, {
   wizardStep: 1,
   wizardPokeFilter: "ALL",
+  pokedexFilter: "ALL",
   centerTab: "pokemon",
   selectedTrainer: TRAINERS[0],
   selectedStarterId: 25,
@@ -399,10 +400,11 @@ Object.assign(window.GameApp, {
       return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
     });
 
+    const prevFilterScroll = document.getElementById("wizardStep2FilterBar") ? document.getElementById("wizardStep2FilterBar").scrollLeft : 0;
     const filterBarHtml = `
-      <div class="flex items-center gap-1.5 overflow-x-auto pb-1">
+      <div id="wizardStep2FilterBar" class="flex items-center gap-1.5 overflow-x-auto pb-1">
         ${filterTabs.map(t => `
-          <button onclick="GameApp.setWizardPokeFilter('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${activeFilter === t.key ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+          <button data-filter-key="${t.key}" onclick="GameApp.setWizardPokeFilter('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${activeFilter === t.key ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
             ${t.label}
           </button>
         `).join("")}
@@ -481,6 +483,14 @@ Object.assign(window.GameApp, {
     }).join("");
 
     pBox.innerHTML = filterBarHtml + `<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">${cardsHtml}</div>`;
+    const newFilterBarEl = document.getElementById("wizardStep2FilterBar");
+    if (newFilterBarEl) {
+      newFilterBarEl.scrollLeft = prevFilterScroll;
+      const activeBtn = newFilterBarEl.querySelector(`[data-filter-key="${activeFilter}"]`);
+      if (activeBtn && activeBtn.scrollIntoView) {
+        activeBtn.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" });
+      }
+    }
 
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
@@ -749,16 +759,32 @@ Object.assign(window.GameApp, {
       { key: "Psychic", label: "超能/幽靈" },
       { key: "Dragon", label: "傳說/龍" }
     ];
+    const curFilter = this.pokedexFilter || "ALL";
+    const tabBox = document.getElementById("pokedexFilterTabs");
+    if (!tabBox) return;
+    const prevScroll = tabBox.scrollLeft;
 
-    document.getElementById("pokedexFilterTabs").innerHTML = tabs.map((t, idx) => `
-      <button onclick="GameApp.renderPokedexGrid('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border ${idx === 0 ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-300'}">
-        ${t.label}
-      </button>
-    `).join("");
+    tabBox.innerHTML = tabs.map((t) => {
+      const isAct = curFilter === t.key;
+      return `
+        <button data-dex-key="${t.key}" onclick="GameApp.renderPokedexGrid('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${isAct ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
+          ${t.label}
+        </button>
+      `;
+    }).join("");
+    tabBox.scrollLeft = prevScroll;
+    const actBtn = tabBox.querySelector(`[data-dex-key="${curFilter}"]`);
+    if (actBtn && actBtn.scrollIntoView) {
+      actBtn.scrollIntoView({ behavior: "instant", block: "nearest", inline: "nearest" });
+    }
   },
 
-  renderPokedexGrid(filterKey = "ALL") {
+  renderPokedexGrid(filterKey) {
+    if (filterKey) this.pokedexFilter = filterKey;
+    const activeKey = this.pokedexFilter || "ALL";
+    this.renderPokedexFilterTabs();
     let list = POKEMON_DB;
+    filterKey = activeKey;
     if (filterKey === "CAUGHT") list = list.filter(p => this.saveData.pokedexCaught[p.id]);
     else if (filterKey === "Psychic") list = list.filter(p => p.type1 === "Psychic" || p.type1 === "Ghost");
     else if (filterKey === "Dragon") list = list.filter(p => p.type1 === "Dragon" || [144,145,146,150,151].includes(p.id));

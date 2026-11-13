@@ -708,15 +708,9 @@ window.GameApp = {
     if (cutLayer) {
       cutLayer.classList.remove("hidden");
 
-      if (tr.cutin && cutBannerImg && cutBannerWrap) {
-        cutStrip.classList.add("hidden");
-        cutBannerWrap.classList.remove("hidden");
-        cutBannerImg.src = tr.cutin;
-        cutBannerWrap.classList.remove("cut-in-banner-active");
-        void cutBannerWrap.offsetWidth;
-        cutBannerWrap.classList.add("cut-in-banner-active");
-      } else if (cutStrip) {
-        cutBannerWrap.classList.add("hidden");
+      const showFallbackStrip = () => {
+        if (!cutStrip) return;
+        if (cutBannerWrap) cutBannerWrap.classList.add("hidden");
         cutStrip.classList.remove("hidden");
         document.getElementById("cutInAvatar").src = tr.sprite;
         document.getElementById("cutInTrainer").textContent = `${tr.name} ‧ 戰術指令`;
@@ -724,6 +718,22 @@ window.GameApp = {
         cutStrip.classList.remove("cut-in-active");
         void cutStrip.offsetWidth;
         cutStrip.classList.add("cut-in-active");
+      };
+
+      const cutRec = tr.cutin ? SpriteCache.get(tr.cutin) : null;
+      if (tr.cutin && cutBannerImg && cutBannerWrap && (!cutRec || !cutRec.error)) {
+        cutStrip.classList.add("hidden");
+        cutBannerWrap.classList.remove("hidden");
+        cutBannerImg.onerror = () => {
+          if (cutRec) cutRec.error = true;
+          showFallbackStrip();
+        };
+        cutBannerImg.src = tr.cutin;
+        cutBannerWrap.classList.remove("cut-in-banner-active");
+        void cutBannerWrap.offsetWidth;
+        cutBannerWrap.classList.add("cut-in-banner-active");
+      } else {
+        showFallbackStrip();
       }
 
       setTimeout(() => cutLayer.classList.add("hidden"), 750);
@@ -3704,7 +3714,6 @@ window.GameApp = {
     });
 
     ctx.save();
-    ctx.globalCompositeOperation = "lighter";
     SkillsEngine.render(ctx, toSx, toSy);
 
     // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形)

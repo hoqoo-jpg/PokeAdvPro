@@ -573,7 +573,7 @@ const TRAINERS = [
     name: "小霞 (Misty)",
     title: "華藍道館館主",
     sprite: "images/misty_01.png",
-    cutin: null,
+    cutin: "images/cutin_misty.png",
     sprites: {
       down: "images/misty_01.png",
       up: "images/misty_04.png",
@@ -596,7 +596,7 @@ const TRAINERS = [
     name: "小剛 (Brock)",
     title: "深灰道館館主",
     sprite: "images/brock_01.png",
-    cutin: null,
+    cutin: "images/cutin_brock.png",
     sprites: {
       down: "images/brock_01.png",
       up: "images/brock_04.png",
@@ -619,7 +619,7 @@ const TRAINERS = [
     name: "莎莉娜 (Serena)",
     title: "卡洛斯表演家",
     sprite: "images/serena_01.png",
-    cutin: null,
+    cutin: "images/cutin_serena.png",
     sprites: {
       down: "images/serena_01.png",
       up: "images/serena_04.png",
@@ -642,7 +642,7 @@ const TRAINERS = [
     name: "莉莉艾 (Lillie)",
     title: "阿羅拉大小姐",
     sprite: "images/lillie_01.png",
-    cutin: null,
+    cutin: "images/cutin_lillie.png",
     sprites: {
       down: "images/lillie_01.png",
       up: "images/lillie_04.png",
@@ -665,7 +665,7 @@ const TRAINERS = [
     name: "赤紅 (Red)",
     title: "傳奇冠軍",
     sprite: "images/red_01.png",
-    cutin: null,
+    cutin: "images/cutin_red.png",
     sprites: {
       down: "images/red_01.png",
       up: "images/red_04.png",
