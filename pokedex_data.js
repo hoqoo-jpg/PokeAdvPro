@@ -8,10 +8,10 @@
 
 // 1. 屬性視覺與異常狀態設定
 const TYPE_COLORS = {
-  Normal: "#94A3B8", Fire: "#EF4444", Water: "#38BDF8", Grass: "#22C55E",
-  Electric: "#FACC15", Ice: "#67E8F9", Fighting: "#B91C1C", Poison: "#A855F7",
-  Ground: "#D97706", Flying: "#818CF8", Psychic: "#EC4899", Bug: "#84CC16",
-  Rock: "#78350F", Ghost: "#6B21A8", Dragon: "#4338CA", Steel: "#64748B"
+  Normal: "#64748B", Fire: "#E74C3C", Water: "#2980B9", Grass: "#27AE60",
+  Electric: "#D4AC0D", Ice: "#38B2A6", Fighting: "#B91C1C", Poison: "#8E44AD",
+  Ground: "#D35400", Flying: "#5B6ABF", Psychic: "#D81B60", Bug: "#689F38",
+  Rock: "#6D4C41", Ghost: "#6B21A8", Dragon: "#4338CA", Steel: "#546E7A"
 };
 
 const TYPE_NAMES_ZH = {
@@ -77,9 +77,9 @@ function checkStatusImmunity(target, status) {
 
 function renderTypeBadgeHTML(type) {
   if (!type || type === "None") return "";
-  const bg = TYPE_COLORS[type] || "#94A3B8";
+  const bg = TYPE_COLORS[type] || "#64748B";
   const zh = TYPE_NAMES_ZH[type] || type;
-  return `<span style="background-color:${bg}" class="px-1 py-0.2 text-[8px] font-black text-white rounded shadow-sm whitespace-nowrap inline-block leading-tight mx-0.5">${zh}</span>`;
+  return `<span style="background-color:${bg}; text-shadow: 0 1px 2px rgba(0,0,0,0.85);" class="px-1.5 py-0.2 text-[8px] font-black text-white rounded border border-black/30 shadow-sm whitespace-nowrap inline-block leading-tight mx-0.5">${zh}</span>`;
 }
 
 // 2. 招式資料庫 (已優化 iPhone 擊退抗性 knockback)

@@ -1981,63 +1981,62 @@ const SkillsEngine = {
         ctx.fill();
 
       } else if (pr.vfx === "water_gun") {
-        // 水槍：深藍硬邊 ➔ 亮青水梭 ➔ 純白氣泡反光核
+        // 水槍：晶瑩透亮青藍 (#00D2FF) + 高亮青白核心 (#E0FFFF) + 局部 lighter 發光
         ctx.rotate(pr.angle || 0);
-        ctx.fillStyle = "#0369A1";
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(0, 210, 255, 0.85)";
         ctx.beginPath();
-        ctx.moveTo(r * 1.35, 0); ctx.lineTo(-r * 0.75, -r * 0.58); ctx.lineTo(-r * 0.35, 0); ctx.lineTo(-r * 0.75, r * 0.58);
+        ctx.moveTo(r * 1.38, 0); ctx.lineTo(-r * 0.75, -r * 0.58); ctx.lineTo(-r * 0.32, 0); ctx.lineTo(-r * 0.75, r * 0.58);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = "#38BDF8";
+        ctx.fillStyle = "#E0FFFF";
         ctx.beginPath();
-        ctx.moveTo(r * 1.18, 0); ctx.lineTo(-r * 0.58, -r * 0.42); ctx.lineTo(-r * 0.2, 0); ctx.lineTo(-r * 0.58, r * 0.42);
+        ctx.moveTo(r * 1.15, 0); ctx.lineTo(-r * 0.45, -r * 0.35); ctx.lineTo(-r * 0.12, 0); ctx.lineTo(-r * 0.45, r * 0.35);
         ctx.closePath();
         ctx.fill();
 
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(r * 0.3, -r * 0.1, r * 0.26, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(r * 0.35, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
 
       } else if (pr.vfx === "water_beam") {
-        // 水炮：GBA 螺旋水柱束 + 前端三尖王冠水花衝擊冠 (IMG_5056 左上角水柱與水花王冠)
+        // 水炮：晶瑩青藍 (#00D2FF) + 純白螺旋水紋 (#E0FFFF) + 前端三尖王冠水花 + 局部 lighter 水光感
         ctx.rotate(pr.angle || 0);
+        ctx.globalCompositeOperation = "lighter";
         const tailLen = r * 2.1;
 
-        // 深海藍外襯水柱
-        ctx.fillStyle = "#0369A1";
+        ctx.fillStyle = "rgba(2, 132, 199, 0.65)";
         ctx.beginPath();
         ctx.roundRect(-tailLen, -r * 0.58, tailLen + r * 0.4, r * 1.16, r * 0.5);
         ctx.fill();
 
-        // 亮青水柱主體
-        ctx.fillStyle = "#0284C7";
+        ctx.fillStyle = "#00D2FF";
         ctx.beginPath();
-        ctx.roundRect(-tailLen * 0.92, -r * 0.46, tailLen * 0.92 + r * 0.35, r * 0.92, r * 0.4);
+        ctx.roundRect(-tailLen * 0.92, -r * 0.44, tailLen * 0.92 + r * 0.35, r * 0.88, r * 0.4);
         ctx.fill();
 
-        // 內部斜向交錯推進的白色螺旋水紋與氣泡
-        ctx.strokeStyle = "#BAE6FD";
-        ctx.lineWidth = 2.4;
-        for (let s = -tailLen * 0.75; s < r * 0.1; s += r * 0.65) {
+        ctx.strokeStyle = "#E0FFFF";
+        ctx.lineWidth = 2.6;
+        for (let s = -tailLen * 0.75; s < r * 0.1; s += r * 0.62) {
           ctx.beginPath();
           ctx.moveTo(s, -r * 0.38);
           ctx.lineTo(s + r * 0.35, r * 0.38);
           ctx.stroke();
         }
 
-        // 前端立體三尖王冠狀浪花冠 (Crown Splash)
-        ctx.fillStyle = "#E0F2FE";
-        ctx.strokeStyle = "#0284C7";
+        // 前端立體三尖王冠狀浪花冠 (#E0FFFF)
+        ctx.fillStyle = "#E0FFFF";
+        ctx.strokeStyle = "#00D2FF";
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(r * 0.1, -r * 0.85);
-        ctx.lineTo(r * 0.85, -r * 0.55);
-        ctx.lineTo(r * 0.45, -r * 0.18);
-        ctx.lineTo(r * 1.15, 0);
-        ctx.lineTo(r * 0.45, r * 0.18);
-        ctx.lineTo(r * 0.85, r * 0.55);
-        ctx.lineTo(r * 0.1, r * 0.85);
-        ctx.quadraticCurveTo(r * 0.4, 0, r * 0.1, -r * 0.85);
+        ctx.moveTo(r * 0.1, -r * 0.88);
+        ctx.lineTo(r * 0.88, -r * 0.55);
+        ctx.lineTo(r * 0.48, -r * 0.18);
+        ctx.lineTo(r * 1.18, 0);
+        ctx.lineTo(r * 0.48, r * 0.18);
+        ctx.lineTo(r * 0.88, r * 0.55);
+        ctx.lineTo(r * 0.1, r * 0.88);
+        ctx.quadraticCurveTo(r * 0.42, 0, r * 0.1, -r * 0.88);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();

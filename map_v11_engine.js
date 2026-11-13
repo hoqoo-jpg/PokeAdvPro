@@ -10,8 +10,8 @@ const STAGES = [
   {
     id: "pallet",
     name: "真新鎮・常磐跳崖密林",
-    tileLight: "#2E5A36",
-    tileDark: "#274E2E",
+    tileLight: "#4A7043",
+    tileDark: "#3D5E38",
     roadColor: "#6E563B",
     roadBorder: "#42311E",
     slowZoneColor: "#1B3B22",
@@ -137,9 +137,9 @@ const MapEngine = {
         c.fillRect(0, 0, 60, 60);
 
         if (st.id === "pallet") {
-          c.fillStyle = isDark ? "#1E3D24" : "#244C2B";
+          c.fillStyle = isDark ? "#2E4A2A" : "#365831";
           c.fillRect(12, 14, 3, 4); c.fillRect(38, 22, 3, 4); c.fillRect(24, 44, 3, 4);
-          c.fillStyle = isDark ? "#386C41" : "#458250";
+          c.fillStyle = isDark ? "#527D4B" : "#5E8C56";
           c.fillRect(16, 32, 2.5, 3); c.fillRect(44, 48, 2.5, 3); c.fillRect(32, 8, 2.5, 3);
         } else if (st.id === "cerulean_bay") {
           c.fillStyle = isDark ? "#4F4030" : "#574837";

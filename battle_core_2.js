@@ -3485,12 +3485,12 @@ window.GameApp = {
       ctx.restore();
     }
 
-    // 繪製【不融冰】125px 極寒霜凍結界光環
+    // 繪製【不融冰】125px 極寒霜凍結界光環 (超低不透明度 0.05 底霧 + 0.35 虛線邊框，不掩蓋中央角色立繪)
     if (p.heldItems && p.heldItems["never_melt_ice"]) {
       ctx.save();
-      ctx.strokeStyle = "rgba(103, 232, 249, 0.60)";
-      ctx.fillStyle = "rgba(56, 189, 248, 0.10)";
-      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = "rgba(130, 230, 255, 0.35)";
+      ctx.fillStyle = "rgba(100, 210, 255, 0.05)";
+      ctx.lineWidth = 1.8;
       ctx.setLineDash([8, 6]);
       ctx.beginPath();
       ctx.arc(px, py, 125, 0, Math.PI * 2);
@@ -3689,7 +3689,7 @@ window.GameApp = {
         ctx.restore();
       }
 
-      // --- 血條升級：加長至 44px + 1px 黑色硬描邊 + 綠/黃/紅三段變色 (殘血瀕危呼吸) ---
+      // --- 敵方血條美術升級：亮珊瑚紅/橘紅 (#FF5252 ➔ #FF6B4A) 與半透明黑底槽 rgba(0,0,0,0.65)，徹底擺脫綠草地保護色 ---
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
         const bw = e.isBoss ? 72 : 44;
         const bh = e.isBoss ? 6 : 5.5;
@@ -3697,26 +3697,22 @@ window.GameApp = {
         const barY = esy - sz / 2 - 10;
         const hpRatio = Math.max(0, e.hp / e.maxHp);
 
-        // 黑色外描邊 + 深黑底槽 (確保在草地、水面與任何地貌均有強烈輪廓對比)
         ctx.save();
-        ctx.fillStyle = "rgba(10, 15, 29, 0.92)";
-        ctx.strokeStyle = "#000000";
-        ctx.lineWidth = 1.2;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.lineWidth = 1.0;
         ctx.fillRect(barX, barY, bw, bh);
         ctx.strokeRect(barX, barY, bw, bh);
 
-        // 三段式色溫判定 (經典 GBA 寶可夢血條機制)
-        let barColor = "#22C55E"; // > 50%: 翠綠
+        let barColor = "#FF5252";
         if (e.treasureType) {
           barColor = "#FACC15";
-        } else if (hpRatio <= 0.20) {
-          // <= 20%: 鮮紅 + 瀕死呼吸脈動
+        } else if (hpRatio <= 0.25) {
           const pulse = 0.75 + Math.sin(performance.now() * 0.015) * 0.25;
           ctx.globalAlpha = pulse;
-          barColor = "#EF4444";
-        } else if (hpRatio <= 0.50) {
-          // 20% ~ 50%: 警告金黃
-          barColor = "#FACC15";
+          barColor = "#FF2E2E";
+        } else if (e.isElite && !e.isBoss) {
+          barColor = "#FF6B4A";
         }
 
         ctx.fillStyle = barColor;
@@ -4013,7 +4009,16 @@ window.GameApp = {
     document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
     document.getElementById("hudLevelText").textContent = `Lv.${p.level}`;
 
-    document.getElementById("hudHpBar").style.width = `${Math.max(0, (p.hp / p.maxHp) * 100)}%`;
+    const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+    const hpBarEl = document.getElementById("hudHpBar");
+    hpBarEl.style.width = `${hpPct}%`;
+    if (hpPct > 50) {
+      hpBarEl.style.background = "linear-gradient(90deg, #2EE66B 0%, #1CB34E 100%)";
+    } else if (hpPct > 22) {
+      hpBarEl.style.background = "linear-gradient(90deg, #F5B041 0%, #D68910 100%)";
+    } else {
+      hpBarEl.style.background = "linear-gradient(90deg, #FF5252 0%, #E74C3C 100%)";
+    }
     document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
     document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
 
@@ -4048,7 +4053,12 @@ window.GameApp = {
 
     document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
       const meta = SKILLS_CATALOG[sk.id];
-      return `<span class="px-2 py-0.5 rounded-full text-[9px] font-black border border-slate-800 ${sk.evolved ? 'bg-amber-300 text-slate-900' : 'bg-white text-slate-800'} flex items-center gap-1 shadow-sm"><img src="${meta.sprite}" class="w-3 h-3 pixel-sprite"/>${sk.evolved ? meta.evolvedName : meta.name} L${sk.level}</span>`;
+      if (!meta) return "";
+      if (sk.evolved) {
+        return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
+      }
+      const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
+      return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
     }).join("");
 
     document.getElementById("hudActiveTrainerImg").src = tr.sprite;
