@@ -1244,20 +1244,56 @@ window.GameApp = {
     const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
     const cdFactor = Math.max(0.45, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
     p.castStaggerTimer = Math.max(0, (p.castStaggerTimer || 0) - dt);
-    Object.values(p.skills).forEach((skSlot, slotIdx) => {
-      skSlot.timer -= dt;
+    p.superMoveIcdTimer = Math.max(0, (p.superMoveIcdTimer || 0) - dt);
+
+    const allSkillSlots = Object.values(p.skills);
+    const evolvedSlots = allSkillSlots.filter(s => s.evolved);
+    const hasDualSuper = evolvedSlots.length >= 2;
+
+    allSkillSlots.forEach((skSlot, slotIdx) => {
+      skSlot.timer = Math.max(0, skSlot.timer - dt);
       if (skSlot.timer <= 0) {
-        if (p.castStaggerTimer > 0 && !skSlot.evolved) {
-          skSlot.timer = 0.015; // 全局微序列排隊，防止多把子彈武器同一毫秒重疊發射
-          return;
-        }
         const meta = SKILLS_CATALOG[skSlot.id];
         if (!meta) return;
+
+        // 1. 智能有效射程觸發 (Range-Gated Smart Trigger)：
+        // 在「自動索敵模式」下，必須有敵人踏入該招式的有效射程內才發動（沒怪時保持 timer = 0 待命蓄力，絕不對空氣亂放）；
+        // 若玩家主動切換為「🧭 朝向（手動突圍）」模式，則允許無條件持續開火！
+        if (!this.manualAimMode) {
+          let triggerRange = 365 * p.areaMult;
+          if (skSlot.evolved) {
+            triggerRange = 285 * p.areaMult;
+          } else if (meta.isMelee) {
+            triggerRange = (meta.meleeStyle === "vine_whip" ? 175 : 145) * p.areaMult;
+          } else if (skSlot.id === "Thunderbolt") {
+            triggerRange = 195 * p.areaMult;
+          }
+          const hasTargetInRange = this.findNearestEnemyInViewport(p.x, p.y, triggerRange);
+          if (!hasTargetInRange) {
+            skSlot.timer = 0; // 保持蓄勢待發，一旦怪進圈 0 秒瞬發
+            return;
+          }
+        }
+
         if (skSlot.evolved) {
-          SkillsEngine.triggerUltimateSuperMove(meta, skSlot);
-          skSlot.timer = Math.max(2.4, meta.baseCd * 1.95 * cdFactor);
+          // 2. 選項 A 雙超武平衡與 1.1s 錯峰共鳴：防止雙超武同幀重疊閃瞎眼並平衡秒王強度
+          if (p.superMoveIcdTimer > 0) {
+            skSlot.timer = p.superMoveIcdTimer;
+            return;
+          }
+          const isSecondSuper = hasDualSuper && evolvedSlots[1] === skSlot;
+          const ultDmgScale = isSecondSuper ? 0.78 : 1.0;
+          const dualCdPenalty = hasDualSuper ? 1.18 : 1.0;
+
+          SkillsEngine.triggerUltimateSuperMove(meta, skSlot, ultDmgScale);
+          skSlot.timer = Math.max(2.5, meta.baseCd * 1.95 * cdFactor * dualCdPenalty);
+          p.superMoveIcdTimer = 1.10; // 強制與下一發超武錯開至少 1.1 秒
           p.castStaggerTimer = 0.08;
         } else {
+          if (p.castStaggerTimer > 0) {
+            skSlot.timer = 0.015; // 全局微序列排隊，防止多把子彈武器同一毫秒重疊發射
+            return;
+          }
           SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
           const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
           skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * cdFactor);
