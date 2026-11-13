@@ -2426,7 +2426,7 @@ window.GameApp = {
 
     enemy.hp -= finalDmg;
     // 任何受傷均觸發明顯白閃反饋
-    enemy.whiteFlashTimer = (isCrit || eff > 1.1) ? 0.12 : 0.09;
+    enemy.whiteFlashTimer = (isCrit || eff > 1.1) ? 0.14 : 0.11;
 
     this.skillDamageStats[moveType] = (this.skillDamageStats[moveType] || 0) + finalDmg;
 
@@ -3123,6 +3123,28 @@ window.GameApp = {
     this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
   },
 
+  // 零 ctx.filter 離線剪影閃白渲染器 (100% 貼合精靈像素輪廓，iOS Safari 滿幀)
+  drawSilhouetteFlash(ctx, img, x, y, w, h, color = "#FFFFFF", alpha = 0.72) {
+    if (!this._flashCan) {
+      this._flashCan = document.createElement("canvas");
+      this._flashCan.width = 128;
+      this._flashCan.height = 128;
+      this._flashCtx = this._flashCan.getContext("2d");
+    }
+    const fc = this._flashCtx;
+    fc.clearRect(0, 0, w, h);
+    fc.globalCompositeOperation = "source-over";
+    fc.drawImage(img, 0, 0, w, h);
+    fc.globalCompositeOperation = "source-in";
+    fc.fillStyle = color;
+    fc.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(this._flashCan, 0, 0, w, h, x, y, w, h);
+    ctx.restore();
+  },
+
   renderCombat() {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, this.width, this.height);
@@ -3398,13 +3420,7 @@ window.GameApp = {
           ctx.drawImage(tRec.img, -28, -28, 56, 56);
         }
         if (tc.whiteFlashTimer > 0) {
-          ctx.save();
-          ctx.globalCompositeOperation = "lighter";
-          ctx.fillStyle = "rgba(255, 120, 80, 0.55)";
-          ctx.beginPath();
-          ctx.arc(0, 0, 20, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
+          this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
         }
         if (tInGrass) {
           ctx.save();
@@ -3560,13 +3576,7 @@ window.GameApp = {
       if (p.isShiny) ctx.filter = "none";
 
       if (p.whiteFlashTimer > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.68)";
-        ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
       }
 
       // 若在草叢中，直接沿用背景同款復古 V 形分叉像素小草，自然融入場景
@@ -3619,78 +3629,89 @@ window.GameApp = {
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
       if (e.isShiny) ctx.filter = "none";
 
-      // 0. 受創白閃：高光衝擊圈 (lighter 疊加，不破壞精靈立繪色彩且零 CPU 濾鏡開銷)
-      if (e.whiteFlashTimer > 0) {
-        ctx.save();
-        ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = "rgba(255, 255, 255, 0.68)";
-        ctx.beginPath();
-        ctx.arc(0, 0, sz * 0.34, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+      // 0. 受創閃白：離線 source-in 貼合精靈像素輪廓閃白 (經典 GBA 街機手感，零 ctx.filter 開銷)
+      if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
+        this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
       }
 
-      // 0B. 中毒 (Poison)：腳底紫綠毒氣環 + 身周向上飄浮 3 顆立體帶高光劇毒泡泡
+      // 0B. 中毒 (Poison)：不畫腳底雜亂光圈，於怪獸頭頂兩側邊緣緩緩飄升 2 顆 3.2px 描邊立體像素小毒泡（避開中心彈著點）
       if (e.status === "Poison") {
-        const pNow = performance.now() * 0.005 + e.id;
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.72)";
-        ctx.lineWidth = 1.8;
-        ctx.beginPath();
-        ctx.ellipse(0, sz * 0.28, sz * 0.30, sz * 0.11, 0, 0, Math.PI * 2);
-        ctx.stroke();
+        const pNow = performance.now() * 0.0045 + e.x * 0.02;
+        for (let pb = 0; pb < 2; pb++) {
+          const prog = ((pNow + pb * 0.5) % 1.0);
+          const side = pb === 0 ? -1 : 1;
+          const bx = side * (sz * 0.28) + Math.sin(prog * Math.PI * 2 + pb) * 2.5;
+          const by = -sz * 0.10 - prog * (sz * 0.32);
+          const br = 3.2;
 
-        for (let pb = 0; pb < 3; pb++) {
-          const bPhase = (pNow + pb * 2.1) % (Math.PI * 2);
-          const bx = (pb - 1) * (sz * 0.22) + Math.sin(bPhase) * 3;
-          const by = sz * 0.12 - ((bPhase / (Math.PI * 2)) * (sz * 0.42));
-          const br = 3.2 - pb * 0.4;
-          ctx.fillStyle = pb % 2 === 0 ? "rgba(147, 51, 234, 0.88)" : "rgba(74, 222, 128, 0.88)";
+          ctx.fillStyle = pb === 0 ? "#9333EA" : "#22C55E";
+          ctx.strokeStyle = "#1E1B4B";
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
           ctx.arc(bx, by, br, 0, Math.PI * 2);
           ctx.fill();
+          ctx.stroke();
+
           ctx.fillStyle = "#FFFFFF";
           ctx.beginPath();
-          ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.32, 0, Math.PI * 2);
+          ctx.arc(bx - 1.0, by - 1.0, 1.0, 0, Math.PI * 2);
           ctx.fill();
         }
       }
 
-      // 0C. 灼傷 (Burn)：身上竄出 2 簇動態搖曳的「外紅橙、內明黃」雙色小火苗
+      // 0C. 灼傷 (Burn)：於怪獸身體兩側肩部邊緣跳動 2 朵 4px 尖角水滴小火苗（外橘紅、內明黃、1px深褐描邊）
       if (e.status === "Burn") {
-        const bNow = performance.now() * 0.01 + e.id;
+        const bNow = performance.now() * 0.010 + e.y * 0.03;
         for (let bf = -1; bf <= 1; bf += 2) {
-          const fx = bf * (sz * 0.20);
-          const fy = -sz * 0.06 + Math.sin(bNow + bf) * 4;
-          ctx.fillStyle = "#EF4444";
+          const fx = bf * (sz * 0.30);
+          const fy = -sz * 0.02 + Math.sin(bNow + bf * 1.5) * 3.0;
+          const sway = Math.cos(bNow * 1.3 + bf) * 1.5;
+
+          ctx.save();
+          ctx.translate(fx, fy);
+          ctx.fillStyle = "#F97316";
+          ctx.strokeStyle = "#451A03";
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.arc(fx, fy, 4.5, 0, Math.PI * 2);
+          ctx.moveTo(sway, -5.5);
+          ctx.quadraticCurveTo(4.0, 0, 0, 3.5);
+          ctx.quadraticCurveTo(-4.0, 0, sway, -5.5);
+          ctx.closePath();
           ctx.fill();
+          ctx.stroke();
+
           ctx.fillStyle = "#FEF08A";
           ctx.beginPath();
-          ctx.arc(fx, fy + 0.8, 2.3, 0, Math.PI * 2);
+          ctx.arc(0, 0.8, 1.8, 0, Math.PI * 2);
           ctx.fill();
+          ctx.restore();
         }
       }
 
-      // 0D. 不融冰結霜 (inFrostAura)：腳底冰藍寒霜結界底座 + 微細冰晶菱形
+      // 0D. 不融冰結霜 (inFrostAura)：不畫重複腳底圈，於身周兩側緩慢飄落 2 枚 3.2px 十字微冰晶
       if (e.inFrostAura) {
-        const fNow = performance.now() * 0.004 + e.id;
-        ctx.strokeStyle = "rgba(103, 232, 249, 0.80)";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.ellipse(0, sz * 0.28, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2);
-        ctx.stroke();
+        const fNow = performance.now() * 0.0035 + e.x * 0.02;
+        for (let fi = 0; fi < 2; fi++) {
+          const prog = ((fNow + fi * 0.5) % 1.0);
+          const side = fi === 0 ? -1 : 1;
+          const ix = side * (sz * 0.30) + Math.cos(prog * Math.PI * 2) * 2.0;
+          const iy = -sz * 0.22 + prog * (sz * 0.36);
+          const s = 3.4;
 
-        const ix = Math.cos(fNow) * (sz * 0.24);
-        const iy = Math.sin(fNow) * (sz * 0.10) - sz * 0.08;
-        ctx.fillStyle = "#E0F2FE";
-        ctx.beginPath();
-        ctx.moveTo(ix, iy - 3.5);
-        ctx.lineTo(ix + 2.5, iy);
-        ctx.lineTo(ix, iy + 3.5);
-        ctx.lineTo(ix - 2.5, iy);
-        ctx.closePath();
-        ctx.fill();
+          ctx.strokeStyle = "#0369A1";
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          ctx.moveTo(ix - s, iy); ctx.lineTo(ix + s, iy);
+          ctx.moveTo(ix, iy - s); ctx.lineTo(ix, iy + s);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#E0FFFF";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(ix - s, iy); ctx.lineTo(ix + s, iy);
+          ctx.moveTo(ix, iy - s); ctx.lineTo(ix, iy + s);
+          ctx.stroke();
+        }
       }
 
       // --- 沙盒 V10 狀態視覺效果 (告別純色濾鏡，辨識度極高且不遮擋彈道) ---
