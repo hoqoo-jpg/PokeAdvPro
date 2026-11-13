@@ -1175,5 +1175,21 @@ const MART_SPECIAL_ITEMS = {
     cost: 90,
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-speed.png",
     desc: "30 秒內移動速度提升 +30%，且踏入涉水/泥沼完全免疫減速！"
+  },
+  master_candy: {
+    id: "master_candy",
+    name: "極限神奇糖果",
+    type: "item",
+    cost: 360,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png",
+    desc: "【高階補給】立即將一項未滿級招式連升 +2 級，並回復 30% HP！"
+  },
+  mystery_held: {
+    id: "mystery_held",
+    name: "秘傳攜帶物禮盒",
+    type: "item",
+    cost: 380,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/EXP-share.png",
+    desc: "【高階補給】立即隨機獲得一件對應當前已學招式的超武攜帶物！"
   }
 };

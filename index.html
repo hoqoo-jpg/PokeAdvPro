@@ -475,6 +475,10 @@
           <i id="hudWeatherIcon" class="fa-solid fa-sun text-amber-400 text-xs"></i>
           <span id="hudWeatherText" class="text-[9px] font-black hidden sm:inline">晴天</span>
         </button>
+        <button id="btnAimModeToggle" onclick="GameApp.toggleAimMode()" class="w-7 h-7 sm:w-8 sm:h-8 sm:px-1.5 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center gap-0.5 shadow" title="切換瞄準模式 [Tab]">
+          <i id="hudAimIcon" class="fa-solid fa-crosshairs text-emerald-400 text-xs"></i>
+          <span id="hudAimText" class="text-[8px] font-black hidden sm:inline">自動</span>
+        </button>
         <button onclick="GameApp.toggleTimeScale()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow font-pixel text-[8px] sm:text-[9px]">
           <span id="speedToggleText">1x</span>
         </button>
@@ -692,6 +696,10 @@
       <div class="flex items-center gap-2">
         <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-3 py-1 text-xs font-black"><i class="fa-solid fa-arrow-left"></i> 返回</button>
         <span class="font-pixel text-xs sm:text-sm text-slate-900 font-black">GYM ACHIEVEMENTS</span>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="GameApp.exportSaveDataCode()" class="poke-btn-blue px-2.5 py-1 text-[11px] font-black"><i class="fa-solid fa-file-export"></i> 匯出存檔</button>
+        <button onclick="GameApp.importSaveDataCode()" class="poke-btn-yellow px-2.5 py-1 text-[11px] font-black"><i class="fa-solid fa-file-import"></i> 匯入存檔</button>
       </div>
     </div>
     <div class="flex-1 overflow-y-auto p-4 bg-slate-100">

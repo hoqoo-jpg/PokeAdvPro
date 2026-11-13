@@ -50,6 +50,7 @@ Object.assign(window.GameApp, {
           unlockedPokemon: { ...this.saveData.unlockedPokemon, ...(parsed.unlockedPokemon || {}) },
           unlockedTrainers: { ...this.saveData.unlockedTrainers, ...(parsed.unlockedTrainers || {}) },
           upgrades: { ...this.saveData.upgrades, ...(parsed.upgrades || {}) },
+          pokemonStars: { ...(this.saveData.pokemonStars || {}), ...(parsed.pokemonStars || {}) },
           stats: { ...this.saveData.stats, ...(parsed.stats || {}) },
           pokedexSeen: { ...this.saveData.pokedexSeen, ...(parsed.pokedexSeen || {}) },
           pokedexCaught: { ...this.saveData.pokedexCaught, ...(parsed.pokedexCaught || {}) },
@@ -416,6 +417,12 @@ Object.assign(window.GameApp, {
       const isBond = bondSet.has(p.id);
       const sk = SKILLS_CATALOG[p.skill];
       const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
+      const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
+      const starCosts = [400, 800, 1500];
+      const nextStarCost = starLv < 3 ? starCosts[starLv] : 0;
+      const starBonusMult = 1 + starLv * 0.12;
+      const dispHp = Math.round(p.hp * starBonusMult);
+      const dispAtk = Math.round(p.atk * starBonusMult);
 
       const seen = !!this.saveData.pokedexSeen[p.id];
       return `
@@ -436,17 +443,28 @@ Object.assign(window.GameApp, {
                 </button>
               ` : ''}
             </div>
-            <div class="font-black text-xs sm:text-sm text-slate-800 text-center truncate px-0.5">${unlocked || seen ? p.name_zh : '？？？'}</div>
+            <div class="font-black text-xs sm:text-sm text-slate-800 text-center truncate px-0.5">
+              ${unlocked || seen ? p.name_zh : '？？？'}
+              ${starLv > 0 ? `<span class="text-amber-500 ml-0.5">${'★'.repeat(starLv)}</span>` : ''}
+            </div>
             <div class="flex items-center justify-center gap-0.5 my-1 flex-wrap">
               ${unlocked || seen ? (renderTypeBadgeHTML(p.type1) + renderTypeBadgeHTML(p.type2)) : '<span class="text-[9px] font-bold text-slate-400">未知屬性</span>'}
             </div>
             <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
               ${unlocked || seen
-                ? `<div class="flex justify-between"><span>HP:<strong>${p.hp}</strong></span><span>ATK:<strong>${p.atk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
-                   <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}</div>`
+                ? `<div class="flex justify-between"><span>HP:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispHp}</strong></span><span>ATK:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispAtk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
+                   <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}${starLv >= 3 ? ' (開局Lv.2)' : ''}</div>`
                 : `<div class="text-center text-slate-400 py-1 font-bold">需在野外遭遇登錄圖鑑</div>`
               }
             </div>
+            ${unlocked ? `
+              <div class="mt-1.5">
+                <button onclick="event.stopPropagation(); GameApp.upgradePokemonStar(${p.id})" ${starLv >= 3 ? 'disabled' : ''} class="w-full py-1 px-1.5 rounded-lg text-[9px] font-black border flex items-center justify-center gap-1 ${starLv >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-800 text-amber-300 border-slate-900 hover:bg-slate-700'}">
+                  <i class="fa-solid fa-crown text-[8px]"></i>
+                  <span>${starLv >= 3 ? '★3 金冠滿星覺醒' : `王冠突破 ★${starLv + 1} (${nextStarCost}金)`}</span>
+                </button>
+              </div>
+            ` : ''}
           </div>
           <div class="mt-2 pt-1.5 border-t border-slate-200 flex items-center justify-between">
             ${unlocked
@@ -546,6 +564,63 @@ Object.assign(window.GameApp, {
       return;
     }
     this.openUnlockConfirmModal("pokemon", pokeId, cost);
+  },
+
+  upgradePokemonStar(pokeId) {
+    if (!this.saveData.pokemonStars) this.saveData.pokemonStars = {};
+    const curLv = this.saveData.pokemonStars[pokeId] || 0;
+    if (curLv >= 3) return;
+    const starCosts = [400, 800, 1500];
+    const cost = starCosts[curLv];
+    if ((this.saveData.coins || 0) < cost) {
+      alert(`【王冠極限突破】代幣不足！升至 ★${curLv + 1} 需要 ${cost} 代幣（每星永久提升該寶可夢 +12% 基礎HP與攻擊，★3 金冠開局主招式直接 Lv.2）！`);
+      return;
+    }
+    this.saveData.coins -= cost;
+    this.saveData.pokemonStars[pokeId] = curLv + 1;
+    SoundFX.play("levelup");
+    this.saveToStorage();
+    this.renderWizardContent();
+  },
+
+  exportSaveDataCode() {
+    try {
+      const jsonStr = JSON.stringify(this.saveData);
+      const code = btoa(encodeURIComponent(jsonStr));
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+          alert("✅ 存檔引繼碼已自動複製到剪貼簿！可在其他裝置點擊「匯入存檔」貼上還原進度。");
+        }).catch(() => {
+          prompt("請複製以下存檔引繼碼：", code);
+        });
+      } else {
+        prompt("請複製以下存檔引繼碼：", code);
+      }
+    } catch (e) {
+      alert("匯出失敗：" + e.message);
+    }
+  },
+
+  importSaveDataCode() {
+    const code = prompt("請貼上您先前匯出的【存檔引繼碼】：");
+    if (!code || !code.trim()) return;
+    try {
+      const jsonStr = decodeURIComponent(atob(code.trim()));
+      const parsed = JSON.parse(jsonStr);
+      if (!parsed || typeof parsed !== "object" || parsed.coins === undefined) {
+        throw new Error("格式無效");
+      }
+      this.saveData = {
+        ...this.saveData,
+        ...parsed,
+        pokemonStars: { ...(parsed.pokemonStars || {}) }
+      };
+      this.saveToStorage();
+      this.renderAchievements();
+      alert("🎉 存檔引繼碼匯入成功！所有圖鑑、代幣、閃光與王冠進度已同步！");
+    } catch (e) {
+      alert("❌ 引繼碼無效或格式損毀，請確認複製完整字串！");
+    }
   },
 
   toggleStarterShiny(id) {
@@ -1035,7 +1110,7 @@ Object.assign(window.GameApp, {
     }
 
     const p = this.player;
-    const isConsumable = ["pp_up", "full_restore", "x_attack", "x_speed"].includes(itemId);
+    const isConsumable = ["pp_up", "full_restore", "x_attack", "x_speed", "master_candy", "mystery_held"].includes(itemId);
 
     if (!isConsumable) {
       const currentSkills = Object.keys(p.skills);
@@ -1077,6 +1152,37 @@ Object.assign(window.GameApp, {
       SoundFX.play("super");
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
+    } else if (itemId === "master_candy") {
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30));
+      const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
+      if (upgradeable.length > 0) {
+        const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
+        pick.level = Math.min(10, pick.level + 2);
+        const skMeta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[pick.id] : null;
+        SoundFX.play("levelup");
+        this.spawnFloatingText(p.x, p.y - 25, `🍬 極限糖果：【${skMeta ? skMeta.name : pick.id}】直升 Lv.${pick.level}!`, "#FACC15", 15);
+      } else {
+        this.gainExp(p.nextExp - p.exp);
+      }
+    } else if (itemId === "mystery_held") {
+      const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
+      let eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
+        const targetSkill = SKILLS_CATALOG[hi.skillReq];
+        return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
+      });
+      if (eligibleHeld.length === 0) {
+        eligibleHeld = Object.values(HELD_ITEMS).filter(hi => !p.heldItems[hi.id]);
+      }
+      if (eligibleHeld.length > 0) {
+        const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
+        p.heldItems[hi.id] = true;
+        p.dmgMult *= 1.12;
+        SoundFX.play("levelup");
+        this.spawnFloatingText(p.x, p.y - 25, `🎁 獲得超武攜帶物：【${hi.name}】！`, "#C084FC", 15);
+      } else {
+        p.dmgMult *= 1.15;
+        this.spawnFloatingText(p.x, p.y - 25, "全攜帶物已齊備！全傷害額外 +15%！", "#FACC15", 14);
+      }
     } else {
       const stagger = Object.keys(p.skills).length * 0.22;
       p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };

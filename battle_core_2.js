@@ -14,8 +14,9 @@ window.GameApp = {
   state: "LOADING",
   timeScale: 1,
 
-  // 天氣測試鎖定開關
+  // 天氣測試鎖定開關與瞄準模式
   debugWeatherLock: false,
+  manualAimMode: false,
 
   // 存檔基礎骨架 (詳細資料結構由 game_ui.js 接管同步)
   saveData: {
@@ -23,6 +24,7 @@ window.GameApp = {
     unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     unlockedTrainers: { ash: true, misty: true, brock: true },
     upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
+    pokemonStars: {},
     stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
     pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
     pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
@@ -117,6 +119,11 @@ window.GameApp = {
       }
       const k = e.key.toLowerCase();
       this.keys[k] = true;
+      if (e.code === "Tab" && this.state === "PLAYING") {
+        e.preventDefault();
+        this.toggleAimMode();
+        return;
+      }
       if (e.code === "Space" && this.state === "PLAYING") {
         e.preventDefault();
         this.triggerTrainerActiveSkill();
@@ -553,7 +560,9 @@ window.GameApp = {
 
     const isBond = (tr.bondPokemonIds || []).includes(basePoke.id);
     const hasShiny = !!this.saveData.shinyUnlocked[basePoke.id] && !!this.useShinyStarter[basePoke.id];
-    const shinyMult = hasShiny ? 1.20 : 1.0;
+    const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[basePoke.id]) || 0;
+    const starMult = 1 + starLv * 0.12;
+    const shinyMult = (hasShiny ? 1.20 : 1.0) * starMult;
 
     const maxHp = Math.round(basePoke.hp * tr.mods.hpMult * (1 + upg.hp * 0.12) * shinyMult);
     const maxSkillSlots = 3 + (upg.fourthSlot >= 1 ? 1 : 0);
@@ -620,7 +629,8 @@ window.GameApp = {
           : [SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle"]);
 
     const firstSkillId = derivedNatSkills[0] || "Tackle";
-    this.player.skills[firstSkillId] = { id: firstSkillId, level: 1, evolved: false, timer: 0.2 };
+    const startSkillLv = starLv >= 3 ? 2 : 1;
+    this.player.skills[firstSkillId] = { id: firstSkillId, level: startSkillLv, evolved: false, timer: 0.2 };
     this.player.naturalSkills = [...derivedNatSkills];
 	
     this.trainerCompanion = {
@@ -1193,11 +1203,19 @@ window.GameApp = {
 
       pt.cdTimer -= dt;
       if (pt.cdTimer <= 0) {
-        const target = this.findNearestEnemyInViewport(pt.x, pt.y, 350);
+        const target = this.findNearestEnemyInViewport(pt.x, pt.y, 360);
         if (target) {
           const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
-          SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level), false, upgPartnerMult * 0.65);
-          pt.cdTimer = 1.35;
+          const isPartnerBond = (this.selectedTrainer.bondPokemonIds || []).includes(pt.id);
+          const bondMult = isPartnerBond ? 1.20 : 1.0;
+          const isAwakened = pt.level >= 5;
+          pt.shotCount = (pt.shotCount || 0) + 1;
+          const burstMult = (isAwakened && pt.shotCount % 4 === 0) ? 1.45 : 1.0;
+          SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + (isAwakened ? 2 : 0)), false, upgPartnerMult * 0.68 * bondMult * burstMult);
+          if (burstMult > 1.0) {
+            this.spawnParticleCluster(pt.x, pt.y, "#EC4899", "#FDE047", 10, "star", 0.7);
+          }
+          pt.cdTimer = isAwakened ? 0.95 : 1.35;
         }
       }
     });
@@ -1648,6 +1666,12 @@ window.GameApp = {
     const buffPool = [specItems.x_attack, specItems.x_speed].filter(Boolean);
     if (buffPool.length > 0) {
       shelf.push(buffPool[Math.floor(Math.random() * buffPool.length)]);
+    }
+
+    // 中後期或高代幣時，友好商店加開第 4 格【高階補給】（極限神奇糖果 / 秘傳攜帶物禮盒）
+    const highTierPool = [specItems.master_candy, specItems.mystery_held].filter(Boolean);
+    if (highTierPool.length > 0 && (this.runTime >= 150 || this.runCoins >= 220)) {
+      shelf.push(highTierPool[Math.floor(Math.random() * highTierPool.length)]);
     }
 
     if (this.renderMartModal) this.renderMartModal(shelf);
@@ -3417,6 +3441,28 @@ window.GameApp = {
       ctx.stroke();
     }
 
+    // 手動突圍瞄準模式時：在主角身前繪製翠綠戰術準星箭頭，清楚指示當前移動開火方向
+    if (this.manualAimMode) {
+      const aimAng = (p.vx || p.vy)
+        ? Math.atan2(p.vy, p.vx)
+        : (p.facingY !== 0 ? (p.facingY < 0 ? -Math.PI / 2 : Math.PI / 2) : (p.facingX >= 0 ? 0 : Math.PI));
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(aimAng);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.85)";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(42, 0);
+      ctx.lineTo(30, -6);
+      ctx.lineTo(33, 0);
+      ctx.lineTo(30, 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // 繪製【不融冰】125px 極寒霜凍結界光環
     if (p.heldItems && p.heldItems["never_melt_ice"]) {
       ctx.save();
@@ -4017,6 +4063,30 @@ window.GameApp = {
       document.getElementById("bossHudHpText").textContent = `${Math.max(0, Math.ceil(this.activeBoss.hp))}/${this.activeBoss.maxHp}`;
       document.getElementById("bossHudBar").style.width = `${Math.max(0, (this.activeBoss.hp / this.activeBoss.maxHp) * 100)}%`;
     }
+  },
+
+  toggleAimMode() {
+    this.manualAimMode = !this.manualAimMode;
+    const iconEl = document.getElementById("hudAimIcon");
+    const textEl = document.getElementById("hudAimText");
+    if (iconEl) {
+      iconEl.className = this.manualAimMode
+        ? "fa-solid fa-compass text-sky-400 text-xs"
+        : "fa-solid fa-crosshairs text-emerald-400 text-xs";
+    }
+    if (textEl) {
+      textEl.textContent = this.manualAimMode ? "朝向" : "自動";
+    }
+    if (this.player) {
+      this.spawnFloatingText(
+        this.player.x,
+        this.player.y - 28,
+        this.manualAimMode ? "🧭 瞄準切換：移動朝向突圍" : "🎯 瞄準切換：自動智能索敵",
+        this.manualAimMode ? "#38BDF8" : "#34D399",
+        13
+      );
+    }
+    SoundFX.play("hit");
   },
 
   toggleTimeScale() {

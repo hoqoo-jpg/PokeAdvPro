@@ -17,6 +17,7 @@ const SkillsEngine = {
   ultimateVfxList: [],
   lightningArcs: [],
   subParticles: [],
+  groundHazards: [],
 
   reset() {
     this.projectiles = [];
@@ -24,6 +25,7 @@ const SkillsEngine = {
     this.ultimateVfxList = [];
     this.lightningArcs = [];
     this.subParticles = [];
+    this.groundHazards = [];
   },
 
   spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
@@ -59,9 +61,13 @@ const SkillsEngine = {
       target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
     }
 
-    const baseAngle = target
+    const useManualAim = (caster === GameApp.player && GameApp.manualAimMode);
+    const moveAngle = (caster.vx || caster.vy)
+      ? Math.atan2(caster.vy, caster.vx)
+      : (caster.facingY !== 0 ? (caster.facingY < 0 ? -Math.PI / 2 : Math.PI / 2) : (caster.facingX >= 0 ? 0 : Math.PI));
+    const baseAngle = (!useManualAim && target)
       ? Math.atan2(target.y - caster.y, target.x - caster.x)
-      : (caster.facingX >= 0 ? 0 : Math.PI);
+      : moveAngle;
 
     const countBonus = (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? GameApp.player.projBonus : 0);
     const count = Math.min(4, 1 + countBonus);
@@ -196,6 +202,128 @@ const SkillsEngine = {
       return;
     }
 
+    // 2B. 污泥炸彈 (Sludge Bomb)：拋物線投擲 + 落地生成持續 3.2 秒冒泡腐蝕毒沼 (多段 DOT)
+    if (cleanSkillId === "SludgeBomb") {
+      const lobCount = Math.min(3, count);
+      for (let i = 0; i < lobCount; i++) {
+        const spreadAng = baseAngle + (lobCount > 1 ? (i - (lobCount - 1) / 2) * 0.28 : 0);
+        const baseDist = (!useManualAim && target) ? Math.min(280, Math.max(80, Math.hypot(target.x - caster.x, target.y - caster.y))) : 165;
+        const tx = caster.x + Math.cos(spreadAng) * (baseDist + (i - (lobCount - 1) / 2) * 26);
+        const ty = caster.y + Math.sin(spreadAng) * (baseDist + (i - (lobCount - 1) / 2) * 26);
+
+        this.projectiles.push({
+          x: caster.x, y: caster.y,
+          startX: caster.x, startY: caster.y,
+          targetX: tx, targetY: ty,
+          vx: 0, vy: 0, angle: spreadAng,
+          progress: 0, arcHeight: 58 + i * 6,
+          radius: (14 + level * 0.5) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.85,
+          type: "Poison", skillId: "Sludge Bomb", vfx: "sludge_lob",
+          color: "#9333EA", pierce: 99, knockback: 4,
+          life: 0.55 + i * 0.04, maxLife: 0.55 + i * 0.04,
+          statusBonus: level >= 5 ? 0.45 : 0.25,
+          hitSet: new Set(), trailTimer: 0
+        });
+      }
+      SoundFX.play("hit");
+      return;
+    }
+
+    // 2C. 月亮之力 (Moonblast)：鎖定敵群降下持續 1.35 秒的多段移動月光聖柱 (4段連擊+降攻)
+    if (cleanSkillId === "Moonblast") {
+      const pillarCount = Math.min(2, 1 + (level >= 7 ? 1 : 0));
+      for (let i = 0; i < pillarCount; i++) {
+        const ang = baseAngle + (i - (pillarCount - 1) / 2) * 0.45;
+        const dist = (!useManualAim && target) ? Math.min(260, Math.hypot(target.x - caster.x, target.y - caster.y)) : 140;
+        const px = caster.x + Math.cos(ang) * dist;
+        const py = caster.y + Math.sin(ang) * dist;
+        this.groundHazards.push({
+          kind: "moon_pillar",
+          x: px, y: py,
+          vx: Math.cos(ang) * 28, vy: Math.sin(ang) * 28,
+          radius: (46 + level * 2.5) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.52,
+          type: "Psychic",
+          timer: 1.35, maxTime: 1.35,
+          tickTimer: 0.05, tickInterval: 0.32,
+          color: "#F472B6"
+        });
+      }
+      SoundFX.play("super");
+      return;
+    }
+
+    // 2D. 精神擊破 (Psystrike)：高頻雙段貫穿念力光束 (首段瞬間穿透 + 0.25秒後路徑念力內爆)
+    if (cleanSkillId === "Psystrike") {
+      const beamCount = Math.min(3, count);
+      const beamLen = (270 + level * 8) * GameApp.player.areaMult;
+      for (let i = 0; i < beamCount; i++) {
+        const ang = baseAngle + (beamCount > 1 ? (i - (beamCount - 1) / 2) * 0.22 : 0);
+        const endX = caster.x + Math.cos(ang) * beamLen;
+        const endY = caster.y + Math.sin(ang) * beamLen;
+        this.createLightningArc(caster.x, caster.y, endX, endY, "#EC4899");
+        // 首段貫穿傷害
+        GameApp.enemies.forEach(e => {
+          const dx = endX - caster.x, dy = endY - caster.y;
+          const t = Math.max(0, Math.min(1, ((e.x - caster.x) * dx + (e.y - caster.y) * dy) / (beamLen * beamLen)));
+          const nx = caster.x + t * dx, ny = caster.y + t * dy;
+          if (Math.hypot(e.x - nx, e.y - ny) <= 24 * GameApp.player.areaMult + e.radius) {
+            GameApp.dealDamageToEnemy(e, rawDmg * 0.75, "Psychic", 0.25, 4);
+          }
+        });
+        // 路徑終點埋設 0.25 秒後引爆的二段念力震爆圈
+        const blastX = caster.x + Math.cos(ang) * (beamLen * 0.72);
+        const blastY = caster.y + Math.sin(ang) * (beamLen * 0.72);
+        this.groundHazards.push({
+          kind: "psy_delayed_blast",
+          x: blastX, y: blastY,
+          radius: (52 + level * 2) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.70,
+          type: "Psychic",
+          timer: 0.26, maxTime: 0.26,
+          tickTimer: 0.25, tickInterval: 99,
+          color: "#EC4899"
+        });
+      }
+      SoundFX.play("hit");
+      return;
+    }
+
+    // 2E. 噴射火焰 (Flamethrower)：扇形多段連湧烈焰吐息 (每次觸發連噴 2 波擴張火浪)
+    if (cleanSkillId === "Flamethrower") {
+      const waveStreams = Math.min(4, count);
+      for (let w = 0; w < 2; w++) {
+        for (let i = 0; i < waveStreams; i++) {
+          const spread = (waveStreams > 1 ? (i - (waveStreams - 1) / 2) * 0.18 : 0) + (w === 1 ? (Math.random() - 0.5) * 0.12 : 0);
+          const ang = baseAngle + spread;
+          const spd = 285 + w * 45;
+          this.projectiles.push({
+            x: caster.x + Math.cos(ang) * (14 + w * 18),
+            y: caster.y + Math.sin(ang) * (14 + w * 18),
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd,
+            angle: ang,
+            radius: (15 + w * 4) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
+            dmg: rawDmg * 0.62,
+            type: "Fire",
+            skillId,
+            vfx: "fire_stream",
+            homing: false,
+            color: "#EF4444",
+            pierce: (level >= 6 ? 4 : 3),
+            knockback: 0,
+            life: 0.68,
+            statusBonus: level >= 5 ? 0.35 : 0.15,
+            hitSet: new Set(),
+            trailTimer: 0
+          });
+        }
+      }
+      SoundFX.play("hit");
+      return;
+    }
+
     // 3. 多招式幾何發射偏移與微序列交錯（防止同點疊彈）
     const perpAng = baseAngle + Math.PI / 2;
     const isWingSkill = ["AirSlash", "RazorLeaf", "IceBeam"].includes(cleanSkillId);
@@ -215,22 +343,28 @@ const SkillsEngine = {
       const spawnX = caster.x + Math.cos(perpAng) * lateralOffset + Math.cos(ang) * forwardStagger;
       const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
 
+      const isBoomerang = (cleanSkillId === "AirSlash");
       this.projectiles.push({
         x: spawnX,
         y: spawnY,
         vx: Math.cos(ang) * spd,
         vy: Math.sin(ang) * spd,
+        initSpeed: spd,
         angle: ang,
+        casterRef: caster,
+        isBoomerang,
+        returning: false,
         radius: (cleanSkillId === "HydroPump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
-        dmg: rawDmg,
+        dmg: isBoomerang ? rawDmg * 0.72 : rawDmg,
         type: meta.type,
         skillId,
         vfx: meta.vfx || "star_shot",
         homing: isHoming,
         color: meta.color,
-        pierce: (level >= 6 ? 3 : 2),
+        pierce: isBoomerang ? (level >= 6 ? 6 : 4) : (level >= 6 ? 3 : 2),
         knockback: meta.knockback !== undefined ? meta.knockback : 0,
-        life: 0.88,
+        life: isBoomerang ? 1.25 : 0.88,
+        maxLife: isBoomerang ? 1.25 : 0.88,
         statusBonus: level >= 5 ? 0.30 : 0,
         hitSet: new Set(),
         trailTimer: 0
@@ -398,6 +532,30 @@ const SkillsEngine = {
       return;
     }
 
+    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波 + 近身龍爪撕裂
+    if (meta.type === "Dragon") {
+      const dragonWaves = 1 + (level >= 6 ? 1 : 0);
+      for (let d = 0; d < dragonWaves; d++) {
+        const ang = baseAngle + (d - (dragonWaves - 1) / 2) * 0.28;
+        this.groundHazards.push({
+          kind: "dragon_wave",
+          x: caster.x + Math.cos(ang) * 24,
+          y: caster.y + Math.sin(ang) * 24,
+          vx: Math.cos(ang) * 260,
+          vy: Math.sin(ang) * 260,
+          angle: ang,
+          radius: 42 * areaScale,
+          dmg: rawDmg * 0.55,
+          type: "Dragon",
+          timer: 0.65,
+          maxTime: 0.65,
+          tickTimer: 0.02,
+          tickInterval: 0.16,
+          color: "#4338CA"
+        });
+      }
+    }
+
     const maxReach = 105 * areaScale;
     const waves = Math.min(3, Math.ceil(count / 2));
     for (let w = 0; w < waves; w++) {
@@ -493,6 +651,123 @@ const SkillsEngine = {
         const gSpd = 50 + Math.random() * 140;
         this.spawnSubParticle(p.x, p.y, Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd, g % 2 === 0 ? "#22C55E" : "#86EFAC", 4.0, 0.9, "leaf");
       }
+    } else if (meta.type === "Fighting") {
+      // 【爆裂十字劈】：向四周發射 10 道螺旋擴張的武道巨型金拳 (重啟 giant_fist 特效)
+      for (let i = 0; i < 10; i++) {
+        const ang = (i * Math.PI * 2) / 10;
+        this.projectiles.push({
+          x: p.x, y: p.y,
+          vx: Math.cos(ang) * 280, vy: Math.sin(ang) * 280,
+          angle: ang, spinSpeed: (i % 2 === 0 ? 2.4 : -2.4),
+          radius: 26, dmg: ultDmg * 0.65,
+          type: "Fighting", skillId: "Karate Chop", vfx: "giant_fist",
+          color: "#DC2626", pierce: 12, knockback: 18, life: 1.35, statusBonus: 0.4, hitSet: new Set(), trailTimer: 0
+        });
+      }
+    } else if (meta.type === "Flying") {
+      // 【暴風驟雨】：生成 3 道持續 3.5 秒游走追敵並將怪物扯入風眼的聚怪龍捲風
+      for (let i = 0; i < 3; i++) {
+        const ang = (i * Math.PI * 2) / 3;
+        this.groundHazards.push({
+          kind: "tornado",
+          x: p.x + Math.cos(ang) * 95,
+          y: p.y + Math.sin(ang) * 95,
+          vx: Math.cos(ang) * 85,
+          vy: Math.sin(ang) * 85,
+          radius: 95 * p.areaMult,
+          dmg: ultDmg * 0.24,
+          type: "Flying",
+          timer: 3.5, maxTime: 3.5,
+          tickTimer: 0.1, tickInterval: 0.25,
+          color: "#818CF8"
+        });
+      }
+    } else if (meta.type === "Poison") {
+      // 【劇毒沼澤】：展開持續 4.0 秒的 240px 沸騰劇毒領域，減速並雙倍毒傷高頻腐蝕
+      this.groundHazards.push({
+        kind: "toxic_swamp",
+        x: p.x, y: p.y,
+        followPlayer: true,
+        radius: 230 * p.areaMult,
+        dmg: ultDmg * 0.22,
+        type: "Poison",
+        timer: 4.0, maxTime: 4.0,
+        tickTimer: 0.1, tickInterval: 0.35,
+        color: "#9333EA"
+      });
+    } else if (meta.type === "Ice") {
+      // 【絕對零度】：全場凍結 3 秒 + 0.9 秒後觸發二次「全屏冰晶碎裂」200% 破冰重擊
+      GameApp.enemies.forEach(e => {
+        if (Math.hypot(e.x - p.x, e.y - p.y) <= 380) {
+          e.status = "Freeze";
+          e.statusTimer = e.isBoss ? 1.8 : 3.2;
+        }
+      });
+      this.groundHazards.push({
+        kind: "ice_shatter_domain",
+        x: p.x, y: p.y,
+        radius: 280 * p.areaMult,
+        dmg: ultDmg * 0.95,
+        type: "Ice",
+        timer: 0.95, maxTime: 0.95,
+        tickTimer: 0.90, tickInterval: 99,
+        color: "#38BDF8"
+      });
+    } else if (meta.type === "Dragon") {
+      // 【天龍流星雨】：在 1.8 秒內從高空連續砸下 10 顆龍系隕石轟炸怪群
+      for (let m = 0; m < 10; m++) {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 40 + Math.random() * 210;
+        const tx = p.x + Math.cos(ang) * dist;
+        const ty = p.y + Math.sin(ang) * dist;
+        this.groundHazards.push({
+          kind: "meteor_strike",
+          x: tx, y: ty,
+          startX: tx + 140, startY: ty - 260,
+          radius: 75 * p.areaMult,
+          dmg: ultDmg * 0.48,
+          type: "Dragon",
+          delay: m * 0.16,
+          timer: 0.45 + m * 0.16,
+          maxTime: 0.45,
+          color: "#4338CA"
+        });
+      }
+    } else if (meta.type === "Ground") {
+      // 【地裂斷層破】：持續 2.4 秒的米字型地底熔岩斷層，連續震擊 5 波 (對空有效)
+      this.groundHazards.push({
+        kind: "quake_fissure",
+        x: p.x, y: p.y,
+        radius: 220 * p.areaMult,
+        dmg: ultDmg * 0.32,
+        type: "Ground",
+        timer: 2.4, maxTime: 2.4,
+        tickTimer: 0.1, tickInterval: 0.45,
+        color: "#D97706"
+      });
+    } else if (meta.type === "Psychic" || meta.type === "Ghost") {
+      // 【精神強念領域 / 暗影死滅波】：引力黑洞牽引壓縮怪群 + 8 道穿梭鬼影彈
+      this.groundHazards.push({
+        kind: "psychic_blackhole",
+        x: p.x, y: p.y,
+        radius: 230 * p.areaMult,
+        dmg: ultDmg * 0.28,
+        type: meta.type,
+        timer: 2.5, maxTime: 2.5,
+        tickTimer: 0.15, tickInterval: 0.45,
+        color: meta.color || "#EC4899"
+      });
+      for (let k = 0; k < 8; k++) {
+        const ang = (k * Math.PI * 2) / 8;
+        this.projectiles.push({
+          x: p.x, y: p.y,
+          vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320,
+          angle: ang, radius: 20, dmg: ultDmg * 0.50,
+          type: meta.type, skillId: meta.id, vfx: "shadow_orb",
+          homing: true, color: meta.color || "#A855F7",
+          pierce: 8, knockback: 6, life: 1.8, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
+        });
+      }
     }
 
     const halfW = GameApp.width / 2 + 70;
@@ -546,6 +821,65 @@ const SkillsEngine = {
           pr.vy = pr.vy * 0.90 + Math.sin(desired) * spd * 0.10;
           pr.angle = Math.atan2(pr.vy, pr.vx);
         }
+      }
+
+      // 空氣斬迴旋鏢物理：去程減速懸停 -> 折返加速飛回施法者並重置命中集合 (二段切割)
+      if (pr.isBoomerang) {
+        const elapsed = pr.maxLife - pr.life;
+        if (!pr.returning && elapsed >= 0.48) {
+          pr.returning = true;
+          pr.hitSet.clear(); // 折返時允許再次切割同一批怪獸，達成雙段傷害！
+        }
+        if (pr.returning && pr.casterRef) {
+          const backAng = Math.atan2(pr.casterRef.y - pr.y, pr.casterRef.x - pr.x);
+          const backSpd = (pr.initSpeed || 360) * 1.15;
+          pr.vx = pr.vx * 0.82 + Math.cos(backAng) * backSpd * 0.18;
+          pr.vy = pr.vy * 0.82 + Math.sin(backAng) * backSpd * 0.18;
+          if (Math.hypot(pr.casterRef.x - pr.x, pr.casterRef.y - pr.y) < 24 && elapsed > 0.72) {
+            pr.life = 0;
+          }
+        }
+        pr.angle = (pr.angle || 0) + dt * 16;
+      }
+
+      // 污泥炸彈拋物線：落地爆開並生成持續 3.2 秒的冒泡腐蝕毒沼
+      if (pr.vfx === "sludge_lob") {
+        pr.progress = (pr.progress || 0) + dt / pr.maxLife;
+        const t = Math.min(1, pr.progress);
+        pr.x = pr.startX + (pr.targetX - pr.startX) * t;
+        pr.y = pr.startY + (pr.targetY - pr.startY) * t - Math.sin(t * Math.PI) * (pr.arcHeight || 58);
+        pr.angle = (pr.angle || 0) + dt * 7;
+
+        if (t >= 1) {
+          const puddleR = 64 * GameApp.player.areaMult;
+          for (let s = 0; s < 10; s++) {
+            const a = Math.random() * Math.PI * 2;
+            const spd = 25 + Math.random() * 55;
+            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? "#9333EA" : "#4ADE80", 4.5, 0.42, "circle");
+          }
+          GameApp.enemies.forEach(e => {
+            if (Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= puddleR + e.radius) {
+              GameApp.dealDamageToEnemy(e, pr.dmg, "Poison", pr.statusBonus, 6);
+            }
+          });
+          this.groundHazards.push({
+            kind: "poison_puddle",
+            x: pr.targetX,
+            y: pr.targetY,
+            radius: puddleR,
+            dmg: pr.dmg * 0.38,
+            type: "Poison",
+            timer: 3.2,
+            maxTime: 3.2,
+            tickTimer: 0.35,
+            tickInterval: 0.42,
+            color: "#9333EA"
+          });
+          SoundFX.play("hit");
+          this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
+          this.projectiles.pop();
+        }
+        continue;
       }
 
       // 種子炸彈正弦物理高拋拋物線 (飛越前排障礙並定點引爆)
@@ -678,9 +1012,239 @@ const SkillsEngine = {
         this.subParticles.pop();
       }
     }
+
+    // 更新持續性領域、毒沼、月光柱、聚怪龍捲風、天降流星與二段震爆 (groundHazards)
+    const p = GameApp.player;
+    for (let i = this.groundHazards.length - 1; i >= 0; i--) {
+      const hz = this.groundHazards[i];
+
+      if (hz.kind === "meteor_strike") {
+        if (hz.delay > 0) {
+          hz.delay -= dt;
+          continue;
+        }
+        hz.timer -= dt;
+        if (hz.timer <= 0) {
+          // 隕石落地引爆
+          this.meleeEffects.push({
+            style: "slam_wave",
+            x: hz.x, y: hz.y,
+            radius: hz.radius,
+            timer: 0.32, maxTime: 0.32,
+            color: "#4338CA"
+          });
+          for (let k = 0; k < 10; k++) {
+            const a = Math.random() * Math.PI * 2;
+            const spd = 45 + Math.random() * 85;
+            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * spd, Math.sin(a) * spd, k % 2 === 0 ? "#818CF8" : "#FDE047", 3.8, 0.38, "star");
+          }
+          GameApp.enemies.forEach(e => {
+            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+              GameApp.dealDamageToEnemy(e, hz.dmg, "Dragon", 0.35, 16);
+            }
+          });
+          SoundFX.play("hit");
+          this.groundHazards[i] = this.groundHazards[this.groundHazards.length - 1];
+          this.groundHazards.pop();
+        }
+        continue;
+      }
+
+      hz.timer -= dt;
+      if (hz.followPlayer && p) {
+        hz.x = p.x;
+        hz.y = p.y;
+      } else if (hz.kind === "tornado") {
+        const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
+        if (target) {
+          const desired = Math.atan2(target.y - hz.y, target.x - hz.x);
+          hz.vx = hz.vx * 0.90 + Math.cos(desired) * 115 * 0.10;
+          hz.vy = hz.vy * 0.90 + Math.sin(desired) * 115 * 0.10;
+        }
+        hz.x += (hz.vx || 0) * dt;
+        hz.y += (hz.vy || 0) * dt;
+        // 龍捲風持續將周圍非 Boss 怪獸扯向風眼中心
+        GameApp.enemies.forEach(e => {
+          if (!e.isBoss) {
+            const d = Math.hypot(hz.x - e.x, hz.y - e.y);
+            if (d < hz.radius * 1.35 && d > 12) {
+              const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
+              e.x += Math.cos(pullAng) * 95 * dt;
+              e.y += Math.sin(pullAng) * 95 * dt;
+            }
+          }
+        });
+      } else if (hz.kind === "psychic_blackhole") {
+        GameApp.enemies.forEach(e => {
+          if (!e.isBoss) {
+            const d = Math.hypot(hz.x - e.x, hz.y - e.y);
+            if (d < hz.radius && d > 16) {
+              const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
+              e.x += Math.cos(pullAng) * 75 * dt;
+              e.y += Math.sin(pullAng) * 75 * dt;
+            }
+          }
+        });
+      } else if (hz.vx || hz.vy) {
+        hz.x += (hz.vx || 0) * dt;
+        hz.y += (hz.vy || 0) * dt;
+      }
+
+      hz.tickTimer -= dt;
+      if (hz.tickTimer <= 0) {
+        hz.tickTimer = hz.tickInterval || 0.4;
+
+        if (hz.kind === "ice_shatter_domain") {
+          // 絕對零度二段破冰巨爆
+          for (let k = 0; k < 24; k++) {
+            const a = Math.random() * Math.PI * 2;
+            const spd = 60 + Math.random() * 140;
+            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * spd, Math.sin(a) * spd, k % 2 === 0 ? "#67E8F9" : "#FFFFFF", 4.2, 0.45, "diamond");
+          }
+          GameApp.enemies.forEach(e => {
+            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+              const shatterMult = (e.status === "Freeze") ? 1.65 : 1.0;
+              GameApp.dealDamageToEnemy(e, hz.dmg * shatterMult, "Ice", 0.5, 14);
+            }
+          });
+          SoundFX.play("ultimate");
+        } else {
+          GameApp.enemies.forEach(e => {
+            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+              let dVal = hz.dmg;
+              if (hz.kind === "quake_fissure" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
+                dVal *= 7.5; // 飛石對空破局
+              }
+              GameApp.dealDamageToEnemy(e, dVal, hz.type, 0.35, hz.kind === "dragon_wave" ? 14 : 2);
+            }
+          });
+        }
+      }
+
+      if (hz.timer <= 0) {
+        this.groundHazards[i] = this.groundHazards[this.groundHazards.length - 1];
+        this.groundHazards.pop();
+      }
+    }
   },
 
   render(ctx, toSx, toSy) {
+    const now = performance.now() * 0.004;
+
+    // 繪製持續性領域、毒沼、月光聖柱、聚怪龍捲風、龍魂衝擊波與天降隕石 (groundHazards)
+    this.groundHazards.forEach(hz => {
+      if (hz.kind === "meteor_strike" && hz.delay > 0) return;
+      const sx = toSx(hz.x), sy = toSy(hz.y);
+      const prog = 1 - Math.max(0, hz.timer / hz.maxTime);
+      ctx.save();
+
+      if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
+        const alpha = Math.min(1, hz.timer * 1.2) * (hz.kind === "toxic_swamp" ? 0.38 : 0.48);
+        ctx.fillStyle = `rgba(147, 51, 234, ${alpha})`;
+        ctx.strokeStyle = `rgba(74, 222, 128, ${alpha * 1.4})`;
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, hz.radius, hz.radius * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 冒泡毒氣粒子圈
+        for (let b = 0; b < 5; b++) {
+          const bAng = now + (b * Math.PI * 2) / 5;
+          const bx = sx + Math.cos(bAng) * (hz.radius * 0.55);
+          const by = sy + Math.sin(bAng) * (hz.radius * 0.35);
+          const br = 3 + Math.sin(now * 3 + b) * 1.8;
+          ctx.fillStyle = b % 2 === 0 ? "rgba(74, 222, 128, 0.75)" : "rgba(216, 180, 254, 0.75)";
+          ctx.beginPath();
+          ctx.arc(bx, by, Math.max(1, br), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (hz.kind === "moon_pillar") {
+        const alpha = Math.sin((1 - prog) * Math.PI) * 0.75;
+        const grad = ctx.createLinearGradient(sx, sy, sx, sy - 180);
+        grad.addColorStop(0, `rgba(244, 114, 182, ${alpha})`);
+        grad.addColorStop(0.5, `rgba(253, 224, 71, ${alpha * 0.65})`);
+        grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.fillRect(sx - hz.radius * 0.65, sy - 180, hz.radius * 1.3, 180);
+
+        ctx.strokeStyle = `rgba(253, 224, 71, ${alpha + 0.15})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, hz.radius, hz.radius * 0.55, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (hz.kind === "tornado") {
+        ctx.translate(sx, sy);
+        ctx.globalAlpha = Math.min(1, hz.timer);
+        for (let ring = 0; ring < 4; ring++) {
+          const rY = -ring * 14;
+          const rRad = (hz.radius * 0.28) + ring * 13;
+          ctx.save();
+          ctx.translate(0, rY);
+          ctx.rotate(now * 4 + ring * 0.9);
+          ctx.strokeStyle = ring % 2 === 0 ? "#818CF8" : "#E0E7FF";
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.arc(0, 0, rRad, 0, Math.PI * 1.35);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (hz.kind === "dragon_wave") {
+        ctx.translate(sx, sy);
+        ctx.rotate(hz.angle || 0);
+        ctx.globalAlpha = Math.max(0, hz.timer / hz.maxTime);
+        ctx.strokeStyle = "#4338CA";
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(0, 0, hz.radius, -1.0, 1.0);
+        ctx.stroke();
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(6, 0, hz.radius * 0.85, -0.85, 0.85);
+        ctx.stroke();
+      } else if (hz.kind === "meteor_strike") {
+        const curX = toSx(hz.startX + (hz.x - hz.startX) * prog);
+        const curY = toSy(hz.startY + (hz.y - hz.startY) * prog);
+        // 地面預警圈
+        ctx.strokeStyle = "rgba(99, 102, 241, 0.7)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, hz.radius * prog, hz.radius * 0.55 * prog, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        // 下墜龍星核
+        ctx.fillStyle = "#4338CA";
+        ctx.beginPath();
+        ctx.arc(curX, curY, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#FDE047";
+        ctx.beginPath();
+        ctx.arc(curX, curY, 8, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (hz.kind === "quake_fissure") {
+        ctx.translate(sx, sy);
+        ctx.globalAlpha = Math.min(1, hz.timer);
+        ctx.strokeStyle = "#D97706";
+        ctx.lineWidth = 4.5;
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(a) * hz.radius, Math.sin(a) * hz.radius);
+          ctx.stroke();
+        }
+      } else {
+        ctx.globalAlpha = Math.max(0, 1 - prog);
+        ctx.strokeStyle = hz.color || "#EC4899";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, hz.radius * (0.4 + prog * 0.6), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
     this.meleeEffects.forEach(m => {
       const prog = 1 - (m.timer / m.maxTime);
       ctx.save();
