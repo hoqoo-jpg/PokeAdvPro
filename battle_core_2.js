@@ -660,6 +660,11 @@ window.GameApp = {
     this.activeBoss = null;
     this.debugWeatherLock = false;
     this.skillDamageStats = {};
+    this._lastHudIdentityKey = null;
+    this._lastHudHpTier = null;
+    this._lastHudPartnerKey = null;
+    this._lastHudHeldKey = null;
+    this._lastHudSkillKey = null;
 
     SkillsEngine.reset();
 
@@ -1123,6 +1128,7 @@ window.GameApp = {
     if (p.status) {
       const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
       pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
+      pStatusEl.className = "px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]";
       pStatusEl.classList.remove("hidden");
     } else if (p.xAttackTimer > 0 || p.xSpeedTimer > 0) {
       const buffLabels = [];
@@ -2707,9 +2713,11 @@ window.GameApp = {
     };
 
     const newSkillIds = evoSkillMap[targetId] || ["HydroPump", "IceBeam", "Tackle"];
+    const unlockedSlotCount = Math.max(1, Math.min(3, oldSkills.length));
     p.skills = {};
-    newSkillIds.forEach((sId, idx) => {
-      p.skills[sId] = { id: sId, level: Math.max(1, savedLevels[idx] || 1), evolved: false, timer: 0.2 };
+    newSkillIds.slice(0, unlockedSlotCount).forEach((sId, idx) => {
+      const minLv = (idx === 0) ? 3 : 1;
+      p.skills[sId] = { id: sId, level: Math.max(minLv, savedLevels[idx] || 1), evolved: false, timer: 0.2 + idx * 0.15 };
     });
 
     p.naturalSkills = [...newSkillIds];
@@ -3379,10 +3387,6 @@ window.GameApp = {
       ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) {
-        // 訓練家受創橙紅閃爍
-        if (tc.whiteFlashTimer > 0) {
-          ctx.filter = "sepia(1) saturate(5) hue-rotate(-30deg) brightness(1.2)";
-        }
         if (tInWater) {
           ctx.save();
           ctx.beginPath();
@@ -3392,6 +3396,15 @@ window.GameApp = {
           ctx.restore();
         } else {
           ctx.drawImage(tRec.img, -28, -28, 56, 56);
+        }
+        if (tc.whiteFlashTimer > 0) {
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.fillStyle = "rgba(255, 120, 80, 0.55)";
+          ctx.beginPath();
+          ctx.arc(0, 0, 20, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
         if (tInGrass) {
           ctx.save();
@@ -3529,9 +3542,7 @@ window.GameApp = {
       // 涉水時下沉 10px，造成半身浸在水面感
       ctx.translate(px, py - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
-      if (p.whiteFlashTimer > 0) {
-        ctx.filter = "brightness(10) contrast(10)";
-      } else if (p.isShiny) {
+      if (p.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";
       }
       
@@ -3546,7 +3557,17 @@ window.GameApp = {
       } else {
         ctx.drawImage(pRec.img, -26, -26, 52, 52);
       }
-      ctx.filter = "none";
+      if (p.isShiny) ctx.filter = "none";
+
+      if (p.whiteFlashTimer > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.68)";
+        ctx.beginPath();
+        ctx.arc(0, 0, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
 
       // 若在草叢中，直接沿用背景同款復古 V 形分叉像素小草，自然融入場景
       if (inGrass) {
@@ -3590,19 +3611,87 @@ window.GameApp = {
       ctx.translate(esx, esy);
       if (e.facingX > 0) ctx.scale(-1, 1);
 
-      if (e.whiteFlashTimer > 0) {
-        ctx.filter = "brightness(10) contrast(10)";
-      } else if (e.isShiny) {
+      // 方案 A：僅對極少數閃光怪使用 filter，受創白閃/中毒/灼傷/結霜全面採用零 filter 動態幾何特效
+      if (e.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.8) brightness(1.15)";
-      } else if (e.status === "Poison") {
-        ctx.filter = "hue-rotate(240deg) saturate(1.8)";
-      } else if (e.status === "Burn") {
-        ctx.filter = "sepia(0.8) saturate(2.5) hue-rotate(-25deg)";
-      } else if (e.inFrostAura) {
-        ctx.filter = "hue-rotate(155deg) saturate(1.6) brightness(1.18)";
       }
 
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
+      if (e.isShiny) ctx.filter = "none";
+
+      // 0. 受創白閃：高光衝擊圈 (lighter 疊加，不破壞精靈立繪色彩且零 CPU 濾鏡開銷)
+      if (e.whiteFlashTimer > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.68)";
+        ctx.beginPath();
+        ctx.arc(0, 0, sz * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 0B. 中毒 (Poison)：腳底紫綠毒氣環 + 身周向上飄浮 3 顆立體帶高光劇毒泡泡
+      if (e.status === "Poison") {
+        const pNow = performance.now() * 0.005 + e.id;
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.72)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.ellipse(0, sz * 0.28, sz * 0.30, sz * 0.11, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        for (let pb = 0; pb < 3; pb++) {
+          const bPhase = (pNow + pb * 2.1) % (Math.PI * 2);
+          const bx = (pb - 1) * (sz * 0.22) + Math.sin(bPhase) * 3;
+          const by = sz * 0.12 - ((bPhase / (Math.PI * 2)) * (sz * 0.42));
+          const br = 3.2 - pb * 0.4;
+          ctx.fillStyle = pb % 2 === 0 ? "rgba(147, 51, 234, 0.88)" : "rgba(74, 222, 128, 0.88)";
+          ctx.beginPath();
+          ctx.arc(bx, by, br, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.32, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 0C. 灼傷 (Burn)：身上竄出 2 簇動態搖曳的「外紅橙、內明黃」雙色小火苗
+      if (e.status === "Burn") {
+        const bNow = performance.now() * 0.01 + e.id;
+        for (let bf = -1; bf <= 1; bf += 2) {
+          const fx = bf * (sz * 0.20);
+          const fy = -sz * 0.06 + Math.sin(bNow + bf) * 4;
+          ctx.fillStyle = "#EF4444";
+          ctx.beginPath();
+          ctx.arc(fx, fy, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#FEF08A";
+          ctx.beginPath();
+          ctx.arc(fx, fy + 0.8, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // 0D. 不融冰結霜 (inFrostAura)：腳底冰藍寒霜結界底座 + 微細冰晶菱形
+      if (e.inFrostAura) {
+        const fNow = performance.now() * 0.004 + e.id;
+        ctx.strokeStyle = "rgba(103, 232, 249, 0.80)";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.ellipse(0, sz * 0.28, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        const ix = Math.cos(fNow) * (sz * 0.24);
+        const iy = Math.sin(fNow) * (sz * 0.10) - sz * 0.08;
+        ctx.fillStyle = "#E0F2FE";
+        ctx.beginPath();
+        ctx.moveTo(ix, iy - 3.5);
+        ctx.lineTo(ix + 2.5, iy);
+        ctx.lineTo(ix, iy + 3.5);
+        ctx.lineTo(ix - 2.5, iy);
+        ctx.closePath();
+        ctx.fill();
+      }
 
       // --- 沙盒 V10 狀態視覺效果 (告別純色濾鏡，辨識度極高且不遮擋彈道) ---
       // 1. 麻痺 (Paralysis)：周身跳動 2 條隨機白金微電弧
@@ -4003,21 +4092,37 @@ window.GameApp = {
     if (!p) return;
     const tr = this.selectedTrainer;
 
-    document.getElementById("hudAvatar").src = p.data.forward_sprite;
-    document.getElementById("hudPartnerName").textContent = p.data.name_zh;
-    const tb = document.getElementById("hudTypeBadges"); if (tb && typeof renderTypeBadgeHTML === "function") tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
-    document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
+    // 1. 頭像與屬性標籤：僅在寶可夢 ID 或訓練家變更時更新 DOM 與圖片 src
+    const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${tr.id}`;
+    if (this._lastHudIdentityKey !== identityKey) {
+      this._lastHudIdentityKey = identityKey;
+      document.getElementById("hudAvatar").src = p.data.forward_sprite;
+      document.getElementById("hudPartnerName").textContent = p.data.name_zh;
+      const tb = document.getElementById("hudTypeBadges");
+      if (tb && typeof renderTypeBadgeHTML === "function") {
+        tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
+      }
+      document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
+      document.getElementById("hudActiveTrainerImg").src = tr.sprite;
+      document.getElementById("hudActiveSkillName").textContent = tr.skillName;
+    }
+
     document.getElementById("hudLevelText").textContent = `Lv.${p.level}`;
 
+    // 2. 血條與經驗條（僅在血量區間變化時切換漸層背景）
     const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
     const hpBarEl = document.getElementById("hudHpBar");
     hpBarEl.style.width = `${hpPct}%`;
-    if (hpPct > 50) {
-      hpBarEl.style.background = "linear-gradient(90deg, #2EE66B 0%, #1CB34E 100%)";
-    } else if (hpPct > 22) {
-      hpBarEl.style.background = "linear-gradient(90deg, #F5B041 0%, #D68910 100%)";
-    } else {
-      hpBarEl.style.background = "linear-gradient(90deg, #FF5252 0%, #E74C3C 100%)";
+    const hpTier = hpPct > 50 ? "high" : (hpPct > 22 ? "mid" : "low");
+    if (this._lastHudHpTier !== hpTier) {
+      this._lastHudHpTier = hpTier;
+      if (hpTier === "high") {
+        hpBarEl.style.background = "linear-gradient(90deg, #2EE66B 0%, #1CB34E 100%)";
+      } else if (hpTier === "mid") {
+        hpBarEl.style.background = "linear-gradient(90deg, #F5B041 0%, #D68910 100%)";
+      } else {
+        hpBarEl.style.background = "linear-gradient(90deg, #FF5252 0%, #E74C3C 100%)";
+      }
     }
     document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
     document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
@@ -4028,41 +4133,52 @@ window.GameApp = {
     document.getElementById("hudKills").textContent = this.kills;
     document.getElementById("hudCoins").textContent = this.runCoins;
 
-    const partnerBox = document.getElementById("hudPartnerList");
-    if (partnerBox) {
-      partnerBox.innerHTML = this.partners.map(pt => `
-        <div class="flex items-center gap-1 bg-slate-900/85 text-white px-2 py-0.5 rounded-full border border-pink-500 shadow-md">
-          <img src="${pt.data.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain"/>
-          <span class="font-black text-[10px] text-pink-300">${pt.data.name_zh}</span>
-          <span class="font-pixel text-[9px] text-amber-300">Lv.${pt.level}</span>
-        </div>
-      `).join("");
+    // 3. 雙打夥伴列表：僅在夥伴數量、ID 或等級變化時重建 innerHTML
+    const partnerKey = this.partners.map(pt => `${pt.id}:${pt.level}`).join(",");
+    if (this._lastHudPartnerKey !== partnerKey) {
+      this._lastHudPartnerKey = partnerKey;
+      const partnerBox = document.getElementById("hudPartnerList");
+      if (partnerBox) {
+        partnerBox.innerHTML = this.partners.map(pt => `
+          <div class="flex items-center gap-1 bg-slate-900/85 text-white px-2 py-0.5 rounded-full border border-pink-500 shadow-md">
+            <img src="${pt.data.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain"/>
+            <span class="font-black text-[10px] text-pink-300">${pt.data.name_zh}</span>
+            <span class="font-pixel text-[9px] text-amber-300">Lv.${pt.level}</span>
+          </div>
+        `).join("");
+      }
     }
 
-    const heldBox = document.getElementById("hudHeldItemList");
-    if (heldBox) {
-      heldBox.innerHTML = Object.keys(p.heldItems || {}).map(itemId => {
-        const itemMeta = HELD_ITEMS[itemId];
-        return itemMeta ? `
-          <div class="w-6 h-6 bg-slate-900/80 rounded-lg border border-amber-400/80 flex items-center justify-center p-0.5 shadow" title="${itemMeta.name}">
-            <img src="${itemMeta.sprite}" class="w-4 h-4 pixel-sprite object-contain"/>
-          </div>
-        ` : '';
+    // 4. 攜帶道具與技能膠囊：僅在道具或技能狀態變更時重建 innerHTML
+    const heldKey = Object.keys(p.heldItems || {}).join(",");
+    if (this._lastHudHeldKey !== heldKey) {
+      this._lastHudHeldKey = heldKey;
+      const heldBox = document.getElementById("hudHeldItemList");
+      if (heldBox) {
+        heldBox.innerHTML = Object.keys(p.heldItems || {}).map(itemId => {
+          const itemMeta = HELD_ITEMS[itemId];
+          return itemMeta ? `
+            <div class="w-6 h-6 bg-slate-900/80 rounded-lg border border-amber-400/80 flex items-center justify-center p-0.5 shadow" title="${itemMeta.name}">
+              <img src="${itemMeta.sprite}" class="w-4 h-4 pixel-sprite object-contain"/>
+            </div>
+          ` : '';
+        }).join("");
+      }
+    }
+
+    const skillKey = Object.values(p.skills).map(sk => `${sk.id}:${sk.level}:${sk.evolved ? 1 : 0}`).join(",");
+    if (this._lastHudSkillKey !== skillKey) {
+      this._lastHudSkillKey = skillKey;
+      document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
+        const meta = SKILLS_CATALOG[sk.id];
+        if (!meta) return "";
+        if (sk.evolved) {
+          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
+        }
+        const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
+        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
       }).join("");
     }
-
-    document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
-      const meta = SKILLS_CATALOG[sk.id];
-      if (!meta) return "";
-      if (sk.evolved) {
-        return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
-      }
-      const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
-      return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
-    }).join("");
-
-    document.getElementById("hudActiveTrainerImg").src = tr.sprite;
-    document.getElementById("hudActiveSkillName").textContent = tr.skillName;
 
     const btnEl = document.getElementById("btnTrainerActiveSkill");
     const cdOverlay = document.getElementById("trainerSkillCdOverlay");

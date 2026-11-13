@@ -1371,9 +1371,4 @@ Object.assign(window.GameApp, {
   }
 });
 
-// 確保 game_ui.js 掛載完畢後，立即啟動存檔載入、UI刷新與資源預載！
-if (window.GameApp) {
-  if (window.GameApp.loadSaveData) window.GameApp.loadSaveData();
-  if (window.GameApp.updateTitleUI) window.GameApp.updateTitleUI();
-  if (window.GameApp.runAssetPreloader) window.GameApp.runAssetPreloader();
-}
+// 統一由 DOMContentLoaded -> GameApp.init() 啟動存檔與資源預載，避免重複綁定計數器

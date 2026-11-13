@@ -763,6 +763,46 @@ const MapEngine = {
             ctx.beginPath();
             ctx.arc(ox + ob.w * 0.38, oy + ob.h * 0.38, 7, 0, Math.PI * 2);
             ctx.fill();
+          } else if (ob.kind === "fallen_log") {
+            // 橫木 (fallen_log)：GBA 樹皮橫幹 + 兩端年輪切面
+            ctx.fillStyle = "#5C2D0C";
+            ctx.strokeStyle = "#2E1505";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(ox, oy + 8, ob.w, ob.h - 12, 8);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#78350F";
+            ctx.fillRect(ox + 8, oy + 12, ob.w - 16, 6);
+
+            ctx.fillStyle = "#D97706";
+            ctx.beginPath();
+            ctx.ellipse(ox + 6, oy + ob.h / 2 + 2, 5, (ob.h - 14) / 2, 0, 0, Math.PI * 2);
+            ctx.ellipse(ox + ob.w - 6, oy + ob.h / 2 + 2, 5, (ob.h - 14) / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else if (ob.kind === "tree_stump") {
+            // 斷木樁 (tree_stump)：立體樹根底座 + 頂部淺木色年輪
+            ctx.fillStyle = "#5C2D0C";
+            ctx.strokeStyle = "#2E1505";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(ox + 4, oy + 14, ob.w - 8, ob.h - 16, 6);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#F59E0B";
+            ctx.beginPath();
+            ctx.ellipse(ox + ob.w / 2, oy + 16, (ob.w - 10) / 2, 10, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = "#92400E";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.ellipse(ox + ob.w / 2, oy + 16, (ob.w - 22) / 2, 5, 0, 0, Math.PI * 2);
+            ctx.stroke();
           } else {
             const treeSway = Math.sin(now * 1.3 + ob.x * 0.05) * 2.2;
             ctx.fillStyle = "#78350F";
@@ -789,6 +829,15 @@ const MapEngine = {
           } else if (d.type === "shell") {
             ctx.fillStyle = "#FDE68A";
             ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI); ctx.fill();
+          } else if (d.type === "crooked_sign") {
+            ctx.rotate(-0.12);
+            ctx.fillStyle = "#78350F";
+            ctx.fillRect(-2, 0, 4, 9);
+            ctx.fillStyle = "#D97706";
+            ctx.strokeStyle = "#451A03";
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(-9, -8, 18, 10);
+            ctx.strokeRect(-9, -8, 18, 10);
           } else {
             ctx.rotate(now * 0.35 + d.x * 0.1);
             ctx.fillStyle = d.color || "#F87171";
