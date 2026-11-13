@@ -3236,6 +3236,9 @@ window.GameApp = {
       ctx.restore();
     });
 
+    // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
+    SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
+
     // 繪製【木炭】熔岩灼燒腳印
     this.lavaFootprints.forEach(lf => {
       const lsx = toSx(lf.x), lsy = toSy(lf.y);
@@ -3832,7 +3835,7 @@ window.GameApp = {
     });
 
     ctx.save();
-    SkillsEngine.render(ctx, toSx, toSy);
+    SkillsEngine.renderAerialLayer(ctx, toSx, toSy);
 
     // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形)
     this.enemyProjectiles.forEach(ep => {

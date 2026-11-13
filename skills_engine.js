@@ -126,35 +126,62 @@ const SkillsEngine = {
     }
 
     if (skillId === "Thunderbolt") {
-      const maxStrikeRange = 165 * GameApp.player.areaMult;
+      const maxStrikeRange = 175 * GameApp.player.areaMult;
       const nearby = GameApp.enemies
         .filter(e => Math.hypot(e.x - caster.x, e.y - caster.y) <= maxStrikeRange)
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y));
+
+      // 主角外圍 28px 電氣蓄電環（淨空中心，不擋皮卡丘臉部）
+      this.meleeEffects.push({
+        style: "electric_cheek_aura",
+        casterRef: caster,
+        x: caster.x,
+        y: caster.y,
+        radius: 30,
+        timer: 0.22,
+        maxTime: 0.22,
+        color: "#FACC15"
+      });
 
       const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0);
       const boltCount = Math.max(3, count + 1 + thunderBonus);
       for (let b = 0; b < boltCount; b++) {
         const enemyTarget = nearby[b];
-        let endX, endY;
+        let endX, endY, strikeAng;
         if (enemyTarget) {
           endX = enemyTarget.x; endY = enemyTarget.y;
+          strikeAng = Math.atan2(endY - caster.y, endX - caster.x);
           GameApp.dealDamageToEnemy(enemyTarget, rawDmg, meta.type, level >= 5 ? 0.25 : 0.18, meta.knockback !== undefined ? meta.knockback : 2);
         } else {
-          const spreadAng = baseAngle + (b - (boltCount - 1) / 2) * 0.36;
-          const rDist = (120 + Math.random() * 85) * GameApp.player.areaMult;
-          endX = caster.x + Math.cos(spreadAng) * rDist;
-          endY = caster.y + Math.sin(spreadAng) * rDist;
+          strikeAng = baseAngle + (b - (boltCount - 1) / 2) * 0.36;
+          const rDist = (125 + Math.random() * 85) * GameApp.player.areaMult;
+          endX = caster.x + Math.cos(strikeAng) * rDist;
+          endY = caster.y + Math.sin(strikeAng) * rDist;
           GameApp.enemies.forEach(e => {
             if (Math.hypot(e.x - endX, e.y - endY) <= 44 + e.radius) {
               GameApp.dealDamageToEnemy(e, rawDmg * 0.85, meta.type, 0.35, meta.knockback !== undefined ? meta.knockback : 2);
             }
           });
         }
-        this.createLightningArc(caster.x, caster.y, endX, endY, "#FDE047");
+        // 起點外推至主角 28px 淨空環邊緣，不從身體正中央拉線
+        const startX = caster.x + Math.cos(strikeAng) * 28;
+        const startY = caster.y + Math.sin(strikeAng) * 28;
+        this.createLightningArc(startX, startY, endX, endY, "#FDE047", true);
+
+        // 命中爆開金白十字電火花
+        this.meleeEffects.push({
+          style: "z_spark",
+          x: endX,
+          y: endY,
+          radius: 22,
+          timer: 0.20,
+          maxTime: 0.20,
+          color: "#FEF08A"
+        });
         for (let sp = 0; sp < 6; sp++) {
           const sAng = Math.random() * Math.PI * 2;
-          const spd = 60 + Math.random() * 90;
-          this.spawnSubParticle(endX, endY, Math.cos(sAng) * spd, Math.sin(sAng) * spd, sp % 2 === 0 ? "#FEF08A" : "#FFFFFF", 2.5 + Math.random() * 2, 0.35, "star");
+          const spd = 65 + Math.random() * 95;
+          this.spawnSubParticle(endX, endY, Math.cos(sAng) * spd, Math.sin(sAng) * spd, sp % 2 === 0 ? "#FEF08A" : "#FFFFFF", 2.8 + Math.random() * 2, 0.35, "star");
         }
       }
       SoundFX.play("hit");
@@ -254,35 +281,46 @@ const SkillsEngine = {
       return;
     }
 
-    // 2D. 精神擊破 (Psystrike)：高頻雙段貫穿念力光束 (首段瞬間穿透 + 0.25秒後路徑念力內爆)
+    // 2D. 精神擊破 (Psystrike)：多重同心橢圓念力波環高速推進 + 終點念力內爆坍縮
     if (cleanSkillId === "Psystrike") {
-      const beamCount = Math.min(3, count);
-      const beamLen = (270 + level * 8) * GameApp.player.areaMult;
-      for (let i = 0; i < beamCount; i++) {
-        const ang = baseAngle + (beamCount > 1 ? (i - (beamCount - 1) / 2) * 0.22 : 0);
-        const endX = caster.x + Math.cos(ang) * beamLen;
-        const endY = caster.y + Math.sin(ang) * beamLen;
-        this.createLightningArc(caster.x, caster.y, endX, endY, "#EC4899");
-        // 首段貫穿傷害
-        GameApp.enemies.forEach(e => {
-          const dx = endX - caster.x, dy = endY - caster.y;
-          const t = Math.max(0, Math.min(1, ((e.x - caster.x) * dx + (e.y - caster.y) * dy) / (beamLen * beamLen)));
-          const nx = caster.x + t * dx, ny = caster.y + t * dy;
-          if (Math.hypot(e.x - nx, e.y - ny) <= 24 * GameApp.player.areaMult + e.radius) {
-            GameApp.dealDamageToEnemy(e, rawDmg * 0.75, "Psychic", 0.25, 4);
-          }
+      const waveCount = Math.min(3, count);
+      for (let i = 0; i < waveCount; i++) {
+        const ang = baseAngle + (waveCount > 1 ? (i - (waveCount - 1) / 2) * 0.24 : 0);
+        const startX = caster.x + Math.cos(ang) * 30;
+        const startY = caster.y + Math.sin(ang) * 30;
+        const spd = 340;
+        this.projectiles.push({
+          x: startX,
+          y: startY,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          angle: ang,
+          radius: (20 + level * 0.8) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.85,
+          type: "Psychic",
+          skillId: "Psystrike",
+          vfx: "psychic_lance",
+          homing: true,
+          color: "#EC4899",
+          pierce: level >= 6 ? 4 : 3,
+          knockback: 4,
+          life: 0.85,
+          statusBonus: level >= 5 ? 0.35 : 0.20,
+          hitSet: new Set(),
+          trailTimer: 0
         });
-        // 路徑終點埋設 0.25 秒後引爆的二段念力震爆圈
-        const blastX = caster.x + Math.cos(ang) * (beamLen * 0.72);
-        const blastY = caster.y + Math.sin(ang) * (beamLen * 0.72);
+
+        // 終點念力內爆陣（貼地層）
+        const blastDist = (185 + level * 6) * GameApp.player.areaMult;
         this.groundHazards.push({
           kind: "psy_delayed_blast",
-          x: blastX, y: blastY,
-          radius: (52 + level * 2) * GameApp.player.areaMult,
-          dmg: rawDmg * 0.70,
+          x: caster.x + Math.cos(ang) * blastDist,
+          y: caster.y + Math.sin(ang) * blastDist,
+          radius: (50 + level * 2) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.65,
           type: "Psychic",
-          timer: 0.26, maxTime: 0.26,
-          tickTimer: 0.25, tickInterval: 99,
+          timer: 0.38, maxTime: 0.38,
+          tickTimer: 0.35, tickInterval: 99,
           color: "#EC4899"
         });
       }
@@ -290,21 +328,22 @@ const SkillsEngine = {
       return;
     }
 
-    // 2E. 噴射火焰 (Flamethrower)：扇形多段連湧烈焰吐息 (每次觸發連噴 2 波擴張火浪)
+    // 2E. 噴射火焰 (Flamethrower)：主角前方 30px 淨空噴出扇形翻湧四色漸層火浪
     if (cleanSkillId === "Flamethrower") {
       const waveStreams = Math.min(4, count);
       for (let w = 0; w < 2; w++) {
         for (let i = 0; i < waveStreams; i++) {
           const spread = (waveStreams > 1 ? (i - (waveStreams - 1) / 2) * 0.18 : 0) + (w === 1 ? (Math.random() - 0.5) * 0.12 : 0);
           const ang = baseAngle + spread;
-          const spd = 285 + w * 45;
+          const spd = 290 + w * 45;
+          const muzzleDist = 30 + w * 18;
           this.projectiles.push({
-            x: caster.x + Math.cos(ang) * (14 + w * 18),
-            y: caster.y + Math.sin(ang) * (14 + w * 18),
+            x: caster.x + Math.cos(ang) * muzzleDist,
+            y: caster.y + Math.sin(ang) * muzzleDist,
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
             angle: ang,
-            radius: (15 + w * 4) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
+            radius: (15 + w * 4.5) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
             dmg: rawDmg * 0.62,
             type: "Fire",
             skillId,
@@ -324,24 +363,25 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 業界標準槽位空間解耦 (Slot-based Muzzle Offsets)：4 個招式槽各自擁有專屬身周發射錨點 (正胸、左翼-18px、右翼+18px、頭頂-22px)
+    // 3. 30px 主角淨空結界發射點 + 雙肩水炮/雙翼偏移
     const perpAng = baseAngle + Math.PI / 2;
     const slotLateralMap = [0, -18, 18, 0];
-    const slotForwardMap = [12, -4, -4, 18];
+    const slotForwardMap = [30, 26, 26, 32];
     const slotBaseLat = slotLateralMap[slotIdx % 4] || 0;
-    const slotBaseFwd = slotForwardMap[slotIdx % 4] || 0;
+    const slotBaseFwd = slotForwardMap[slotIdx % 4] || 30;
     const isWingSkill = ["AirSlash", "RazorLeaf", "IceBeam"].includes(cleanSkillId);
+    const isTwinCannon = ["WaterGun", "HydroPump"].includes(cleanSkillId);
 
     for (let i = 0; i < count; i++) {
-      const spread = count > 1 ? (i - (count - 1) / 2) * 0.17 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
+      const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
-      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 345 : (cleanSkillId === "HydroPump" ? 330 : (cleanSkillId === "AirSlash" ? 365 : 310));
+      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 350 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315));
       const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast");
 
-      const lateralOffset = slotBaseLat + (isWingSkill
-        ? ((i % 2 === 0 ? 1 : -1) * 14)
+      const lateralOffset = slotBaseLat + ((isWingSkill || isTwinCannon)
+        ? ((i % 2 === 0 ? 1 : -1) * 13)
         : (count > 1 ? (i - (count - 1) / 2) * 10 : 0));
-      const forwardStagger = slotBaseFwd + i * 11;
+      const forwardStagger = slotBaseFwd + i * 10;
 
       const spawnX = caster.x + Math.cos(perpAng) * lateralOffset + Math.cos(ang) * forwardStagger;
       const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
@@ -381,36 +421,39 @@ const SkillsEngine = {
     const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
-    // 0. 妙蛙種子：沙盒 V10 正弦波倒刺 S 藤鞭 (Vine Whip)
+    // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "vine_whip") {
       const whipCount = 1 + (level >= 5 ? 1 : 0);
-      const reach = (130 + level * 7) * areaScale;
+      const reach = (135 + level * 7) * areaScale;
+      const perp = baseAngle + Math.PI / 2;
       for (let w = 0; w < whipCount; w++) {
-        const spread = (w - (whipCount - 1) / 2) * 0.32;
+        const spread = (w - (whipCount - 1) / 2) * 0.30;
         const ang = baseAngle + spread;
+        const sideShift = whipCount > 1 ? (w === 0 ? -12 : 12) : 0;
+        const startX = caster.x + Math.cos(ang) * 24 + Math.cos(perp) * sideShift;
+        const startY = caster.y + Math.sin(ang) * 24 + Math.sin(perp) * sideShift;
         this.meleeEffects.push({
           style: "vine_whip",
           casterRef: caster,
-          ox: caster.x,
-          oy: caster.y,
-          x: caster.x,
-          y: caster.y,
+          ox: startX,
+          oy: startY,
+          x: startX,
+          y: startY,
           angle: ang,
           reach: reach,
           dmg: rawDmg * 1.15,
           type: meta.type,
           kb: kb * 1.2,
           hitSet: new Set(),
-          timer: 0.38,
-          maxTime: 0.38,
+          timer: 0.36,
+          maxTime: 0.36,
           color: "#15803D"
         });
 
-        // 藤鞭末端噴發微量飛葉粒子
-        const tipX = caster.x + Math.cos(ang) * reach;
-        const tipY = caster.y + Math.sin(ang) * reach;
+        const tipX = startX + Math.cos(ang) * reach;
+        const tipY = startY + Math.sin(ang) * reach;
         for (let lf = -1; lf <= 1; lf++) {
-          const leafAng = ang + lf * 0.25;
+          const leafAng = ang + lf * 0.28;
           this.spawnSubParticle(
             tipX, tipY,
             Math.cos(leafAng) * (60 + Math.random() * 35),
@@ -425,51 +468,52 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 空手劈回歸近身剛猛拳打：身前小半徑爆發短打連擊
-      const reach = 85 * areaScale;
+      // 空手劈：剛猛「X 型白熾十字氣勁斬痕 + 拳風殘影」（取代空心黃圓圈）
+      const reach = 90 * areaScale;
       const strikes = Math.min(3, 1 + Math.floor(level / 4));
       for (let s = 0; s < strikes; s++) {
         const fAng = baseAngle + (s - (strikes - 1) / 2) * 0.28;
-        const fx = caster.x + Math.cos(fAng) * (reach * 0.6);
-        const fy = caster.y + Math.sin(fAng) * (reach * 0.6);
+        const fx = caster.x + Math.cos(fAng) * (34 + reach * 0.52);
+        const fy = caster.y + Math.sin(fAng) * (34 + reach * 0.52);
         this.meleeEffects.push({
-          style: "slam_wave",
+          style: "karate_cross",
           x: fx,
           y: fy,
-          radius: reach * 0.65,
-          timer: 0.28,
-          maxTime: 0.28,
-          color: meta.color
+          angle: fAng,
+          radius: reach * 0.58,
+          timer: 0.26,
+          maxTime: 0.26,
+          color: "#EF4444"
         });
         GameApp.enemies.forEach(e => {
-          if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.65 + e.radius) {
+          if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.62 + e.radius) {
             GameApp.dealDamageToEnemy(e, rawDmg * 1.25, meta.type, 0.30, kb * 1.35);
           }
         });
       }
-      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 30, caster.y + Math.sin(baseAngle) * 30, "#FFFFFF", "#FEF08A", 12, "star", 1.0);
+      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 34, caster.y + Math.sin(baseAngle) * 34, "#FFFFFF", "#FACC15", 10, "star", 1.0);
       SoundFX.play("hit");
       return;
     }
 
-    // 1. 撞擊專屬：身前俐落小衝鋒氣浪 (Forward Arc) ＋ 輕量微型碎屑，不遮擋子彈
+    // 1. 撞擊專屬：主角身前 30px 淨空外推的「破空音爆氣錐 (Sonic Boom Cone)」
     if (style === "slam_wave") {
-      const fDist = 32 * areaScale;
+      const fDist = 34 * areaScale;
       const hitX = caster.x + Math.cos(baseAngle) * fDist;
       const hitY = caster.y + Math.sin(baseAngle) * fDist;
-      const rad = 46 * areaScale;
+      const rad = 48 * areaScale;
 
       this.meleeEffects.push({
-        style: "slam_wave",
-        ox: caster.x,
-        oy: caster.y,
+        style: "sonic_cone",
+        ox: caster.x + Math.cos(baseAngle) * 26,
+        oy: caster.y + Math.sin(baseAngle) * 26,
         x: hitX,
         y: hitY,
         angle: baseAngle,
         radius: rad,
         timer: 0.22,
         maxTime: 0.22,
-        color: "rgba(203, 213, 225, 0.40)"
+        color: "#F8FAFC"
       });
 
       // 輕量保留 3 顆極淡的微型菱形碎屑，保留反饋但尺寸僅 1.8px，絕不遮擋或混淆敵方飛行道具
@@ -594,39 +638,41 @@ const SkillsEngine = {
     });
 
     if (meta.type === "Electric") {
-      // 【V10 三段階梯神罰萬雷 + 閃電鳥六芒高壓電網】
+      // 【比卡超超武・打雷暴風雨】：黑金雷雲壓頂 ＋ 8 道垂直落下的三層白熾天罰雷柱 ＋ 底層焦黑裂痕與電圈
+      const strikePts = [];
       for (let i = 0; i < 8; i++) {
-        const ang = (i * Math.PI * 2) / 8;
-        this.createLightningArc(p.x, p.y, p.x + Math.cos(ang) * 120, p.y + Math.sin(ang) * 120, "#FEF08A");
-      }
-      const hitPts = [];
-      for (let i = 0; i < 6; i++) {
-        const a = (i * Math.PI * 2) / 6;
-        hitPts.push({ x: p.x + Math.cos(a) * 230, y: p.y + Math.sin(a) * 230 });
+        const a = (i * Math.PI * 2) / 8 + (i % 2 === 0 ? 0.12 : -0.12);
+        const dist = (95 + (i % 2) * 95) * p.areaMult;
+        strikePts.push({
+          x: p.x + Math.cos(a) * dist,
+          y: p.y + Math.sin(a) * dist,
+          delay: i * 0.06
+        });
       }
       this.groundHazards.push({
-        kind: "zapdos_storm_web",
+        kind: "thunder_pillars_storm",
         x: p.x, y: p.y,
-        hitPts: hitPts,
-        stage2Triggered: false,
-        radius: 250 * p.areaMult,
-        dmg: ultDmg * 0.36,
+        strikePts,
+        radius: 245 * p.areaMult,
+        dmg: ultDmg * 0.40,
         type: "Electric",
         timer: 1.45, maxTime: 1.45,
-        tickTimer: 0.18, tickInterval: 0.30,
+        tickTimer: 0.16, tickInterval: 0.32,
         color: "#FACC15"
       });
     } else if (meta.type === "Fire") {
-      // 【V10 推進式巨型立體大字爆炎 + 沿途定距鋪設熔岩火海】
+      // 【噴火龍超武・立體大字爆炎】：外推 42px 淨空出發，密集翻滾動態火球簇構成『大』字 ＋ 底層熔岩火海
       for (let d = 0; d < 4; d++) {
         const ang = (d * Math.PI) / 2 + (p.facingX >= 0 ? 0 : 0.4);
+        const startX = p.x + Math.cos(ang) * 42;
+        const startY = p.y + Math.sin(ang) * 42;
         this.groundHazards.push({
           kind: "drifting_daimonji",
-          x: p.x, y: p.y,
-          lastSpawnX: p.x, lastSpawnY: p.y,
-          vx: Math.cos(ang) * 240, vy: Math.sin(ang) * 240,
+          x: startX, y: startY,
+          lastSpawnX: startX, lastSpawnY: startY,
+          vx: Math.cos(ang) * 235, vy: Math.sin(ang) * 235,
           angle: ang,
-          radius: 76 * p.areaMult,
+          radius: 78 * p.areaMult,
           dmg: ultDmg * 0.42,
           type: "Fire",
           timer: 1.25, maxTime: 1.25,
@@ -635,62 +681,75 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Water") {
-      // 【V10 八方正弦高壓水柱大迴旋 + 王冠浪花】
+      // 【水箭龜超武・潮旋激流】：底層 300px 深海大漩渦（中央 45px 淨空風眼）＋ 外圈 6 道浮世繪風拍岸巨浪
       this.groundHazards.push({
-        kind: "eight_hydro_pillars",
+        kind: "blastoise_maelstrom",
         x: p.x, y: p.y,
         followPlayer: true,
         rotAngle: 0,
-        pillarsCount: 8,
-        radius: 310 * p.areaMult,
-        width: 44 * p.areaMult,
-        dmg: ultDmg * 0.32,
+        radius: 295 * p.areaMult,
+        innerSafeRadius: 44,
+        dmg: ultDmg * 0.34,
         type: "Water",
-        timer: 1.45, maxTime: 1.45,
-        tickTimer: 0.05, tickInterval: 0.22,
+        timer: 1.65, maxTime: 1.65,
+        tickTimer: 0.06, tickInterval: 0.24,
         color: "#38BDF8"
       });
     } else if (meta.type === "Grass") {
-      // 【V10 森羅瘋狂植物：12 根巨型帶刺 S 藤蔓破土鞭笞全場】
-      for (let i = 0; i < 12; i++) {
-        const ang = (i * Math.PI * 2) / 12 + (i % 2 === 0 ? 0.06 : -0.06);
-        this.meleeEffects.push({
-          style: "vine_whip",
-          casterRef: p,
-          ox: p.x, oy: p.y, x: p.x, y: p.y,
-          angle: ang,
-          reach: (265 + (i % 3) * 25) * p.areaMult,
-          dmg: ultDmg * 0.55,
-          type: "Grass",
-          kb: 18,
-          hitSet: new Set(),
-          timer: 0.68 + (i % 2) * 0.16,
-          maxTime: 0.68 + (i % 2) * 0.16,
-          color: "#15803D"
+      // 【奇異種子超武・瘋狂植物】：地面底層裂開 10 個泥坑，破土竄出帶尖刺與紅花苞的巨型彎曲荊棘藤木（完全不擋主角）
+      const rootNodes = [];
+      for (let i = 0; i < 10; i++) {
+        const ang = (i * Math.PI * 2) / 10 + (Math.random() - 0.5) * 0.2;
+        const dist = (68 + (i % 3) * 62) * p.areaMult;
+        rootNodes.push({
+          x: p.x + Math.cos(ang) * dist,
+          y: p.y + Math.sin(ang) * dist,
+          leanDir: (i % 2 === 0 ? 1 : -1),
+          heightScale: 0.85 + (i % 3) * 0.14,
+          phaseOffset: i * 0.45
         });
       }
-      for (let g = 0; g < 28; g++) {
+      this.groundHazards.push({
+        kind: "frenzy_plant_roots",
+        x: p.x, y: p.y,
+        rootNodes,
+        radius: 255 * p.areaMult,
+        dmg: ultDmg * 0.36,
+        type: "Grass",
+        timer: 1.55, maxTime: 1.55,
+        tickTimer: 0.08, tickInterval: 0.28,
+        color: "#15803D"
+      });
+      for (let g = 0; g < 24; g++) {
         const gAng = Math.random() * Math.PI * 2;
-        const gSpd = 60 + Math.random() * 150;
-        this.spawnSubParticle(p.x, p.y, Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd, g % 2 === 0 ? "#22C55E" : "#86EFAC", 4.2, 0.85, "leaf");
+        const gSpd = 65 + Math.random() * 145;
+        this.spawnSubParticle(
+          p.x + Math.cos(gAng) * 45, p.y + Math.sin(gAng) * 45,
+          Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd,
+          g % 3 === 0 ? "#F472B6" : (g % 2 === 0 ? "#22C55E" : "#86EFAC"),
+          4.0, 0.85, "leaf"
+        );
       }
     } else if (meta.type === "Normal") {
-      // 【V10 居合極限瞬斬 / 終極衝擊：3 道 160° 超寬幅雙層次元刀浪】
-      for (let i = 0; i < 3; i++) {
-        const ang = (i * Math.PI * 2) / 3;
+      // 【終極衝擊】：4 道金色螺旋鑽頭氣旋向四周猛烈衝撞，伴隨音爆氣環（外推 34px 淨空）
+      for (let i = 0; i < 4; i++) {
+        const ang = (i * Math.PI * 2) / 4 + Math.PI / 4;
         this.meleeEffects.push({
-          style: "claw_slash",
+          style: "sonic_cone",
           casterRef: p,
-          ox: p.x, oy: p.y, x: p.x, y: p.y,
+          ox: p.x + Math.cos(ang) * 34,
+          oy: p.y + Math.sin(ang) * 34,
+          x: p.x + Math.cos(ang) * 34,
+          y: p.y + Math.sin(ang) * 34,
           angle: ang,
-          radius: 250 * p.areaMult,
-          dmg: ultDmg * 0.65,
+          radius: 235 * p.areaMult,
+          dmg: ultDmg * 0.58,
           type: "Normal",
           kb: 24,
           hitSet: new Set(),
-          timer: 0.48 + i * 0.08,
-          maxTime: 0.48 + i * 0.08,
-          color: "#38BDF8"
+          timer: 0.46 + i * 0.05,
+          maxTime: 0.46 + i * 0.05,
+          color: "#FACC15"
         });
       }
     } else if (meta.type === "Fighting") {
@@ -787,26 +846,63 @@ const SkillsEngine = {
         tickTimer: 0.1, tickInterval: 0.45,
         color: "#D97706"
       });
-    } else if (meta.type === "Psychic" || meta.type === "Ghost") {
-      // 【精神強念領域 / 暗影死滅波】：引力黑洞牽引壓縮怪群 + 8 道穿梭鬼影彈
+    } else if (meta.type === "Ghost") {
+      // 【耿鬼專屬超武・暗影死滅波】：底層「冥界巨大壞笑暗影陣（血紅雙眼＋弦月壞笑）」＋ 8 隻張嘴惡靈鬼影穿梭撕咬
+      this.groundHazards.push({
+        kind: "gengar_grin_domain",
+        x: p.x, y: p.y,
+        radius: 235 * p.areaMult,
+        dmg: ultDmg * 0.28,
+        type: "Ghost",
+        timer: 2.4, maxTime: 2.4,
+        tickTimer: 0.15, tickInterval: 0.42,
+        color: "#A855F7"
+      });
+      for (let k = 0; k < 8; k++) {
+        const ang = (k * Math.PI * 2) / 8;
+        this.projectiles.push({
+          x: p.x + Math.cos(ang) * 34,
+          y: p.y + Math.sin(ang) * 34,
+          vx: Math.cos(ang) * 330, vy: Math.sin(ang) * 330,
+          angle: ang, radius: 22, dmg: ultDmg * 0.52,
+          type: "Ghost", skillId: meta.id, vfx: "gengar_phantom",
+          homing: true, color: "#A855F7",
+          pierce: 8, knockback: 8, life: 1.85, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
+        });
+      }
+    } else if (meta.id === "Moonblast") {
+      // 【創世極光（月亮之力超武）】：皎潔滿月虛影 ＋ 粉金與青色交織寬幅極光天幕 ＋ 十字星屑洗禮
+      this.groundHazards.push({
+        kind: "genesis_aurora",
+        x: p.x, y: p.y,
+        radius: 255 * p.areaMult,
+        dmg: ultDmg * 0.34,
+        type: "Psychic",
+        timer: 2.2, maxTime: 2.2,
+        tickTimer: 0.14, tickInterval: 0.36,
+        color: "#F472B6"
+      });
+    } else if (meta.type === "Psychic") {
+      // 【精神強念領域】：引力黑洞牽引壓縮怪群 + 8 道同心念力波環
       this.groundHazards.push({
         kind: "psychic_blackhole",
         x: p.x, y: p.y,
         radius: 230 * p.areaMult,
         dmg: ultDmg * 0.28,
-        type: meta.type,
+        type: "Psychic",
         timer: 2.5, maxTime: 2.5,
         tickTimer: 0.15, tickInterval: 0.45,
-        color: meta.color || "#EC4899"
+        color: "#EC4899"
       });
       for (let k = 0; k < 8; k++) {
         const ang = (k * Math.PI * 2) / 8;
         this.projectiles.push({
-          x: p.x, y: p.y,
+          x: p.x + Math.cos(ang) * 32,
+          y: p.y + Math.sin(ang) * 32,
           vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320,
           angle: ang, radius: 20, dmg: ultDmg * 0.50,
-          type: meta.type, skillId: meta.id, vfx: "shadow_orb",
-          homing: true, color: meta.color || "#A855F7",
+          type: "Psychic", skillId: meta.id, vfx: "psychic_lance",
+          homing: true, color: "#EC4899",
           pierce: 8, knockback: 6, life: 1.8, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
         });
       }
@@ -828,18 +924,34 @@ const SkillsEngine = {
     }
   },
 
-  createLightningArc(x1, y1, x2, y2, color) {
+  createLightningArc(x1, y1, x2, y2, color, withForks = false) {
     const pts = [{ x: x1, y: y1 }];
     const steps = 7;
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
       pts.push({
-        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 36,
-        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 36
+        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 32,
+        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 32
       });
     }
     pts.push({ x: x2, y: y2 });
-    this.lightningArcs.push({ pts, color, timer: 0.28 });
+
+    const branches = [];
+    if (withForks) {
+      for (let b = 0; b < 2; b++) {
+        const midIdx = 2 + b * 2;
+        const origin = pts[midIdx] || pts[1];
+        const mainAng = Math.atan2(y2 - y1, x2 - x1);
+        const branchAng = mainAng + (b === 0 ? 0.55 : -0.55);
+        const bLen = 36 + Math.random() * 24;
+        const midBx = origin.x + Math.cos(branchAng + 0.2) * (bLen * 0.5);
+        const midBy = origin.y + Math.sin(branchAng + 0.2) * (bLen * 0.5);
+        const endBx = origin.x + Math.cos(branchAng) * bLen;
+        const endBy = origin.y + Math.sin(branchAng) * bLen;
+        branches.push([origin, { x: midBx, y: midBy }, { x: endBx, y: endBy }]);
+      }
+    }
+    this.lightningArcs.push({ pts, branches, color, timer: 0.26 });
   },
 
   update(dt) {
@@ -1147,23 +1259,34 @@ const SkillsEngine = {
         hz.x = p.x;
         hz.y = p.y;
       }
-      if (hz.kind === "eight_hydro_pillars") {
-        hz.rotAngle = (hz.rotAngle || 0) + dt * 2.4;
+      if (hz.kind === "blastoise_maelstrom") {
+        hz.rotAngle = (hz.rotAngle || 0) + dt * 3.2;
+        // 潮旋激流：將靠近的怪物往外圍捲飛推開，保護水箭龜中央淨空風眼
+        GameApp.enemies.forEach(e => {
+          if (!e.isBoss) {
+            const d = Math.hypot(e.x - hz.x, e.y - hz.y);
+            if (d < hz.radius && d > 10) {
+              const pushAng = Math.atan2(e.y - hz.y, e.x - hz.x);
+              e.x += Math.cos(pushAng) * 85 * dt;
+              e.y += Math.sin(pushAng) * 85 * dt;
+            }
+          }
+        });
       } else if (hz.kind === "drifting_daimonji") {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
-        if (GameApp.player && Math.hypot(hz.x - hz.lastSpawnX, hz.y - hz.lastSpawnY) >= 42) {
+        if (GameApp.player && Math.hypot(hz.x - hz.lastSpawnX, hz.y - hz.lastSpawnY) >= 44) {
           hz.lastSpawnX = hz.x;
           hz.lastSpawnY = hz.y;
-          GameApp.lavaFootprints.push({ x: hz.x, y: hz.y, radius: 34, life: 2.2, maxLife: 2.2, tickTimer: 0.1 });
+          GameApp.lavaFootprints.push({ x: hz.x, y: hz.y, radius: 36, life: 2.4, maxLife: 2.4, tickTimer: 0.1 });
         }
-      } else if (hz.kind === "zapdos_storm_web" && !hz.stage2Triggered && hz.timer <= 1.22) {
-        hz.stage2Triggered = true;
-        (hz.hitPts || []).forEach(pt => {
-          this.createLightningArc(pt.x, pt.y - 260, pt.x, pt.y, "#FFFFFF");
-          this.createLightningArc(pt.x, pt.y - 260, pt.x, pt.y, "#FACC15");
+      } else if (hz.kind === "thunder_pillars_storm") {
+        (hz.strikePts || []).forEach(pt => {
+          if (!pt.struck && (hz.maxTime - hz.timer) >= pt.delay) {
+            pt.struck = true;
+            this.spawnSubParticle(pt.x, pt.y, (Math.random() - 0.5) * 90, -50 - Math.random() * 60, "#FEF08A", 3.8, 0.35, "star");
+          }
         });
-        SoundFX.play("ultimate");
       } else if (hz.kind === "tornado") {
         const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
         if (target) {
@@ -1238,10 +1361,12 @@ const SkillsEngine = {
     }
   },
 
-  render(ctx, toSx, toSy) {
+  // ==========================================================================
+  // 圖層 1：地面底層渲染 (renderGroundLayer) — 繪製於所有精靈與訓練家腳底下，絕不遮擋人物
+  // ==========================================================================
+  renderGroundLayer(ctx, toSx, toSy) {
     const now = performance.now() * 0.004;
 
-    // 1. 繪製持續性領域、立體毒沼、月光聖柱、GBA錐形龍捲風、V10三層深坑斷層、雙排冰稜極光陣與黑洞 (groundHazards)
     this.groundHazards.forEach(hz => {
       if (hz.kind === "meteor_strike" && hz.delay > 0) return;
       const sx = toSx(hz.x), sy = toSy(hz.y);
@@ -1249,21 +1374,20 @@ const SkillsEngine = {
       ctx.save();
 
       if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
-        // 外實內透三明治結構：深紫黑外框襯底 ➔ 半透明紫泥 ➔ 螢光綠腐蝕內圈 ➔ 帶高光立體毒泡
         const alpha = Math.min(1, hz.timer * 1.2);
         const rx = hz.radius;
         const ry = hz.radius * 0.62;
 
-        ctx.fillStyle = `rgba(59, 7, 100, ${alpha * 0.55})`;
+        ctx.fillStyle = `rgba(59, 7, 100, ${alpha * 0.52})`;
         ctx.strokeStyle = `rgba(88, 28, 135, ${alpha * 0.9})`;
-        ctx.lineWidth = 4.0;
+        ctx.lineWidth = 3.5;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
         ctx.strokeStyle = `rgba(74, 222, 128, ${alpha * 0.85})`;
-        ctx.lineWidth = 2.0;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx * 0.88, ry * 0.88, 0, 0, Math.PI * 2);
         ctx.stroke();
@@ -1273,7 +1397,7 @@ const SkillsEngine = {
           const distR = 0.35 + ((b % 3) * 0.2);
           const bx = sx + Math.cos(bAng) * (rx * distR);
           const by = sy + Math.sin(bAng) * (ry * distR);
-          const br = Math.max(2.2, 4.5 + Math.sin(now * 3.5 + b) * 2.2);
+          const br = Math.max(2.2, 4.2 + Math.sin(now * 3.5 + b) * 2.0);
 
           ctx.fillStyle = `rgba(34, 197, 94, ${alpha * 0.85})`;
           ctx.strokeStyle = `rgba(20, 83, 45, ${alpha * 0.95})`;
@@ -1283,15 +1407,451 @@ const SkillsEngine = {
           ctx.fill();
           ctx.stroke();
 
-          // 氣泡左上角純白反光點 (GBA 像素高光)
           ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.95})`;
           ctx.beginPath();
           ctx.arc(bx - br * 0.3, by - br * 0.3, br * 0.32, 0, Math.PI * 2);
           ctx.fill();
         }
-      } else if (hz.kind === "moon_pillar") {
+      } else if (hz.kind === "blastoise_maelstrom") {
+        // 【水箭龜超武・潮旋激流】：底層 300px 深海大漩渦（中央 44px 淨空風眼）＋ 外圈 6 道拍岸新月巨浪
+        ctx.translate(sx, sy);
+        const alpha = Math.min(1, hz.timer * 1.3);
+        ctx.globalAlpha = alpha;
+        const maxR = hz.radius * Math.min(1, prog * 2.4);
+        const safeR = hz.innerSafeRadius || 44;
+
+        // 外圍深海旋渦環帶（挖空中央 44px 風眼）
+        const swirlGrad = ctx.createRadialGradient(0, 0, safeR, 0, 0, maxR);
+        swirlGrad.addColorStop(0, "rgba(2, 132, 199, 0.0)");
+        swirlGrad.addColorStop(0.22, "rgba(2, 132, 199, 0.38)");
+        swirlGrad.addColorStop(0.75, "rgba(56, 189, 248, 0.28)");
+        swirlGrad.addColorStop(1, "rgba(14, 116, 144, 0.0)");
+        ctx.fillStyle = swirlGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, maxR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 逆時針多層漩渦水流線
+        const spin = -(hz.rotAngle || now * 3);
+        for (let ring = 0; ring < 4; ring++) {
+          const rr = safeR + 24 + ring * ((maxR - safeR - 24) / 3.5);
+          if (rr > maxR) continue;
+          ctx.strokeStyle = ring % 2 === 0 ? "#00D2FF" : "#E0FFFF";
+          ctx.lineWidth = 3.0 - ring * 0.3;
+          for (let arm = 0; arm < 3; arm++) {
+            const a0 = spin * (1.2 - ring * 0.15) + (arm * Math.PI * 2) / 3 + ring * 0.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, rr, a0, a0 + 1.35);
+            ctx.stroke();
+          }
+        }
+
+        // 外圈 6 道浮世繪風拍岸新月巨浪
+        for (let w = 0; w < 6; w++) {
+          const wAng = -spin * 0.85 + (w * Math.PI * 2) / 6;
+          const waveR = Math.max(safeR + 30, maxR * 0.82);
+          ctx.save();
+          ctx.rotate(wAng);
+          ctx.translate(waveR, 0);
+
+          // 巨浪深藍基底
+          ctx.fillStyle = "#0369A1";
+          ctx.strokeStyle = "#E0FFFF";
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.arc(0, 0, 32, -1.1, 1.1);
+          ctx.arc(-12, 0, 24, 1.1, -1.1, true);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 浪尖純白飛沫泡沫
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.arc(24, -14, 5, 0, Math.PI * 2);
+          ctx.arc(28, 0, 6, 0, Math.PI * 2);
+          ctx.arc(24, 14, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (hz.kind === "frenzy_plant_roots") {
+        // 【奇異種子超武・瘋狂植物】：地面底層裂開泥坑，破土竄出帶尖刺與紅花苞的巨型彎曲荊棘藤木
+        const alpha = Math.min(1, hz.timer * 1.4);
+        ctx.globalAlpha = alpha;
+        const grow = Math.min(1, prog * 2.8);
+
+        (hz.rootNodes || []).forEach((rn, idx) => {
+          const rx = toSx(rn.x), ry = toSy(rn.y);
+          ctx.save();
+          ctx.translate(rx, ry);
+
+          // 1. 破土泥坑裂縫底座
+          ctx.fillStyle = "#3E2723";
+          ctx.strokeStyle = "#1B100E";
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.ellipse(0, 4, 18 * grow, 8 * grow, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // 2. 破土竄出的 S 型彎曲巨型荊棘魔藤
+          const h = 76 * (rn.heightScale || 1.0) * grow;
+          const sway = Math.sin(now * 2.4 + rn.phaseOffset) * 10 * rn.leanDir;
+          const tipX = rn.leanDir * 22 * grow + sway;
+          const tipY = -h;
+
+          ctx.lineCap = "round";
+          // 深綠暗影外廓
+          ctx.strokeStyle = "#052E16";
+          ctx.lineWidth = 11 * (1 - 0.15 * grow);
+          ctx.beginPath();
+          ctx.moveTo(0, 2);
+          ctx.bezierCurveTo(-rn.leanDir * 24, -h * 0.35, rn.leanDir * 28, -h * 0.72, tipX, tipY);
+          ctx.stroke();
+
+          // 翠綠主藤幹
+          ctx.strokeStyle = "#16A34A";
+          ctx.lineWidth = 6.5;
+          ctx.stroke();
+
+          // 嫩綠高光脊線
+          ctx.strokeStyle = "#86EFAC";
+          ctx.lineWidth = 2.0;
+          ctx.stroke();
+
+          // 兩側尖刺與薔薇花苞
+          if (grow > 0.5) {
+            ctx.fillStyle = "#14532D";
+            ctx.beginPath();
+            ctx.moveTo(-4, -h * 0.45);
+            ctx.lineTo(-14 * rn.leanDir, -h * 0.52);
+            ctx.lineTo(-2, -h * 0.56);
+            ctx.closePath();
+            ctx.fill();
+
+            // 頂端含苞粉紅花蕾（呼應回血效果）
+            ctx.fillStyle = idx % 2 === 0 ? "#F43F5E" : "#FB7185";
+            ctx.strokeStyle = "#881337";
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 6.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#FDE047";
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+      } else if (hz.kind === "gengar_grin_domain") {
+        // 【耿鬼專屬超武・暗影死滅波】：底層冥界巨大壞笑暗影陣（血紅雙眼＋經典弦月壞笑）
+        ctx.translate(sx, sy);
+        const alpha = Math.sin((1 - prog) * Math.PI) * 0.90;
+        const curR = hz.radius * Math.min(1, prog * 2.2);
+
+        const shadowGrad = ctx.createRadialGradient(0, 0, 18, 0, 0, curR);
+        shadowGrad.addColorStop(0, `rgba(15, 7, 32, ${alpha * 0.85})`);
+        shadowGrad.addColorStop(0.65, `rgba(88, 28, 135, ${alpha * 0.48})`);
+        shadowGrad.addColorStop(1, "rgba(15, 23, 42, 0)");
+        ctx.fillStyle = shadowGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 外圍旋轉紫冥符文圈
+        ctx.strokeStyle = `rgba(192, 132, 252, ${alpha * 0.85})`;
+        ctx.lineWidth = 3.0;
+        ctx.setLineDash([14, 8]);
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 0.88, now * 0.8, now * 0.8 + Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 耿鬼標誌性「血紅邪魅雙眼 + 弦月露齒壞笑」地面投影圖騰
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.85;
+        // 左眼三角形
+        ctx.fillStyle = "#EF4444";
+        ctx.beginPath();
+        ctx.moveTo(-48, -28); ctx.lineTo(-16, -12); ctx.lineTo(-42, -4);
+        ctx.closePath();
+        ctx.fill();
+        // 右眼三角形
+        ctx.beginPath();
+        ctx.moveTo(48, -28); ctx.lineTo(16, -12); ctx.lineTo(42, -4);
+        ctx.closePath();
+        ctx.fill();
+
+        // 弦月壞笑大嘴
+        ctx.fillStyle = "#F8FAFC";
+        ctx.strokeStyle = "#3B0764";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 12, 54, 0.12 * Math.PI, 0.88 * Math.PI);
+        ctx.quadraticCurveTo(0, 32, -54 * Math.cos(0.12 * Math.PI), 12 + 54 * Math.sin(0.12 * Math.PI));
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 牙齒豎線
+        ctx.strokeStyle = "#3B0764";
+        ctx.lineWidth = 2.0;
+        [-28, -14, 0, 14, 28].forEach(tx => {
+          ctx.beginPath();
+          ctx.moveTo(tx, 24);
+          ctx.lineTo(tx, 58);
+          ctx.stroke();
+        });
+        ctx.restore();
+      } else if (hz.kind === "genesis_aurora") {
+        // 【創世極光（月亮之力超武）】：皎潔滿月虛影 ＋ 粉金與青色交織寬幅極光天幕
+        ctx.translate(sx, sy);
+        const alpha = Math.sin((1 - prog) * Math.PI) * 0.88;
+        const curR = hz.radius * Math.min(1, prog * 2.0);
+
+        const aurGrad = ctx.createLinearGradient(-curR, -curR * 0.6, curR, curR * 0.6);
+        aurGrad.addColorStop(0, `rgba(244, 114, 182, ${alpha * 0.35})`);
+        aurGrad.addColorStop(0.5, `rgba(253, 224, 71, ${alpha * 0.30})`);
+        aurGrad.addColorStop(1, `rgba(56, 189, 248, ${alpha * 0.35})`);
+        ctx.fillStyle = aurGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 交織波浪極光帶
+        for (let band = 0; band < 3; band++) {
+          ctx.strokeStyle = band === 0 ? `rgba(244, 114, 182, ${alpha})` : (band === 1 ? `rgba(254, 240, 138, ${alpha})` : `rgba(103, 232, 249, ${alpha})`);
+          ctx.lineWidth = 5.5;
+          ctx.beginPath();
+          for (let x = -curR * 0.85; x <= curR * 0.85; x += 18) {
+            const y = (band - 1) * 42 + Math.sin(now * 3 + x * 0.03 + band) * 18;
+            if (x === -curR * 0.85) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+      } else if (hz.kind === "quake_fissure") {
+        // 【地裂斷層破】：地面底層三層立體深坑裂隙 ＋ 向上跳動的立體崩岩塊
+        ctx.translate(sx, sy);
+        ctx.globalAlpha = Math.min(1, hz.timer * 1.2);
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (let k = 0; k < 8; k++) {
+          const a = (k * Math.PI * 2) / 8 + (k % 2 === 0 ? 0.08 : -0.08);
+          const midLen = hz.radius * 0.52;
+          const mx = Math.cos(a + 0.14) * midLen;
+          const my = Math.sin(a + 0.14) * midLen;
+          const ex = Math.cos(a) * hz.radius;
+          const ey = Math.sin(a) * hz.radius;
+
+          ctx.strokeStyle = "#451A03";
+          ctx.lineWidth = 12;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * 28, Math.sin(a) * 28); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#D97706";
+          ctx.lineWidth = 4.5;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * 28, Math.sin(a) * 28); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#FEF08A";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * 28, Math.sin(a) * 28); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          // 裂縫沿途跳動的立體岩石塊
+          const rockHop = Math.abs(Math.sin(now * 4 + k)) * 12;
+          ctx.fillStyle = "#78350F";
+          ctx.strokeStyle = "#291509";
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(mx - 6, my - rockHop);
+          ctx.lineTo(mx, my - 8 - rockHop);
+          ctx.lineTo(mx + 7, my - 2 - rockHop);
+          ctx.lineTo(mx + 3, my + 5 - rockHop);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (hz.kind === "ice_shatter_domain") {
+        // 【絕對零度】：地面底層八角雪花冰晶魔法陣 ＋ 破土刺出的立體斜切面冰山稜柱
+        ctx.translate(sx, sy);
+        const r = hz.radius * Math.min(1, prog * 1.6);
+        const spin = now * 0.9;
+
+        const grad1 = ctx.createRadialGradient(0, 0, 34, 0, 0, r);
+        grad1.addColorStop(0, "rgba(56, 189, 248, 0.0)");
+        grad1.addColorStop(0.35, "rgba(56, 189, 248, 0.28)");
+        grad1.addColorStop(0.8, "rgba(186, 230, 253, 0.24)");
+        grad1.addColorStop(1, "rgba(224, 242, 254, 0.0)");
+        ctx.fillStyle = grad1;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 八角雪花冰晶陣線條
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 2.2;
+        for (let arm = 0; arm < 8; arm++) {
+          const a = spin * 0.4 + (arm * Math.PI) / 4;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * 36, Math.sin(a) * 36);
+          ctx.lineTo(Math.cos(a) * (r * 0.92), Math.sin(a) * (r * 0.92));
+          ctx.stroke();
+        }
+
+        // 外排 8 座破土刺出的立體雙色切面高聳冰山稜柱
+        for (let k = 0; k < 8; k++) {
+          const a = -spin * 0.5 + (k * Math.PI) / 4 + 0.39;
+          const px = Math.cos(a) * (r * 0.72);
+          const py = Math.sin(a) * (r * 0.72);
+          const spireH = 34 * Math.min(1, prog * 2.5);
+          ctx.save();
+          ctx.translate(px, py);
+
+          // 右暗面（深海藍）
+          ctx.fillStyle = "#0284C7";
+          ctx.strokeStyle = "#0F172A";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(0, -spireH);
+          ctx.lineTo(14, 4);
+          ctx.lineTo(0, 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 左亮面（冰晶白藍）
+          ctx.fillStyle = "#BAE6FD";
+          ctx.beginPath();
+          ctx.moveTo(0, -spireH);
+          ctx.lineTo(-14, 4);
+          ctx.lineTo(0, 10);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (hz.kind === "psychic_blackhole") {
+        ctx.translate(sx, sy);
+        const curR = hz.radius * (0.45 + 0.55 * Math.sin((1 - prog) * Math.PI));
+        const grad = ctx.createRadialGradient(0, 0, curR * 0.25, 0, 0, curR);
+        grad.addColorStop(0, "rgba(2, 6, 23, 0.85)");
+        grad.addColorStop(0.55, "rgba(126, 34, 206, 0.40)");
+        grad.addColorStop(1, "rgba(192, 132, 252, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        const spin = -now * 2.2;
+        ctx.strokeStyle = "#C084FC";
+        ctx.lineWidth = 3.2;
+        for (let a = 0; a < 4; a++) {
+          ctx.beginPath();
+          ctx.arc(0, 0, curR * (0.45 + a * 0.12), spin + a * 1.57, spin + a * 1.57 + 1.15);
+          ctx.stroke();
+        }
+      } else if (hz.kind === "psy_delayed_blast") {
+        // 精神擊破終點內縮引力波環（貼地層）
+        ctx.translate(sx, sy);
+        const shrink = Math.max(0.15, 1 - prog);
+        ctx.strokeStyle = "#EC4899";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, hz.radius * shrink, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FBCFE8";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(0, 0, hz.radius * shrink * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
+    // 地面層近戰特效：地震波與立體崩岩（畫在精靈腳下，絕不擋角色）
+    this.meleeEffects.forEach(m => {
+      if (m.style !== "quake_wave") return;
+      const prog = 1 - (m.timer / m.maxTime);
+      const msx = toSx(m.x), msy = toSy(m.y);
+      const curR = m.radius * (0.28 + prog * 0.72);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      // 外擴岩石斷層震波環
+      ctx.strokeStyle = "rgba(217, 119, 6, 0.65)";
+      ctx.lineWidth = 4.0 * (1 - prog * 0.5);
+      ctx.beginPath();
+      ctx.arc(msx, msy, curR, 0, Math.PI * 2);
+      ctx.stroke();
+
+      for (let crack = 0; crack < 8; crack++) {
+        const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.09 : -0.09);
+        const startR = 24;
+        const midR = Math.max(startR + 6, curR * 0.58);
+        const mx = msx + Math.cos(cAng + 0.12) * midR;
+        const my = msy + Math.sin(cAng + 0.12) * midR;
+        const ex = msx + Math.cos(cAng) * curR;
+        const ey = msy + Math.sin(cAng) * curR;
+
+        ctx.strokeStyle = "#451A03";
+        ctx.lineWidth = 9 * (1 - prog * 0.45);
+        ctx.beginPath();
+        ctx.moveTo(msx + Math.cos(cAng) * startR, msy + Math.sin(cAng) * startR);
+        ctx.lineTo(mx, my);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#D97706";
+        ctx.lineWidth = 3.5 * (1 - prog * 0.45);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        // 沿裂縫向上跳起的立體多邊形崩岩塊
+        const hop = Math.sin(prog * Math.PI) * 16;
+        ctx.fillStyle = "#92400E";
+        ctx.strokeStyle = "#291509";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(mx - 5, my - hop);
+        ctx.lineTo(mx + 1, my - 7 - hop);
+        ctx.lineTo(mx + 6, my - 1 - hop);
+        ctx.lineTo(mx + 2, my + 4 - hop);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  },
+
+  // ==========================================================================
+  // 圖層 2：空中與特效層渲染 (renderAerialLayer) — 具象化招式與超武，嚴守 30px 主角淨空區
+  // ==========================================================================
+  renderAerialLayer(ctx, toSx, toSy) {
+    const now = performance.now() * 0.004;
+
+    // 1. 空中持續特效 (龍捲風、月光聖柱、推進式立體大字爆炎、比卡超天罰雷柱風暴、下墜隕石、次元龍魂波)
+    this.groundHazards.forEach(hz => {
+      if (hz.kind === "meteor_strike" && hz.delay > 0) return;
+      const sx = toSx(hz.x), sy = toSy(hz.y);
+      const prog = 1 - Math.max(0, hz.timer / hz.maxTime);
+      ctx.save();
+
+      if (hz.kind === "moon_pillar") {
         const alpha = Math.sin((1 - prog) * Math.PI) * 0.85;
-        // 底部立體雙環折射陣
         ctx.fillStyle = `rgba(131, 24, 67, ${alpha * 0.45})`;
         ctx.strokeStyle = `rgba(244, 114, 182, ${alpha})`;
         ctx.lineWidth = 3.5;
@@ -1300,7 +1860,6 @@ const SkillsEngine = {
         ctx.fill();
         ctx.stroke();
 
-        // 光柱外層粉紫邊與內核明黃白光束
         const grad = ctx.createLinearGradient(sx, sy, sx, sy - 200);
         grad.addColorStop(0, `rgba(244, 114, 182, ${alpha * 0.75})`);
         grad.addColorStop(0.5, `rgba(253, 224, 71, ${alpha * 0.55})`);
@@ -1310,17 +1869,9 @@ const SkillsEngine = {
 
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
         ctx.fillRect(sx - hz.radius * 0.25, sy - 200, hz.radius * 0.5, 200);
-
-        ctx.strokeStyle = `rgba(254, 240, 138, ${alpha})`;
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.ellipse(sx, sy, hz.radius * 0.7, hz.radius * 0.38, 0, 0, Math.PI * 2);
-        ctx.stroke();
       } else if (hz.kind === "tornado") {
-        // 參考 IMG_5056 頂部錐形立體龍捲風：由下往上由窄變寬的 6 層錐形螺旋風環 + 深灰藍描邊襯底
         ctx.translate(sx, sy);
         ctx.globalAlpha = Math.min(1, hz.timer * 1.2);
-        // 地面吸扯風眼暗影
         ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
         ctx.beginPath();
         ctx.ellipse(0, 6, hz.radius * 0.85, hz.radius * 0.42, 0, 0, Math.PI * 2);
@@ -1333,20 +1884,19 @@ const SkillsEngine = {
           const swayX = Math.sin(now * 5 + ring * 0.8) * 5;
           ctx.save();
           ctx.translate(swayX, rY);
-          // 底層深色描邊
           ctx.strokeStyle = "#334155";
           ctx.lineWidth = 6.5;
           ctx.beginPath();
           ctx.ellipse(0, 0, rRadX, rRadY, 0, 0, Math.PI * 2);
           ctx.stroke();
-          // 中層青白高速旋轉風帶
+
           ctx.rotate(now * 6 + ring * 1.1);
           ctx.strokeStyle = ring % 2 === 0 ? "#CBD5E1" : "#38BDF8";
           ctx.lineWidth = 3.8;
           ctx.beginPath();
           ctx.arc(0, 0, rRadX, 0, Math.PI * 1.45);
           ctx.stroke();
-          // 頂層純白高光風刃
+
           ctx.strokeStyle = "#FFFFFF";
           ctx.lineWidth = 1.8;
           ctx.beginPath();
@@ -1355,7 +1905,6 @@ const SkillsEngine = {
           ctx.restore();
         }
       } else if (hz.kind === "dragon_wave") {
-        // V10 三層次元新月龍魂破：深靛藍暗底 ➔ 電光青中層 ➔ 純白激光刃口 + 雙重殘影弧
         ctx.translate(sx, sy);
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = Math.max(0, hz.timer / hz.maxTime);
@@ -1386,7 +1935,6 @@ const SkillsEngine = {
       } else if (hz.kind === "meteor_strike") {
         const curX = toSx(hz.startX + (hz.x - hz.startX) * prog);
         const curY = toSy(hz.startY + (hz.y - hz.startY) * prog);
-        // 地面立體雙環靶心預警
         ctx.fillStyle = "rgba(67, 56, 202, 0.22)";
         ctx.strokeStyle = "#818CF8";
         ctx.lineWidth = 2.5;
@@ -1401,7 +1949,6 @@ const SkillsEngine = {
         ctx.ellipse(sx, sy, hz.radius * prog, hz.radius * 0.55 * prog, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 下墜立體隕石 + 雙色長尾烈焰 (參考 IMG_5056 隕石序列)
         ctx.save();
         ctx.translate(curX, curY);
         const mAng = Math.atan2(hz.y - hz.startY, hz.x - hz.startX);
@@ -1418,7 +1965,6 @@ const SkillsEngine = {
         ctx.closePath();
         ctx.fill();
 
-        // 三切面立體隕石核心
         ctx.fillStyle = "#312E81";
         ctx.strokeStyle = "#1E1B4B";
         ctx.lineWidth = 2.2;
@@ -1432,398 +1978,316 @@ const SkillsEngine = {
         ctx.arc(4, -3, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-      } else if (hz.kind === "quake_fissure") {
-        // V10 三層立體深坑裂隙 (12px 深褐暗溝 + 4.5px 地脈金光 + 1.8px 白熾斷層)
-        ctx.translate(sx, sy);
-        ctx.globalAlpha = Math.min(1, hz.timer * 1.2);
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        for (let k = 0; k < 8; k++) {
-          const a = (k * Math.PI * 2) / 8 + (k % 2 === 0 ? 0.08 : -0.08);
-          const midLen = hz.radius * 0.52;
-          const mx = Math.cos(a + 0.14) * midLen;
-          const my = Math.sin(a + 0.14) * midLen;
-          const ex = Math.cos(a) * hz.radius;
-          const ey = Math.sin(a) * hz.radius;
+      } else if (hz.kind === "thunder_pillars_storm") {
+        // 【比卡超超武・打雷暴風雨】：黑金雷雲壓頂 ＋ 8 道垂直落下的三層白熾天罰雷柱（外纏螺旋電弧）
+        const elapsed = hz.maxTime - hz.timer;
+        (hz.strikePts || []).forEach((pt, idx) => {
+          const localAge = elapsed - pt.delay;
+          if (localAge < -0.15) return;
+          const px = toSx(pt.x), py = toSy(pt.y);
 
-          ctx.strokeStyle = "#451A03";
-          ctx.lineWidth = 12;
-          ctx.beginPath();
-          ctx.moveTo(0, 0); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#D97706";
-          ctx.lineWidth = 4.5;
-          ctx.beginPath();
-          ctx.moveTo(0, 0); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#FEF08A";
-          ctx.lineWidth = 1.8;
-          ctx.beginPath();
-          ctx.moveTo(0, 0); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-        }
-      } else if (hz.kind === "ice_shatter_domain") {
-        // V10 雙排交錯立體冰稜矩陣 (內6順時針、外8逆時針) + IMG_5056 雙向流動極光幔帳
-        ctx.translate(sx, sy);
-        const r = hz.radius * Math.min(1, prog * 1.5);
-        const spin = now * 1.2;
-
-        // 極光交錯幔帳底襯
-        const grad1 = ctx.createLinearGradient(-r, -r * 0.5, r, r * 0.5);
-        grad1.addColorStop(0, "rgba(56, 189, 248, 0.28)");
-        grad1.addColorStop(0.5, "rgba(52, 211, 153, 0.22)");
-        grad1.addColorStop(1, "rgba(192, 132, 252, 0.28)");
-        ctx.fillStyle = grad1;
-        ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = "#E0F2FE";
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // 內排 6 枚順時針立體雙色切面冰稜
-        for (let k = 0; k < 6; k++) {
-          const a = spin * 1.5 + (k * Math.PI) / 3;
-          const px = Math.cos(a) * (r * 0.45);
-          const py = Math.sin(a) * (r * 0.45);
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.rotate(a);
-          ctx.fillStyle = "#0284C7";
-          ctx.strokeStyle = "#FFFFFF";
-          ctx.lineWidth = 1.8;
-          ctx.beginPath();
-          ctx.moveTo(0, -12); ctx.lineTo(9, 0); ctx.lineTo(0, 12); ctx.lineTo(-9, 0);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        }
-
-        // 外排 8 枚逆時針立體雙色切面大冰塊 (參考 IMG_5056 冰岩切面)
-        for (let k = 0; k < 8; k++) {
-          const a = -spin + (k * Math.PI) / 4 + 0.39;
-          const px = Math.cos(a) * (r * 0.82);
-          const py = Math.sin(a) * (r * 0.82);
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.rotate(-a);
-          ctx.fillStyle = "#38BDF8";
-          ctx.strokeStyle = "#0369A1";
-          ctx.lineWidth = 2.2;
-          ctx.beginPath();
-          ctx.moveTo(0, -16); ctx.lineTo(12, -4); ctx.lineTo(8, 14); ctx.lineTo(-8, 14); ctx.lineTo(-12, -4);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          // 左半亮白折射切面
-          ctx.fillStyle = "#E0F2FE";
-          ctx.beginPath();
-          ctx.moveTo(0, -14); ctx.lineTo(-10, -3); ctx.lineTo(-6, 12); ctx.lineTo(0, 12);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
-      } else if (hz.kind === "psychic_blackhole") {
-        // V10 二段式漸進放大黑洞：外圍厚積盤 + 逆時針旋轉吸扯臂 + 純黑奇點核心 + GBA 雙色鬼火環繞
-        ctx.translate(sx, sy);
-        const curR = hz.radius * (0.45 + 0.55 * Math.sin((1 - prog) * Math.PI));
-        const grad = ctx.createRadialGradient(0, 0, curR * 0.25, 0, 0, curR);
-        grad.addColorStop(0, "rgba(2, 6, 23, 0.92)");
-        grad.addColorStop(0.55, "rgba(126, 34, 206, 0.45)");
-        grad.addColorStop(1, "rgba(192, 132, 252, 0)");
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(0, 0, curR, 0, Math.PI * 2);
-        ctx.fill();
-
-        const spin = -now * 2.2;
-        ctx.strokeStyle = "#C084FC";
-        ctx.lineWidth = 3.5;
-        for (let a = 0; a < 4; a++) {
-          ctx.beginPath();
-          ctx.arc(0, 0, curR * (0.45 + a * 0.12), spin + a * 1.57, spin + a * 1.57 + 1.15);
-          ctx.stroke();
-        }
-
-        // 純黑奇點核心
-        ctx.fillStyle = "#020617";
-        ctx.strokeStyle = "#F472B6";
-        ctx.lineWidth = 3.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, 26, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-      } else if (hz.kind === "eight_hydro_pillars") {
-        // V10 八方正弦高壓水柱大迴旋 + 王冠浪花 (開啟 lighter 呈現通透水光)
-        ctx.translate(sx, sy);
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = Math.min(1, hz.timer * 1.3);
-        const pLen = hz.radius * Math.min(1, prog * 2.2);
-        const pW = hz.width || 42;
-        for (let pi = 0; pi < 8; pi++) {
-          ctx.save();
-          ctx.rotate((hz.rotAngle || 0) + (pi * Math.PI * 2) / 8);
-          ctx.fillStyle = "rgba(2, 132, 199, 0.55)";
-          ctx.beginPath();
-          ctx.moveTo(12, -pW * 0.45);
-          for (let x = 12; x <= pLen; x += 18) {
-            const wv = Math.sin(now * 6 + x * 0.08) * 4;
-            ctx.lineTo(x, -pW * 0.45 + wv);
-          }
-          for (let x = pLen; x >= 12; x -= 18) {
-            const wv = Math.sin(now * 6 + x * 0.08) * 4;
-            ctx.lineTo(x, pW * 0.45 + wv);
-          }
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.strokeStyle = "#E0F2FE";
-          ctx.lineWidth = 3.8;
-          ctx.beginPath();
-          ctx.moveTo(12, 0); ctx.lineTo(pLen * 0.96, 0);
-          ctx.stroke();
-
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.arc(pLen, 0, pW * 0.55, -Math.PI / 2, Math.PI / 2);
-          ctx.fill();
-          ctx.restore();
-        }
-      } else if (hz.kind === "zapdos_storm_web") {
-        // V10 閃電鳥六芒星高頻跳動分形電網
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = Math.min(1, hz.timer);
-        const pts = hz.hitPts || [];
-        for (let idx = 0; idx < pts.length; idx++) {
-          const p1 = pts[idx];
-          const p2 = pts[(idx + 1) % pts.length];
-          const x1 = toSx(p1.x), y1 = toSy(p1.y);
-          const x2 = toSx(p2.x), y2 = toSy(p2.y);
-          const mx = (x1 + x2) * 0.5 + (Math.random() - 0.5) * 22;
-          const my = (y1 + y2) * 0.5 + (Math.random() - 0.5) * 22;
-
+          // 1. 頭頂黑金滾動雷雲
+          const cloudY = py - 210;
+          ctx.fillStyle = "rgba(30, 27, 75, 0.85)";
           ctx.strokeStyle = "#FACC15";
-          ctx.lineWidth = 4.8;
-          ctx.beginPath();
-          ctx.moveTo(sx, sy); ctx.lineTo((sx + x1) * 0.5 + (Math.random() - 0.5) * 18, (sy + y1) * 0.5 + (Math.random() - 0.5) * 18); ctx.lineTo(x1, y1);
-          ctx.moveTo(x1, y1); ctx.lineTo(mx, my); ctx.lineTo(x2, y2);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#FFFFFF";
           ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.arc(px - 14, cloudY, 16, 0, Math.PI * 2);
+          ctx.arc(px + 14, cloudY, 15, 0, Math.PI * 2);
+          ctx.arc(px, cloudY - 8, 20, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
 
-          ctx.fillStyle = "#FEF08A";
-          ctx.beginPath();
-          ctx.arc(x1, y1, 8, 0, Math.PI * 2);
-          ctx.fill();
-        }
+          if (localAge >= 0 && localAge <= 0.65) {
+            const boltAlpha = Math.max(0, 1 - localAge / 0.65);
+            ctx.save();
+            ctx.globalAlpha = boltAlpha;
+
+            // 2. 地面焦黑電漿擴散圈
+            ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+            ctx.beginPath();
+            ctx.ellipse(px, py, 28, 13, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = "#FACC15";
+            ctx.lineWidth = 3.0;
+            ctx.beginPath();
+            ctx.ellipse(px, py, 16 + localAge * 45, 7 + localAge * 20, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // 3. 三層垂直白熾天罰雷柱（外金黃 ➔ 中亮白 ➔ 螺旋纏繞電弧）
+            ctx.fillStyle = "rgba(250, 204, 21, 0.55)";
+            ctx.fillRect(px - 13, cloudY, 26, py - cloudY);
+
+            ctx.fillStyle = "#FEF08A";
+            ctx.fillRect(px - 7, cloudY, 14, py - cloudY);
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(px - 3, cloudY, 6, py - cloudY);
+
+            // 螺旋纏繞電弧
+            ctx.strokeStyle = "#FEF08A";
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            for (let y = cloudY; y <= py; y += 14) {
+              const hx = px + Math.sin(y * 0.08 + now * 12 + idx) * 16;
+              if (y === cloudY) ctx.moveTo(hx, y);
+              else ctx.lineTo(hx, y);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+        });
       } else if (hz.kind === "drifting_daimonji") {
-        // V10 推進式立體大字爆炎
+        // 【噴火龍超武・立體大字爆炎】：由密集翻滾動態火球簇構成『大』字圖騰，筆畫末端帶烈焰尖角
         ctx.translate(sx, sy);
         ctx.rotate(hz.angle || 0);
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = Math.min(1, hz.timer);
+        ctx.globalAlpha = Math.min(1, hz.timer * 1.3);
         const r = hz.radius * 0.85;
-        const drawD = () => {
-          ctx.beginPath();
-          ctx.moveTo(-r * 0.7, -r * 0.2); ctx.lineTo(r * 0.7, -r * 0.2);
-          ctx.moveTo(0, -r * 0.8); ctx.quadraticCurveTo(-r * 0.1, r * 0.1, -r * 0.7, r * 0.7);
-          ctx.moveTo(0, -r * 0.2); ctx.quadraticCurveTo(r * 0.2, r * 0.2, r * 0.7, r * 0.7);
-        };
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#DC2626"; ctx.lineWidth = 16; drawD(); ctx.stroke();
-        ctx.strokeStyle = "#F97316"; ctx.lineWidth = 9;  drawD(); ctx.stroke();
-        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 3.5; drawD(); ctx.stroke();
-      } else {
-        ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = Math.max(0, 1 - prog);
-        ctx.strokeStyle = hz.color || "#EC4899";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.arc(sx, sy, hz.radius * (0.4 + prog * 0.6), 0, Math.PI * 2);
-        ctx.stroke();
+
+        // 定義『大』字五筆畫的關鍵節點路徑
+        const strokes = [
+          // 橫畫 (-0.75r, -0.18r) -> (0.75r, -0.18r)
+          { x1: -r * 0.75, y1: -r * 0.18, x2: r * 0.75, y2: -r * 0.18 },
+          // 撇畫上半 (0, -0.82r) -> (-0.12r, 0.05r)
+          { x1: 0, y1: -r * 0.82, x2: -r * 0.12, y2: r * 0.05 },
+          // 撇畫下半 (-0.12r, 0.05r) -> (-0.74r, 0.74r)
+          { x1: -r * 0.12, y1: r * 0.05, x2: -r * 0.74, y2: r * 0.74 },
+          // 捺畫上半 (0, -0.18r) -> (0.25r, 0.25r)
+          { x1: 0, y1: -r * 0.18, x2: r * 0.25, y2: r * 0.25 },
+          // 捺畫下半 (0.25r, 0.25r) -> (0.74r, 0.74r)
+          { x1: r * 0.25, y1: r * 0.25, x2: r * 0.74, y2: r * 0.74 }
+        ];
+
+        // 先繪製翻滾火球簇外層深紅烈焰
+        strokes.forEach((st, sIdx) => {
+          const steps = 6;
+          for (let k = 0; k <= steps; k++) {
+            const t = k / steps;
+            const pulse = Math.sin(now * 10 + k + sIdx) * 3.5;
+            const fx = st.x1 + (st.x2 - st.x1) * t;
+            const fy = st.y1 + (st.y2 - st.y1) * t + pulse * 0.4;
+            const rad = (k === 0 || k === steps ? 13 : 11) + pulse * 0.5;
+
+            ctx.fillStyle = "#B91C1C";
+            ctx.beginPath();
+            ctx.arc(fx, fy, rad + 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#F97316";
+            ctx.beginPath();
+            ctx.arc(fx, fy, rad, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "#FEF08A";
+            ctx.beginPath();
+            ctx.arc(fx + 2, fy, rad * 0.48, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
       }
       ctx.restore();
     });
 
-    // 2. 繪製近戰刀光、S藤鞭、V10立體地震裂隙 (meleeEffects)
+    // 2. 空中近戰與環形氣浪特效 (藤鞭錐形流線＋音爆半月、空手劈X十字氣勁、撞擊破空音爆錐、比卡超外圍蓄電環)
     this.meleeEffects.forEach(m => {
+      if (m.style === "quake_wave") return; // 已在地面底層繪製
       const prog = 1 - (m.timer / m.maxTime);
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
 
       if (m.style === "vine_whip") {
+        // 【奇異種子・藤鞭】：根粗尾尖錐形流線 ＋ 交錯翠綠葉片 ＋ 末端半月形破空音爆斬痕
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
         ctx.save();
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
 
-        const reach = m.reach * Math.min(1, prog * 1.7);
-        const thickness = 7.5;
-        const waveFreq = 2.4;
-        const waveAmp = (1 - prog * 0.45) * 22;
+        const reach = m.reach * Math.min(1, prog * 1.75);
+        const waveFreq = 2.2;
+        const waveAmp = (1 - prog * 0.55) * 20;
 
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
+        // 逐段繪製「根粗尾尖」錐形藤蔓
+        const segs = 14;
+        for (let s = 0; s < segs; s++) {
+          const t0 = s / segs;
+          const t1 = (s + 1) / segs;
+          const x0 = t0 * reach;
+          const x1 = t1 * reach;
+          const y0 = Math.sin(t0 * Math.PI * waveFreq) * waveAmp * Math.sin(t0 * Math.PI);
+          const y1 = Math.sin(t1 * Math.PI * waveFreq) * waveAmp * Math.sin(t1 * Math.PI);
+          const w = Math.max(2.2, 8.5 * (1 - t0 * 0.75));
 
-        // 底層深綠硬邊襯底
-        ctx.strokeStyle = "#052E16";
-        ctx.lineWidth = thickness + 4.5;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        for (let x = 0; x <= reach; x += 8) {
-          const t = x / reach;
-          const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
-          ctx.lineTo(x, y);
-        }
-        ctx.stroke();
+          ctx.lineCap = "round";
+          ctx.strokeStyle = "#052E16";
+          ctx.lineWidth = w + 3.5;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
 
-        // 中層翠綠主幹
-        ctx.strokeStyle = "#22C55E";
-        ctx.lineWidth = thickness;
-        ctx.stroke();
+          ctx.strokeStyle = "#22C55E";
+          ctx.lineWidth = w;
+          ctx.stroke();
 
-        // 內層亮嫩綠高光脊線
-        ctx.strokeStyle = "#BBF7D0";
-        ctx.lineWidth = 2.0;
-        ctx.stroke();
+          ctx.strokeStyle = "#BBF7D0";
+          ctx.lineWidth = Math.max(1.0, w * 0.28);
+          ctx.stroke();
 
-        for (let step = 25; step < reach - 16; step += 22) {
-          const t = step / reach;
-          const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
-          const side = (step % 44 === 0) ? 1 : -1;
-
-          ctx.fillStyle = "#14532D";
-          ctx.beginPath();
-          ctx.moveTo(step, y);
-          ctx.lineTo(step + 5, y + side * (thickness + 6));
-          ctx.lineTo(step - 3, y + side * (thickness + 1.5));
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.fillStyle = "#86EFAC";
-          ctx.beginPath();
-          ctx.arc(step, y + side * (thickness * 0.55), 2.2, 0, Math.PI * 2);
-          ctx.fill();
+          // 每隔兩段長出交錯翠綠葉片
+          if (s > 1 && s < segs - 1 && s % 2 === 0) {
+            const side = (s % 4 === 0) ? 1 : -1;
+            ctx.save();
+            ctx.translate(x0, y0);
+            ctx.rotate(side * 0.65);
+            ctx.fillStyle = "#16A34A";
+            ctx.strokeStyle = "#052E16";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.ellipse(6, 0, 7, 3.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+          }
         }
 
-        ctx.strokeStyle = "#86EFAC";
-        ctx.lineWidth = 3.0;
+        // 鞭梢末端甩出亮青白「半月形破空音爆斬痕 (Whip Crack Slash)」
+        if (prog > 0.35) {
+          const slashAlpha = Math.sin(((prog - 0.35) / 0.65) * Math.PI);
+          ctx.save();
+          ctx.translate(reach, 0);
+          ctx.globalAlpha = slashAlpha;
+          ctx.strokeStyle = "#059669";
+          ctx.lineWidth = 5.5;
+          ctx.beginPath();
+          ctx.arc(-8, 0, 22, -0.95, 0.95);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#E0FFFF";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(-6, 0, 22, -0.88, 0.88);
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      } else if (m.style === "karate_cross") {
+        // 【空手劈】：剛猛「X 型白熾十字氣勁斬痕 + 拳風殘影」
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const r = m.radius * (0.55 + prog * 0.55);
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.rotate(m.angle || 0);
+
+        // 兩道交錯的 X 型氣勁斬痕
+        [-0.75, 0.75].forEach(rot => {
+          ctx.save();
+          ctx.rotate(rot);
+          ctx.fillStyle = "#7F1D1D";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.15, 6.5 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#FACC15";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 1.05, 4.2 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.85, 2.0 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        ctx.restore();
+      } else if (m.style === "sonic_cone") {
+        // 【撞擊 / 終極衝擊】：帶殘影的破空音爆氣錐 (Sonic Boom Cone)
+        const osx = toSx(m.ox !== undefined ? m.ox : m.x);
+        const osy = toSy(m.oy !== undefined ? m.oy : m.y);
+        const curR = m.radius * (0.35 + prog * 0.72);
+        ctx.save();
+        ctx.translate(osx, osy);
+        ctx.rotate(m.angle || 0);
+
+        // 後方音爆擴散環
+        ctx.strokeStyle = m.color || "#F8FAFC";
+        ctx.lineWidth = 3.0 * (1 - prog * 0.5);
         ctx.beginPath();
-        ctx.arc(reach, 0, 15 * prog, 0, Math.PI * 2);
+        ctx.ellipse(curR * 0.35, 0, curR * 0.25, curR * 0.65, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 1.6;
+        // 前方流線破空錐尖
+        ctx.fillStyle = "rgba(255, 255, 255, 0.38)";
+        ctx.strokeStyle = m.color || "#FFFFFF";
+        ctx.lineWidth = 2.6;
         ctx.beginPath();
-        ctx.arc(reach, 0, 8 * prog, 0, Math.PI * 2);
+        ctx.moveTo(curR * 1.25, 0);
+        ctx.lineTo(curR * 0.15, -curR * 0.55);
+        ctx.lineTo(curR * 0.42, 0);
+        ctx.lineTo(curR * 0.15, curR * 0.55);
+        ctx.closePath();
+        ctx.fill();
         ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "electric_cheek_aura") {
+        // 【比卡超】：外圍 30px 電氣蓄電環（淨空中心）
+        const cx = m.casterRef ? toSx(m.casterRef.x) : toSx(m.x);
+        const cy = m.casterRef ? toSy(m.casterRef.y) : toSy(m.y);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.arc(0, 0, m.radius + prog * 6, now * 5, now * 5 + Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "z_spark") {
+        // 【比卡超十萬伏特命中】：金白十字電火花
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const s = m.radius * (0.6 + prog * 0.5);
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.rotate(prog * 1.5);
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath();
+        ctx.moveTo(0, -s); ctx.lineTo(s * 0.25, -s * 0.25);
+        ctx.lineTo(s, 0); ctx.lineTo(s * 0.25, s * 0.25);
+        ctx.lineTo(0, s); ctx.lineTo(-s * 0.25, s * 0.25);
+        ctx.lineTo(-s, 0); ctx.lineTo(-s * 0.25, -s * 0.25);
+        ctx.closePath();
+        ctx.fill();
 
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.28, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
       } else if (m.style === "slam_wave") {
         const msx = toSx(m.x), msy = toSy(m.y);
         const curR = m.radius * (0.35 + prog * 0.65);
         ctx.save();
         ctx.translate(msx, msy);
-        ctx.rotate(m.angle || 0);
-
-        if (m.ox !== undefined) {
-          // 撞擊身前俐落雙層氣浪
-          ctx.strokeStyle = "rgba(15, 23, 42, 0.55)";
-          ctx.lineWidth = 5.0 * (1 - prog * 0.5);
-          ctx.beginPath();
-          ctx.arc(0, 0, curR, -0.68, 0.68);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#F8FAFC";
-          ctx.lineWidth = 2.5 * (1 - prog * 0.5);
-          ctx.beginPath();
-          ctx.arc(0, 0, curR, -0.65, 0.65);
-          ctx.stroke();
-        } else {
-          // 範圍震爆環（空手劈拳印、種子炸彈爆圈等）
-          ctx.strokeStyle = "#0F172A";
-          ctx.lineWidth = 5.5 * (1 - prog * 0.5);
-          ctx.beginPath();
-          ctx.arc(0, 0, curR, 0, Math.PI * 2);
-          ctx.stroke();
-
-          ctx.strokeStyle = m.color || "#FACC15";
-          ctx.lineWidth = 3.2 * (1 - prog * 0.5);
-          ctx.beginPath();
-          ctx.arc(0, 0, curR, 0, Math.PI * 2);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#FFFFFF";
-          ctx.lineWidth = 1.4;
-          ctx.beginPath();
-          ctx.arc(0, 0, curR * 0.82, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        ctx.restore();
-      } else if (m.style === "quake_wave") {
-        // V10 立體雙層深坑裂隙 (11px 深褐暗溝 + 4px 地脈金光 + 1.6px 白芯)
-        const msx = toSx(m.x), msy = toSy(m.y);
-        const curR = m.radius * (0.28 + prog * 0.72);
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-
-        ctx.fillStyle = "rgba(69, 26, 3, 0.25)";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 5.0 * (1 - prog * 0.5);
         ctx.beginPath();
-        ctx.arc(msx, msy, curR * 0.65, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.stroke();
 
-        for (let crack = 0; crack < 8; crack++) {
-          const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.09 : -0.09);
-          const midR = curR * 0.55;
-          const mx = msx + Math.cos(cAng + 0.12) * midR;
-          const my = msy + Math.sin(cAng + 0.12) * midR;
-          const ex = msx + Math.cos(cAng) * curR;
-          const ey = msy + Math.sin(cAng) * curR;
-
-          ctx.strokeStyle = "#451A03";
-          ctx.lineWidth = 10 * (1 - prog * 0.45);
-          ctx.beginPath();
-          ctx.moveTo(msx, msy); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#D97706";
-          ctx.lineWidth = 3.8 * (1 - prog * 0.45);
-          ctx.beginPath();
-          ctx.moveTo(msx, msy); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#FEF08A";
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.moveTo(msx, msy); ctx.lineTo(mx, my); ctx.lineTo(ex, ey);
-          ctx.stroke();
-        }
+        ctx.strokeStyle = m.color || "#FACC15";
+        ctx.lineWidth = 3.0 * (1 - prog * 0.5);
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       } else {
-        // V10 居合/龍爪三層立體刀芒 + 後方延遲漸隱殘影弧線
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
         const curR = m.radius * (0.28 + prog * 0.75);
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
 
-        [-0.22, -0.11].forEach((off, idx) => {
-          ctx.strokeStyle = idx === 0 ? "rgba(30, 58, 138, 0.45)" : "rgba(56, 189, 248, 0.65)";
-          ctx.lineWidth = 5;
-          ctx.beginPath();
-          ctx.arc(0, 0, curR * (0.72 + idx * 0.12), -0.75, 0.75);
-          ctx.stroke();
-        });
-
         ctx.fillStyle = "#1E1B4B";
         ctx.strokeStyle = m.color || "#4338CA";
-        ctx.lineWidth = 4.5;
+        ctx.lineWidth = 4.2;
         ctx.beginPath();
         ctx.arc(0, 0, curR, -0.9, 0.9);
         ctx.arc(0, 0, curR * 0.42, 0.9, -0.9, true);
@@ -1832,7 +2296,7 @@ const SkillsEngine = {
         ctx.stroke();
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 3.2;
+        ctx.lineWidth = 3.0;
         ctx.beginPath();
         ctx.arc(0, 0, curR, -0.82, 0.82);
         ctx.stroke();
@@ -1840,93 +2304,23 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 3. 繪製全屏超武主圖騰 (開啟 lighter 加色發光，兼具高對比與霓虹通透度)
+    // 3. 超武啟動外環提示（避開主角中心 40px，只向外擴散）
     this.ultimateVfxList.forEach(u => {
       const prog = 1 - (u.timer / u.maxTime);
       const usx = toSx(u.x), usy = toSy(u.y);
       ctx.save();
-      ctx.globalCompositeOperation = "lighter";
-
-      if (u.type === "Fire") {
-        // V10 立體三層大字爆炎 (深紅黑底框 18px ➔ 鮮紅橙中層 10px ➔ 明黃白芯 4px)
-        ctx.translate(usx, usy);
-        const curR = u.radius * (0.4 + prog * 0.65);
-        ctx.globalAlpha = Math.max(0, 1 - prog * 0.75);
-
-        ctx.strokeStyle = "#7F1D1D";
-        ctx.lineWidth = 10 * (1 - prog * 0.5);
-        ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI * 2); ctx.stroke();
-
-        ctx.strokeStyle = "#F97316";
-        ctx.lineWidth = 5 * (1 - prog * 0.5);
-        ctx.beginPath(); ctx.arc(0, 0, curR, 0, Math.PI * 2); ctx.stroke();
-
-        const sz = 68 * (1 + prog * 0.45);
-        const drawDaimonji = () => {
-          ctx.beginPath();
-          ctx.moveTo(-sz * 0.75, -sz * 0.18); ctx.lineTo(sz * 0.75, -sz * 0.18);
-          ctx.moveTo(0, -sz * 0.82); ctx.quadraticCurveTo(-sz * 0.1, sz * 0.12, -sz * 0.75, sz * 0.75);
-          ctx.moveTo(0, -sz * 0.18); ctx.quadraticCurveTo(sz * 0.22, sz * 0.22, sz * 0.75, sz * 0.75);
-        };
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "#7F1D1D"; ctx.lineWidth = 18 * (1 - prog * 0.4); drawDaimonji(); ctx.stroke();
-        ctx.strokeStyle = "#EF4444"; ctx.lineWidth = 11 * (1 - prog * 0.4); drawDaimonji(); ctx.stroke();
-        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 4.2 * (1 - prog * 0.4); drawDaimonji(); ctx.stroke();
-
-      } else if (u.type === "Water") {
-        ctx.translate(usx, usy);
-        ctx.globalAlpha = Math.max(0, 1 - prog * 0.75);
-        ctx.rotate(-prog * 4.5);
-
-        for (let arm = 0; arm < 4; arm++) {
-          const aAng = (arm * Math.PI * 2) / 4;
-          ctx.strokeStyle = "#0369A1";
-          ctx.lineWidth = 9 * (1 - prog * 0.45);
-          ctx.beginPath();
-          ctx.arc(0, 0, 70 + prog * 130, aAng, aAng + 1.25);
-          ctx.stroke();
-
-          ctx.strokeStyle = arm % 2 === 0 ? "#38BDF8" : "#E0F2FE";
-          ctx.lineWidth = 4.5 * (1 - prog * 0.45);
-          ctx.beginPath();
-          ctx.arc(0, 0, 70 + prog * 130, aAng, aAng + 1.2);
-          ctx.stroke();
-        }
-      } else if (u.type === "Grass") {
-        ctx.translate(usx, usy);
-        ctx.globalAlpha = Math.max(0, 1 - prog * 0.7);
-        ctx.strokeStyle = "#052E16";
-        ctx.lineWidth = 8 * (1 - prog * 0.5);
-        ctx.beginPath();
-        ctx.arc(0, 0, 80 + prog * 110, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#22C55E";
-        ctx.lineWidth = 4 * (1 - prog * 0.5);
-        ctx.stroke();
-      } else {
-        ctx.translate(usx, usy);
-        ctx.globalAlpha = Math.max(0, 1 - prog * 0.8);
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 9 * (1 - prog * 0.5);
-        ctx.beginPath();
-        ctx.arc(0, 0, 50 + prog * 170, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = u.color || "#FACC15";
-        ctx.lineWidth = 5 * (1 - prog * 0.5);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(0, 0, 32 + prog * 145, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      ctx.translate(usx, usy);
+      ctx.globalAlpha = Math.max(0, 1 - prog * 0.85);
+      const ringR = 42 + prog * 185;
+      ctx.strokeStyle = u.color || "#FACC15";
+      ctx.lineWidth = 4.5 * (1 - prog * 0.5);
+      ctx.beginPath();
+      ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+      ctx.stroke();
       ctx.restore();
     });
 
-    // 4. 繪製立體投射物彈幕 (projectiles：GBA四階火舌、螺旋氣泡水柱與王冠水花、純黑奇點暗影球、木紋橡子、三層風刃)
+    // 4. 具象化投射物彈幕 (projectiles)
     this.projectiles.forEach(pr => {
       const sx = toSx(pr.x), sy = toSy(pr.y);
       const r = pr.radius;
@@ -1934,7 +2328,6 @@ const SkillsEngine = {
       ctx.translate(sx, sy);
 
       if (pr.vfx === "ember_spark") {
-        // 火花：深紅硬邊 ➔ 鮮橙火舌 ➔ 明黃白芯
         ctx.rotate(pr.angle || 0);
         ctx.fillStyle = "#7F1D1D";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.88, 0, Math.PI * 2); ctx.fill();
@@ -1944,132 +2337,194 @@ const SkillsEngine = {
         ctx.beginPath(); ctx.arc(r * 0.22, -r * 0.12, r * 0.38, 0, Math.PI * 2); ctx.fill();
 
       } else if (pr.vfx === "fire_stream") {
-        // 噴射火焰：GBA 四階色溫動態分叉火舌 (IMG_5056 左下角火球結構)
+        // 【噴火龍・噴射火焰】：四色漸層翻湧火浪（亮白芯 ➔ 明黃 ➔ 橘紅 ➔ 尾端黑煙微粒）
         ctx.rotate(pr.angle || 0);
-        const flicker = Math.sin(now * 8 + pr.x * 0.05) * (r * 0.15);
+        const flicker = Math.sin(now * 9 + pr.x * 0.05) * (r * 0.16);
 
-        // 第1層：深褐紅硬描邊外廓
-        ctx.fillStyle = "#7F1D1D";
+        // 尾端暗煙霧團
+        ctx.fillStyle = "rgba(30, 41, 59, 0.45)";
         ctx.beginPath();
-        ctx.arc(r * 0.25, 0, r * 0.78, -Math.PI / 2, Math.PI / 2);
-        ctx.lineTo(-r * 1.15, r * 0.55 + flicker);
+        ctx.arc(-r * 0.95, flicker * 0.6, r * 0.52, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 深紅外廓火舌
+        ctx.fillStyle = "#991B1B";
+        ctx.beginPath();
+        ctx.arc(r * 0.25, 0, r * 0.82, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(-r * 1.18, r * 0.58 + flicker);
         ctx.lineTo(-r * 0.65, 0);
-        ctx.lineTo(-r * 1.15, -r * 0.55 + flicker);
+        ctx.lineTo(-r * 1.18, -r * 0.58 + flicker);
         ctx.closePath();
         ctx.fill();
 
-        // 第2層：鮮紅主火身
-        ctx.fillStyle = "#DC2626";
-        ctx.beginPath();
-        ctx.arc(r * 0.25, 0, r * 0.64, -Math.PI / 2, Math.PI / 2);
-        ctx.lineTo(-r * 0.95, r * 0.42 + flicker);
-        ctx.lineTo(-r * 0.48, 0);
-        ctx.lineTo(-r * 0.95, -r * 0.42 + flicker);
-        ctx.closePath();
-        ctx.fill();
-
-        // 第3層：亮橙內焰
+        // 橘紅翻湧主火身
         ctx.fillStyle = "#F97316";
         ctx.beginPath();
-        ctx.ellipse(r * 0.1, 0, r * 0.55, r * 0.42, 0, 0, Math.PI * 2);
+        ctx.arc(r * 0.25, 0, r * 0.64, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(-r * 0.92, r * 0.40 + flicker);
+        ctx.lineTo(-r * 0.45, 0);
+        ctx.lineTo(-r * 0.92, -r * 0.40 + flicker);
+        ctx.closePath();
         ctx.fill();
 
-        // 第4層：明黃純白高熱火芯
-        ctx.fillStyle = "#FEF08A";
+        // 明黃高溫內焰
+        ctx.fillStyle = "#FACC15";
         ctx.beginPath();
-        ctx.ellipse(r * 0.28, 0, r * 0.32, r * 0.22, 0, 0, Math.PI * 2);
+        ctx.ellipse(r * 0.16, 0, r * 0.48, r * 0.34, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 純白熾熱火芯
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.ellipse(r * 0.30, 0, r * 0.26, r * 0.18, 0, 0, Math.PI * 2);
         ctx.fill();
 
       } else if (pr.vfx === "water_gun") {
-        // 水槍：晶瑩透亮青藍 (#00D2FF) + 高亮青白核心 (#E0FFFF) + 局部 lighter 發光
         ctx.rotate(pr.angle || 0);
-        ctx.globalCompositeOperation = "lighter";
-        ctx.fillStyle = "rgba(0, 210, 255, 0.85)";
+        ctx.fillStyle = "#0284C7";
         ctx.beginPath();
-        ctx.moveTo(r * 1.38, 0); ctx.lineTo(-r * 0.75, -r * 0.58); ctx.lineTo(-r * 0.32, 0); ctx.lineTo(-r * 0.75, r * 0.58);
+        ctx.moveTo(r * 1.42, 0); ctx.lineTo(-r * 0.78, -r * 0.62); ctx.lineTo(-r * 0.32, 0); ctx.lineTo(-r * 0.78, r * 0.62);
         ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = "#E0FFFF";
-        ctx.beginPath();
-        ctx.moveTo(r * 1.15, 0); ctx.lineTo(-r * 0.45, -r * 0.35); ctx.lineTo(-r * 0.12, 0); ctx.lineTo(-r * 0.45, r * 0.35);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(r * 0.35, 0, r * 0.28, 0, Math.PI * 2); ctx.fill();
-
-      } else if (pr.vfx === "water_beam") {
-        // 水炮：晶瑩青藍 (#00D2FF) + 純白螺旋水紋 (#E0FFFF) + 前端三尖王冠水花 + 局部 lighter 水光感
-        ctx.rotate(pr.angle || 0);
-        ctx.globalCompositeOperation = "lighter";
-        const tailLen = r * 2.1;
-
-        ctx.fillStyle = "rgba(2, 132, 199, 0.65)";
-        ctx.beginPath();
-        ctx.roundRect(-tailLen, -r * 0.58, tailLen + r * 0.4, r * 1.16, r * 0.5);
         ctx.fill();
 
         ctx.fillStyle = "#00D2FF";
         ctx.beginPath();
-        ctx.roundRect(-tailLen * 0.92, -r * 0.44, tailLen * 0.92 + r * 0.35, r * 0.88, r * 0.4);
+        ctx.moveTo(r * 1.25, 0); ctx.lineTo(-r * 0.58, -r * 0.44); ctx.lineTo(-r * 0.18, 0); ctx.lineTo(-r * 0.58, r * 0.44);
+        ctx.closePath();
         ctx.fill();
 
+        ctx.fillStyle = "#E0FFFF";
+        ctx.beginPath(); ctx.arc(r * 0.38, 0, r * 0.30, 0, Math.PI * 2); ctx.fill();
+
+      } else if (pr.vfx === "water_beam") {
+        // 【水箭龜・雙管高壓水炮】：高壓螺旋水紋 ＋ 前端破風半透明白色水花錐
+        ctx.rotate(pr.angle || 0);
+        const tailLen = r * 2.2;
+
+        ctx.fillStyle = "rgba(2, 132, 199, 0.85)";
+        ctx.beginPath();
+        ctx.roundRect(-tailLen, -r * 0.56, tailLen + r * 0.4, r * 1.12, r * 0.5);
+        ctx.fill();
+
+        ctx.fillStyle = "#00D2FF";
+        ctx.beginPath();
+        ctx.roundRect(-tailLen * 0.92, -r * 0.42, tailLen * 0.92 + r * 0.35, r * 0.84, r * 0.4);
+        ctx.fill();
+
+        // 高速旋轉亮青白螺旋水紋
         ctx.strokeStyle = "#E0FFFF";
         ctx.lineWidth = 2.6;
-        for (let s = -tailLen * 0.75; s < r * 0.1; s += r * 0.62) {
+        const phase = (now * 16) % (r * 0.62);
+        for (let s = -tailLen * 0.8 + phase; s < r * 0.15; s += r * 0.62) {
           ctx.beginPath();
           ctx.moveTo(s, -r * 0.38);
           ctx.lineTo(s + r * 0.35, r * 0.38);
           ctx.stroke();
         }
 
-        // 前端立體三尖王冠狀浪花冠 (#E0FFFF)
-        ctx.fillStyle = "#E0FFFF";
-        ctx.strokeStyle = "#00D2FF";
+        // 前端高壓破風水花錐 (Shockwave Cone)
+        ctx.fillStyle = "rgba(224, 255, 255, 0.78)";
+        ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(r * 0.1, -r * 0.88);
-        ctx.lineTo(r * 0.88, -r * 0.55);
-        ctx.lineTo(r * 0.48, -r * 0.18);
-        ctx.lineTo(r * 1.18, 0);
-        ctx.lineTo(r * 0.48, r * 0.18);
-        ctx.lineTo(r * 0.88, r * 0.55);
-        ctx.lineTo(r * 0.1, r * 0.88);
-        ctx.quadraticCurveTo(r * 0.42, 0, r * 0.1, -r * 0.88);
+        ctx.moveTo(r * 1.35, 0);
+        ctx.lineTo(r * 0.15, -r * 0.92);
+        ctx.quadraticCurveTo(r * 0.45, 0, r * 0.15, r * 0.92);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
       } else if (pr.vfx === "shadow_orb") {
-        // 暗影球：V10 純黑奇點核心 + 逆時針旋轉紫光吸附臂 + 亮白星芒核
-        const rot = -now * 2.5;
+        // 【耿鬼・暗影球】：純黑奇點核心 ＋ 不規則跳動紫黑幽冥鬼火外殼 ＋ 蒼白閃電紋
+        const rot = -now * 2.8;
+        ctx.save();
         ctx.rotate(rot);
 
-        ctx.strokeStyle = "#9333EA";
-        ctx.lineWidth = 3.0;
-        for (let k = 0; k < 3; k++) {
-          const a = (k * Math.PI * 2) / 3;
-          ctx.beginPath();
-          ctx.arc(0, 0, r * 0.95, a, a + 1.15);
-          ctx.stroke();
+        // 不規則跳動幽冥鬼火外殼（8 瓣鋸齒火焰）
+        ctx.fillStyle = "#581C87";
+        ctx.beginPath();
+        for (let k = 0; k < 16; k++) {
+          const a = (k * Math.PI * 2) / 16;
+          const rad = (k % 2 === 0) ? r * (0.98 + Math.sin(now * 12 + k) * 0.14) : r * 0.72;
+          const px = Math.cos(a) * rad, py = Math.sin(a) * rad;
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
         }
+        ctx.closePath();
+        ctx.fill();
 
+        // 純黑奇點核心
         ctx.fillStyle = "#05050A";
         ctx.strokeStyle = "#C084FC";
-        ctx.lineWidth = 2.6;
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 0.68, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 0.64, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = "#F3E8FF";
+        // 球體表面蒼白閃電紋
+        ctx.strokeStyle = "#F3E8FF";
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(-r * 0.2, -r * 0.2, r * 0.18, 0, Math.PI * 2);
+        ctx.moveTo(-r * 0.35, -r * 0.15);
+        ctx.lineTo(-r * 0.05, r * 0.05);
+        ctx.lineTo(r * 0.25, -r * 0.22);
+        ctx.stroke();
+        ctx.restore();
+
+      } else if (pr.vfx === "gengar_phantom") {
+        // 【耿鬼超武・惡靈鬼影 (Phantom Wisp)】：張開大嘴、邪紅雙眼、拖長紫黑曳尾的立體鬼影
+        ctx.rotate(pr.angle || 0);
+        // 長長紫黑火焰曳尾
+        ctx.fillStyle = "rgba(88, 28, 135, 0.78)";
+        ctx.beginPath();
+        ctx.moveTo(r * 0.5, -r * 0.75);
+        ctx.lineTo(-r * 1.8, -r * 0.35);
+        ctx.lineTo(-r * 1.3, 0);
+        ctx.lineTo(-r * 1.8, r * 0.35);
+        ctx.lineTo(r * 0.5, r * 0.75);
+        ctx.closePath();
         ctx.fill();
 
+        // 鬼影頭部輪廓
+        ctx.fillStyle = "#3B0764";
+        ctx.strokeStyle = "#C084FC";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.85, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 邪紅雙眼
+        ctx.fillStyle = "#EF4444";
+        ctx.beginPath();
+        ctx.arc(r * 0.25, -r * 0.28, 2.8, 0, Math.PI * 2);
+        ctx.arc(r * 0.25, r * 0.28, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 張開的白色鋸齒鬼嘴
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.moveTo(r * 0.78, 0);
+        ctx.lineTo(r * 0.22, -r * 0.38);
+        ctx.lineTo(r * 0.36, 0);
+        ctx.lineTo(r * 0.22, r * 0.38);
+        ctx.closePath();
+        ctx.fill();
+
+      } else if (pr.vfx === "psychic_lance") {
+        // 【精神擊破】：多重同心橢圓念力波環 (Psychic Ripple Rings) 高速推進
+        ctx.rotate(pr.angle || 0);
+        [-12, 0, 10].forEach((ox, idx) => {
+          const scale = 1.0 - idx * 0.16;
+          ctx.strokeStyle = idx === 2 ? "#FFFFFF" : (idx === 1 ? "#F472B6" : "#DB2777");
+          ctx.lineWidth = 3.2 - idx * 0.5;
+          ctx.beginPath();
+          ctx.ellipse(ox, 0, r * 0.38 * scale, r * 0.92 * scale, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+
       } else if (pr.vfx === "sludge_lob" || pr.vfx === "sludge_ball") {
-        // 污泥炸彈：深紫黑外廓 + 濃紫毒團 + 3 顆螢光綠毒泡隆起
         ctx.rotate(pr.angle || 0);
         ctx.fillStyle = "#3B0764";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.fill();
@@ -2105,7 +2560,6 @@ const SkillsEngine = {
           ctx.beginPath(); ctx.arc(12, k * 7.5, 4.5, 0, Math.PI * 2); ctx.fill();
         }
       } else if (pr.vfx === "seed_nut") {
-        // V10 立體木紋橡子
         ctx.rotate(pr.angle || 0);
         ctx.fillStyle = "#3F6212";
         ctx.beginPath();
@@ -2116,13 +2570,6 @@ const SkillsEngine = {
         ctx.beginPath();
         ctx.ellipse(0, r * 0.18, r * 0.70, r * 0.82, 0, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.strokeStyle = "#365314";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-r * 0.26, -r * 0.2); ctx.quadraticCurveTo(-r * 0.32, r * 0.25, -r * 0.14, r * 0.82);
-        ctx.moveTo(r * 0.26, -r * 0.2);  ctx.quadraticCurveTo(r * 0.32, r * 0.25, r * 0.14, r * 0.82);
-        ctx.stroke();
 
         ctx.fillStyle = "#78350F";
         ctx.strokeStyle = "#451A03";
@@ -2138,16 +2585,26 @@ const SkillsEngine = {
         ctx.arc(-r * 0.24, r * 0.1, r * 0.2, 0, Math.PI * 2);
         ctx.fill();
       } else if (pr.vfx === "frost_beam") {
-        // 冷凍光線：立體雙色切面六角冰晶槍 + 尾端雙軌折線寒霜束
+        // 【冷凍光線】：雙股交錯寒冰光束 ＋ 沿途閃爍六角雪花結晶
         ctx.rotate(pr.angle || 0);
         ctx.strokeStyle = "#0284C7";
-        ctx.lineWidth = 5.5;
+        ctx.lineWidth = 4.5;
         ctx.beginPath();
-        ctx.moveTo(-r * 1.6, 0); ctx.lineTo(r * 0.5, 0);
+        for (let x = -r * 1.8; x <= r * 0.6; x += 6) {
+          const y = Math.sin(x * 0.25 + now * 12) * 4.5;
+          if (x === -r * 1.8) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
         ctx.stroke();
 
         ctx.strokeStyle = "#E0F2FE";
         ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let x = -r * 1.8; x <= r * 0.6; x += 6) {
+          const y = -Math.sin(x * 0.25 + now * 12) * 4.5;
+          if (x === -r * 1.8) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
         ctx.stroke();
 
         // 前端雙色切面冰稜槍頭
@@ -2155,18 +2612,17 @@ const SkillsEngine = {
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(r * 1.35, 0); ctx.lineTo(0, -r * 0.62); ctx.lineTo(-r * 0.85, 0); ctx.lineTo(0, r * 0.62);
+        ctx.moveTo(r * 1.4, 0); ctx.lineTo(0, -r * 0.62); ctx.lineTo(-r * 0.85, 0); ctx.lineTo(0, r * 0.62);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
         ctx.fillStyle = "#BAE6FD";
         ctx.beginPath();
-        ctx.moveTo(r * 1.25, 0); ctx.lineTo(0, -r * 0.52); ctx.lineTo(-r * 0.75, 0);
+        ctx.moveTo(r * 1.28, 0); ctx.lineTo(0, -r * 0.52); ctx.lineTo(-r * 0.75, 0);
         ctx.closePath();
         ctx.fill();
       } else if (pr.vfx === "wind_blade") {
-        // 空氣斬：V10 三層新月風刃 (深藍紫底框 + 青白風刃 + 純白亮刃口)
         ctx.rotate(pr.angle || 0);
         ctx.fillStyle = "#312E81";
         ctx.beginPath();
@@ -2202,15 +2658,14 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 5. 繪製三層立體雷電鏈 (開啟 lighter 呈現白熾高壓電漿發光)
+    // 5. 繪製分叉立體雷電鏈（主雷電 + 兩側細微支流分叉）
     this.lightningArcs.forEach(arc => {
       ctx.save();
-      ctx.globalCompositeOperation = "lighter";
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      ctx.strokeStyle = "rgba(120, 53, 15, 0.75)";
-      ctx.lineWidth = 8.5;
+      ctx.strokeStyle = "rgba(120, 53, 15, 0.85)";
+      ctx.lineWidth = 7.5;
       ctx.beginPath();
       arc.pts.forEach((pt, idx) => {
         const sx = toSx(pt.x), sy = toSy(pt.y);
@@ -2220,16 +2675,33 @@ const SkillsEngine = {
       ctx.stroke();
 
       ctx.strokeStyle = arc.color || "#FDE047";
-      ctx.lineWidth = 5.0;
+      ctx.lineWidth = 4.5;
       ctx.stroke();
 
       ctx.strokeStyle = "#FFFFFF";
-      ctx.lineWidth = 2.2;
+      ctx.lineWidth = 2.0;
       ctx.stroke();
+
+      // 繪製兩側細微支流分叉電弧
+      (arc.branches || []).forEach(br => {
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        br.forEach((pt, idx) => {
+          const sx = toSx(pt.x), sy = toSy(pt.y);
+          if (idx === 0) ctx.moveTo(sx, sy);
+          else ctx.lineTo(sx, sy);
+        });
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+      });
       ctx.restore();
     });
 
-    // 6. 繪製立體微粒子 (支援三切面立體岩塊、GBA十字星芒、帶邊樹葉與高光水珠)
+    // 6. 繪製立體微粒子
     this.subParticles.forEach(sp => {
       const sx = toSx(sp.x), sy = toSy(sp.y);
       ctx.save();
@@ -2256,7 +2728,6 @@ const SkillsEngine = {
         ctx.fill();
         ctx.stroke();
       } else if (sp.shape === "star") {
-        // GBA 經典十字閃耀星芒 (IMG_5056 中間偏左十字星)
         const s = sp.size * 1.35;
         ctx.fillStyle = sp.color;
         ctx.beginPath();
@@ -2278,5 +2749,11 @@ const SkillsEngine = {
       }
       ctx.restore();
     });
+  },
+
+  // 向後兼容總渲染入口
+  render(ctx, toSx, toSy) {
+    this.renderGroundLayer(ctx, toSx, toSy);
+    this.renderAerialLayer(ctx, toSx, toSy);
   }
 };
