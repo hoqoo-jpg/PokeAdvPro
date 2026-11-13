@@ -37,11 +37,11 @@ const SkillsEngine = {
     });
   },
 
-  fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0) {
+  fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0, slotIdx = 0) {
     if (skillId === "Metronome") {
       const pool = ["Flamethrower", "Hydro Pump", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
       const pick = pool[Math.floor(Math.random() * pool.length)];
-      this.fireSkill(caster, pick, level, isEvolved, dmgScale * 1.15);
+      this.fireSkill(caster, pick, level, isEvolved, dmgScale * 1.15, slotIdx);
       return;
     }
 
@@ -324,8 +324,12 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 多招式幾何發射偏移與微序列交錯（防止同點疊彈）
+    // 3. 業界標準槽位空間解耦 (Slot-based Muzzle Offsets)：4 個招式槽各自擁有專屬身周發射錨點 (正胸、左翼-18px、右翼+18px、頭頂-22px)
     const perpAng = baseAngle + Math.PI / 2;
+    const slotLateralMap = [0, -18, 18, 0];
+    const slotForwardMap = [12, -4, -4, 18];
+    const slotBaseLat = slotLateralMap[slotIdx % 4] || 0;
+    const slotBaseFwd = slotForwardMap[slotIdx % 4] || 0;
     const isWingSkill = ["AirSlash", "RazorLeaf", "IceBeam"].includes(cleanSkillId);
 
     for (let i = 0; i < count; i++) {
@@ -334,11 +338,10 @@ const SkillsEngine = {
       const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 345 : (cleanSkillId === "HydroPump" ? 330 : (cleanSkillId === "AirSlash" ? 365 : 310));
       const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast");
 
-      // 左右側翼平行偏移 (±15px) 與前向微錯開，使彈幕呈雙軌或扇形展開不重疊
-      const lateralOffset = isWingSkill
-        ? ((i % 2 === 0 ? 1 : -1) * 15)
-        : (count > 1 ? (i - (count - 1) / 2) * 10 : 0);
-      const forwardStagger = i * 10;
+      const lateralOffset = slotBaseLat + (isWingSkill
+        ? ((i % 2 === 0 ? 1 : -1) * 14)
+        : (count > 1 ? (i - (count - 1) / 2) * 10 : 0));
+      const forwardStagger = slotBaseFwd + i * 11;
 
       const spawnX = caster.x + Math.cos(perpAng) * lateralOffset + Math.cos(ang) * forwardStagger;
       const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
@@ -387,28 +390,20 @@ const SkillsEngine = {
         const ang = baseAngle + spread;
         this.meleeEffects.push({
           style: "vine_whip",
+          casterRef: caster,
           ox: caster.x,
           oy: caster.y,
           x: caster.x,
           y: caster.y,
           angle: ang,
           reach: reach,
+          dmg: rawDmg * 1.15,
+          type: meta.type,
+          kb: kb * 1.2,
+          hitSet: new Set(),
           timer: 0.38,
           maxTime: 0.38,
           color: "#15803D"
-        });
-
-        // 沿藤鞭路徑判定傷害與擊退
-        GameApp.enemies.forEach(e => {
-          const dx = e.x - caster.x, dy = e.y - caster.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist <= reach + e.radius) {
-            const eAng = Math.atan2(dy, dx);
-            const diff = Math.abs(Math.atan2(Math.sin(eAng - ang), Math.cos(eAng - ang)));
-            if (diff <= 0.62 || dist < 35) {
-              GameApp.dealDamageToEnemy(e, rawDmg * 1.15, meta.type, 0.28, kb * 1.2);
-            }
-          }
         });
 
         // 藤鞭末端噴發微量飛葉粒子
@@ -505,9 +500,14 @@ const SkillsEngine = {
       const rad = (85 + level * 4) * areaScale;
       this.meleeEffects.push({
         style,
+        casterRef: caster,
         x: caster.x,
         y: caster.y,
         radius: rad,
+        dmg: rawDmg,
+        type: meta.type,
+        kb: kb,
+        hitSet: new Set(),
         timer: 0.50,
         maxTime: 0.50,
         color: meta.color
@@ -519,15 +519,6 @@ const SkillsEngine = {
         const dSpd = 45 + Math.random() * 95;
         this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, d % 2 === 0 ? "#92400E" : "#D97706", 3.2, 0.45, "circle");
       }
-
-      GameApp.enemies.forEach(e => {
-        if (Math.hypot(e.x - caster.x, e.y - caster.y) <= rad + e.radius) {
-          GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.20, kb);
-          if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
-            GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
-          }
-        }
-      });
       SoundFX.play("ultimate");
       return;
     }
@@ -562,30 +553,20 @@ const SkillsEngine = {
       const ang = baseAngle + (w - (waves - 1) / 2) * 0.48;
       this.meleeEffects.push({
         style,
+        casterRef: caster,
         ox: caster.x,
         oy: caster.y,
         x: caster.x + Math.cos(ang) * (maxReach * 0.55),
         y: caster.y + Math.sin(ang) * (maxReach * 0.55),
         angle: ang,
         radius: maxReach,
+        dmg: rawDmg,
+        type: meta.type,
+        kb: kb,
+        hitSet: new Set(),
         timer: 0.34,
         maxTime: 0.34,
         color: meta.color
-      });
-
-      GameApp.enemies.forEach(e => {
-        const dx = e.x - caster.x, dy = e.y - caster.y;
-        const d = Math.hypot(dx, dy);
-        if (d <= maxReach + e.radius) {
-          const eAng = Math.atan2(dy, dx);
-          const diff = Math.abs(Math.atan2(Math.sin(eAng - ang), Math.cos(eAng - ang)));
-          if (diff <= 0.95 || d < 40) {
-            GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.28, kb);
-            if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
-              GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
-            }
-          }
-        }
       });
     }
     SoundFX.play("hit");
@@ -613,43 +594,104 @@ const SkillsEngine = {
     });
 
     if (meta.type === "Electric") {
-      for (let i = 0; i < 16; i++) {
-        const ang = (i * Math.PI * 2) / 16;
-        const dist = 160 + Math.random() * 180;
-        const tx = p.x + Math.cos(ang) * dist;
-        const ty = p.y + Math.sin(ang) * dist;
-        this.createLightningArc(p.x, p.y, tx, ty, "#FDE047");
-        for (let k = 0; k < 5; k++) {
-          this.spawnSubParticle(tx, ty, (Math.random() - 0.5) * 120, (Math.random() - 0.5) * 120, "#FFFFFF", 3.0, 0.4, "star");
-        }
-      }
-    } else if (meta.type === "Fire") {
+      // 【V10 三段階梯神罰萬雷 + 閃電鳥六芒高壓電網】
       for (let i = 0; i < 8; i++) {
         const ang = (i * Math.PI * 2) / 8;
-        this.projectiles.push({
+        this.createLightningArc(p.x, p.y, p.x + Math.cos(ang) * 120, p.y + Math.sin(ang) * 120, "#FEF08A");
+      }
+      const hitPts = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI * 2) / 6;
+        hitPts.push({ x: p.x + Math.cos(a) * 230, y: p.y + Math.sin(a) * 230 });
+      }
+      this.groundHazards.push({
+        kind: "zapdos_storm_web",
+        x: p.x, y: p.y,
+        hitPts: hitPts,
+        stage2Triggered: false,
+        radius: 250 * p.areaMult,
+        dmg: ultDmg * 0.36,
+        type: "Electric",
+        timer: 1.45, maxTime: 1.45,
+        tickTimer: 0.18, tickInterval: 0.30,
+        color: "#FACC15"
+      });
+    } else if (meta.type === "Fire") {
+      // 【V10 推進式巨型立體大字爆炎 + 沿途定距鋪設熔岩火海】
+      for (let d = 0; d < 4; d++) {
+        const ang = (d * Math.PI) / 2 + (p.facingX >= 0 ? 0 : 0.4);
+        this.groundHazards.push({
+          kind: "drifting_daimonji",
           x: p.x, y: p.y,
-          vx: Math.cos(ang) * 340, vy: Math.sin(ang) * 340,
-          angle: ang, radius: 26, dmg: ultDmg * 0.70,
-          type: "Fire", skillId: "Flamethrower", vfx: "fire_stream",
-          color: "#EF4444", pierce: 8, knockback: 0, life: 1.05, statusBonus: 0.6, hitSet: new Set(), trailTimer: 0
+          lastSpawnX: p.x, lastSpawnY: p.y,
+          vx: Math.cos(ang) * 240, vy: Math.sin(ang) * 240,
+          angle: ang,
+          radius: 76 * p.areaMult,
+          dmg: ultDmg * 0.42,
+          type: "Fire",
+          timer: 1.25, maxTime: 1.25,
+          tickTimer: 0.08, tickInterval: 0.25,
+          color: "#EF4444"
         });
       }
     } else if (meta.type === "Water") {
-      for (let i = 0; i < 10; i++) {
-        const ang = (i * Math.PI * 2) / 10;
-        this.projectiles.push({
-          x: p.x, y: p.y,
-          vx: Math.cos(ang) * 380, vy: Math.sin(ang) * 380,
-          angle: ang, radius: 26, dmg: ultDmg * 0.70,
-          type: "Water", skillId: "Hydro Pump", vfx: "water_beam",
-          color: "#38BDF8", pierce: 8, knockback: 25, life: 1.05, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
+      // 【V10 八方正弦高壓水柱大迴旋 + 王冠浪花】
+      this.groundHazards.push({
+        kind: "eight_hydro_pillars",
+        x: p.x, y: p.y,
+        followPlayer: true,
+        rotAngle: 0,
+        pillarsCount: 8,
+        radius: 310 * p.areaMult,
+        width: 44 * p.areaMult,
+        dmg: ultDmg * 0.32,
+        type: "Water",
+        timer: 1.45, maxTime: 1.45,
+        tickTimer: 0.05, tickInterval: 0.22,
+        color: "#38BDF8"
+      });
+    } else if (meta.type === "Grass") {
+      // 【V10 森羅瘋狂植物：12 根巨型帶刺 S 藤蔓破土鞭笞全場】
+      for (let i = 0; i < 12; i++) {
+        const ang = (i * Math.PI * 2) / 12 + (i % 2 === 0 ? 0.06 : -0.06);
+        this.meleeEffects.push({
+          style: "vine_whip",
+          casterRef: p,
+          ox: p.x, oy: p.y, x: p.x, y: p.y,
+          angle: ang,
+          reach: (265 + (i % 3) * 25) * p.areaMult,
+          dmg: ultDmg * 0.55,
+          type: "Grass",
+          kb: 18,
+          hitSet: new Set(),
+          timer: 0.68 + (i % 2) * 0.16,
+          maxTime: 0.68 + (i % 2) * 0.16,
+          color: "#15803D"
         });
       }
-    } else if (meta.type === "Grass") {
-      for (let g = 0; g < 30; g++) {
+      for (let g = 0; g < 28; g++) {
         const gAng = Math.random() * Math.PI * 2;
-        const gSpd = 50 + Math.random() * 140;
-        this.spawnSubParticle(p.x, p.y, Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd, g % 2 === 0 ? "#22C55E" : "#86EFAC", 4.0, 0.9, "leaf");
+        const gSpd = 60 + Math.random() * 150;
+        this.spawnSubParticle(p.x, p.y, Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd, g % 2 === 0 ? "#22C55E" : "#86EFAC", 4.2, 0.85, "leaf");
+      }
+    } else if (meta.type === "Normal") {
+      // 【V10 居合極限瞬斬 / 終極衝擊：3 道 160° 超寬幅雙層次元刀浪】
+      for (let i = 0; i < 3; i++) {
+        const ang = (i * Math.PI * 2) / 3;
+        this.meleeEffects.push({
+          style: "claw_slash",
+          casterRef: p,
+          ox: p.x, oy: p.y, x: p.x, y: p.y,
+          angle: ang,
+          radius: 250 * p.areaMult,
+          dmg: ultDmg * 0.65,
+          type: "Normal",
+          kb: 24,
+          hitSet: new Set(),
+          timer: 0.48 + i * 0.08,
+          maxTime: 0.48 + i * 0.08,
+          color: "#38BDF8"
+        });
       }
     } else if (meta.type === "Fighting") {
       // 【爆裂十字劈】：向四周發射 10 道螺旋擴張的武道巨型金拳 (重啟 giant_fist 特效)
@@ -770,16 +812,14 @@ const SkillsEngine = {
       }
     }
 
-    const halfW = GameApp.width / 2 + 70;
-    const halfH = GameApp.height / 2 + 70;
+    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪，遠處敵人由超武實體波前（藤蔓/水柱/電網/隕石）推進命中結算！
     GameApp.enemies.forEach(e => {
-      if (Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH) {
-        // 地裂斷層破：飛濺巨岩可對飛行系造成相當於 75% 的重擊，突破地面系對三聖鳥的刮痧限制
-        let adjustedDmg = ultDmg;
+      if (Math.hypot(e.x - p.x, e.y - p.y) <= 115 + e.radius) {
+        let adjustedDmg = ultDmg * 0.55;
         if (meta.type === "Ground" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
-          adjustedDmg = ultDmg * 7.5; // 抵銷 0.1x 後達 0.75x 實質傷害
+          adjustedDmg *= 7.5;
         }
-        GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 35);
+        GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 28);
       }
     });
 
@@ -952,10 +992,11 @@ const SkillsEngine = {
       }
 
       if (pr.spawnGraceTimer && pr.spawnGraceTimer > 0) continue;
+      const tightRadius = pr.radius * 0.82; // 緊縮判定框 0.82x，確保子彈視覺前端真正嵌入怪獸身體才觸發命中
       for (let j = GameApp.enemies.length - 1; j >= 0; j--) {
         const e = GameApp.enemies[j];
         if (pr.hitSet.has(e)) continue;
-        if (Math.hypot(e.x - pr.x, e.y - pr.y) <= pr.radius + e.radius) {
+        if (Math.hypot(e.x - pr.x, e.y - pr.y) <= tightRadius + e.radius * 0.9) {
           pr.hitSet.add(e);
           GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0);
 
@@ -978,8 +1019,59 @@ const SkillsEngine = {
     }
 
     for (let i = this.meleeEffects.length - 1; i >= 0; i--) {
-      this.meleeEffects[i].timer -= dt;
-      if (this.meleeEffects[i].timer <= 0) {
+      const m = this.meleeEffects[i];
+      m.timer -= dt;
+      const prog = 1 - Math.max(0, m.timer / m.maxTime);
+
+      // 所見即所得波前推進判定 (Wavefront Active Hitframes)：藤鞭、地震與刀光伸展到哪裡，哪裡的怪才即時爆血！
+      if (m.hitSet && m.dmg) {
+        if (m.style === "vine_whip") {
+          const curReach = m.reach * Math.min(1, prog * 1.7);
+          const ox = m.ox !== undefined ? m.ox : m.x;
+          const oy = m.oy !== undefined ? m.oy : m.y;
+          GameApp.enemies.forEach(e => {
+            if (m.hitSet.has(e)) return;
+            const dx = e.x - ox, dy = e.y - oy;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= curReach + e.radius * 0.85) {
+              const eAng = Math.atan2(dy, dx);
+              const diff = Math.abs(Math.atan2(Math.sin(eAng - m.angle), Math.cos(eAng - m.angle)));
+              if (diff <= 0.58 || dist < 32) {
+                m.hitSet.add(e);
+                GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 10);
+              }
+            }
+          });
+        } else if (m.style === "quake_wave") {
+          const curR = m.radius * (0.28 + prog * 0.72);
+          GameApp.enemies.forEach(e => {
+            if (m.hitSet.has(e)) return;
+            if (Math.hypot(e.x - m.x, e.y - m.y) <= curR + e.radius * 0.85) {
+              m.hitSet.add(e);
+              GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.25, m.kb || 20);
+            }
+          });
+        } else {
+          const curR = m.radius * (0.28 + prog * 0.75);
+          const ox = m.ox !== undefined ? m.ox : m.x;
+          const oy = m.oy !== undefined ? m.oy : m.y;
+          GameApp.enemies.forEach(e => {
+            if (m.hitSet.has(e)) return;
+            const dx = e.x - ox, dy = e.y - oy;
+            const d = Math.hypot(dx, dy);
+            if (d <= curR + e.radius * 0.85) {
+              const eAng = Math.atan2(dy, dx);
+              const diff = Math.abs(Math.atan2(Math.sin(eAng - m.angle), Math.cos(eAng - m.angle)));
+              if (diff <= 0.90 || d < 36) {
+                m.hitSet.add(e);
+                GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.28, m.kb || 12);
+              }
+            }
+          });
+        }
+      }
+
+      if (m.timer <= 0) {
         this.meleeEffects[i] = this.meleeEffects[this.meleeEffects.length - 1];
         this.meleeEffects.pop();
       }
@@ -1054,6 +1146,24 @@ const SkillsEngine = {
       if (hz.followPlayer && p) {
         hz.x = p.x;
         hz.y = p.y;
+      }
+      if (hz.kind === "eight_hydro_pillars") {
+        hz.rotAngle = (hz.rotAngle || 0) + dt * 2.4;
+      } else if (hz.kind === "drifting_daimonji") {
+        hz.x += (hz.vx || 0) * dt;
+        hz.y += (hz.vy || 0) * dt;
+        if (GameApp.player && Math.hypot(hz.x - hz.lastSpawnX, hz.y - hz.lastSpawnY) >= 42) {
+          hz.lastSpawnX = hz.x;
+          hz.lastSpawnY = hz.y;
+          GameApp.lavaFootprints.push({ x: hz.x, y: hz.y, radius: 34, life: 2.2, maxLife: 2.2, tickTimer: 0.1 });
+        }
+      } else if (hz.kind === "zapdos_storm_web" && !hz.stage2Triggered && hz.timer <= 1.22) {
+        hz.stage2Triggered = true;
+        (hz.hitPts || []).forEach(pt => {
+          this.createLightningArc(pt.x, pt.y - 260, pt.x, pt.y, "#FFFFFF");
+          this.createLightningArc(pt.x, pt.y - 260, pt.x, pt.y, "#FACC15");
+        });
+        SoundFX.play("ultimate");
       } else if (hz.kind === "tornado") {
         const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
         if (target) {
@@ -1447,7 +1557,90 @@ const SkillsEngine = {
         ctx.arc(0, 0, 26, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
+      } else if (hz.kind === "eight_hydro_pillars") {
+        // V10 八方正弦高壓水柱大迴旋 + 王冠浪花 (開啟 lighter 呈現通透水光)
+        ctx.translate(sx, sy);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, hz.timer * 1.3);
+        const pLen = hz.radius * Math.min(1, prog * 2.2);
+        const pW = hz.width || 42;
+        for (let pi = 0; pi < 8; pi++) {
+          ctx.save();
+          ctx.rotate((hz.rotAngle || 0) + (pi * Math.PI * 2) / 8);
+          ctx.fillStyle = "rgba(2, 132, 199, 0.55)";
+          ctx.beginPath();
+          ctx.moveTo(12, -pW * 0.45);
+          for (let x = 12; x <= pLen; x += 18) {
+            const wv = Math.sin(now * 6 + x * 0.08) * 4;
+            ctx.lineTo(x, -pW * 0.45 + wv);
+          }
+          for (let x = pLen; x >= 12; x -= 18) {
+            const wv = Math.sin(now * 6 + x * 0.08) * 4;
+            ctx.lineTo(x, pW * 0.45 + wv);
+          }
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.strokeStyle = "#E0F2FE";
+          ctx.lineWidth = 3.8;
+          ctx.beginPath();
+          ctx.moveTo(12, 0); ctx.lineTo(pLen * 0.96, 0);
+          ctx.stroke();
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.arc(pLen, 0, pW * 0.55, -Math.PI / 2, Math.PI / 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (hz.kind === "zapdos_storm_web") {
+        // V10 閃電鳥六芒星高頻跳動分形電網
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, hz.timer);
+        const pts = hz.hitPts || [];
+        for (let idx = 0; idx < pts.length; idx++) {
+          const p1 = pts[idx];
+          const p2 = pts[(idx + 1) % pts.length];
+          const x1 = toSx(p1.x), y1 = toSy(p1.y);
+          const x2 = toSx(p2.x), y2 = toSy(p2.y);
+          const mx = (x1 + x2) * 0.5 + (Math.random() - 0.5) * 22;
+          const my = (y1 + y2) * 0.5 + (Math.random() - 0.5) * 22;
+
+          ctx.strokeStyle = "#FACC15";
+          ctx.lineWidth = 4.8;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy); ctx.lineTo((sx + x1) * 0.5 + (Math.random() - 0.5) * 18, (sy + y1) * 0.5 + (Math.random() - 0.5) * 18); ctx.lineTo(x1, y1);
+          ctx.moveTo(x1, y1); ctx.lineTo(mx, my); ctx.lineTo(x2, y2);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 2.0;
+          ctx.stroke();
+
+          ctx.fillStyle = "#FEF08A";
+          ctx.beginPath();
+          ctx.arc(x1, y1, 8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (hz.kind === "drifting_daimonji") {
+        // V10 推進式立體大字爆炎
+        ctx.translate(sx, sy);
+        ctx.rotate(hz.angle || 0);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = Math.min(1, hz.timer);
+        const r = hz.radius * 0.85;
+        const drawD = () => {
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.7, -r * 0.2); ctx.lineTo(r * 0.7, -r * 0.2);
+          ctx.moveTo(0, -r * 0.8); ctx.quadraticCurveTo(-r * 0.1, r * 0.1, -r * 0.7, r * 0.7);
+          ctx.moveTo(0, -r * 0.2); ctx.quadraticCurveTo(r * 0.2, r * 0.2, r * 0.7, r * 0.7);
+        };
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#DC2626"; ctx.lineWidth = 16; drawD(); ctx.stroke();
+        ctx.strokeStyle = "#F97316"; ctx.lineWidth = 9;  drawD(); ctx.stroke();
+        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 3.5; drawD(); ctx.stroke();
       } else {
+        ctx.globalCompositeOperation = "lighter";
         ctx.globalAlpha = Math.max(0, 1 - prog);
         ctx.strokeStyle = hz.color || "#EC4899";
         ctx.lineWidth = 3.5;
@@ -1647,11 +1840,12 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 3. 繪製全屏超武主圖騰 (ultimateVfxList：大字爆炎立體大字、潮旋水渦、瘋狂植物藤陣)
+    // 3. 繪製全屏超武主圖騰 (開啟 lighter 加色發光，兼具高對比與霓虹通透度)
     this.ultimateVfxList.forEach(u => {
       const prog = 1 - (u.timer / u.maxTime);
       const usx = toSx(u.x), usy = toSy(u.y);
       ctx.save();
+      ctx.globalCompositeOperation = "lighter";
 
       if (u.type === "Fire") {
         // V10 立體三層大字爆炎 (深紅黑底框 18px ➔ 鮮紅橙中層 10px ➔ 明黃白芯 4px)
@@ -2009,9 +2203,10 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 5. 繪製三層立體雷電鏈 (深褐金外框 8px ➔ 金黃電弧 5px ➔ 純白電芯 2.2px)
+    // 5. 繪製三層立體雷電鏈 (開啟 lighter 呈現白熾高壓電漿發光)
     this.lightningArcs.forEach(arc => {
       ctx.save();
+      ctx.globalCompositeOperation = "lighter";
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 

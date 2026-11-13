@@ -721,7 +721,7 @@ window.GameApp = {
       };
 
       const cutRec = tr.cutin ? SpriteCache.get(tr.cutin) : null;
-      if (tr.cutin && cutBannerImg && cutBannerWrap && (!cutRec || !cutRec.error)) {
+      if (tr.cutin && cutBannerImg && cutBannerWrap && cutRec && cutRec.loaded && !cutRec.error) {
         cutStrip.classList.add("hidden");
         cutBannerWrap.classList.remove("hidden");
         cutBannerImg.onerror = () => {
@@ -1237,18 +1237,25 @@ window.GameApp = {
     const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
     const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
     const cdFactor = Math.max(0.45, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
-    Object.values(p.skills).forEach(skSlot => {
+    p.castStaggerTimer = Math.max(0, (p.castStaggerTimer || 0) - dt);
+    Object.values(p.skills).forEach((skSlot, slotIdx) => {
       skSlot.timer -= dt;
       if (skSlot.timer <= 0) {
+        if (p.castStaggerTimer > 0 && !skSlot.evolved) {
+          skSlot.timer = 0.015; // 全局微序列排隊，防止多把子彈武器同一毫秒重疊發射
+          return;
+        }
         const meta = SKILLS_CATALOG[skSlot.id];
         if (!meta) return;
         if (skSlot.evolved) {
           SkillsEngine.triggerUltimateSuperMove(meta, skSlot);
           skSlot.timer = Math.max(2.4, meta.baseCd * 1.95 * cdFactor);
+          p.castStaggerTimer = 0.08;
         } else {
-          SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0);
+          SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
           const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
           skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * cdFactor);
+          p.castStaggerTimer = 0.085;
         }
       }
     });
@@ -1295,17 +1302,22 @@ window.GameApp = {
 
   findNearestEnemyInViewport(ox, oy, maxRange = 420) {
     let best = null;
-    let bestDist = maxRange;
+    let bestScore = maxRange;
+    const now = performance.now();
     const halfW = this.width / 2 + 40;
     const halfH = this.height / 2 + 40;
     for (const e of this.enemies) {
       if (Math.abs(e.x - this.player.x) > halfW || Math.abs(e.y - this.player.y) > halfH) continue;
       const d = Math.hypot(e.x - ox, e.y - oy);
-      if (d < bestDist) {
-        bestDist = d;
+      if (d > maxRange) continue;
+      // 若該目標剛被前一把武器鎖定 (<140ms)，加上 65px 虛擬距離權重，引導第二把武器優先分流打旁邊的怪
+      const lockPenalty = (e._targetLockUntil && e._targetLockUntil > now) ? 65 : 0;
+      if (d + lockPenalty < bestScore) {
+        bestScore = d + lockPenalty;
         best = e;
       }
     }
+    if (best) best._targetLockUntil = now + 140;
     return best;
   },
 
