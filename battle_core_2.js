@@ -299,7 +299,14 @@ window.GameApp = {
       if (this.player.data.evo_level !== "None" && this.player.level >= this.player.data.evo_level) {
         if (this.player.id === 133) {
           this.state = "PAUSED";
-          document.getElementById("eevee-evo-modal").classList.remove("hidden");
+          this.touchJoy.active = false;
+          this.touchJoy.dx = 0;
+          this.touchJoy.dy = 0;
+          const eeModal = document.getElementById("eevee-evo-modal");
+          if (eeModal) {
+            eeModal.classList.remove("hidden");
+            eeModal.style.display = "flex";
+          }
           return;
         } else if (this.player.data.evo_to) {
           this.evolvePlayerPokemon(this.player.data.evo_to);
@@ -1767,7 +1774,7 @@ window.GameApp = {
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
-      if (e.isBoss && e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
+      if (e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
       if (e.whiteFlashTimer > 0) e.whiteFlashTimer -= dt;
 
       if (e.treasureType) {
@@ -1799,7 +1806,13 @@ window.GameApp = {
             continue;
           }
         }
-        if (e.statusTimer <= 0) e.status = null;
+        if (e.statusTimer <= 0) {
+          // 解除硬控（冰凍/麻痺/混亂）時賦予全員韌性保護期，防止被高頻彈幕無限永控
+          if (["Freeze", "Paralysis", "Confusion"].includes(e.status)) {
+            e.ccImmunityTimer = e.isBoss ? 3.5 : (e.isElite ? 2.6 : 1.8);
+          }
+          e.status = null;
+        }
       }
 
       if (e.status === "Freeze") continue;
@@ -2481,26 +2494,50 @@ window.GameApp = {
 
     const tMeta = TYPE_META[moveType];
     if (tMeta && tMeta.status) {
-      if (checkStatusImmunity(enemy, tMeta.status)) {
-        this.spawnFloatingText(enemy.x, enemy.y - 20, "免疫!", "#94A3B8", 11);
-      } else if (Math.random() < (tMeta.statusRate + bonusStatusChance)) {
-        if (enemy.isBoss && enemy.ccImmunityTimer > 0 && ["Freeze", "Paralysis", "Confusion"].includes(tMeta.status)) {
-          this.spawnFloatingText(enemy.x, enemy.y - 20, "韌性抵抗!", "#CBD5E1", 11);
-        } else {
-          enemy.status = tMeta.status;
-          enemy.statusTimer = enemy.isBoss ? 1.6 : 4.2;
-          if (enemy.isBoss) enemy.ccImmunityTimer = 3.0;
-          enemy.statusTick = 0.3;
+      const st = tMeta.status;
+      const isHardCC = ["Freeze", "Paralysis", "Confusion"].includes(st);
+
+      if (checkStatusImmunity(enemy, st)) {
+        if (Math.random() < 0.25) this.spawnFloatingText(enemy.x, enemy.y - 20, "屬性免疫!", "#94A3B8", 11);
+      } else if (!(isHardCC && (enemy.status === st || ["Freeze", "Paralysis", "Confusion"].includes(enemy.status)))) {
+        // 計算階級與體重抗性折減 (Light: 1.0, Medium: 0.80, Heavy: 0.55; Elite: x0.65, Boss: x0.40)
+        const weightMod = enemy.weightTier === "heavy" ? 0.55 : (enemy.weightTier === "medium" ? 0.80 : 1.0);
+        const tierMod = enemy.isBoss ? 0.40 : (enemy.isElite ? 0.65 : 1.0);
+        // 超能系對混亂具備 50% 天然抗性
+        const psyConfResist = (st === "Confusion" && enemy.data && (enemy.data.type1 === "Psychic" || enemy.data.type2 === "Psychic")) ? 0.50 : 1.0;
+        // 將招式等級加成改為溫和權重 (+35% 係數)，避免多發彈幕疊加到 100% 必中
+        const rawChance = tMeta.statusRate + (bonusStatusChance || 0) * 0.32;
+        const finalChance = Math.min(isHardCC ? 0.28 : 0.42, rawChance * weightMod * tierMod * psyConfResist);
+
+        if (Math.random() < finalChance) {
+          if (isHardCC && enemy.ccImmunityTimer > 0) {
+            if (enemy.isBoss || enemy.isElite) {
+              this.spawnFloatingText(enemy.x, enemy.y - 20, "韌性抵抗!", "#CBD5E1", 11);
+            }
+          } else {
+            enemy.status = st;
+            const durWeightMod = enemy.weightTier === "heavy" ? 0.72 : 1.0;
+            if (isHardCC) {
+              const baseDur = (st === "Freeze") ? 2.2 : 2.8;
+              enemy.statusTimer = (enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : baseDur)) * durWeightMod;
+              enemy.ccImmunityTimer = enemy.isBoss ? 4.2 : (enemy.isElite ? 3.0 : 2.0);
+            } else {
+              // 灼傷與中毒持續傷害
+              enemy.statusTimer = enemy.isBoss ? 2.6 : 4.0;
+            }
+            enemy.statusTick = 0.35;
+          }
         }
       }
     }
 
-    // 【攜帶物：彎曲湯匙】攻擊有 15% 機率引發念力震盪與混亂（後置判定，不被其他狀態吃掉，並帶有粉紫念力波圈）
-    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && Math.random() < 0.15) {
-      if (!(enemy.isBoss && enemy.ccImmunityTimer > 0)) {
+    // 【攜帶物：彎曲湯匙】攻擊有 10% 基礎機率（受怪獸體重與韌性抗性影響）引發念力震盪與混亂
+    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && !["Freeze", "Paralysis", "Confusion"].includes(enemy.status)) {
+      const spoonChance = 0.10 * (enemy.isBoss ? 0.45 : (enemy.isElite ? 0.70 : 1.0));
+      if (Math.random() < spoonChance && !(enemy.ccImmunityTimer > 0)) {
         enemy.status = "Confusion";
-        enemy.statusTimer = enemy.isBoss ? 1.6 : 3.6;
-        if (enemy.isBoss) enemy.ccImmunityTimer = 3.0;
+        enemy.statusTimer = enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : 2.6);
+        enemy.ccImmunityTimer = enemy.isBoss ? 4.0 : 2.5;
         SkillsEngine.meleeEffects.push({
           style: "slam_wave",
           x: enemy.x,
@@ -2721,7 +2758,18 @@ window.GameApp = {
       if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
         if (p.id === 133) {
           this.state = "PAUSED";
-          document.getElementById("eevee-evo-modal").classList.remove("hidden");
+          this.touchJoy.active = false;
+          this.touchJoy.dx = 0;
+          this.touchJoy.dy = 0;
+          const joyBase = document.getElementById("touchJoyBase");
+          const joyStick = document.getElementById("touchJoyStick");
+          if (joyBase) joyBase.style.display = "none";
+          if (joyStick) joyStick.style.display = "none";
+          const eeModal = document.getElementById("eevee-evo-modal");
+          if (eeModal) {
+            eeModal.classList.remove("hidden");
+            eeModal.style.display = "flex";
+          }
           return;
         } else if (p.data.evo_to) {
           this.evolvePlayerPokemon(p.data.evo_to);
@@ -2732,7 +2780,11 @@ window.GameApp = {
   },
 
   confirmEeveeEvolution(targetId) {
-    document.getElementById("eevee-evo-modal").classList.add("hidden");
+    const eeModal = document.getElementById("eevee-evo-modal");
+    if (eeModal) {
+      eeModal.classList.add("hidden");
+      eeModal.style.display = "none";
+    }
     const p = this.player;
     const oldSkills = Object.values(p.skills);
     const savedLevels = oldSkills.slice(0, 3).map(s => s.level);
@@ -2741,12 +2793,18 @@ window.GameApp = {
     this.evolvePlayerPokemon(targetId);
 
     const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
-      134: ["HydroPump", "IceBeam", "Tackle"],
-      135: ["Thunderbolt", "AirSlash", "Tackle"],
-      136: ["Flamethrower", "DragonRush", "Tackle"]
+      134: ["Hydro Pump", "Ice Beam", "Tackle"],
+      135: ["Thunderbolt", "Air Slash", "Tackle"],
+      136: ["Flamethrower", "Dragon Rush", "Tackle"]
     };
 
-    const newSkillIds = evoSkillMap[targetId] || ["HydroPump", "IceBeam", "Tackle"];
+    const rawSkillIds = evoSkillMap[targetId] || ["Hydro Pump", "Ice Beam", "Tackle"];
+    const newSkillIds = rawSkillIds.map(sId => {
+      if (SKILLS_CATALOG[sId]) return sId;
+      const found = Object.keys(SKILLS_CATALOG).find(k => k.replace(/\s+/g, '') === sId.replace(/\s+/g, ''));
+      return found || sId;
+    });
+
     const unlockedSlotCount = Math.max(1, Math.min(3, oldSkills.length));
     p.skills = {};
     newSkillIds.slice(0, unlockedSlotCount).forEach((sId, idx) => {
@@ -2760,8 +2818,9 @@ window.GameApp = {
       p.skills[tmSkill.id] = tmSkill;
     }
 
-    this.state = "PLAYING";
     this.refreshHUD();
+    // 進化完成後順暢銜接 20 級的三選一能力強化視窗
+    this.openLevelUpModal();
   },
 
   evolvePlayerPokemon(targetId) {

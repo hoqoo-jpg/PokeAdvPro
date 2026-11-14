@@ -21,19 +21,19 @@ const TYPE_NAMES_ZH = {
 };
 
 const TYPE_META = {
-  Fire: { color: "#EF4444", status: "Burn", statusRate: 0.28 },
+  Fire: { color: "#EF4444", status: "Burn", statusRate: 0.16 },
   Water: { color: "#38BDF8", status: null, statusRate: 0 },
   Grass: { color: "#22C55E", status: null, statusRate: 0 },
-  Electric: { color: "#FACC15", status: "Paralysis", statusRate: 0.24 },
-  Ice: { color: "#67E8F9", status: "Freeze", statusRate: 0.22 },
-  Poison: { color: "#A855F7", status: "Poison", statusRate: 0.35 },
-  Psychic: { color: "#EC4899", status: "Confusion", statusRate: 0.20 },
+  Electric: { color: "#FACC15", status: "Paralysis", statusRate: 0.12 },
+  Ice: { color: "#67E8F9", status: "Freeze", statusRate: 0.10 },
+  Poison: { color: "#A855F7", status: "Poison", statusRate: 0.20 },
+  Psychic: { color: "#EC4899", status: "Confusion", statusRate: 0.11 },
   Ground: { color: "#D97706", status: null, statusRate: 0 },
   Fighting: { color: "#B91C1C", status: null, statusRate: 0 },
   Flying: { color: "#818CF8", status: null, statusRate: 0 },
   Bug: { color: "#84CC16", status: null, statusRate: 0 },
   Rock: { color: "#78350F", status: null, statusRate: 0 },
-  Ghost: { color: "#6B21A8", status: "Confusion", statusRate: 0.20 },
+  Ghost: { color: "#6B21A8", status: "Confusion", statusRate: 0.11 },
   Dragon: { color: "#4338CA", status: null, statusRate: 0 },
   Normal: { color: "#94A3B8", status: null, statusRate: 0 }
 };
@@ -67,11 +67,12 @@ function calcTypeMultiplier(atkType, defType1, defType2) {
 }
 
 function checkStatusImmunity(target, status) {
-  if (!status) return true;
-  if (status === "Burn" && (target.data.type1 === "Fire" || target.data.type2 === "Fire")) return true;
-  if (status === "Poison" && (target.data.type1 === "Poison" || target.data.type2 === "Poison" || target.data.type1 === "Steel" || target.data.type2 === "Steel")) return true;
-  if (status === "Freeze" && (target.data.type1 === "Ice" || target.data.type2 === "Ice")) return true;
-  if (status === "Paralysis" && (target.data.type1 === "Electric" || target.data.type2 === "Electric")) return true;
+  if (!status || !target || !target.data) return true;
+  const t1 = target.data.type1, t2 = target.data.type2;
+  if (status === "Burn" && (t1 === "Fire" || t2 === "Fire")) return true;
+  if (status === "Poison" && (t1 === "Poison" || t2 === "Poison" || t1 === "Steel" || t2 === "Steel")) return true;
+  if (status === "Freeze" && (t1 === "Ice" || t2 === "Ice")) return true;
+  if (status === "Paralysis" && (t1 === "Electric" || t2 === "Electric" || t1 === "Ghost" || t2 === "Ghost" || t1 === "Ground" || t2 === "Ground")) return true;
   return false;
 }
 
@@ -1138,9 +1139,9 @@ function getNaturalSkillsForPokemon(pokeData) {
 
 // 伊布進化時的三系本系替換表 (第一招直接替換為代表屬性大招，繼承原本升高的招式等級！)
 const EEVEE_EVO_SKILLS = {
-  134: ["HydroPump", "IceBeam", "Tackle"],       // 水伊布：第一招直接變水炮！
-  135: ["Thunderbolt", "AirSlash", "Tackle"],    // 雷伊布：第一招直接變十萬伏特！
-  136: ["Flamethrower", "DragonRush", "Tackle"]  // 火伊布：第一招直接變噴射火焰！
+  134: ["Hydro Pump", "Ice Beam", "Tackle"],       // 水伊布：第一招直接變水炮！
+  135: ["Thunderbolt", "Air Slash", "Tackle"],     // 雷伊布：第一招直接變十萬伏特！
+  136: ["Flamethrower", "Dragon Rush", "Tackle"]   // 火伊布：第一招直接變噴射火焰！
 };
 // 友好商店多元化道具庫 (TM 學習機、PP 提升劑、傷藥與戰鬥增益)
 const MART_SPECIAL_ITEMS = {
