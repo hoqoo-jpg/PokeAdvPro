@@ -39,7 +39,7 @@ const SkillsEngine = {
 
   fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0, slotIdx = 0) {
     if (skillId === "Metronome") {
-      const pool = ["Flamethrower", "Hydro Pump", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
+      const pool = ["Flamethrower", "Hydro Pump", "Razor Leaf", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
       const pick = pool[Math.floor(Math.random() * pool.length)];
       this.fireSkill(caster, pick, level, isEvolved, dmgScale * 1.15, slotIdx);
       return;
@@ -380,7 +380,7 @@ const SkillsEngine = {
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
-      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember") ? 350 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315));
+      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember" || cleanSkillId === "RazorLeaf") ? 355 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315));
       // 冷凍光線 (IceBeam) 同步開啟自動轉向追蹤！
       const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast" || cleanSkillId === "IceBeam");
 
@@ -1124,7 +1124,7 @@ const SkillsEngine = {
           this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, Math.random() < 0.6 ? "#EF4444" : "#FBBF24", 3.0, 0.25, "circle");
         } else if (pr.vfx === "water_beam") {
           this.spawnSubParticle(pr.x - pr.vx * 0.03, pr.y - pr.vy * 0.03, (Math.random() - 0.5) * 25, (Math.random() - 0.5) * 25, "#7DD3FC", 2.6, 0.22, "circle");
-        } else if (pr.vfx === "seed_cluster") {
+        } else if (pr.vfx === "seed_cluster" || pr.vfx === "leaf_blade") {
           this.spawnSubParticle(pr.x, pr.y, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, "#4ADE80", 2.8, 0.28, "leaf");
         } else if (pr.vfx === "frost_beam") {
           this.spawnSubParticle(pr.x, pr.y, (Math.random() - 0.5) * 12, (Math.random() - 0.5) * 12, "#E0F2FE", 2.5, 0.25, "diamond");

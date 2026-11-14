@@ -93,6 +93,14 @@ const SKILLS_CATALOG = {
     desc: "甩動帶刺S型雙層藤蔓，兩側生出嫩芽，末端音爆鞭笞身前敵人！",
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
+  RazorLeaf: {
+    id: "Razor Leaf", name: "飛葉快刀", type: "Grass", baseDmg: 29, baseCd: 0.88,
+    knockback: 6, isMelee: false, vfx: "leaf_blade", reqItem: "miracle_seed",
+    evolvedName: "瘋狂植物", color: "#22C55E",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+    desc: "射出高速自轉的雙色立體鋒利葉片，穿透敵群並附帶高暴擊率！",
+    evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
+  },
 Ember: {
     id: "Ember", name: "火花", type: "Fire", baseDmg: 25, baseCd: 0.85,
     knockback: 0, isMelee: false, vfx: "ember_spark", reqItem: "charcoal",
@@ -412,8 +420,8 @@ const POKEMON_DB = [
   { id: 40, name_zh: "胖可丁", type1: "Normal", type2: "Psychic", hp: 240, atk: 70, speed: 45, skill: "Moonblast", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
   { id: 41, name_zh: "超音蝠", type1: "Poison", type2: "Flying", hp: 100, atk: 45, speed: 55, skill: "Air Slash", weightTier: "light", kbResist: 0.0, evo_level: 22, evo_to: 42 },
   { id: 42, name_zh: "大嘴蝠", type1: "Poison", type2: "Flying", hp: 165, atk: 80, speed: 90, skill: "Air Slash", weightTier: "medium", kbResist: 0.30, evo_level: "None", evo_to: null },
-  { id: 43, name_zh: "走路草", type1: "Grass", type2: "Poison", hp: 110, atk: 50, speed: 30, skill: "Seed Bomb", weightTier: "light", kbResist: 0.10, evo_level: 21, evo_to: 44 },
-  { id: 44, name_zh: "臭臭花", type1: "Grass", type2: "Poison", hp: 150, atk: 65, speed: 40, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 45 },
+  { id: 43, name_zh: "走路草", type1: "Grass", type2: "Poison", hp: 110, atk: 50, speed: 30, skill: "Razor Leaf", weightTier: "light", kbResist: 0.10, evo_level: 21, evo_to: 44 },
+  { id: 44, name_zh: "臭臭花", type1: "Grass", type2: "Poison", hp: 150, atk: 65, speed: 40, skill: "Razor Leaf", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 45 },
   { id: 45, name_zh: "霸王花", type1: "Grass", type2: "Poison", hp: 195, atk: 80, speed: 50, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.65, evo_level: "None", evo_to: null },
   { id: 46, name_zh: "派拉斯", type1: "Bug", type2: "Grass", hp: 105, atk: 70, speed: 25, skill: "Seed Bomb", weightTier: "light", kbResist: 0.15, evo_level: 24, evo_to: 47 },
   { id: 47, name_zh: "派拉斯特", type1: "Bug", type2: "Grass", hp: 160, atk: 95, speed: 30, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
@@ -438,8 +446,8 @@ const POKEMON_DB = [
   { id: 66, name_zh: "腕力", type1: "Fighting", type2: "None", hp: 130, atk: 80, speed: 35, skill: "Karate Chop", weightTier: "medium", kbResist: 0.35, evo_level: 28, evo_to: 67 },
   { id: 67, name_zh: "豪力", type1: "Fighting", type2: "None", hp: 170, atk: 100, speed: 45, skill: "Karate Chop", weightTier: "medium", kbResist: 0.65, evo_level: 36, evo_to: 68 },
   { id: 68, name_zh: "怪力", type1: "Fighting", type2: "None", hp: 220, atk: 130, speed: 55, skill: "Karate Chop", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
-  { id: 69, name_zh: "喇叭芽", type1: "Grass", type2: "Poison", hp: 110, atk: 75, speed: 40, skill: "Seed Bomb", weightTier: "light", kbResist: 0.05, evo_level: 21, evo_to: 70 },
-  { id: 70, name_zh: "口呆花", type1: "Grass", type2: "Poison", hp: 155, atk: 90, speed: 55, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 71 },
+  { id: 69, name_zh: "喇叭芽", type1: "Grass", type2: "Poison", hp: 110, atk: 75, speed: 40, skill: "Razor Leaf", weightTier: "light", kbResist: 0.05, evo_level: 21, evo_to: 70 },
+  { id: 70, name_zh: "口呆花", type1: "Grass", type2: "Poison", hp: 155, atk: 90, speed: 55, skill: "Razor Leaf", weightTier: "medium", kbResist: 0.35, evo_level: 36, evo_to: 71 },
   { id: 71, name_zh: "大食花", type1: "Grass", type2: "Poison", hp: 200, atk: 105, speed: 70, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.75, evo_level: "None", evo_to: null },
   { id: 72, name_zh: "瑪瑙水母", type1: "Water", type2: "Poison", hp: 110, atk: 40, speed: 70, skill: "Hydro Pump", weightTier: "light", kbResist: 0.15, evo_level: 30, evo_to: 73 },
   { id: 73, name_zh: "毒刺水母", type1: "Water", type2: "Poison", hp: 190, atk: 70, speed: 100, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
@@ -483,7 +491,7 @@ const POKEMON_DB = [
   { id: 111, name_zh: "獨角犀牛", type1: "Ground", type2: "Rock", hp: 145, atk: 85, speed: 25, skill: "Earthquake", weightTier: "heavy", kbResist: 0.75, evo_level: 36, evo_to: 112 },
   { id: 112, name_zh: "鑽角犀獸", type1: "Ground", type2: "Rock", hp: 215, atk: 130, speed: 40, skill: "Earthquake", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
   { id: 113, name_zh: "吉利蛋", type1: "Normal", type2: "None", hp: 450, atk: 15, speed: 50, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
-  { id: 114, name_zh: "蔓藤怪", type1: "Grass", type2: "None", hp: 145, atk: 55, speed: 60, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 114, name_zh: "蔓藤怪", type1: "Grass", type2: "None", hp: 145, atk: 55, speed: 60, skill: "Razor Leaf", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
   { id: 115, name_zh: "袋獸", type1: "Normal", type2: "None", hp: 215, atk: 95, speed: 90, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
   { id: 116, name_zh: "墨海馬", type1: "Water", type2: "None", hp: 90, atk: 40, speed: 60, skill: "Hydro Pump", weightTier: "light", kbResist: 0.05, evo_level: 32, evo_to: 117 },
   { id: 117, name_zh: "海刺龍", type1: "Water", type2: "None", hp: 155, atk: 65, speed: 85, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
@@ -1153,7 +1161,9 @@ const TM_CATALOG = {
   Flamethrower: { id: "Flamethrower", tmNo: "TM35", name: "噴射火焰", type: "Fire", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-fire.png", desc: "朝身前噴吐直線貫穿高溫烈焰，造成高頻灼傷輸出。" },
   HydroPump:    { id: "HydroPump",    tmNo: "TM55", name: "水炮",     type: "Water", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-water.png", desc: "發射高壓衝擊水流，強力推開身前一整排敵人。" },
   Thunderbolt:  { id: "Thunderbolt",  tmNo: "TM24", name: "十萬伏特", type: "Electric", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-electric.png", desc: "向身周射出折射電弧鏈，牽制並麻痺分散的敵群。" },
+  RazorLeaf:    { id: "RazorLeaf",    tmNo: "TM75", name: "飛葉快刀", type: "Grass", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-grass.png", desc: "射出高速自轉的雙色立體鋒利葉片，直線穿透敵群。" },
   SeedBomb:     { id: "SeedBomb",     tmNo: "TM86", name: "種子炸彈", type: "Grass", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-grass.png", desc: "向目標區域投擲炸彈，爆裂造成大範圍草系重擊。" },
+  DragonRush:   { id: "DragonRush",   tmNo: "TM59", name: "龍之俯衝", type: "Dragon", cost: 280, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-dragon.png", desc: "釋放威猛蒼藍龍首氣旋衝擊，滿級配龍之鱗片突破【天龍流星雨】！" },
   IceBeam:      { id: "IceBeam",      tmNo: "TM13", name: "冷凍光線", type: "Ice", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ice.png", desc: "發射直線極寒光束，具有極高機率完全凍結怪物。" },
   Earthquake:   { id: "Earthquake",   tmNo: "TM26", name: "地震",     type: "Ground", cost: 280, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ground.png", desc: "猛力震裂地面，全屏地面目標浮空打擊（對飛行系無效）。" },
   ShadowBall:   { id: "ShadowBall",   tmNo: "TM30", name: "暗影球",   type: "Ghost", cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ghost.png", desc: "投擲凝聚暗影之球，可無視所有牆體與障礙穿透打擊。" },
@@ -1164,22 +1174,36 @@ const TM_CATALOG = {
 
 // 一階先發精靈天生三招階梯表 (起手 ➔ 中程牽制 ➔ 領域爆發)
 const POKEMON_NATURAL_SKILLS = {
-  1:   { name: "妙蛙種子", skills: ["VineWhip", "SeedBomb", "SludgeBomb"] },
+  1:   { name: "妙蛙種子", skills: ["VineWhip", "RazorLeaf", "SeedBomb"] },
+  2:   { name: "妙蛙草",   skills: ["VineWhip", "RazorLeaf", "SeedBomb"] },
+  3:   { name: "妙蛙花",   skills: ["VineWhip", "RazorLeaf", "SeedBomb"] },
   4:   { name: "小火龍",   skills: ["Ember", "Flamethrower", "DragonRush"] },
+  5:   { name: "火恐龍",   skills: ["Flamethrower", "DragonRush", "Ember"] },
+  6:   { name: "噴火龍",   skills: ["Flamethrower", "DragonRush", "AirSlash"] },
   7:   { name: "傑尼龜",   skills: ["WaterGun", "HydroPump", "IceBeam"] },
-  10:  { name: "綠毛蟲",   skills: ["Tackle", "SeedBomb", "AirSlash"] },
+  10:  { name: "綠毛蟲",   skills: ["Tackle", "RazorLeaf", "AirSlash"] },
   13:  { name: "獨角蟲",   skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
+  43:  { name: "走路草",   skills: ["RazorLeaf", "SeedBomb", "SludgeBomb"] },
+  69:  { name: "喇叭芽",   skills: ["RazorLeaf", "VineWhip", "SludgeBomb"] },
+  114: { name: "蔓藤怪",   skills: ["RazorLeaf", "VineWhip", "SeedBomb"] },
+  116: { name: "墨海馬",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
+  117: { name: "海刺龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
+  129: { name: "鯉魚王",   skills: ["Tackle", "HydroPump", "DragonRush"] },
+  130: { name: "暴鯉龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   132: { name: "百變怪",   skills: ["Metronome", "Tackle", "Psystrike"] },
   133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
+  142: { name: "化石翼龍", skills: ["AirSlash", "DragonRush", "Earthquake"] },
   143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] },
-  147: { name: "迷你龍",   skills: ["DragonRush", "Thunderbolt", "IceBeam"] }
+  147: { name: "迷你龍",   skills: ["DragonRush", "Thunderbolt", "IceBeam"] },
+  148: { name: "哈克龍",   skills: ["DragonRush", "Thunderbolt", "IceBeam"] },
+  149: { name: "快龍",     skills: ["DragonRush", "Thunderbolt", "Flamethrower"] }
 };
 
 // 根據屬性對應的代表招式池（供全 151 圖鑑動態推導天生三招）
 const TYPE_SKILL_POOLS = {
-  Grass:    ["VineWhip", "SeedBomb", "SludgeBomb"],
+  Grass:    ["RazorLeaf", "VineWhip", "SeedBomb"],
   Fire:     ["Ember", "Flamethrower", "DragonRush"],
   Water:    ["WaterGun", "HydroPump", "IceBeam"],
   Electric: ["Thunderbolt", "AirSlash", "Tackle"],
