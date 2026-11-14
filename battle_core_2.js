@@ -755,6 +755,9 @@ window.GameApp = {
     this.camera.shakeTime = 0.28;
     this.camera.shakeMagnitude = 8;
     SoundFX.play("ultimate");
+    if (typeof SoundFX.playTrainerVoice === "function") {
+      SoundFX.playTrainerVoice(tr.id);
+    }
 
     let healPct = 0.20;
     if (tr.id === "ash") {

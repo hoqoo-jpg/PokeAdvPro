@@ -780,6 +780,17 @@ const SoundFX = {
     victory: "audio/victory.mp3"
   },
 
+  // 6 大隨行訓練家專屬戰術指令語音 (Cut-in Voice MP3)
+  voiceUrls: {
+    ash: "audio/voice_ash.mp3",
+    misty: "audio/voice_misty.mp3",
+    brock: "audio/voice_brock.mp3",
+    serena: "audio/voice_serena.mp3",
+    lillie: "audio/voice_lillie.mp3",
+    red: "audio/voice_red.mp3"
+  },
+  voiceElements: {},
+
   init() {
     if (this.ctx) {
       if (this.ctx.state === "suspended") {
@@ -800,6 +811,78 @@ const SoundFX = {
         this.ctx.resume().catch(() => {});
       }
     }
+    this.preloadVoices();
+  },
+
+  preloadVoices() {
+    Object.entries(this.voiceUrls).forEach(([key, url]) => {
+      if (!this.voiceElements[key]) {
+        try {
+          const audio = new Audio();
+          audio.preload = "auto";
+          audio.src = url;
+          this.voiceElements[key] = audio;
+        } catch (e) {}
+      }
+      if (this.ctx && !this.audioBuffers[`voice_${key}`]) {
+        this.preloadTrack(`voice_${key}`, url);
+      }
+    });
+  },
+
+  playTrainerVoice(trainerId) {
+    if (this.muted || !trainerId) return;
+    this.init();
+    const voiceKey = `voice_${trainerId}`;
+    const url = this.voiceUrls[trainerId] || `audio/voice_${trainerId}.mp3`;
+
+    // 啟動 BGM 自動閃避 (Audio Ducking)：發動戰術語音瞬間將背景音樂壓低至 10%，1.6 秒後平滑恢復，凸顯熱血人聲台詞！
+    if (this.bgmGain && this.ctx && !this.muted) {
+      const now = this.ctx.currentTime;
+      this.bgmGain.gain.cancelScheduledValues(now);
+      this.bgmGain.gain.setValueAtTime(this.bgmGain.gain.value, now);
+      this.bgmGain.gain.linearRampToValueAtTime(0.08, now + 0.06);
+      this.bgmGain.gain.setValueAtTime(0.08, now + 1.45);
+      this.bgmGain.gain.linearRampToValueAtTime(0.35, now + 2.0);
+    }
+
+    // 1. 優先使用已解碼的 WebAudio Buffer 播放（iOS / 手機零延遲且音量飽滿）
+    if (this.ctx && this.audioBuffers[voiceKey]) {
+      try {
+        if (this.currentVoiceSource) {
+          try { this.currentVoiceSource.stop(); } catch (e) {}
+        }
+        const source = this.ctx.createBufferSource();
+        source.buffer = this.audioBuffers[voiceKey];
+        const vGain = this.ctx.createGain();
+        vGain.gain.setValueAtTime(1.15, this.ctx.currentTime);
+        source.connect(vGain);
+        vGain.connect(this.ctx.destination);
+        source.start(0);
+        this.currentVoiceSource = source;
+        return;
+      } catch (e) {}
+    }
+
+    // 2. 備援：使用 HTML5 Audio 元素直接播放本地 MP3（支援 file:// 與首次即時觸發）
+    try {
+      let el = this.voiceElements[trainerId];
+      if (!el) {
+        el = new Audio(url);
+        this.voiceElements[trainerId] = el;
+      }
+      el.muted = this.muted;
+      el.volume = 1.0;
+      el.currentTime = 0;
+      const playPromise = el.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch(() => {});
+      }
+      // 同步背景預載進 WebAudio Buffer 供下次零延遲使用
+      if (this.ctx && !this.audioBuffers[voiceKey]) {
+        this.preloadTrack(voiceKey, url);
+      }
+    } catch (e) {}
   },
 
   async preloadTrack(key, url) {
@@ -984,6 +1067,9 @@ const SoundFX = {
       this.bgmGain.gain.setValueAtTime(this.muted ? 0 : 0.35, this.ctx.currentTime);
       this.sfxGain.gain.setValueAtTime(this.muted ? 0 : 0.40, this.ctx.currentTime);
     }
+    Object.values(this.voiceElements || {}).forEach(el => {
+      if (el) el.muted = this.muted;
+    });
     return this.muted;
   },
 
