@@ -2457,40 +2457,43 @@ const SkillsEngine = {
           ctx.restore();
         }
       } else if (hz.kind === "dragon_wave") {
-        // 【龍之俯衝（普攻）・蒼藍威猛龍首氣旋】：張開雙顎的立體蒼藍龍首輪廓 ＋ 金色龍睛 ＋ 螺旋逆鱗氣浪
+        // 【龍之俯衝（普攻）・蒼藍威猛龍首氣旋 / 快龍 #149 專屬金焰雷光蒼龍王氣旋】
         ctx.translate(sx, sy);
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = Math.max(0, hz.timer / hz.maxTime);
         const r = hz.radius;
+        const isKing = !!hz.isDragoniteKing;
 
-        // 1. 身後三道螺旋擴散的蒼藍與金紫龍魂殘影
+        // 1. 身後三道螺旋擴散的龍魂殘影
         [-22, -11].forEach((tx, idx) => {
-          ctx.strokeStyle = idx === 0 ? "rgba(67, 56, 202, 0.50)" : "rgba(56, 189, 248, 0.75)";
-          ctx.lineWidth = 5.0 - idx;
+          ctx.strokeStyle = isKing
+            ? (idx === 0 ? "rgba(234, 88, 12, 0.58)" : "rgba(250, 204, 21, 0.88)")
+            : (idx === 0 ? "rgba(67, 56, 202, 0.50)" : "rgba(56, 189, 248, 0.75)");
+          ctx.lineWidth = (isKing ? 6.0 : 5.0) - idx;
           ctx.beginPath();
           ctx.arc(tx, 0, r * (0.72 + idx * 0.14), -0.88, 0.88);
           ctx.stroke();
         });
 
         // 2. 威猛龍首主體輪廓（前突龍吻 + 上下龍角/逆鱗翼）
-        ctx.fillStyle = "#1E1B4B";
-        ctx.strokeStyle = "#38BDF8";
-        ctx.lineWidth = 3.0;
+        ctx.fillStyle = isKing ? "#7C2D12" : "#1E1B4B";
+        ctx.strokeStyle = isKing ? "#FACC15" : "#38BDF8";
+        ctx.lineWidth = isKing ? 3.5 : 3.0;
         ctx.beginPath();
-        ctx.moveTo(r * 1.18, 0); // 龍吻前端
-        ctx.lineTo(r * 0.45, -r * 0.48); // 上顎
-        ctx.lineTo(-r * 0.35, -r * 0.92); // 左上龍角尖
+        ctx.moveTo(r * 1.18, 0);
+        ctx.lineTo(r * 0.45, -r * 0.48);
+        ctx.lineTo(-r * 0.35, -r * 0.92);
         ctx.lineTo(-r * 0.05, -r * 0.32);
-        ctx.lineTo(-r * 0.55, 0); // 龍頸內凹
+        ctx.lineTo(-r * 0.55, 0);
         ctx.lineTo(-r * 0.05, r * 0.32);
-        ctx.lineTo(-r * 0.35, r * 0.92); // 左下龍角尖
-        ctx.lineTo(r * 0.45, r * 0.48); // 下顎
+        ctx.lineTo(-r * 0.35, r * 0.92);
+        ctx.lineTo(r * 0.45, r * 0.48);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // 3. 龍首內部亮藍能量脈絡與雙側發光黃金龍睛
-        ctx.fillStyle = "#4338CA";
+        // 3. 龍首內部能量脈絡與雙側發光龍睛
+        ctx.fillStyle = isKing ? "#EA580C" : "#4338CA";
         ctx.beginPath();
         ctx.moveTo(r * 0.95, 0);
         ctx.lineTo(r * 0.25, -r * 0.32);
@@ -2499,11 +2502,25 @@ const SkillsEngine = {
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = "#FACC15";
+        ctx.fillStyle = isKing ? "#38BDF8" : "#FACC15";
         ctx.beginPath();
         ctx.ellipse(r * 0.36, -r * 0.22, 4.5, 2.2, -0.3, 0, Math.PI * 2);
         ctx.ellipse(r * 0.36, r * 0.22, 4.5, 2.2, 0.3, 0, Math.PI * 2);
         ctx.fill();
+
+        // 快龍王專屬：周身跳動的金白雷電電弧
+        if (isKing) {
+          ctx.strokeStyle = "#FEF08A";
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.3, -r * 0.65);
+          ctx.lineTo(r * 0.15, -r * 0.35 + Math.sin(now * 20) * 4);
+          ctx.lineTo(r * 0.75, -r * 0.15);
+          ctx.moveTo(-r * 0.3, r * 0.65);
+          ctx.lineTo(r * 0.15, r * 0.35 - Math.sin(now * 20) * 4);
+          ctx.lineTo(r * 0.75, r * 0.15);
+          ctx.stroke();
+        }
 
         // 4. 龍吻前端破空純白氣刃
         ctx.strokeStyle = "#FFFFFF";

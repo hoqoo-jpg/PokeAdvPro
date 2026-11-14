@@ -22,6 +22,7 @@ Object.assign(window.GameApp, {
   pokedexShowBack: {},
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
+  selectedLoadout: "none",
 
   // 封面漫步展示動畫配置
   titleDemo: {
@@ -592,6 +593,36 @@ Object.assign(window.GameApp, {
       `;
     }).join("");
 
+    const loadoutEl = document.getElementById("tacticalLoadoutGrid");
+    if (loadoutEl) {
+      const loadouts = [
+        { id: "combat_pack", name: "戰鬥強化補給包", cost: 150, badge: "150 代幣", sprite: ITEM_SPRITES.protein, desc: "開局自帶 45 秒【力量強化(全傷+35%)】＆【速度強化(移速+30%)】與 +25% 額外最大護盾 HP！" },
+        { id: "held_box", name: "本命超武攜帶物盲盒", cost: 220, badge: "220 代幣", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/EXP-share.png", desc: "開局直接獲贈 1 件對應出戰精靈主招式的【超武核心攜帶物】（全傷+12% 且滿級直通超武）！" }
+      ];
+      loadoutEl.innerHTML = loadouts.map(ld => {
+        const sel = this.selectedLoadout === ld.id;
+        return `
+          <div onclick="GameApp.toggleTacticalLoadout('${ld.id}', ${ld.cost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <div class="flex items-center gap-1.5">
+                  <img src="${ld.sprite}" class="w-5 h-5 pixel-sprite object-contain"/>
+                  <span class="font-black text-xs text-slate-800">${ld.name}</span>
+                </div>
+                <span class="px-2 py-0.5 ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} font-black text-[10px] rounded-full flex items-center gap-0.5">
+                  <img src="${ITEM_SPRITES.coin}" class="w-3 h-3 pixel-sprite"/>${ld.badge}
+                </span>
+              </div>
+              <p class="text-xs font-bold text-slate-600 leading-relaxed">${ld.desc}</p>
+            </div>
+            <div class="mt-2 text-right">
+              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已勾選（出戰時扣除代幣）' : '點擊勾選入場攜帶'}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     // 恢復外層滾動容器的垂直捲動位置，防止點選下方精靈或升星時跳回頂部
     if (scrollArea) {
       scrollArea.scrollTop = prevVertScroll;
@@ -711,6 +742,20 @@ Object.assign(window.GameApp, {
       SoundFX.play("hit");
       this.renderWizardContent();
     }
+  },
+
+  toggleTacticalLoadout(id, cost) {
+    if (this.selectedLoadout === id) {
+      this.selectedLoadout = "none";
+    } else {
+      if ((this.saveData.coins || 0) < cost) {
+        alert(`代幣不足！勾選此開局補給需要 ${cost} 代幣！`);
+        return;
+      }
+      this.selectedLoadout = id;
+    }
+    SoundFX.play("hit");
+    this.renderWizardContent();
   },
 
   openUnlockConfirmModal(type, id, cost) {

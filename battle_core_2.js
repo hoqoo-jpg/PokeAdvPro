@@ -683,6 +683,33 @@ window.GameApp = {
       this.summonOrUpgradePartner();
     }
 
+    // 兌現 STEP 3 勾選的「開局戰術特訓補給」
+    if (this.selectedLoadout === "combat_pack" && (this.saveData.coins || 0) >= 150) {
+      this.saveData.coins -= 150;
+      this.saveToStorage();
+      this.player.xAttackTimer = 45.0;
+      this.player.xSpeedTimer = 45.0;
+      this.player.maxHp = Math.round(this.player.maxHp * 1.25);
+      this.player.hp = this.player.maxHp;
+      setTimeout(() => {
+        if (this.player) this.spawnFloatingText(this.player.x, this.player.y - 36, "🎒 戰術補給生效：45秒攻速強化 ＆ HP+25%！", "#FACC15", 14);
+      }, 400);
+    } else if (this.selectedLoadout === "held_box" && (this.saveData.coins || 0) >= 220) {
+      this.saveData.coins -= 220;
+      this.saveToStorage();
+      const mainSkMeta = SKILLS_CATALOG[firstSkillId];
+      const reqId = (mainSkMeta && mainSkMeta.reqItem) ? mainSkMeta.reqItem : "silk_scarf";
+      const hiMeta = HELD_ITEMS[reqId] || Object.values(HELD_ITEMS)[0];
+      if (hiMeta) {
+        this.player.heldItems[hiMeta.id] = true;
+        this.player.dmgMult *= 1.12;
+        setTimeout(() => {
+          if (this.player) this.spawnFloatingText(this.player.x, this.player.y - 36, `🎁 本命盲盒開啟：獲得【${hiMeta.name}】！`, "#C084FC", 14);
+        }, 400);
+      }
+    }
+    this.selectedLoadout = "none";
+
     this.runTime = 0;
     this.spawnTimer = 0.5;
     this.eliteSpawnTimer = 45;
@@ -847,7 +874,7 @@ window.GameApp = {
         if (pt.level < 5) {
           pt.level += 1;
           anyUpg = true;
-          if (pt.data.evo_level !== "None" && pt.level >= 5 && pt.data.evo_to) {
+          if (pt.data.evo_level !== "None" && pt.level >= 3 && pt.data.evo_to) {
             const nextData = POKEMON_MAP.get(pt.data.evo_to);
             if (nextData) {
               pt.id = nextData.id;
@@ -1234,16 +1261,29 @@ window.GameApp = {
     const upgPartnerMult = 1 + (this.saveData.upgrades.partner || 0) * 0.18;
     this.partners.forEach((pt, idx) => {
       const angle = this.partnerOrbitBase + idx * Math.PI;
-      const tx = midX + Math.cos(angle) * 78;
-      const ty = midY + Math.sin(angle) * 60;
+      const skIdCheck = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
+      const skMetaCheck = SKILLS_CATALOG[skIdCheck];
+      const isShortRange = !!(skMetaCheck && (skMetaCheck.isMelee || skIdCheck === "Thunderbolt"));
+      const nearTarget = this.findNearestEnemyInViewport(midX, midY, isShortRange ? 230 : 360);
+
+      let tx = midX + Math.cos(angle) * 78;
+      let ty = midY + Math.sin(angle) * 60;
+      // 近戰或電系夥伴索敵時，自動朝敵人方向彈性突進至 135px 戰鬥半徑，不再原地揮空！
+      if (isShortRange && nearTarget) {
+        const lungeAng = Math.atan2(nearTarget.y - midY, nearTarget.x - midX);
+        const lungeDist = Math.min(138, Math.max(65, Math.hypot(nearTarget.x - midX, nearTarget.y - midY) - 22));
+        tx = midX + Math.cos(lungeAng) * lungeDist;
+        ty = midY + Math.sin(lungeAng) * lungeDist;
+      }
+
       pt.x += (tx - pt.x) * Math.min(1, dt * 12);
       pt.y += (ty - pt.y) * Math.min(1, dt * 12);
-      pt.facingX = p.facingX;
+      pt.facingX = nearTarget ? (nearTarget.x >= pt.x ? 1 : -1) : p.facingX;
       pt.facingY = p.facingY;
 
       pt.cdTimer -= dt;
       if (pt.cdTimer <= 0) {
-        const target = this.findNearestEnemyInViewport(pt.x, pt.y, 360);
+        const target = nearTarget || this.findNearestEnemyInViewport(pt.x, pt.y, 360);
         if (target) {
           const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
           const isPartnerBond = (this.selectedTrainer.bondPokemonIds || []).includes(pt.id);
@@ -1533,13 +1573,16 @@ window.GameApp = {
 
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
-      const baseInterval = Math.max(0.24, (1.15 - minutes * 0.12) / diff.spawnRateMult);
+      const bossThrottle = (this.activeBoss && this.activeBoss.hp > 0) ? 1.65 : 1.0;
+      const baseInterval = Math.max(0.24, (1.15 - minutes * 0.12) / diff.spawnRateMult) * bossThrottle;
       this.spawnTimer = baseInterval;
 
-      const maxMobCap = Math.min(180, Math.round(75 + minutes * 15));
+      const maxMobCap = (this.activeBoss && this.activeBoss.hp > 0)
+        ? 85
+        : Math.min(180, Math.round(75 + minutes * 15));
       if (this.enemies.length < maxMobCap) {
         this.spawnWildEnemy(false);
-        if (minutes >= 4.0 && this.enemies.length < maxMobCap - 5) {
+        if (!this.activeBoss && minutes >= 4.0 && this.enemies.length < maxMobCap - 5) {
           this.spawnWildEnemy(false);
         }
       }
@@ -2496,7 +2539,8 @@ window.GameApp = {
     const psychicCritBonus = (MapEngine.weather === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) ? 0.15 : 0;
     // 【攜帶物：毒針】對處於中毒狀態的敵人額外暴擊率 +25%
     const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus);
+    const dualSuperCritBonus = Object.values(this.player.skills || {}).filter(s => s.evolved).length >= 2 ? 0.08 : 0;
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus);
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
     const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
     const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
@@ -2586,8 +2630,21 @@ window.GameApp = {
     const hasBlackBelt = !!(this.player.heldItems && this.player.heldItems["black_belt"]);
     const isPoisonCrit = isCrit && poisonBarbCritBonus > 0;
     const critPrefix = isPoisonCrit ? "劇毒暴擊" : (hasBlackBelt ? "極限暴擊" : "暴擊");
-    const label = eff > 1.1 ? (isCrit ? `克制${critPrefix} ${finalDmg}!` : `克制 ${finalDmg}!`) : (isCrit ? `${critPrefix} ${finalDmg}!` : `${finalDmg}`);
-    const col = isPoisonCrit ? "#C084FC" : (eff > 1.1 ? "#F97316" : (isCrit ? (hasBlackBelt ? "#FB7185" : "#FACC15") : "#FFFFFF"));
+    let label = `${finalDmg}`;
+    let col = "#FFFFFF";
+    if (eff <= 0.15) {
+      label = `微弱抵抗 ${finalDmg}`;
+      col = "#94A3B8";
+    } else if (eff < 0.85) {
+      label = `抵抗 ${finalDmg}`;
+      col = "#CBD5E1";
+    } else if (eff > 1.1) {
+      label = isCrit ? `克制${critPrefix} ${finalDmg}!` : `克制 ${finalDmg}!`;
+      col = isPoisonCrit ? "#C084FC" : "#F97316";
+    } else if (isCrit) {
+      label = `${critPrefix} ${finalDmg}!`;
+      col = isPoisonCrit ? "#C084FC" : (hasBlackBelt ? "#FB7185" : "#FACC15");
+    }
     this.spawnFloatingText(enemy.x, enemy.y - 12, label, col, eff > 1.1 || isCrit ? 15 : 12);
 
     if (enemy.hp <= 0) {
@@ -3199,7 +3256,19 @@ window.GameApp = {
       `;
     }).join("") : "";
 
-    const recipeBarHtml = recipePills ? `
+    const curSlots = p ? Object.keys(p.skills).length : 0;
+    const maxSlots = p ? (p.maxSkillSlots || 3) : 3;
+    const heldCount = p ? Object.keys(p.heldItems || {}).length : 0;
+    const statusHeaderBar = p ? `
+      <div class="flex items-center justify-between gap-1 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl mb-2 text-[10px] font-black">
+        <span class="text-emerald-400"><i class="fa-solid fa-heart-pulse"></i> HP: ${Math.ceil(p.hp)}/${p.maxHp}</span>
+        <span class="text-sky-300"><i class="fa-solid fa-bolt"></i> 招式槽: ${curSlots}/${maxSlots}</span>
+        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶物: ${heldCount}件</span>
+        <span class="text-amber-300"><i class="fa-solid fa-coins"></i> ${this.runCoins}金</span>
+      </div>
+    ` : "";
+
+    const recipeBarHtml = statusHeaderBar + (recipePills ? `
       <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-2 mb-2.5">
         <div class="text-[10px] font-bold text-amber-300/90 mb-1 flex items-center gap-1">
           <i class="fa-solid fa-flask text-[9px]"></i>
@@ -3207,7 +3276,7 @@ window.GameApp = {
         </div>
         <div class="flex flex-wrap gap-1.5">${recipePills}</div>
       </div>
-    ` : "";
+    ` : "");
 
     const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
       <div onclick="GameApp.selectUpgradeChoice(${idx})" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
@@ -3644,11 +3713,11 @@ window.GameApp = {
         ctx.fill();
       }
 
-      // 隨行訓練家腳底戰術光環（平時淡青藍，受創時閃爍鮮紅警戒圈，直觀提示訓練家受擊判定區）
+      // 隨行訓練家腳底戰術光環（同步緊縮至 13px 核心判定圈，平時淡青藍，受創時閃爍鮮紅警戒圈）
       ctx.strokeStyle = tc.whiteFlashTimer > 0 ? "rgba(239, 68, 68, 0.95)" : "rgba(56, 189, 248, 0.45)";
       ctx.lineWidth = tc.whiteFlashTimer > 0 ? 3.0 : 1.6;
       ctx.beginPath();
-      ctx.ellipse(tsx, tsy + 18, 18, 7, 0, 0, Math.PI * 2);
+      ctx.ellipse(tsx, tsy + 18, 13, 5.2, 0, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
@@ -3735,6 +3804,18 @@ window.GameApp = {
       ctx.beginPath();
       ctx.ellipse(px, py + 19, 22, 7.5, 0, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    // 雙超武共鳴光環（當同時突破 2 把超武時，腳底浮現旋轉金燦雙星環，常駐暴擊 +8%）
+    if (Object.values(p.skills || {}).filter(s => s.evolved).length >= 2) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.9)";
+      ctx.lineWidth = 2.2;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.ellipse(px, py + 19, 27, 9.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // 手動突圍瞄準模式時：在主角身前繪製翠綠戰術準星箭頭，清楚指示當前移動開火方向
@@ -3854,18 +3935,26 @@ window.GameApp = {
       const eRec = SpriteCache.get(eSprUrl);
       const sz = e.isBoss ? 120 : (e.isElite || e.treasureType ? 88 : 64);
 
-      // 繪製敵人腳底陰影（精英怪額外繪製暗紅金威壓光環）
+      // 繪製敵人腳底陰影（精英小王額外繪製「外圈暗紅 ＋ 內圈旋轉金虛線」雙層頭目威壓底座）
       ctx.save();
       ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
       ctx.beginPath();
       ctx.ellipse(esx, esy + sz * 0.35, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2);
       ctx.fill();
       if (e.isElite && !e.isBoss) {
-        ctx.strokeStyle = "rgba(239, 68, 68, 0.78)";
-        ctx.lineWidth = 2.2;
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.38, sz * 0.16, 0, 0, Math.PI * 2);
+        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.40, sz * 0.17, 0, 0, Math.PI * 2);
         ctx.stroke();
+
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.90)";
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.33, sz * 0.13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
       ctx.restore();
 
@@ -4051,18 +4140,18 @@ window.GameApp = {
         ctx.restore();
       }
 
-      // --- 敵方血條美術升級：亮珊瑚紅/橘紅 (#FF5252 ➔ #FF6B4A) 與半透明黑底槽 rgba(0,0,0,0.65)，徹底擺脫綠草地保護色 ---
+      // --- 敵方血條美術升級：精英小王左側繪製「金紅立體像素小皇冠符號」與金邊血條 ---
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
-        const bw = e.isBoss ? 72 : 44;
-        const bh = e.isBoss ? 6 : 5.5;
+        const bw = e.isBoss ? 72 : (e.isElite ? 50 : 44);
+        const bh = e.isBoss ? 6 : (e.isElite ? 6.0 : 5.5);
         const barX = esx - bw / 2;
         const barY = esy - sz / 2 - 10;
         const hpRatio = Math.max(0, e.hp / e.maxHp);
 
         ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
-        ctx.lineWidth = 1.0;
+        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+        ctx.strokeStyle = (e.isElite && !e.isBoss) ? "#FACC15" : "rgba(15, 23, 42, 0.85)";
+        ctx.lineWidth = (e.isElite && !e.isBoss) ? 1.4 : 1.0;
         ctx.fillRect(barX, barY, bw, bh);
         ctx.strokeRect(barX, barY, bw, bh);
 
@@ -4079,6 +4168,32 @@ window.GameApp = {
 
         ctx.fillStyle = barColor;
         ctx.fillRect(barX + 0.5, barY + 0.5, (bw - 1) * hpRatio, bh - 1);
+
+        // 精英小王專屬：血條左側繪製立體三尖金紅像素小皇冠符號 (Crown Badge)
+        if (e.isElite && !e.isBoss) {
+          const cx = barX - 8;
+          const cy = barY + bh / 2;
+          ctx.globalAlpha = 1.0;
+          ctx.fillStyle = "#FACC15";
+          ctx.strokeStyle = "#78350F";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(cx - 5, cy + 3.5);
+          ctx.lineTo(cx - 5.5, cy - 3.5);
+          ctx.lineTo(cx - 2, cy - 0.5);
+          ctx.lineTo(cx, cy - 4.5);
+          ctx.lineTo(cx + 2, cy - 0.5);
+          ctx.lineTo(cx + 5.5, cy - 3.5);
+          ctx.lineTo(cx + 5, cy + 3.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#EF4444";
+          ctx.beginPath();
+          ctx.arc(cx, cy + 1, 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       }
     });
@@ -4266,7 +4381,7 @@ window.GameApp = {
 
     const edgePad = 32;
     this.enemies.forEach(e => {
-      if (!e.treasureType && !e.isBoss) return;
+      if (!e.treasureType && !e.isBoss && !e.isElite) return;
       const esx = toSx(e.x), esy = toSy(e.y);
 
       if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
@@ -4280,7 +4395,8 @@ window.GameApp = {
 
         const isMeowth = e.treasureType === "meowth";
         const isChansey = e.treasureType === "chansey";
-        const arrowColor = isMeowth ? "#F59E0B" : (isChansey ? "#EC4899" : "#EF4444");
+        const isOnlyElite = e.isElite && !e.isBoss && !e.treasureType;
+        const arrowColor = isMeowth ? "#F59E0B" : (isChansey ? "#EC4899" : (isOnlyElite ? "#FB7185" : "#EF4444"));
 
         ctx.save();
         ctx.translate(arrowX, arrowY);
