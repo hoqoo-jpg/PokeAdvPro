@@ -1424,7 +1424,7 @@ const SkillsEngine = {
     this.groundHazards.forEach(hz => {
       if (hz.kind === "meteor_strike" && hz.delay > 0) return;
       const sx = toSx(hz.x), sy = toSy(hz.y);
-      const prog = 1 - Math.max(0, hz.timer / hz.maxTime);
+      const prog = Math.max(0, Math.min(1, 1 - (hz.timer / (hz.maxTime || 0.45))));
       ctx.save();
 
       if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
@@ -1499,7 +1499,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.35);
         ctx.globalAlpha = alpha;
-        const maxR = hz.radius * Math.min(1, prog * 2.4);
+        const maxR = Math.max((hz.innerSafeRadius || 44) + 4, hz.radius * Math.min(1, prog * 2.4));
         const safeR = hz.innerSafeRadius || 44;
 
         // 第 1 層：深海暗湧雙色漸層底盤（保留中央 44px 淨空風眼）
@@ -1717,7 +1717,7 @@ const SkillsEngine = {
         // 【耿鬼專屬超武・暗影死滅波】：底層冥界巨大壞笑暗影陣（血紅雙眼＋經典弦月壞笑）
         ctx.translate(sx, sy);
         const alpha = Math.sin((1 - prog) * Math.PI) * 0.90;
-        const curR = hz.radius * Math.min(1, prog * 2.2);
+        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
 
         const shadowGrad = ctx.createRadialGradient(0, 0, 18, 0, 0, curR);
         shadowGrad.addColorStop(0, `rgba(15, 7, 32, ${alpha * 0.85})`);
@@ -1777,7 +1777,7 @@ const SkillsEngine = {
         // 【爆裂十字劈・底層武神八卦氣浪陣】：赤金雙層震地氣環 ＋ 十字裂地氣勁
         ctx.translate(sx, sy);
         const alpha = Math.max(0, hz.timer / hz.maxTime);
-        const curR = hz.radius * Math.min(1, prog * 2.2);
+        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
         ctx.globalAlpha = alpha;
 
         const mGrad = ctx.createRadialGradient(0, 0, 26, 0, 0, curR);
@@ -1810,7 +1810,7 @@ const SkillsEngine = {
         // 【創世極光（月亮之力超武・底層）】：月華星河投影陣 ＋ 雙向交織波浪極光帶 ＋ 閃爍十字星芒
         ctx.translate(sx, sy);
         const alpha = Math.sin((1 - prog) * Math.PI) * 0.90;
-        const curR = hz.radius * Math.min(1, prog * 2.0);
+        const curR = Math.max(28, hz.radius * Math.min(1, prog * 2.0));
 
         const aurGrad = ctx.createRadialGradient(0, 0, 24, 0, 0, curR);
         aurGrad.addColorStop(0, `rgba(254, 240, 138, ${alpha * 0.25})`);
@@ -1847,7 +1847,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.25);
         ctx.globalAlpha = alpha;
-        const curR = hz.radius * Math.min(1, prog * 2.2);
+        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
 
         // 1. 內圈 55% 震央塌陷熔岩坑漸層底盤
         const craterGrad = ctx.createRadialGradient(0, 0, 26, 0, 0, curR * 0.65);
@@ -1943,7 +1943,7 @@ const SkillsEngine = {
       } else if (hz.kind === "ice_shatter_domain") {
         // 【絕對零度（融合 V10 急凍鳥雙向極光幔帳 ＋ 內6外8雙排立體折射冰稜矩陣）】
         ctx.translate(sx, sy);
-        const r = hz.radius * Math.min(1, prog * 1.55);
+        const r = Math.max(42, hz.radius * Math.min(1, prog * 1.55));
         const spin = now * 1.1;
 
         // 1. 第一組：主極光幔帳（左上至右下，冰藍 ➔ 翠綠 ➔ 紫羅蘭）
@@ -2061,7 +2061,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.25);
         ctx.globalAlpha = alpha;
-        const curR = hz.radius * Math.min(1, prog * 1.8);
+        const curR = Math.max(36, hz.radius * Math.min(1, prog * 1.8));
         const spin = -now * 1.6;
 
         // 1. 次元暗物質漸層底盤（保留中央 34px 淨空）
@@ -2136,7 +2136,7 @@ const SkillsEngine = {
     // 地面層近戰特效：地震（V10 雙圈塌陷震央 ＋ 分叉樹狀深淵裂谷 ＋ 雙色切面跳動崩岩）
     this.meleeEffects.forEach(m => {
       if (m.style !== "quake_wave") return;
-      const prog = 1 - (m.timer / m.maxTime);
+      const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.3))));
       const msx = toSx(m.x), msy = toSy(m.y);
       const curR = m.radius * (0.28 + prog * 0.72);
       const innerR = curR * 0.56;
@@ -2238,7 +2238,7 @@ const SkillsEngine = {
     this.groundHazards.forEach(hz => {
       if (hz.kind === "meteor_strike" && hz.delay > 0) return;
       const sx = toSx(hz.x), sy = toSy(hz.y);
-      const prog = 1 - Math.max(0, hz.timer / hz.maxTime);
+      const prog = Math.max(0, Math.min(1, 1 - (hz.timer / (hz.maxTime || 0.45))));
       ctx.save();
 
       if (hz.kind === "moon_pillar") {
@@ -2458,7 +2458,7 @@ const SkillsEngine = {
         ctx.strokeStyle = "#FDE047";
         ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, hz.radius * prog, hz.radius * 0.56 * prog, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, Math.max(0.5, hz.radius * prog), Math.max(0.5, hz.radius * 0.56 * prog), 0, 0, Math.PI * 2);
         ctx.stroke();
 
         // 2. 高空層：頭頂撕開的「紫金星雲次元裂隙雲洞 (Dimensional Rift Cloud)」
@@ -2713,7 +2713,7 @@ const SkillsEngine = {
     // 2. 空中近戰與環形氣浪特效 (藤鞭錐形流線＋音爆半月、空手劈X十字氣勁、撞擊破空音爆錐、比卡超外圍蓄電環)
     this.meleeEffects.forEach(m => {
       if (m.style === "quake_wave") return; // 已在地面底層繪製
-      const prog = 1 - (m.timer / m.maxTime);
+      const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.3))));
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
 
@@ -2875,7 +2875,7 @@ const SkillsEngine = {
         // 【終極衝擊（Giga Impact 超武）・黃金螺旋鑽頭風暴】：地面高壓氣浪軌跡 ＋ 5節高速旋轉黃金螺旋鑽頭巨錐 ＋ 3圈連環破空音爆雲
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
-        const curLen = m.radius * Math.min(1, prog * 1.55);
+        const curLen = Math.max(12, m.radius * Math.min(1, prog * 1.55));
         const maxW = 44 * (1 - prog * 0.25);
         ctx.save();
         ctx.translate(osx, osy);
@@ -3013,7 +3013,7 @@ const SkillsEngine = {
 
     // 3. 超武啟動外環提示（避開主角中心 40px，只向外擴散）
     this.ultimateVfxList.forEach(u => {
-      const prog = 1 - (u.timer / u.maxTime);
+      const prog = Math.max(0, Math.min(1, 1 - (u.timer / (u.maxTime || 1.0))));
       const usx = toSx(u.x), usy = toSy(u.y);
       ctx.save();
       ctx.translate(usx, usy);
