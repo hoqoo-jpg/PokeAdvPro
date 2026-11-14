@@ -40,8 +40,13 @@ const SkillsEngine = {
   fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0, slotIdx = 0) {
     if (skillId === "Metronome") {
       const pool = ["Flamethrower", "Hydro Pump", "Razor Leaf", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
-      const pick = pool[Math.floor(Math.random() * pool.length)];
-      this.fireSkill(caster, pick, level, isEvolved, dmgScale * 1.15, slotIdx);
+      const pick1 = pool[Math.floor(Math.random() * pool.length)];
+      this.fireSkill(caster, pick1, level, isEvolved, dmgScale * 1.15, slotIdx);
+      if (caster && caster.id === 151) {
+        const rest = pool.filter(s => s !== pick1);
+        const pick2 = rest[Math.floor(Math.random() * rest.length)];
+        this.fireSkill(caster, pick2, level, isEvolved, dmgScale * 0.95, slotIdx + 1);
+      }
       return;
     }
 
@@ -143,7 +148,7 @@ const SkillsEngine = {
         color: "#FACC15"
       });
 
-      const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0);
+      const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0) + (caster && caster.id === 145 ? 2 : 0);
       const boltCount = Math.max(3, count + 1 + thunderBonus);
       for (let b = 0; b < boltCount; b++) {
         const enemyTarget = nearby[b];
@@ -291,13 +296,14 @@ const SkillsEngine = {
         const startX = caster.x + Math.cos(ang) * muzzleR;
         const startY = caster.y + Math.sin(ang) * muzzleR;
         const spd = 340;
+        const mewtwoScale = (caster && caster.id === 150) ? 1.35 : 1.0;
         this.projectiles.push({
           x: startX,
           y: startY,
           vx: Math.cos(ang) * spd,
           vy: Math.sin(ang) * spd,
           angle: ang,
-          radius: (20 + level * 0.8) * GameApp.player.areaMult,
+          radius: (20 + level * 0.8) * GameApp.player.areaMult * mewtwoScale,
           dmg: rawDmg * 0.85,
           type: "Psychic",
           skillId: "Psystrike",
@@ -380,9 +386,9 @@ const SkillsEngine = {
     for (let i = 0; i < count; i++) {
       const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
-      const spd = (cleanSkillId === "WaterGun" || cleanSkillId === "Ember" || cleanSkillId === "RazorLeaf") ? 355 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315));
-      // 冷凍光線 (IceBeam) 同步開啟自動轉向追蹤！
-      const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast" || cleanSkillId === "IceBeam");
+      const spd = cleanSkillId === "IceBeam" ? 385 : ((cleanSkillId === "WaterGun" || cleanSkillId === "Ember" || cleanSkillId === "RazorLeaf") ? 355 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315)));
+      // 冷凍光線 (IceBeam) 取消轉彎追蹤，改為 385 極速直線穿雲狙擊光束 (+1 穿透)！
+      const isHoming = (cleanSkillId === "ShadowBall" || cleanSkillId === "Psystrike" || cleanSkillId === "Moonblast");
 
       // 當敵人貼近至 75px 內時，自動收攏側向與前推偏移，避免子彈跨過貼身怪背後
       const lateralScale = isCloseQuarters ? 0.25 : 1.0;
@@ -412,13 +418,41 @@ const SkillsEngine = {
         vfx: meta.vfx || "star_shot",
         homing: isHoming,
         color: meta.color,
-        pierce: isBoomerang ? (level >= 6 ? 6 : 4) : (level >= 6 ? 3 : 2),
+        pierce: isBoomerang ? (level >= 6 ? 6 : 4) : ((level >= 6 ? 3 : 2) + (cleanSkillId === "IceBeam" ? 1 : 0)),
         knockback: meta.knockback !== undefined ? meta.knockback : 0,
         life: isBoomerang ? 1.25 : 0.88,
         maxLife: isBoomerang ? 1.25 : 0.88,
         statusBonus: level >= 5 ? 0.30 : 0,
         hitSet: new Set(),
         trailTimer: 0
+      });
+    }
+    if (cleanSkillId === "IceBeam" && caster && caster.id === 144) {
+      [-0.22, 0.22].forEach(sideAng => {
+        const a = baseAngle + sideAng;
+        this.projectiles.push({
+          x: caster.x + Math.cos(a) * 28,
+          y: caster.y + Math.sin(a) * 28,
+          vx: Math.cos(a) * 395,
+          vy: Math.sin(a) * 395,
+          initSpeed: 395,
+          angle: a,
+          casterRef: caster,
+          radius: 13 * GameApp.player.areaMult,
+          dmg: rawDmg * 0.55,
+          type: "Ice",
+          skillId,
+          vfx: "frost_beam",
+          homing: false,
+          color: "#67E8F9",
+          pierce: 3,
+          knockback: 4,
+          life: 0.78,
+          maxLife: 0.78,
+          statusBonus: 0.35,
+          hitSet: new Set(),
+          trailTimer: 0
+        });
       });
     }
     SoundFX.play("hit");
@@ -575,26 +609,28 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波 + 近身龍爪撕裂
+    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波（快龍 #149 覺醒為雙倍寬幅金焰蒼龍王波 +1 波次）
     if (meta.type === "Dragon") {
-      const dragonWaves = 1 + (level >= 6 ? 1 : 0);
+      const isDragonite = !!(caster && caster.id === 149);
+      const dragonWaves = 1 + (level >= 6 ? 1 : 0) + (isDragonite ? 1 : 0);
       for (let d = 0; d < dragonWaves; d++) {
-        const ang = baseAngle + (d - (dragonWaves - 1) / 2) * 0.28;
+        const ang = baseAngle + (d - (dragonWaves - 1) / 2) * 0.26;
         this.groundHazards.push({
           kind: "dragon_wave",
+          isDragoniteKing: isDragonite,
           x: caster.x + Math.cos(ang) * 24,
           y: caster.y + Math.sin(ang) * 24,
-          vx: Math.cos(ang) * 260,
-          vy: Math.sin(ang) * 260,
+          vx: Math.cos(ang) * (isDragonite ? 290 : 260),
+          vy: Math.sin(ang) * (isDragonite ? 290 : 260),
           angle: ang,
-          radius: 42 * areaScale,
-          dmg: rawDmg * 0.55,
+          radius: (isDragonite ? 58 : 42) * areaScale,
+          dmg: rawDmg * (isDragonite ? 0.68 : 0.55),
           type: "Dragon",
-          timer: 0.65,
-          maxTime: 0.65,
+          timer: 0.68,
+          maxTime: 0.68,
           tickTimer: 0.02,
           tickInterval: 0.16,
-          color: "#4338CA"
+          color: isDragonite ? "#F59E0B" : "#4338CA"
         });
       }
     }
@@ -626,6 +662,27 @@ const SkillsEngine = {
 
   triggerUltimateSuperMove(meta, skSlot, ultDmgScale = 1.0) {
     const p = GameApp.player;
+    if (meta.id === "Metronome") {
+      // 【天命百寶袋（揮指功超武）】：隨機抽取 3 種不同屬性超武錯峰同時轟炸全場！
+      const ultPool = ["Thunderbolt", "Flamethrower", "Hydro Pump", "Seed Bomb", "Ice Beam", "Dragon Rush", "Shadow Ball", "Moonblast"];
+      const shuffled = [...ultPool].sort(() => Math.random() - 0.5).slice(0, 3);
+      shuffled.forEach((pickId, idx) => {
+        const pickMeta = SKILLS_CATALOG[pickId];
+        if (pickMeta) {
+          if (idx === 0) {
+            this.triggerUltimateSuperMove(pickMeta, skSlot, ultDmgScale * 0.72);
+          } else {
+            setTimeout(() => {
+              if (GameApp.state === "PLAYING" && GameApp.player) {
+                this.triggerUltimateSuperMove(pickMeta, skSlot, ultDmgScale * 0.72);
+              }
+            }, idx * 180);
+          }
+        }
+      });
+      return;
+    }
+
     // 究極超武改為微弱柔和震動，絕不干擾走位與視覺
     GameApp.camera.shakeTime = 0.15;
     GameApp.camera.shakeMagnitude = 3.0;
@@ -761,7 +818,7 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Fighting") {
-      // 【爆裂十字劈】：底層展開赤金武神鬥氣震波陣 ＋ 10 道帶殘影與音爆環的立體指節金紅重拳
+      // 【爆裂十字劈】：底層展開赤金武神鬥氣震波陣 ＋ 10 道寬幅螺旋推進的立體指節金紅重拳
       this.groundHazards.push({
         kind: "martial_aura_domain",
         x: p.x, y: p.y,
@@ -777,32 +834,32 @@ const SkillsEngine = {
         this.projectiles.push({
           x: p.x + Math.cos(ang) * 26, y: p.y + Math.sin(ang) * 26,
           vx: Math.cos(ang) * 290, vy: Math.sin(ang) * 290,
-          angle: ang, spinSpeed: (i % 2 === 0 ? 2.2 : -2.2),
+          angle: ang, spinSpeed: (i % 2 === 0 ? 0.95 : -0.95),
           radius: 27, dmg: ultDmg * 0.65,
           type: "Fighting", skillId: "Karate Chop", vfx: "giant_fist",
           color: "#DC2626", pierce: 12, knockback: 18, life: 1.35, statusBonus: 0.4, hitSet: new Set(), trailTimer: 0
         });
       }
     } else if (meta.type === "Flying") {
-      // 【暴風驟雨】：生成 3 道持續 3.5 秒游走追敵並將怪物扯入風眼的聚怪龍捲風
+      // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（降低游走與自轉速度，牽引力遵守體重抗性）
       for (let i = 0; i < 3; i++) {
         const ang = (i * Math.PI * 2) / 3;
         this.groundHazards.push({
           kind: "tornado",
-          x: p.x + Math.cos(ang) * 95,
-          y: p.y + Math.sin(ang) * 95,
-          vx: Math.cos(ang) * 85,
-          vy: Math.sin(ang) * 85,
+          x: p.x + Math.cos(ang) * 90,
+          y: p.y + Math.sin(ang) * 90,
+          vx: Math.cos(ang) * 62,
+          vy: Math.sin(ang) * 62,
           radius: 95 * p.areaMult,
           dmg: ultDmg * 0.24,
           type: "Flying",
-          timer: 3.5, maxTime: 3.5,
+          timer: 3.6, maxTime: 3.6,
           tickTimer: 0.1, tickInterval: 0.25,
           color: "#818CF8"
         });
       }
     } else if (meta.type === "Poison") {
-      // 【劇毒沼澤】：展開持續 4.0 秒的 240px 沸騰劇毒領域，減速並雙倍毒傷高頻腐蝕
+      // 【劇毒沼澤】：展開持續 4.0 秒的 230px 沸騰劇毒領域，減速 30% 並使沼澤內中毒 DOT 翻倍
       this.groundHazards.push({
         kind: "toxic_swamp",
         x: p.x, y: p.y,
@@ -833,22 +890,24 @@ const SkillsEngine = {
         color: "#38BDF8"
       });
     } else if (meta.type === "Dragon") {
-      // 【天龍流星雨】：在 1.8 秒內從高空連續砸下 10 顆龍系隕石轟炸怪群
-      for (let m = 0; m < 10; m++) {
-        const ang = Math.random() * Math.PI * 2;
-        const dist = 40 + Math.random() * 210;
+      // 【天龍流星雨（重構 4 層次垂直陰影美學）】：6 顆定點雙環星軌陣列（內3外3），比照雷系超武的高空積雲陰影＋垂直龍魂星柱
+      for (let m = 0; m < 6; m++) {
+        const isOuter = m >= 3;
+        const ringIdx = m % 3;
+        const ang = (ringIdx * Math.PI * 2) / 3 + (isOuter ? Math.PI / 3 : 0) + (p.facingX >= 0 ? 0.15 : -0.15);
+        const dist = (isOuter ? 165 : 88) * p.areaMult;
         const tx = p.x + Math.cos(ang) * dist;
         const ty = p.y + Math.sin(ang) * dist;
         this.groundHazards.push({
           kind: "meteor_strike",
           x: tx, y: ty,
-          startX: tx + 140, startY: ty - 260,
-          radius: 75 * p.areaMult,
-          dmg: ultDmg * 0.48,
+          startX: tx + 24, startY: ty - 210,
+          radius: 82 * p.areaMult,
+          dmg: ultDmg * 0.62,
           type: "Dragon",
-          delay: m * 0.16,
-          timer: 0.45 + m * 0.16,
-          maxTime: 0.45,
+          delay: m * 0.14,
+          timer: 0.48 + m * 0.14,
+          maxTime: 0.48,
           color: "#4338CA"
         });
       }
@@ -881,11 +940,12 @@ const SkillsEngine = {
         this.projectiles.push({
           x: p.x + Math.cos(ang) * 34,
           y: p.y + Math.sin(ang) * 34,
-          vx: Math.cos(ang) * 330, vy: Math.sin(ang) * 330,
+          vx: Math.cos(ang) * 310, vy: Math.sin(ang) * 310,
+          initSpeed: 310,
           angle: ang, radius: 22, dmg: ultDmg * 0.52,
           type: "Ghost", skillId: meta.id, vfx: "gengar_phantom",
           homing: true, color: "#A855F7",
-          pierce: 8, knockback: 8, life: 1.85, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
+          pierce: 8, knockback: 8, life: 1.85, statusBonus: 0.65, hitSet: new Set(), trailTimer: 0
         });
       }
     } else if (meta.id === "Moonblast") {
@@ -1261,29 +1321,21 @@ const SkillsEngine = {
         }
         hz.timer -= dt;
         if (hz.timer <= 0) {
-          // 隕石落地引爆：雙層蒼藍與金橙龍焰爆破環 + 飛散熔岩星屑
+          // 隕石落地引爆：乾淨收斂的單環蒼藍龍威氣浪 + 6 顆星屑，不遮擋戰場視野
           this.meleeEffects.push({
             style: "slam_wave",
             x: hz.x, y: hz.y,
-            radius: hz.radius * 1.08,
-            timer: 0.36, maxTime: 0.36,
-            color: "#F97316"
-          });
-          this.meleeEffects.push({
-            style: "z_spark",
-            x: hz.x, y: hz.y,
-            radius: hz.radius * 0.55,
-            timer: 0.26, maxTime: 0.26,
+            radius: hz.radius * 0.92,
+            timer: 0.30, maxTime: 0.30,
             color: "#38BDF8"
           });
-          for (let k = 0; k < 14; k++) {
-            const a = Math.random() * Math.PI * 2;
-            const spd = 55 + Math.random() * 105;
-            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * spd, Math.sin(a) * spd, k % 3 === 0 ? "#F97316" : (k % 2 === 0 ? "#38BDF8" : "#FDE047"), 4.0, 0.42, k % 2 === 0 ? "star" : "diamond");
+          for (let k = 0; k < 6; k++) {
+            const a = (k * Math.PI * 2) / 6;
+            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * 65, Math.sin(a) * 65, k % 2 === 0 ? "#38BDF8" : "#FDE047", 3.5, 0.32, "star");
           }
           GameApp.enemies.forEach(e => {
             if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
-              GameApp.dealDamageToEnemy(e, hz.dmg, "Dragon", 0.35, 16);
+              GameApp.dealDamageToEnemy(e, hz.dmg, "Dragon", 0.40, 18);
             }
           });
           SoundFX.play("hit");
@@ -1299,15 +1351,20 @@ const SkillsEngine = {
         hz.y = p.y;
       }
       if (hz.kind === "blastoise_maelstrom") {
-        hz.rotAngle = (hz.rotAngle || 0) + dt * 3.2;
-        // 潮旋激流：將靠近的怪物往外圍捲飛推開，保護水箭龜中央淨空風眼
+        hz.rotAngle = (hz.rotAngle || 0) + dt * 1.85;
+        // 潮旋激流：轉速沉穩化，且外推力納入怪獸體重抗性 (kbResist) 與精英減免
         GameApp.enemies.forEach(e => {
           if (!e.isBoss) {
             const d = Math.hypot(e.x - hz.x, e.y - hz.y);
             if (d < hz.radius && d > 10) {
-              const pushAng = Math.atan2(e.y - hz.y, e.x - hz.x);
-              e.x += Math.cos(pushAng) * 85 * dt;
-              e.y += Math.sin(pushAng) * 85 * dt;
+              const resist = e.kbResist !== undefined ? e.kbResist : 0;
+              const eliteMod = e.isElite ? 0.45 : 1.0;
+              const pushSpeed = 62 * (1 - resist) * eliteMod;
+              if (pushSpeed > 2) {
+                const pushAng = Math.atan2(e.y - hz.y, e.x - hz.x);
+                e.x += Math.cos(pushAng) * pushSpeed * dt;
+                e.y += Math.sin(pushAng) * pushSpeed * dt;
+              }
             }
           }
         });
@@ -1336,28 +1393,33 @@ const SkillsEngine = {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
       } else if (hz.kind === "tornado") {
-        const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 440);
-        const curAng = Math.atan2(hz.vy || 0, hz.vx || 85);
+        const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
+        const curAng = Math.atan2(hz.vy || 0, hz.vx || 60);
         if (target) {
           const desired = Math.atan2(target.y - hz.y, target.x - hz.x);
           const diff = Math.atan2(Math.sin(desired - curAng), Math.cos(desired - curAng));
-          const nextAng = curAng + Math.max(-4.5 * dt, Math.min(4.5 * dt, diff));
-          hz.vx = Math.cos(nextAng) * 115;
-          hz.vy = Math.sin(nextAng) * 115;
+          const nextAng = curAng + Math.max(-3.2 * dt, Math.min(3.2 * dt, diff));
+          hz.vx = Math.cos(nextAng) * 75;
+          hz.vy = Math.sin(nextAng) * 75;
         } else {
-          hz.vx = Math.cos(curAng) * 95;
-          hz.vy = Math.sin(curAng) * 95;
+          hz.vx = Math.cos(curAng) * 60;
+          hz.vy = Math.sin(curAng) * 60;
         }
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
-        // 龍捲風持續將周圍非 Boss 怪獸扯向風眼中心
+        // 龍捲風牽引吸力納入怪獸體重抗性 (kbResist) 與精英減免
         GameApp.enemies.forEach(e => {
           if (!e.isBoss) {
             const d = Math.hypot(hz.x - e.x, hz.y - e.y);
-            if (d < hz.radius * 1.35 && d > 12) {
-              const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
-              e.x += Math.cos(pullAng) * 95 * dt;
-              e.y += Math.sin(pullAng) * 95 * dt;
+            if (d < hz.radius * 1.30 && d > 14) {
+              const resist = e.kbResist !== undefined ? e.kbResist : 0;
+              const eliteMod = e.isElite ? 0.45 : 1.0;
+              const pullSpeed = 68 * (1 - resist) * eliteMod;
+              if (pullSpeed > 2) {
+                const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
+                e.x += Math.cos(pullAng) * pullSpeed * dt;
+                e.y += Math.sin(pullAng) * pullSpeed * dt;
+              }
             }
           }
         });
@@ -1366,12 +1428,23 @@ const SkillsEngine = {
           if (!e.isBoss) {
             const d = Math.hypot(hz.x - e.x, hz.y - e.y);
             if (d < hz.radius && d > 16) {
-              const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
-              e.x += Math.cos(pullAng) * 75 * dt;
-              e.y += Math.sin(pullAng) * 75 * dt;
+              const resist = e.kbResist !== undefined ? e.kbResist : 0;
+              const eliteMod = e.isElite ? 0.45 : 1.0;
+              const pullSpeed = 65 * (1 - resist) * eliteMod;
+              if (pullSpeed > 2) {
+                const pullAng = Math.atan2(hz.y - e.y, hz.x - e.x);
+                e.x += Math.cos(pullAng) * pullSpeed * dt;
+                e.y += Math.sin(pullAng) * pullSpeed * dt;
+              }
             }
           }
         });
+      } else if (hz.kind === "genesis_aurora") {
+        if (Math.random() < 0.35) {
+          const rx = hz.x + (Math.random() - 0.5) * hz.radius * 1.4;
+          const ry = hz.y + (Math.random() - 0.5) * hz.radius * 0.8;
+          this.spawnSubParticle(rx, ry - 40, (Math.random() - 0.5) * 20, 35 + Math.random() * 25, Math.random() < 0.5 ? "#FEF08A" : "#F472B6", 3.2, 0.55, "star");
+        }
       } else if (hz.vx || hz.vy) {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
@@ -1402,9 +1475,15 @@ const SkillsEngine = {
               if (hz.kind === "quake_fissure" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
                 dVal *= 7.5; // 飛石對空破局
               }
+              if (hz.kind === "genesis_aurora" || hz.kind === "moon_pillar") {
+                e.weakenTimer = 4.0; // 創世極光與月光聖柱：降低敵方 35% 攻擊力
+              }
               GameApp.dealDamageToEnemy(e, dVal, hz.type, 0.35, hz.kind === "dragon_wave" ? 14 : 2);
             }
           });
+          if (hz.kind === "frenzy_plant_roots" && p && p.hp < p.maxHp) {
+            p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round(p.maxHp * 0.012)));
+          }
         }
       }
 
@@ -2352,7 +2431,7 @@ const SkillsEngine = {
 
           ctx.save();
           ctx.translate(swayX, rY);
-          const rot = now * (6.8 - t * 1.5) + levelIdx * 1.15;
+          const rot = now * (4.2 - t * 1.0) + levelIdx * 1.15;
           ctx.strokeStyle = levelIdx % 2 === 0 ? "#E0F2FE" : "#38BDF8";
           ctx.lineWidth = 3.2 - t * 0.8;
           ctx.lineCap = "round";
@@ -2434,105 +2513,85 @@ const SkillsEngine = {
         ctx.stroke();
 
       } else if (hz.kind === "meteor_strike") {
-        // 【天龍流星雨（超武）・3層立體次元裂隙龍焰隕石】：高空星雲次元裂縫 ＋ 蒼藍龍魂盤旋隕石 ＋ 雙色龍焰引力圈
-        const startSx = toSx(hz.startX), startSy = toSy(hz.startY);
+        // 【天龍流星雨・4層次垂直陰影龍星美學（致敬雷系超武多層次架構）】
+        const cloudX = toSx(hz.startX), cloudY = toSy(hz.startY);
         const curX = toSx(hz.startX + (hz.x - hz.startX) * prog);
         const curY = toSy(hz.startY + (hz.y - hz.startY) * prog);
 
-        // 1. 底層：地面龍焰目標引力陣與向內收縮鎖定環
-        const tGrad = ctx.createRadialGradient(sx, sy, 6, sx, sy, hz.radius);
-        tGrad.addColorStop(0, "rgba(249, 115, 22, 0.35)");
-        tGrad.addColorStop(0.6, "rgba(67, 56, 202, 0.28)");
-        tGrad.addColorStop(1, "rgba(30, 27, 75, 0.0)");
-        ctx.fillStyle = tGrad;
+        // 第 1 層：地面深邃烏雲與隕石投影（隨墜落進度擴大加深，營造強烈 Z 軸立體空間感）
+        ctx.fillStyle = `rgba(15, 23, 42, ${0.28 + prog * 0.36})`;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, hz.radius, hz.radius * 0.56, 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, hz.radius * (0.35 + prog * 0.45), hz.radius * 0.50 * (0.35 + prog * 0.45), 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "#818CF8";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.ellipse(sx, sy, hz.radius, hz.radius * 0.56, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#FDE047";
+        // 地面蒼藍古龍星軌鎖定圈
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.78)";
         ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, Math.max(0.5, hz.radius * prog), Math.max(0.5, hz.radius * 0.56 * prog), 0, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, hz.radius * 0.76, hz.radius * 0.40, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 2. 高空層：頭頂撕開的「紫金星雲次元裂隙雲洞 (Dimensional Rift Cloud)」
+        // 第 2 層：垂直貫穿天地的蒼藍龍魂光束導軌與螺旋龍氣
+        const beamGrad = ctx.createLinearGradient(cloudX, cloudY, sx, sy);
+        beamGrad.addColorStop(0, "rgba(67, 56, 202, 0.0)");
+        beamGrad.addColorStop(0.5, "rgba(56, 189, 248, 0.32)");
+        beamGrad.addColorStop(1, "rgba(250, 204, 21, 0.46)");
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(cloudX - 10, cloudY);
+        ctx.lineTo(cloudX + 10, cloudY);
+        ctx.lineTo(sx + 18, sy);
+        ctx.lineTo(sx - 18, sy);
+        ctx.closePath();
+        ctx.fill();
+
+        // 第 3 層：墜落中的立體龍晶星核（外蒼藍、中金焰、內純白）
         ctx.save();
-        ctx.translate(startSx, startSy);
-        ctx.rotate(-0.35);
-        ctx.fillStyle = "#0F172A";
-        ctx.strokeStyle = "#C084FC";
-        ctx.lineWidth = 2.2;
+        ctx.translate(curX, curY);
+        ctx.fillStyle = "#1E1B4B";
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 34, 12, 0, 0, Math.PI * 2);
+        ctx.arc(0, 0, 15, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
-        const riftGlow = ctx.createRadialGradient(0, 0, 2, 0, 0, 24);
-        riftGlow.addColorStop(0, "#FFFFFF");
-        riftGlow.addColorStop(0.5, "#F59E0B");
-        riftGlow.addColorStop(1, "rgba(168, 85, 247, 0)");
-        ctx.fillStyle = riftGlow;
+        ctx.fillStyle = "#F59E0B";
         ctx.beginPath();
-        ctx.ellipse(0, 0, 24, 8, 0, 0, Math.PI * 2);
+        ctx.arc(0, 2, 9, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath();
+        ctx.arc(0, 3, 4.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // 3. 中層：高速墜落的立體稜角龍焰隕石 + 螺旋盤旋蒼藍龍魂尾焰
+        // 第 4 層：高空立體星雲暗雲簇（比照雷系積雨雲的上拱下平結構，雲肚內透出龍焰金藍光）
         ctx.save();
-        ctx.translate(curX, curY);
-        const mAng = Math.atan2(hz.y - hz.startY, hz.x - hz.startX);
-        ctx.rotate(mAng);
-
-        // 外層蒼藍龍魂長尾
-        ctx.fillStyle = "rgba(67, 56, 202, 0.85)";
+        ctx.translate(cloudX, cloudY);
+        ctx.fillStyle = "#0F172A";
         ctx.beginPath();
-        ctx.moveTo(16, 0); ctx.lineTo(-56, -18); ctx.lineTo(-38, 0); ctx.lineTo(-56, 18);
-        ctx.closePath();
+        ctx.roundRect(-32, -2, 64, 16, 8);
+        ctx.arc(-18, -6, 14, 0, Math.PI * 2);
+        ctx.arc(18, -5, 13, 0, Math.PI * 2);
+        ctx.arc(0, -12, 17, 0, Math.PI * 2);
         ctx.fill();
 
-        // 中層熾橘紅烈焰尾羽
-        ctx.fillStyle = "#F97316";
-        ctx.beginPath();
-        ctx.moveTo(14, 0); ctx.lineTo(-36, -11); ctx.lineTo(-22, 0); ctx.lineTo(-36, 11);
-        ctx.closePath();
-        ctx.fill();
-
-        // 螺旋纏繞隕石的亮青白龍氣絲帶
-        ctx.strokeStyle = "#38BDF8";
-        ctx.lineWidth = 2.6;
-        ctx.beginPath();
-        for (let x = -45; x <= 10; x += 7) {
-          const y = Math.sin(x * 0.18 + now * 16) * 12;
-          if (x === -45) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        // 不規則多邊形立體熔岩隕石核
         ctx.fillStyle = "#1E1B4B";
-        ctx.strokeStyle = "#F59E0B";
-        ctx.lineWidth = 2.2;
         ctx.beginPath();
-        ctx.moveTo(16, 0);
-        ctx.lineTo(8, -13);
-        ctx.lineTo(-9, -15);
-        ctx.lineTo(-16, -4);
-        ctx.lineTo(-12, 12);
-        ctx.lineTo(6, 14);
-        ctx.closePath();
+        ctx.arc(-10, -10, 13, 0, Math.PI * 2);
+        ctx.arc(10, -9, 12, 0, Math.PI * 2);
+        ctx.arc(0, -15, 14, 0, Math.PI * 2);
         ctx.fill();
-        ctx.stroke();
 
-        // 隕石內部熔岩金白裂紋核心
-        ctx.fillStyle = "#FEF08A";
+        const riftGlow = ctx.createRadialGradient(0, 2, 2, 0, 2, 22);
+        riftGlow.addColorStop(0, "#FEF08A");
+        riftGlow.addColorStop(0.5, "rgba(56, 189, 248, 0.78)");
+        riftGlow.addColorStop(1, "rgba(30, 27, 75, 0)");
+        ctx.fillStyle = riftGlow;
         ctx.beginPath();
-        ctx.arc(4, -2, 6.5, 0, Math.PI * 2);
+        ctx.ellipse(0, 3, 22, 9, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       } else if (hz.kind === "thunder_pillars_storm") {

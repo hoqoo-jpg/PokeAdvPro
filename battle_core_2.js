@@ -507,7 +507,7 @@ window.GameApp = {
       hp,
       maxHp: hp,
       atk: Math.round((isFinalMewtwo ? 42 : 30) * diff.atkMult),
-      speed: (isFinalMewtwo ? 92 : 82) * diff.spdMult,
+      speed: (isFinalMewtwo ? 132 : 118) * diff.spdMult,
       radius: 44,
       isElite: true,
       isBoss: true,
@@ -586,6 +586,10 @@ window.GameApp = {
       facingY: 1,
       walkBob: 0,
       isShiny: hasShiny,
+      starMult: starMult,
+      finalEvoArmor: basePoke.id >= 144 ? 0.12 : 0,
+      multiscaleTimer: 10.0,
+      multiscaleReady: basePoke.id >= 144,
       isTrainerBond: isBond,
       bondColor: tr.bondColor || "#F59E0B",
       bondName: tr.bondName || "專屬羈絆",
@@ -1087,8 +1091,18 @@ window.GameApp = {
       }
     }
 
-    // 【攜帶物：木炭】走過的路徑留下持續 2 秒的熔岩灼燒腳印
-    if (p.heldItems && p.heldItems["charcoal"] && ilen > 0.05) {
+    // 【準神快龍 #149 ＆ 傳說五神獸專屬：多重鱗片 / 王權護盾】(每 10 秒自動生成 1 層抵擋傷害護盾)
+    if ((p.id === 149 || p.id >= 144) && !p.multiscaleReady) {
+      p.multiscaleTimer = (p.multiscaleTimer || 10.0) - dt;
+      if (p.multiscaleTimer <= 0) {
+        p.multiscaleReady = true;
+        p.multiscaleTimer = 10.0;
+        this.spawnFloatingText(p.x, p.y - 26, "🛡️ 龍鱗王權護盾就緒!", "#FACC15", 12);
+      }
+    }
+
+    // 【攜帶物：木炭（或火焰鳥 #146 天生火羽）】走過的路徑留下持續 2 秒的熔岩灼燒腳印
+    if (((p.heldItems && p.heldItems["charcoal"]) || p.id === 146) && ilen > 0.05) {
       p.charcoalStepTimer = (p.charcoalStepTimer || 0) - dt;
       if (p.charcoalStepTimer <= 0) {
         p.charcoalStepTimer = 0.24;
@@ -1789,6 +1803,9 @@ window.GameApp = {
         }
       }
 
+      if (e.weakenTimer > 0) e.weakenTimer -= dt;
+      const inToxicSwamp = SkillsEngine.groundHazards.some(hz => hz.kind === "toxic_swamp" && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius);
+
       if (e.statusTimer > 0) {
         e.statusTimer -= dt;
         e.statusTick -= dt;
@@ -1800,9 +1817,10 @@ window.GameApp = {
             e.hp -= bDmg;
             this.spawnFloatingText(e.x, e.y - 14, `灼傷 -${bDmg}`, "#F97316", 11);
           } else if (e.status === "Poison") {
-            const pDmg = Math.max(8, Math.round(e.maxHp * 0.022));
+            const swampMult = inToxicSwamp ? 2.0 : 1.0;
+            const pDmg = Math.max(8, Math.round(e.maxHp * 0.022 * swampMult));
             e.hp -= pDmg;
-            this.spawnFloatingText(e.x, e.y - 14, `中毒 -${pDmg}`, "#A855F7", 11);
+            this.spawnFloatingText(e.x, e.y - 14, `${inToxicSwamp ? '劇毒腐蝕' : '中毒'} -${pDmg}`, "#A855F7", 11);
           }
           if (e.hp <= 0) {
             this.handleEnemyDeath(e, i);
@@ -1861,12 +1879,15 @@ window.GameApp = {
         e.y = p.y + Math.sin(rAng) * (Math.max(this.width, this.height) * 0.55);
       }
 
+      if (inToxicSwamp && !e.isBoss) eTerrMult *= 0.70;
+      const bossEnrageSpd = (e.isBoss && (e.hp / e.maxHp) <= 0.5) ? 1.18 : 1.0;
+
       let moveDir = confDir;
       if (e.treasureType === "meowth") moveDir = -1.0;
       else if (e.treasureType === "chansey") moveDir = -0.85;
 
-      let vx = (dx / dist) * e.speed * paraMult * eTerrMult * moveDir;
-      let vy = (dy / dist) * e.speed * paraMult * eTerrMult * moveDir;
+      let vx = (dx / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
+      let vy = (dy / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
 
       // 寶藏精靈防卡牆/障礙物滑動引導
       if (e.treasureType) {
@@ -2109,9 +2130,17 @@ window.GameApp = {
       const distToPoke = dist;
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
       const hitPoke = distToPoke < e.radius + 16;
-      const hitTrainer = tc && (distToTrainer < e.radius + 18);
+      const hitTrainer = tc && (distToTrainer < e.radius + 11);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        if (p.multiscaleReady) {
+          p.multiscaleReady = false;
+          p.multiscaleTimer = 10.0;
+          p.invulnTimer = 0.55;
+          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#38BDF8", 16, "star", 0.9);
+          this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
+          continue;
+        }
         // 【攜帶物：柔軟沙子】受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
@@ -2123,7 +2152,7 @@ window.GameApp = {
         const armorMult = 1 - (p.finalEvoArmor || 0);
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
-        const burnMod = e.status === "Burn" ? 0.72 : 1.0;
+        const burnMod = (e.status === "Burn" ? 0.72 : 1.0) * (e.weakenTimer > 0 ? 0.65 : 1.0);
         const dmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
         p.hp -= dmg;
 
@@ -2361,7 +2390,7 @@ window.GameApp = {
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
-      const hitTrainer = tc && (distToTrainer < ep.radius + 15);
+      const hitTrainer = tc && (distToTrainer < ep.radius + 11);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
@@ -2642,14 +2671,35 @@ window.GameApp = {
 
       if ([144, 145, 146].includes(e.id)) {
         this.saveData.stats.birdsDefeated += 1;
+        // 困難與地獄模式下，擊敗 5 分鐘三聖鳥額外保底贈予 1 件對應當前招式的超武攜帶物！
+        if (this.selectedDifficulty && (this.selectedDifficulty.id === "hard" || this.selectedDifficulty.id === "hell")) {
+          const p = this.player;
+          const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
+          const unownedHeld = Object.values(HELD_ITEMS).filter(hi => {
+            const targetSk = SKILLS_CATALOG[hi.skillReq];
+            return targetSk && learnedTypes.has(targetSk.type) && !p.heldItems[hi.id];
+          });
+          if (unownedHeld.length > 0) {
+            const gift = unownedHeld[0];
+            p.heldItems[gift.id] = true;
+            p.dmgMult *= 1.12;
+            this.spawnFloatingText(p.x, p.y - 36, `🎁 神鳥遺寶：獲得【${gift.name}】！`, "#C084FC", 15);
+          }
+        }
       } else if (e.id === 150) {
         this.saveData.stats.mewtwoDefeated += 1;
         this.saveData.unlockedTrainers["red"] = true;
         this.saveToStorage();
         if (!this.secretMewSpawned) {
           this.secretMewSpawned = true;
+          // 擊敗超夢迎接夢幻前，給予神聖祝福：回復 60% HP 並立即重置訓練家大招冷卻！
+          if (this.player) {
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.round(this.player.maxHp * 0.60));
+            this.player.trainerSkillCd = 0;
+            this.spawnFloatingText(this.player.x, this.player.y - 32, "✨ 冠軍祝福：HP +60% ＆ 大招重置！", "#34D399", 15);
+          }
           this.spawnBoss(151, false);
-          this.showCutsceneBanner("[終極試煉] 隱藏頭目【始祖夢幻 #151】甦醒！", "同時解鎖傳奇訓練家【赤紅 Red】！", 3800);
+          this.showCutsceneBanner("[終極試煉] 隱藏頭目【始祖夢幻 #151】甦醒！", "已為您回復 60% 生命並重置戰術大招，同時解鎖傳奇訓練家【赤紅 Red】！", 3800);
         }
       } else if (e.id === 151) {
         this.saveData.stats.mewDefeated += 1;
@@ -2659,7 +2709,37 @@ window.GameApp = {
       }
     }
 
-    this.gems.push({ x: e.x, y: e.y, val: e.isElite ? 45 : 14, color: e.isElite ? "#F59E0B" : "#38BDF8" });
+    if (e.isBoss) {
+      for (let g = 0; g < 8; g++) {
+        const gAng = (g * Math.PI * 2) / 8 + Math.random() * 0.3;
+        const gDist = 18 + Math.random() * 28;
+        this.gems.push({
+          x: e.x + Math.cos(gAng) * gDist,
+          y: e.y + Math.sin(gAng) * gDist,
+          val: 120, tier: 4, size: 11.5,
+          color: "#EC4899", innerColor: "#FBCFE8"
+        });
+      }
+    } else if (e.isElite || e.treasureType) {
+      this.gems.push({ x: e.x, y: e.y, val: 75, tier: 3, size: 9.5, color: "#F59E0B", innerColor: "#FEF08A" });
+    } else if (e.weightTier === "heavy" || e.weightTier === "medium" || (e.data && e.data.hp >= 155)) {
+      this.gems.push({ x: e.x, y: e.y, val: 32, tier: 2, size: 7.8, color: "#10B981", innerColor: "#A7F3D0" });
+    } else {
+      this.gems.push({ x: e.x, y: e.y, val: 15, tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
+    }
+
+    if (this.gems.length > 120) {
+      const g1 = this.gems.shift();
+      this.gems[0].val += g1.val;
+      if (this.gems[0].val >= 75) {
+        this.gems[0].tier = 3; this.gems[0].size = 9.5;
+        this.gems[0].color = "#F59E0B"; this.gems[0].innerColor = "#FEF08A";
+      } else if (this.gems[0].val >= 30) {
+        this.gems[0].tier = 2; this.gems[0].size = 7.8;
+        this.gems[0].color = "#10B981"; this.gems[0].innerColor = "#A7F3D0";
+      }
+    }
+
     const coinGain = Math.max(1, Math.round((e.isElite ? 22 : 2) * diffCoinMult));
     this.runCoins += coinGain;
     this.saveData.coins += coinGain;
@@ -2720,8 +2800,9 @@ window.GameApp = {
     SoundFX.play("levelup");
     let evolvedAny = false;
     const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
+    const maxAllowedSupers = (this.runTime >= 300 || (this.saveData && this.saveData.stats.birdsDefeated > 0 && this.birdBossSpawned)) ? 2 : 1;
 
-    if (evolvedCount < 2) {
+    if (evolvedCount < maxAllowedSupers) {
       Object.values(p.skills).forEach(sk => {
         const meta = SKILLS_CATALOG[sk.id];
         if (sk.level >= 10 && !sk.evolved && (!meta.reqItem || p.heldItems[meta.reqItem])) {
@@ -2755,7 +2836,7 @@ window.GameApp = {
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
       p.level += 1;
-      p.nextExp = Math.round(p.nextExp * 1.22 + 12);
+      p.nextExp = Math.round(p.nextExp * 1.17 + 10);
       SoundFX.play("levelup");
 
       if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
@@ -2777,6 +2858,24 @@ window.GameApp = {
         } else if (p.data.evo_to) {
           this.evolvePlayerPokemon(p.data.evo_to);
         }
+      } else if (p.id >= 144 && (p.level === 12 || p.level === 24)) {
+        // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒
+        p.maxHp = Math.round(p.maxHp * 1.22);
+        p.hp = p.maxHp;
+        p.dmgMult *= 1.14;
+        p.finalEvoArmor = 0.12;
+        this.spawnParticleCluster(p.x, p.y, "#FACC15", "#EC4899", 36, "star", 1.4);
+        this.showCutsceneBanner(`[傳說王權共鳴] ${p.data.name_zh} 釋放神聖威壓！`, "生命上限 +22% 並完全回滿，全招式傷害提升 +14%！", 3000);
+      } else if (!p.data.evo_to && p.id < 144 && p.level === 18 && !p.singleStageAwakened) {
+        // 單一階無進化精靈（卡比獸、拉普拉斯、飛天螳螂等）Lv.18 潛能突破覺醒
+        p.singleStageAwakened = true;
+        p.maxHp = Math.round(p.maxHp * 1.35);
+        p.hp = p.maxHp;
+        p.dmgMult *= 1.15;
+        p.areaMult *= 1.08;
+        p.finalEvoArmor = 0.12;
+        this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FACC15", 38, "star", 1.4);
+        this.showCutsceneBanner(`[潛能極限突破] ${p.data.name_zh} 覺醒完全體潛力！`, "最大生命 +35% 回滿、全傷害 +15%，並獲得 12% 霸體減傷！", 3200);
       }
       this.openLevelUpModal();
     }
@@ -2832,18 +2931,35 @@ window.GameApp = {
     if (!nextData) return;
     const oldName = p.data.name_zh;
     const isFinalForm = (nextData.evo_level === "None" || !nextData.evo_to);
-    const hpBoostMult = isFinalForm ? 1.50 : 1.30;
+    const hpBoostMult = isFinalForm ? 1.42 : 1.28;
 
     p.id = nextData.id;
     p.data = nextData;
     p.maxHp = Math.round(p.maxHp * hpBoostMult);
     p.hp = p.maxHp;
     p.invulnTimer = Math.max(p.invulnTimer || 0, 1.5);
+    p.dmgMult *= isFinalForm ? 1.18 : 1.12;
     if (isFinalForm) {
-      p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷
+      p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷與範圍擴張
+      p.areaMult *= 1.10;
+      if (nextData.id === 149) {
+        p.multiscaleReady = true;
+        p.multiscaleTimer = 10.0;
+      }
     }
-    p.baseAtk = nextData.atk * (p.isShiny ? 1.2 : 1.0);
+    const starMult = p.starMult || 1.0;
+    p.baseAtk = nextData.atk * (p.isShiny ? 1.2 : 1.0) * starMult;
     p.baseSpeed = nextData.speed;
+
+    // 同步合併新形態的天生招式池（例如噴火龍解鎖空氣斬 AirSlash）
+    if (typeof getNaturalSkillsForPokemon === "function") {
+      const nextNat = getNaturalSkillsForPokemon(nextData);
+      nextNat.forEach(sId => {
+        if (p.naturalSkills && !p.naturalSkills.includes(sId)) {
+          p.naturalSkills.push(sId);
+        }
+      });
+    }
 
     this.saveData.stats.evolutions += 1;
     this.saveData.pokedexSeen[nextData.id] = true;
@@ -2854,8 +2970,8 @@ window.GameApp = {
     SoundFX.play("levelup");
     this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 44, "star", 1.5);
     const evoBannerSub = isFinalForm
-      ? `【最終完全體覺醒】血量上限暴增 +50%（${p.maxHp} HP）並獲得 12% 霸體減傷！`
-      : `生命上限提升 +30%（${p.maxHp} HP）並立即回滿狀態！`;
+      ? `【最終完全體覺醒】HP上限提升至 ${p.maxHp}、全傷+18%、範圍+10% 並獲 12% 霸體減傷！`
+      : `生命上限提升至 ${p.maxHp}、全傷+12% 並立即回滿狀態！`;
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, evoBannerSub, 3400);
   },
 
@@ -2880,7 +2996,8 @@ window.GameApp = {
       const addedKeys = new Set();
 
       const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
-      if (evolvedCount < 2) {
+      const maxAllowedSupers = (this.runTime >= 300 || (this.saveData && this.saveData.stats.birdsDefeated > 0 && this.birdBossSpawned)) ? 2 : 1;
+      if (evolvedCount < maxAllowedSupers) {
         Object.values(p.skills).forEach(sk => {
           const meta = SKILLS_CATALOG[sk.id];
           if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
@@ -3016,9 +3133,12 @@ window.GameApp = {
         const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
         if (!addedKeys.has(hi.name)) {
           addedKeys.add(hi.name);
+          const isHighDiff = this.selectedDifficulty && (this.selectedDifficulty.id === "hard" || this.selectedDifficulty.id === "hell");
+          const hasHighLvSkill = Object.values(p.skills).some(s => s.level >= 8 && !s.evolved);
+          const dynamicHeldWeight = isHighDiff ? (hasHighLvSkill ? 28 : 10) : (hasHighLvSkill ? 12 : 6);
           pool.push({
             key: hi.name,
-            weight: 2, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
+            weight: dynamicHeldWeight, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
             title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
             isNew: true,
             apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
@@ -3352,15 +3472,41 @@ window.GameApp = {
 
     this.gems.forEach(g => {
       const sx = toSx(g.x), sy = toSy(g.y);
+      if (sx < -20 || sx > this.width + 20 || sy < -20 || sy > this.height + 20) return;
+      const s = g.size || 6.5;
       ctx.save();
       ctx.translate(sx, sy);
-      ctx.fillStyle = g.color;
-      ctx.strokeStyle = "#0F172A";
-      ctx.lineWidth = 1.8;
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
       ctx.beginPath();
-      ctx.moveTo(0, -8); ctx.lineTo(6.5, 0); ctx.lineTo(0, 8); ctx.lineTo(-6.5, 0);
+      ctx.ellipse(0, s * 0.85, s * 0.65, s * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = g.color || "#0284C7";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s * 0.78, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s * 0.78, 0);
       ctx.closePath();
-      ctx.fill(); ctx.stroke();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = g.innerColor || "#BAE6FD";
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.62);
+      ctx.lineTo(s * 0.38, 0);
+      ctx.lineTo(0, s * 0.35);
+      ctx.lineTo(-s * 0.45, -s * 0.08);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.arc(-s * 0.18, -s * 0.32, s * 0.16, 0, Math.PI * 2);
+      ctx.fill();
       ctx.restore();
     });
 
@@ -3708,12 +3854,19 @@ window.GameApp = {
       const eRec = SpriteCache.get(eSprUrl);
       const sz = e.isBoss ? 120 : (e.isElite || e.treasureType ? 88 : 64);
 
-      // 繪製敵人腳底陰影
+      // 繪製敵人腳底陰影（精英怪額外繪製暗紅金威壓光環）
       ctx.save();
       ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
       ctx.beginPath();
       ctx.ellipse(esx, esy + sz * 0.35, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2);
       ctx.fill();
+      if (e.isElite && !e.isBoss) {
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.78)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.38, sz * 0.16, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
 
       ctx.save();

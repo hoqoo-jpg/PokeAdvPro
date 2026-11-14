@@ -233,7 +233,66 @@ Object.assign(window.GameApp, {
       lPkImg.src = p.forward_sprite;
       lPkImg.className = `w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}`;
       const pNameEl = document.getElementById("lobbyPokemonName");
-      if (pNameEl) pNameEl.textContent = `${p.name_zh} (#${String(p.id).padStart(3,'0')})`;
+      const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
+      const starStr = starLv > 0 ? ` ${'★'.repeat(starLv)}` : '';
+      if (pNameEl) pNameEl.textContent = `${p.name_zh} (#${String(p.id).padStart(3,'0')})${starStr}`;
+
+      const evoEl = document.getElementById("lobbyEvolutionPreview");
+      if (evoEl && typeof POKEMON_MAP !== "undefined") {
+        if (p.id === 133) {
+          const v134 = POKEMON_MAP.get(134), v135 = POKEMON_MAP.get(135), v136 = POKEMON_MAP.get(136);
+          const s134 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[134]);
+          const s135 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[135]);
+          const s136 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[136]);
+          evoEl.innerHTML = `
+            <span class="text-[9px] font-black text-purple-700 shrink-0"><i class="fa-solid fa-code-branch"></i> 進化鏈：</span>
+            <div class="flex items-center gap-1 overflow-x-auto py-0.5">
+              <span class="px-1.5 py-0.2 bg-white rounded border border-slate-300 text-[9px] font-black text-slate-800">伊布</span>
+              <span class="text-purple-600 font-black text-[9px]">➔ Lv.${p.evo_level || 18} 三選一 ➔</span>
+              <div class="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-purple-300">
+                ${v134 ? `<img src="${v134.forward_sprite}" title="${s134 ? v134.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v135 ? `<img src="${v135.forward_sprite}" title="${s135 ? v135.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v136 ? `<img src="${v136.forward_sprite}" title="${s136 ? v136.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+              </div>
+            </div>
+          `;
+        } else if (p.evo_to && p.evo_level !== "None") {
+          const chain = [p];
+          let cur = p;
+          while (cur && cur.evo_to && cur.evo_level !== "None") {
+            const nextP = POKEMON_MAP.get(cur.evo_to);
+            if (!nextP || chain.includes(nextP)) break;
+            chain.push(nextP);
+            cur = nextP;
+          }
+          const stepsHtml = chain.map((stPoke, idx) => {
+            const isKnown = idx === 0 || !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[stPoke.id]) || !!(this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[stPoke.id]);
+            const prevLv = idx > 0 ? chain[idx - 1].evo_level : null;
+            const arrowHtml = idx > 0 ? `<span class="text-[9px] font-black text-amber-600 shrink-0">➔ Lv.${prevLv}</span>` : '';
+            return `
+              ${arrowHtml}
+              <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shrink-0">
+                <img src="${stPoke.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
+                <span class="text-[9px] font-black ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
+              </div>
+            `;
+          }).join("");
+          evoEl.innerHTML = `
+            <span class="text-[9px] font-black text-blue-700 shrink-0"><i class="fa-solid fa-angles-up"></i> 進化鏈：</span>
+            <div class="flex items-center gap-1 overflow-x-auto">${stepsHtml}</div>
+          `;
+        } else {
+          const isLegend = p.id >= 144;
+          evoEl.innerHTML = `
+            <span class="text-[9px] font-black ${isLegend ? 'text-purple-700' : 'text-emerald-700'} shrink-0">
+              <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
+            </span>
+            <span class="text-[9px] font-bold text-slate-600 truncate">
+              ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+35% ‧ 全傷+15% ‧ 12%霸體)'}
+            </span>
+          `;
+        }
+      }
     }
 
     const hasAch = typeof ACHIEVEMENTS !== "undefined" && ACHIEVEMENTS.some(a => a.check(this.saveData.stats, this.saveData) && !this.saveData.claimedAch[a.id]);
@@ -436,7 +495,7 @@ Object.assign(window.GameApp, {
               <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
               ${isBond
                 ? `<span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 font-black text-[9px] rounded-full border border-slate-800 animate-pulse">羈絆+25%</span>`
-                : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold text-[9px] rounded-full">${p.evo_to ? '可進化' : '單一階'}</span>`
+                : `<span class="px-1.5 py-0.5 bg-slate-100 text-slate-700 font-black text-[9px] rounded-full">${p.id === 133 ? 'Lv.18三系分支' : (p.evo_to ? (() => { const n1 = POKEMON_MAP.get(p.evo_to); return (n1 && n1.evo_to) ? `Lv.${p.evo_level}➔${n1.evo_level}` : `Lv.${p.evo_level}進化`; })() : (p.id >= 144 ? '★傳說王權' : 'Lv.18覺醒'))}</span>`
               }
             </div>
             <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
@@ -1009,21 +1068,21 @@ Object.assign(window.GameApp, {
         : '';
 
       return `
-        <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2.5">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
+        <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
+          <div class="flex items-start gap-2.5 min-w-0 flex-1">
+            <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0 mt-0.5">
               <img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-black text-xs text-white">${titleText}</span>
                 <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${badgeBg}">${badgeText}</span>
                 ${fullTag}
               </div>
-              <p class="text-[10px] text-slate-400 truncate mt-0.5">${it.desc}</p>
+              <p class="text-[10px] text-slate-300 leading-snug mt-0.5 whitespace-normal break-words line-clamp-2">${it.desc}</p>
             </div>
           </div>
-          <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
+          <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-2.5 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
             <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
             ${it.cost}
           </button>
@@ -1073,7 +1132,7 @@ Object.assign(window.GameApp, {
                   ${typeHtml}
                   <span class="px-1.5 py-0.2 rounded bg-slate-700 font-pixel text-[9px] text-amber-300">Lv.${sk.level}${sk.evolved ? ' MAX' : ''}</span>
                 </div>
-                <div class="text-[10px] ${isHighLv ? 'text-amber-300 font-bold' : 'text-slate-400'} truncate mt-0.5">
+                <div class="text-[10px] ${isHighLv ? 'text-amber-300 font-bold' : 'text-slate-300'} leading-snug whitespace-normal break-words mt-0.5">
                   ${isHighLv ? '⚠️ 高階練度招式，遺忘後將失去當前等級' : '點擊右側按鈕遺忘並替換'}
                 </div>
               </div>

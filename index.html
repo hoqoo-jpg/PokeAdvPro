@@ -379,21 +379,25 @@
 
     <!-- 中央出戰搭檔預覽卡 (緊湊間距，不強佔全屏高度) -->
     <div class="w-full max-w-md mx-auto my-1.5 z-10 shrink-0">
-      <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2.5">
-          <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-            <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Trainer" />
+      <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex flex-col gap-2">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              <img id="lobbyTrainerPreview" src="images/Ash_01.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Trainer" />
+            </div>
+            <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Pokemon" />
+            </div>
           </div>
-          <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-            <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Pokemon" />
+          <div class="min-w-0 flex-1">
+            <div class="text-[9px] font-black text-red-600 uppercase tracking-wider">CURRENT PARTNER</div>
+            <div id="lobbyTrainerName" class="font-black text-xs sm:text-sm text-slate-800 truncate">小智 (Ash)</div>
+            <div id="lobbyPokemonName" class="font-black text-[11px] sm:text-xs text-blue-700 truncate">皮卡丘 (#025)</div>
+            <div class="text-[9px] font-bold text-slate-500 mt-0.5">點擊更換搭檔 ➔</div>
           </div>
         </div>
-        <div class="min-w-0 flex-1">
-          <div class="text-[9px] font-black text-red-600 uppercase tracking-wider">CURRENT PARTNER</div>
-          <div id="lobbyTrainerName" class="font-black text-xs sm:text-sm text-slate-800 truncate">小智 (Ash)</div>
-          <div id="lobbyPokemonName" class="font-black text-[11px] sm:text-xs text-blue-700 truncate">皮卡丘 (#025)</div>
-          <div class="text-[9px] font-bold text-slate-500 mt-0.5">點擊更換搭檔 ➔</div>
-        </div>
+        <!-- 進化路線與覺醒預覽列 -->
+        <div id="lobbyEvolutionPreview" class="pt-1.5 border-t border-dashed border-slate-300 flex items-center justify-between gap-1 text-[10px] font-bold text-slate-700 bg-slate-50/90 px-2 py-1 rounded-xl"></div>
       </div>
     </div>
 
