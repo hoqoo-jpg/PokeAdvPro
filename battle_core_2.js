@@ -14,9 +14,13 @@ window.GameApp = {
   state: "LOADING",
   timeScale: 1,
 
-  // 天氣測試鎖定開關與瞄準模式
+  // 天氣測試鎖定開關、瞄準模式、壓力測試與 FPS 監控
   debugWeatherLock: false,
   manualAimMode: false,
+  currentFps: 60,
+  showFpsHud: false,
+  debugGodMode: false,
+  debugMobCap: 0,
 
   // 存檔基礎骨架 (詳細資料結構由 game_ui.js 接管同步)
   saveData: {
@@ -316,16 +320,113 @@ window.GameApp = {
     this.openLevelUpModal();
   },
 
-  debugUnlockSuperMove() {
+  debugUnlockSuperMove(targetCount = 1) {
     if (!this.player) return;
-    const sk = Object.values(this.player.skills)[0];
-    if (!sk) return;
-    const meta = SKILLS_CATALOG[sk.id];
-    sk.level = 10;
-    if (meta.reqItem) this.player.heldItems[meta.reqItem] = true;
-    sk.evolved = true;
-    SkillsEngine.triggerUltimateSuperMove(meta, sk);
+    const p = this.player;
+    // 若要求雙超武但目前學會的招式不足 2 招，自動從天生三招池補齊第 2 招
+    if (targetCount >= 2 && Object.keys(p.skills).length < 2) {
+      const natList = p.naturalSkills || ["Tackle", "AirSlash", "Earthquake"];
+      for (const sId of natList) {
+        const metaCheck = SKILLS_CATALOG[sId];
+        if (metaCheck && !p.skills[metaCheck.id]) {
+          p.skills[metaCheck.id] = { id: metaCheck.id, level: 10, evolved: false, timer: 0.25 };
+          if (Object.keys(p.skills).length >= 2) break;
+        }
+      }
+    }
+
+    const skillList = Object.values(p.skills).slice(0, targetCount);
+    skillList.forEach((sk, idx) => {
+      const meta = SKILLS_CATALOG[sk.id];
+      if (!meta) return;
+      sk.level = 10;
+      if (meta.reqItem) p.heldItems[meta.reqItem] = true;
+      sk.evolved = true;
+      if (idx === 0) {
+        SkillsEngine.triggerUltimateSuperMove(meta, sk, 1.0);
+      } else {
+        setTimeout(() => {
+          if (this.state === "PLAYING" && this.player) {
+            SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.78);
+          }
+        }, 450);
+      }
+    });
+    this.spawnFloatingText(p.x, p.y - 32, targetCount >= 2 ? "★★ 雙超武全開覺醒！" : "★ 第1招超武突破！", "#FACC15", 15);
     this.refreshHUD();
+  },
+
+  debugToggleFpsHud() {
+    this.showFpsHud = !this.showFpsHud;
+    const badge = document.getElementById("hudFpsBadge");
+    if (badge) badge.classList.toggle("hidden", !this.showFpsHud);
+    const btn = document.getElementById("btnDebugFpsToggle");
+    if (btn) btn.textContent = `📊 頂部FPS: ${this.showFpsHud ? '開' : '關'}`;
+  },
+
+  debugToggleGodMode() {
+    this.debugGodMode = !this.debugGodMode;
+    const btn = document.getElementById("btnDebugGodMode");
+    if (btn) {
+      btn.textContent = `🛡️ 無敵鎖血: ${this.debugGodMode ? '開' : '關'}`;
+      btn.className = this.debugGodMode
+        ? "px-1.5 py-1 bg-amber-600 border border-amber-300 rounded text-[9px] font-black text-slate-950"
+        : "px-1.5 py-1 bg-slate-800 border border-slate-600 rounded text-[9px] font-bold text-amber-300 hover:bg-slate-700";
+    }
+    if (this.player) {
+      if (this.debugGodMode) this.player.hp = this.player.maxHp;
+      this.spawnFloatingText(this.player.x, this.player.y - 28, this.debugGodMode ? "🛡️ 測試無敵鎖血：開啟" : "🛡️ 測試無敵鎖血：關閉", "#FACC15", 14);
+    }
+  },
+
+  debugSetMobCap(capVal) {
+    this.debugMobCap = capVal || 0;
+    const lbl = document.getElementById("debugMobCapLabel");
+    if (lbl) lbl.textContent = this.debugMobCap > 0 ? `上限: ${this.debugMobCap}隻` : "上限: 動態";
+    if (this.player) {
+      this.spawnFloatingText(this.player.x, this.player.y - 28, this.debugMobCap > 0 ? `🔥 同屏怪量上限鎖定: ${this.debugMobCap}隻` : "同屏怪量上限: 恢復預設動態", "#38BDF8", 13);
+    }
+  },
+
+  debugBatchSpawnMobs(count = 30) {
+    if (!this.player) return;
+    if (this.debugMobCap > 0 && this.enemies.length + count > this.debugMobCap) {
+      this.debugMobCap = Math.max(this.debugMobCap, this.enemies.length + count);
+      const lbl = document.getElementById("debugMobCapLabel");
+      if (lbl) lbl.textContent = `上限: ${this.debugMobCap}隻`;
+    }
+    for (let i = 0; i < count; i++) {
+      this.spawnWildEnemy(i % 18 === 0);
+    }
+    this.spawnFloatingText(this.player.x, this.player.y - 32, `⚡ 壓力測試：瞬間生成 +${count} 怪！(當前 ${this.enemies.length} 隻)`, "#F43F5E", 14);
+  },
+
+  debugClearRegularMobs() {
+    if (!this.player) return;
+    this.enemies = this.enemies.filter(e => e.isBoss);
+    this.enemyProjectiles = [];
+    this.spawnFloatingText(this.player.x, this.player.y - 28, "🧹 已清空全場常規小怪與彈幕！", "#34D399", 14);
+  },
+
+  debugInstantEvolve() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 133) {
+      this.state = "PAUSED";
+      const eeModal = document.getElementById("eevee-evo-modal");
+      if (eeModal) {
+        eeModal.classList.remove("hidden");
+        eeModal.style.display = "flex";
+      }
+      return;
+    }
+    if (p.data.evo_to) {
+      if (p.data.evo_level && p.level < p.data.evo_level) p.level = p.data.evo_level;
+      this.evolvePlayerPokemon(p.data.evo_to);
+      this.refreshHUD();
+    } else {
+      this.spawnFloatingText(p.x, p.y - 28, "目前已是最終完全體形态！", "#FACC15", 13);
+    }
   },
 
   debugSpawnTreasureMob(kind) {
@@ -895,7 +996,10 @@ window.GameApp = {
   },
 
   loop(timestamp) {
-    const rawDt = Math.min(0.05, (timestamp - this.lastFrameTime) / 1000 || 0.016);
+    const actualDeltaMs = Math.max(1, timestamp - (this.lastFrameTime || timestamp));
+    const instFps = Math.min(120, 1000 / actualDeltaMs);
+    this.currentFps = Math.round((this.currentFps || 60) * 0.88 + instFps * 0.12);
+    const rawDt = Math.min(0.05, actualDeltaMs / 1000 || 0.016);
     this.lastFrameTime = timestamp;
 
     if (this.state === "SPLASH" || this.state === "TITLE" || this.state === "LOADING") {
@@ -991,7 +1095,7 @@ window.GameApp = {
       p.statusTick -= dt;
       if (p.statusTick <= 0) {
         p.statusTick = 0.65;
-        if (p.status === "Burn" || p.status === "Poison") {
+        if ((p.status === "Burn" || p.status === "Poison") && !this.debugGodMode) {
           const dotDmg = Math.max(1, Math.round(p.maxHp * 0.008));
           p.hp = Math.max(1, p.hp - dotDmg);
           this.spawnFloatingText(p.x, p.y - 22, `${p.status === 'Burn' ? '灼傷' : '中毒'} -${dotDmg}`, p.status === 'Burn' ? "#F97316" : "#A855F7", 11);
@@ -1257,7 +1361,7 @@ window.GameApp = {
 
     const midX = (p.x + this.trainerCompanion.x) * 0.5;
     const midY = (p.y + this.trainerCompanion.y) * 0.5;
-    this.partnerOrbitBase += dt * 2.1;
+    this.partnerOrbitBase += dt * 1.25;
     const upgPartnerMult = 1 + (this.saveData.upgrades.partner || 0) * 0.18;
     this.partners.forEach((pt, idx) => {
       const angle = this.partnerOrbitBase + idx * Math.PI;
@@ -1598,9 +1702,11 @@ window.GameApp = {
       const baseInterval = Math.max(0.24, (1.15 - minutes * 0.12) / diff.spawnRateMult) * bossThrottle;
       this.spawnTimer = baseInterval;
 
-      const maxMobCap = (this.activeBoss && this.activeBoss.hp > 0)
-        ? 85
-        : Math.min(180, Math.round(75 + minutes * 15));
+      const maxMobCap = this.debugMobCap > 0
+        ? this.debugMobCap
+        : ((this.activeBoss && this.activeBoss.hp > 0)
+            ? 85
+            : Math.min(180, Math.round(75 + minutes * 15)));
       if (this.enemies.length < maxMobCap) {
         this.spawnWildEnemy(false);
         if (!this.activeBoss && minutes >= 4.0 && this.enemies.length < maxMobCap - 5) {
@@ -2196,7 +2302,7 @@ window.GameApp = {
       const hitPoke = distToPoke < e.radius + 16;
       const hitTrainer = tc && (distToTrainer < e.radius + 11);
 
-      if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+      if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0 && !this.debugGodMode) {
         if (p.multiscaleReady) {
           p.multiscaleReady = false;
           p.multiscaleTimer = 10.0;
@@ -2380,7 +2486,7 @@ window.GameApp = {
           if (d <= tg.radius) hitPlayer = true;
         }
 
-        if (hitPlayer && p.invulnTimer <= 0) {
+        if (hitPlayer && p.invulnTimer <= 0 && !this.debugGodMode) {
           if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
             p.invulnTimer = 0.45;
             this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 16, "circle", 0.9);
@@ -2447,7 +2553,7 @@ window.GameApp = {
 
       ep.x += ep.vx * dt;
       ep.y += ep.vy * dt;
-      ep.rot += dt * 5;
+      ep.rot += dt * 3.0;
       ep.life -= dt;
 
       // 檢查是否擊中主角精靈或隨行訓練家
@@ -2456,7 +2562,7 @@ window.GameApp = {
       const hitPoke = distToPoke < ep.radius + 14;
       const hitTrainer = tc && (distToTrainer < ep.radius + 11);
 
-      if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+      if ((hitPoke || hitTrainer) && p.invulnTimer <= 0 && !this.debugGodMode) {
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
           this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.85);
@@ -3416,6 +3522,9 @@ window.GameApp = {
   },
 
   spawnFloatingText(x, y, text, color = "#FFFFFF", size = 12) {
+    if (this.enemies && this.enemies.length > 120 && color === "#FFFFFF" && size <= 12 && Math.random() < 0.65) {
+      return; // 百怪同屏高壓節流：過濾部分普通白字微傷，優先保留暴擊/克制/狀態文字，大幅減少 Canvas strokeText 開銷
+    }
     if (this.floatingTexts.length > 36) this.floatingTexts.shift();
     this.floatingTexts.push({ x, y, text, color, size, life: 0.75 });
   },
@@ -4174,7 +4283,9 @@ window.GameApp = {
         ctx.strokeStyle = (e.isElite && !e.isBoss) ? "#FACC15" : "rgba(15, 23, 42, 0.85)";
         ctx.lineWidth = (e.isElite && !e.isBoss) ? 1.4 : 1.0;
         ctx.fillRect(barX, barY, bw, bh);
-        ctx.strokeRect(barX, barY, bw, bh);
+        if (e.isElite || e.isBoss || this.enemies.length <= 100) {
+          ctx.strokeRect(barX, barY, bw, bh);
+        }
 
         let barColor = "#FF5252";
         if (e.treasureType) {
@@ -4559,6 +4670,22 @@ window.GameApp = {
     document.getElementById("hudTimer").textContent = `${mins}:${secs}`;
     document.getElementById("hudKills").textContent = this.kills;
     document.getElementById("hudCoins").textContent = this.runCoins;
+
+    const fpsVal = this.currentFps || 60;
+    const mobCount = this.enemies ? this.enemies.length : 0;
+    if (this.showFpsHud) {
+      const fpsBadge = document.getElementById("hudFpsBadge");
+      if (fpsBadge) {
+        fpsBadge.textContent = `${fpsVal} FPS | ${mobCount}怪`;
+        fpsBadge.className = `px-1.5 py-0.5 rounded bg-slate-900 border font-pixel text-[8px] ${fpsVal >= 50 ? 'border-emerald-500/70 text-emerald-400' : (fpsVal >= 35 ? 'border-amber-500/70 text-amber-300' : 'border-rose-500/80 text-rose-400')}`;
+      }
+    }
+    const debugStatsEl = document.getElementById("debugLiveStatsText");
+    if (debugStatsEl && !document.getElementById("debugDropdown").classList.contains("hidden")) {
+      const projCount = (SkillsEngine.projectiles ? SkillsEngine.projectiles.length : 0) + (this.enemyProjectiles ? this.enemyProjectiles.length : 0);
+      debugStatsEl.textContent = `${fpsVal} FPS | ${mobCount}怪 | ${projCount}彈`;
+      debugStatsEl.className = `font-pixel text-[9px] ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
+    }
 
     // 3. 雙打夥伴列表：僅在夥伴數量、ID 或等級變化時重建 innerHTML
     const partnerKey = this.partners.map(pt => `${pt.id}:${pt.level}`).join(",");

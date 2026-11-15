@@ -1426,6 +1426,14 @@ Object.assign(window.GameApp, {
   },
 
   populateEndModalStats() {
+    const fpsEl = document.getElementById("endStatFps");
+    if (fpsEl) {
+      const fpsVal = this.currentFps || 60;
+      const mobCount = this.enemies ? this.enemies.length : 0;
+      const projCount = (typeof SkillsEngine !== "undefined" && SkillsEngine.projectiles ? SkillsEngine.projectiles.length : 0) + (this.enemyProjectiles ? this.enemyProjectiles.length : 0);
+      fpsEl.textContent = `${fpsVal} FPS (${mobCount} 怪 / ${projCount} 彈幕)`;
+      fpsEl.className = `font-pixel text-[10px] ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
+    }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
     document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})`;
     document.getElementById("endStatKills").textContent = this.kills;

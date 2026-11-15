@@ -464,9 +464,12 @@
         </div>
       </div>
 
-      <!-- 中央：8分鐘計時鐘、殺敵與代幣 -->
+      <!-- 中央：8分鐘計時鐘、殺敵、代幣與即時 FPS 監控 -->
       <div class="flex flex-col items-center bg-slate-900/85 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm shrink-0">
-        <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black">00:00</div>
+        <div class="flex items-center gap-1.5">
+          <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black">00:00</div>
+          <span id="hudFpsBadge" class="hidden px-1.5 py-0.5 rounded bg-slate-800 border border-emerald-500/60 font-pixel text-[8px] text-emerald-400">60 FPS</span>
+        </div>
         <div class="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-0.5">
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-skull text-red-400 text-[8px] sm:text-[9px]"></i> <span id="hudKills">0</span></span>
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-coins text-amber-400 text-[8px] sm:text-[9px]"></i> <span id="hudCoins">0</span></span>
@@ -809,6 +812,10 @@
       </div>
 
       <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3">
+        <div class="flex justify-between items-center border-b border-slate-700/70 pb-1">
+          <span class="text-slate-400">即時效能 (FPS / 同屏實體)：</span>
+          <span id="endStatFps" class="font-pixel text-[10px] text-emerald-400">60 FPS (0 怪)</span>
+        </div>
         <div class="flex justify-between">
           <span class="text-slate-400">存活時間：</span>
           <span id="endStatTime" class="font-pixel text-amber-300">00:00</span>
@@ -839,12 +846,55 @@
     </div>
   </div>
 
-  <!-- 15. 開發者測試懸浮選單 (Debug Menu Dropdown) -->
-  <div id="debugDropdown" class="hidden absolute top-14 right-2 z-50 bg-slate-900 border-2 border-amber-400 rounded-2xl p-3 text-white text-xs w-64 shadow-2xl space-y-2 pointer-events-auto">
-    <div class="font-pixel text-[10px] text-amber-300 border-b border-slate-700 pb-1 flex justify-between">
-      <span>DEBUG TOOLS</span>
-      <button onclick="GameApp.toggleDebugMenu()" class="text-slate-400 hover:text-white">✕</button>
+  <!-- 15. 開發者測試懸浮選單 (Debug Menu Dropdown - 含壓力測試、雙超武與即時 FPS 監控) -->
+  <div id="debugDropdown" class="hidden absolute top-12 right-2 z-50 bg-slate-900/95 border-2 border-amber-400 rounded-2xl p-3 text-white text-xs w-68 max-h-[78vh] overflow-y-auto shadow-2xl space-y-2.5 pointer-events-auto backdrop-blur-sm">
+    <div class="font-pixel text-[10px] text-amber-300 border-b border-slate-700 pb-1.5 flex justify-between items-center">
+      <span>DEBUG ＆ STRESS TEST</span>
+      <button onclick="GameApp.toggleDebugMenu()" class="text-slate-400 hover:text-white px-1">✕</button>
     </div>
+
+    <!-- 即時效能與無敵狀態列 -->
+    <div class="bg-slate-950/90 border border-slate-700 rounded-xl p-2 space-y-1.5">
+      <div class="flex items-center justify-between text-[10px]">
+        <span class="text-slate-400 font-bold">即時幀率 / 敵人數：</span>
+        <span id="debugLiveStatsText" class="font-pixel text-[9px] text-emerald-400">60 FPS | 0 怪</span>
+      </div>
+      <div class="grid grid-cols-2 gap-1">
+        <button id="btnDebugFpsToggle" onclick="GameApp.debugToggleFpsHud()" class="px-1.5 py-1 bg-slate-800 border border-slate-600 rounded text-[9px] font-bold text-emerald-300 hover:bg-slate-700">📊 頂部FPS: 關</button>
+        <button id="btnDebugGodMode" onclick="GameApp.debugToggleGodMode()" class="px-1.5 py-1 bg-slate-800 border border-slate-600 rounded text-[9px] font-bold text-amber-300 hover:bg-slate-700">🛡️ 無敵鎖血: 關</button>
+      </div>
+    </div>
+
+    <!-- 壓力測試：同屏怪量調節與瞬間灌怪 -->
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-amber-300 flex justify-between">
+        <span>🔥 壓力測試 (怪量控制)：</span>
+        <span id="debugMobCapLabel" class="text-sky-300">上限: 動態</span>
+      </div>
+      <div class="grid grid-cols-4 gap-1">
+        <button onclick="GameApp.debugSetMobCap(0)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">預設</button>
+        <button onclick="GameApp.debugSetMobCap(150)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">150隻</button>
+        <button onclick="GameApp.debugSetMobCap(250)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">250隻</button>
+        <button onclick="GameApp.debugSetMobCap(350)" class="px-1 py-1 bg-rose-950 border border-rose-500/60 rounded text-[9px] text-rose-300 hover:bg-rose-900">350極限</button>
+      </div>
+      <div class="grid grid-cols-3 gap-1 pt-0.5">
+        <button onclick="GameApp.debugBatchSpawnMobs(30)" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">+30 怪獸</button>
+        <button onclick="GameApp.debugBatchSpawnMobs(80)" class="px-1.5 py-1 bg-rose-700 rounded text-[9px] font-bold">+80 怪海</button>
+        <button onclick="GameApp.debugClearRegularMobs()" class="px-1.5 py-1 bg-slate-700 rounded text-[9px] font-bold">🧹 清小怪</button>
+      </div>
+    </div>
+
+    <!-- 超武與進化突破測試 -->
+    <div class="space-y-1">
+      <div class="text-[10px] font-bold text-slate-400">招式超武 ＆ 進化測試：</div>
+      <div class="grid grid-cols-2 gap-1">
+        <button onclick="GameApp.debugUnlockSuperMove(1)" class="px-1.5 py-1 bg-purple-700 rounded text-[9px] font-bold">★ 第1招超武</button>
+        <button onclick="GameApp.debugUnlockSuperMove(2)" class="px-1.5 py-1 bg-gradient-to-r from-amber-600 to-purple-700 border border-amber-300 rounded text-[9px] font-black text-amber-100">★★ 雙超武全開</button>
+        <button onclick="GameApp.debugForceLevelUp()" class="px-1.5 py-1 bg-emerald-700 rounded text-[9px] font-bold">+5級三選一</button>
+        <button onclick="GameApp.debugInstantEvolve()" class="px-1.5 py-1 bg-indigo-700 rounded text-[9px] font-bold">🧬 立即進化</button>
+      </div>
+    </div>
+
     <div class="space-y-1">
       <div class="text-[10px] font-bold text-slate-400">天氣測試：</div>
       <div class="grid grid-cols-3 gap-1">
@@ -859,8 +909,6 @@
     <div class="space-y-1">
       <div class="text-[10px] font-bold text-slate-400">事件與刷王：</div>
       <div class="grid grid-cols-2 gap-1">
-        <button onclick="GameApp.debugForceLevelUp()" class="px-1.5 py-1 bg-emerald-700 rounded text-[9px] font-bold">+5級三選一</button>
-        <button onclick="GameApp.debugUnlockSuperMove()" class="px-1.5 py-1 bg-purple-700 rounded text-[9px] font-bold">滿級超武</button>
         <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">刷聚寶喵喵</button>
         <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-pink-700 rounded text-[9px] font-bold">刷吉利蛋</button>
         <button onclick="GameApp.debugTriggerRocketEvent()" class="px-1.5 py-1 bg-slate-800 rounded text-[9px] font-bold">火箭隊突襲</button>
@@ -871,7 +919,7 @@
         <button onclick="GameApp.debugSpawnMewtwo()" class="px-1.5 py-1 bg-purple-800 rounded text-[9px] font-bold">召喚超夢</button>
         <button onclick="GameApp.debugTriggerSecretMew()" class="px-1.5 py-1 bg-pink-600 rounded text-[9px] font-bold">終極夢幻</button>
         <button onclick="GameApp.debugAddPartner()" class="px-1.5 py-1 bg-blue-700 rounded text-[9px] font-bold">+雙打夥伴</button>
-		<button onclick="GameApp.debugSpawnPokeMart()" class="px-1.5 py-1 bg-sky-600 rounded text-[9px] font-bold">刷友好商店</button>
+        <button onclick="GameApp.debugSpawnPokeMart()" class="px-1.5 py-1 bg-sky-600 rounded text-[9px] font-bold col-span-2">🏪 刷友好商店</button>
       </div>
     </div>
   </div>
