@@ -441,7 +441,7 @@
     <!-- 頂部資訊條 (血條、等級、時間軸、擊退數、代幣與功能按鈕 - iPhone 小屏自適應) -->
     <div class="absolute top-2 left-1.5 right-1.5 sm:left-2 sm:right-2 flex items-start justify-between gap-1 sm:gap-2 pointer-events-auto">
       <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 (優化雙屬性佈局，不遮擋名字) -->
-      <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[48%] sm:max-w-xs shrink-0">
+      <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm max-w-[44%] sm:max-w-xs shrink-0">
         <div class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
           <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-8 h-8 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="Current" />
           <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[7px] sm:text-[8px] rounded font-black">羈絆</span>
@@ -464,16 +464,14 @@
         </div>
       </div>
 
-      <!-- 中央：8分鐘計時鐘、殺敵、代幣與即時 FPS 監控 -->
-      <div class="flex flex-col items-center bg-slate-900/85 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm shrink-0">
-        <div class="flex items-center gap-1.5">
-          <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black">00:00</div>
-          <span id="hudFpsBadge" class="hidden px-1.5 py-0.5 rounded bg-slate-800 border border-emerald-500/60 font-pixel text-[8px] text-emerald-400">60 FPS</span>
-        </div>
-        <div class="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-0.5">
+      <!-- 中央：8分鐘計時鐘、殺敵、代幣與下方懸浮 FPS 膠囊 (零水平佔位，絕不擠壓右側按鈕) -->
+      <div class="relative flex flex-col items-center bg-slate-900/85 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl backdrop-blur-sm shrink-0">
+        <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black leading-none">00:00</div>
+        <div class="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-1 leading-none">
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-skull text-red-400 text-[8px] sm:text-[9px]"></i> <span id="hudKills">0</span></span>
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-coins text-amber-400 text-[8px] sm:text-[9px]"></i> <span id="hudCoins">0</span></span>
         </div>
+        <span id="hudFpsBadge" class="hidden absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded-full bg-slate-950/90 border border-emerald-500/70 font-pixel text-[7px] sm:text-[8px] text-emerald-400 shadow pointer-events-none">60 FPS</span>
       </div>
 
       <!-- 右側：倍速、靜音、暫停與開發者測試工具按鈕 (緊湊排列確保全顯) -->
@@ -501,21 +499,21 @@
       </div>
     </div>
 
-    <!-- 頂部中央：Boss 血條容器 (遇三聖鳥或超夢時自動展開) -->
-    <div id="bossHudContainer" class="absolute top-16 left-1/2 -translate-x-1/2 w-11/12 max-w-md hidden bg-slate-900/90 p-2 rounded-2xl border-2 border-red-500 shadow-2xl backdrop-blur-sm pointer-events-auto">
+    <!-- 地形與狀態提示標籤 (緊貼左上玩家血條卡正下方，横向並排不佔垂直空間) -->
+    <div class="absolute top-[68px] sm:top-[74px] left-2 flex flex-wrap items-center gap-1 pointer-events-none z-10 max-w-[65%]">
+      <span id="hudTerrainBadge" class="hidden px-2 py-0.5 bg-emerald-950/90 text-emerald-300 border border-emerald-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">草叢</span>
+      <span id="hudPlayerStatusBadge" class="hidden px-2 py-0.5 bg-rose-950/90 text-rose-300 border border-rose-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">異常狀態</span>
+    </div>
+
+    <!-- 頂部中央：Boss 血條容器 (下移至 top-[96px] sm:top-24 避開地形與狀態列，且 z-20 置頂絕不被擋) -->
+    <div id="bossHudContainer" class="absolute top-[96px] sm:top-24 left-1/2 -translate-x-1/2 w-11/12 max-w-md hidden bg-slate-900/95 px-2.5 py-1.5 rounded-2xl border-2 border-red-500 shadow-2xl backdrop-blur-sm pointer-events-auto z-20">
       <div class="flex items-center justify-between text-xs font-black text-white mb-1 px-1">
         <span id="bossHudName" class="text-red-400 flex items-center gap-1"><i class="fa-solid fa-dragon"></i> 王者超夢 (#150)</span>
         <span id="bossHudHpText" class="font-pixel text-[10px] text-amber-300">14000/14000</span>
       </div>
-      <div class="w-full bg-slate-950 rounded-full h-3 p-0.5 border border-slate-700 overflow-hidden">
+      <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
         <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
       </div>
-    </div>
-
-    <!-- 地形與狀態提示標籤 (草叢/水域/灼傷/麻痺) -->
-    <div class="absolute top-20 left-4 flex flex-col gap-1 pointer-events-none">
-      <span id="hudTerrainBadge" class="hidden px-2 py-0.5 bg-emerald-950/80 text-emerald-300 border border-emerald-500 rounded-full font-black text-[10px]">草叢</span>
-      <span id="hudPlayerStatusBadge" class="hidden px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]">異常狀態</span>
     </div>
 
     <!-- 左下角：雙打夥伴動態狀態與等級 (hudPartnerList) -->

@@ -375,7 +375,7 @@ window.GameApp = {
     }
     if (this.player) {
       if (this.debugGodMode) this.player.hp = this.player.maxHp;
-      this.spawnFloatingText(this.player.x, this.player.y - 28, this.debugGodMode ? "🛡️ 測試無敵鎖血：開啟" : "🛡️ 測試無敵鎖血：關閉", "#FACC15", 14);
+      this.spawnFloatingText(this.player.x, this.player.y - 28, this.debugGodMode ? "🛡️ 無敵開啟 (已暫停自動升級彈窗)" : "🛡️ 無敵關閉 (恢復正常升級)", "#FACC15", 14);
     }
   },
 
@@ -3015,6 +3015,11 @@ window.GameApp = {
 
   gainExp(amount) {
     const p = this.player;
+    // 開啟測試無敵鎖血 (debugGodMode) 時，自動凍結經驗值升級彈窗，防止高壓怪海測試被三選一畫面頻繁打斷（除非主動點擊測試面板的 +5級三選一）
+    if (this.debugGodMode) {
+      p.exp = Math.min(p.nextExp - 1, p.exp + amount);
+      return;
+    }
     const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12);
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {
@@ -4676,8 +4681,8 @@ window.GameApp = {
     if (this.showFpsHud) {
       const fpsBadge = document.getElementById("hudFpsBadge");
       if (fpsBadge) {
-        fpsBadge.textContent = `${fpsVal} FPS | ${mobCount}怪`;
-        fpsBadge.className = `px-1.5 py-0.5 rounded bg-slate-900 border font-pixel text-[8px] ${fpsVal >= 50 ? 'border-emerald-500/70 text-emerald-400' : (fpsVal >= 35 ? 'border-amber-500/70 text-amber-300' : 'border-rose-500/80 text-rose-400')}`;
+        fpsBadge.textContent = `${fpsVal} FPS · ${mobCount}怪`;
+        fpsBadge.className = `absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded-full bg-slate-950/90 border font-pixel text-[7px] sm:text-[8px] shadow pointer-events-none ${fpsVal >= 50 ? 'border-emerald-500/70 text-emerald-400' : (fpsVal >= 35 ? 'border-amber-500/70 text-amber-300' : 'border-rose-500/80 text-rose-400')}`;
       }
     }
     const debugStatsEl = document.getElementById("debugLiveStatsText");
