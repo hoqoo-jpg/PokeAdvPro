@@ -72,26 +72,59 @@ Object.assign(window.GameApp, {
   },
 
   runAssetPreloader() {
-    const urls = new Set();
+    const priorityUrls = new Set();
+    const secondaryUrls = new Set();
+
+    // 1. 優先佇列：所有道具、攜帶物、技能圖標、商店與研究所圖標、訓練家與一階出戰精靈
     if (typeof ITEM_SPRITES !== "undefined") {
-      Object.values(ITEM_SPRITES).forEach(u => { if (u) urls.add(u); });
+      Object.values(ITEM_SPRITES).forEach(u => { if (u) priorityUrls.add(u); });
+    }
+    if (typeof HELD_ITEMS !== "undefined") {
+      Object.values(HELD_ITEMS).forEach(it => { if (it && it.sprite) priorityUrls.add(it.sprite); });
+    }
+    if (typeof SKILLS_CATALOG !== "undefined") {
+      Object.values(SKILLS_CATALOG).forEach(sk => { if (sk && sk.sprite) priorityUrls.add(sk.sprite); });
+    }
+    if (typeof TM_CATALOG !== "undefined") {
+      Object.values(TM_CATALOG).forEach(tm => { if (tm && tm.sprite) priorityUrls.add(tm.sprite); });
+    }
+    if (typeof MART_SPECIAL_ITEMS !== "undefined") {
+      Object.values(MART_SPECIAL_ITEMS).forEach(it => { if (it && it.sprite) priorityUrls.add(it.sprite); });
+    }
+    if (typeof MAP_BOSS_LOOTS !== "undefined") {
+      Object.values(MAP_BOSS_LOOTS).forEach(lt => { if (lt && lt.sprite) priorityUrls.add(lt.sprite); });
+    }
+    if (typeof CENTER_POKEMON_UPGRADES !== "undefined") {
+      CENTER_POKEMON_UPGRADES.forEach(u => { if (u && u.sprite) priorityUrls.add(u.sprite); });
+    }
+    if (typeof CENTER_TRAINER_UPGRADES !== "undefined") {
+      CENTER_TRAINER_UPGRADES.forEach(u => { if (u && u.sprite) priorityUrls.add(u.sprite); });
     }
     if (typeof TRAINERS !== "undefined") {
       TRAINERS.forEach(t => {
-        if (t.sprite) urls.add(t.sprite);
-        if (t.sprites) Object.values(t.sprites).forEach(u => { if (u) urls.add(u); });
-        if (t.cutin) urls.add(t.cutin);
+        if (t.sprite) priorityUrls.add(t.sprite);
+        if (t.sprites) Object.values(t.sprites).forEach(u => { if (u) priorityUrls.add(u); });
+        if (t.cutin) priorityUrls.add(t.cutin);
       });
     }
     if (typeof POKEMON_DB !== "undefined") {
+      const evoTargets = new Set(POKEMON_DB.map(p => p.evo_to).filter(Boolean));
       POKEMON_DB.forEach(p => {
-        if (p.forward_sprite) urls.add(p.forward_sprite);
-        if (p.back_sprite) urls.add(p.back_sprite);
+        const isBaseOrLegend = !evoTargets.has(p.id) || p.id >= 144;
+        if (isBaseOrLegend) {
+          if (p.forward_sprite) priorityUrls.add(p.forward_sprite);
+          if (p.back_sprite) priorityUrls.add(p.back_sprite);
+        } else {
+          if (p.forward_sprite) secondaryUrls.add(p.forward_sprite);
+          if (p.back_sprite) secondaryUrls.add(p.back_sprite);
+        }
       });
     }
 
-    const urlList = Array.from(urls).filter(u => typeof u === "string" && u.trim().length > 0);
-    const total = urlList.length;
+    const priList = Array.from(priorityUrls).filter(u => typeof u === "string" && u.trim().length > 0);
+    const secList = Array.from(secondaryUrls).filter(u => typeof u === "string" && u.trim().length > 0 && !priorityUrls.has(u));
+    const allList = [...priList, ...secList];
+    const total = allList.length;
     let done = 0;
     let finished = false;
 
@@ -104,6 +137,7 @@ Object.assign(window.GameApp, {
       if (finished) return;
       finished = true;
       if (bar) bar.style.width = "100%";
+      if (countEl) countEl.textContent = `${total} / ${total}`;
       if (pctEl) pctEl.textContent = "100%";
       if (statusEl) statusEl.textContent = "關都自然生態、圖鑑快取與招式引擎建構完畢！";
       setTimeout(() => {
@@ -112,38 +146,63 @@ Object.assign(window.GameApp, {
         if (preEl) preEl.classList.add("hidden");
         if (splashEl) splashEl.classList.remove("hidden");
         this.state = "SPLASH";
-      }, 200);
+      }, 180);
     };
 
-    // 如果圖片列表為空，或者超過 3 秒直接強制放行，絕不卡死在 0/0！
     if (total === 0) {
       complete();
       return;
     }
 
-    const step = () => {
-      if (finished) return;
-      done += 1;
-      const pct = Math.min(100, Math.round((done / total) * 100));
-      if (bar) bar.style.width = `${pct}%`;
-      if (countEl) countEl.textContent = `${done} / ${total}`;
-      if (pctEl) pctEl.textContent = `${pct}%`;
-      if (done >= total) complete();
+    // 分批併發佇列 (每批最大 24 條連線)：徹底防止 350 張圖同時請求塞爆瀏覽器與 GitHub CDN 導致掉圖
+    let cursor = 0;
+    const maxConcurrency = 24;
+
+    const loadNext = () => {
+      if (cursor >= allList.length) return;
+      const url = allList[cursor++];
+      const rec = SpriteCache.get(url);
+
+      const onAssetSettled = () => {
+        done += 1;
+        if (!finished) {
+          const pct = Math.min(100, Math.round((done / total) * 100));
+          if (bar) bar.style.width = `${pct}%`;
+          if (countEl) countEl.textContent = `${done} / ${total}`;
+          if (pctEl) pctEl.textContent = `${pct}%`;
+          if (done >= total) complete();
+        }
+        loadNext();
+      };
+
+      if (!rec || rec.loaded || rec.error) {
+        onAssetSettled();
+      } else {
+        const prevLoad = rec.img.onload;
+        const prevErr = rec.img.onerror;
+        let settled = false;
+        const settleOnce = () => {
+          if (settled) return;
+          settled = true;
+          onAssetSettled();
+        };
+        rec.img.onload = () => {
+          if (prevLoad) prevLoad();
+          settleOnce();
+        };
+        rec.img.onerror = () => {
+          if (prevErr) prevErr();
+          settleOnce();
+        };
+      }
     };
 
-    // 兜底定時器：最多 3.5 秒必定進入遊戲
-    setTimeout(complete, 3500);
+    // 兜底安全計時器：若網路較慢，最多等待 5.5 秒即放行進入封面，同時背景佇列繼續把剩餘圖片載完
+    setTimeout(complete, 5500);
 
-    urlList.forEach(url => {
-      const rec = SpriteCache.get(url);
-      if (!rec || rec.loaded || rec.error) {
-        step();
-      } else {
-        const ol = rec.img.onload, oe = rec.img.onerror;
-        rec.img.onload = () => { rec.loaded = true; if (ol) ol(); step(); };
-        rec.img.onerror = () => { rec.error = true; if (oe) oe(); step(); };
-      }
-    });
+    for (let i = 0; i < Math.min(maxConcurrency, allList.length); i++) {
+      loadNext();
+    }
   },
 
   enterLobbyFromSplash() {
@@ -601,7 +660,7 @@ Object.assign(window.GameApp, {
     if (loadoutEl) {
       const loadouts = [
         { id: "combat_pack", name: "戰鬥強化補給包", cost: 150, badge: "150 代幣", sprite: ITEM_SPRITES.protein, desc: "開局自帶 45 秒【力量強化(全傷+35%)】＆【速度強化(移速+30%)】與 +25% 額外最大護盾 HP！" },
-        { id: "held_box", name: "本命超武攜帶物盲盒", cost: 220, badge: "220 代幣", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/EXP-share.png", desc: "開局直接獲贈 1 件對應出戰精靈主招式的【超武核心攜帶物】（全傷+12% 且滿級直通超武）！" }
+        { id: "held_box", name: "本命超武攜帶物盲盒", cost: 220, badge: "220 代幣", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/exp-share.png", desc: "開局直接獲贈 1 件對應出戰精靈主招式的【超武核心攜帶物】（全傷+12% 且滿級直通超武）！" }
       ];
       loadoutEl.innerHTML = loadouts.map(ld => {
         const sel = this.selectedLoadout === ld.id;

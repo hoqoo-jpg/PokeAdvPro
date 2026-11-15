@@ -749,18 +749,45 @@ const ITEM_SPRITES = {
   carbos: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/carbos.png"
 };
 
-// 12. Sprite 快取載入器
+// 12. Sprite 快取載入器 (移除 crossOrigin 避免與 HTML <img> 標籤產生快取模式衝突，並支援網路瞬斷自動重試)
 const SpriteCache = {
   cache: new Map(),
   get(url) {
     if (!url) return null;
-    if (this.cache.has(url)) return this.cache.get(url);
+    if (this.cache.has(url)) {
+      const existing = this.cache.get(url);
+      // 若先前因併發限流失敗且重試次數未滿 3 次，再次觸發重試
+      if (existing.error && (existing.retries || 0) < 3 && !existing.retrying) {
+        existing.retrying = true;
+        existing.retries = (existing.retries || 0) + 1;
+        setTimeout(() => {
+          existing.error = false;
+          existing.retrying = false;
+          existing.img.src = url + (url.includes('?') ? '&' : '?') + 'retry=' + existing.retries;
+        }, 400 * existing.retries);
+      }
+      return existing;
+    }
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    const rec = { img, loaded: false, error: false, retries: 0, retrying: false };
+    img.onload = () => {
+      rec.loaded = true;
+      rec.error = false;
+      rec.retrying = false;
+    };
+    img.onerror = () => {
+      if (rec.retries < 2) {
+        rec.retries += 1;
+        rec.retrying = true;
+        setTimeout(() => {
+          rec.retrying = false;
+          img.src = url;
+        }, 350 * rec.retries);
+      } else {
+        rec.error = true;
+      }
+    };
     img.src = url;
-    const rec = { img, loaded: false, error: false };
-    img.onload = () => { rec.loaded = true; };
-    img.onerror = () => { rec.error = true; };
     this.cache.set(url, rec);
     return rec;
   }
@@ -1300,7 +1327,7 @@ const MART_SPECIAL_ITEMS = {
     name: "秘傳攜帶物禮盒",
     type: "item",
     cost: 240,
-    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/EXP-share.png",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/exp-share.png",
     desc: "【高階補給】立即隨機獲得一件對應當前已學招式的超武攜帶物！"
   }
 };
