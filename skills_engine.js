@@ -262,23 +262,23 @@ const SkillsEngine = {
       return;
     }
 
-    // 2C. 月亮之力 (Moonblast)：鎖定敵群降下持續 1.35 秒的多段移動月光聖柱 (4段連擊+降攻)
+    // 2C. 月亮之力 (Moonblast)：鎖定敵群降下持續 1.45 秒的高速索敵 3D 螺旋月光聖柱 (多段連擊+降攻+星塵粒子)
     if (cleanSkillId === "Moonblast") {
-      const pillarCount = Math.min(2, 1 + (level >= 7 ? 1 : 0));
+      const pillarCount = Math.min(2, 1 + (level >= 6 ? 1 : 0));
       for (let i = 0; i < pillarCount; i++) {
-        const ang = baseAngle + (i - (pillarCount - 1) / 2) * 0.45;
-        const dist = (!useManualAim && target) ? Math.min(260, Math.hypot(target.x - caster.x, target.y - caster.y)) : 140;
+        const ang = baseAngle + (i - (pillarCount - 1) / 2) * 0.42;
+        const dist = (!useManualAim && target) ? Math.min(250, Math.max(48, Math.hypot(target.x - caster.x, target.y - caster.y))) : 120;
         const px = caster.x + Math.cos(ang) * dist;
         const py = caster.y + Math.sin(ang) * dist;
         this.groundHazards.push({
           kind: "moon_pillar",
           x: px, y: py,
-          vx: Math.cos(ang) * 28, vy: Math.sin(ang) * 28,
-          radius: (46 + level * 2.5) * GameApp.player.areaMult,
-          dmg: rawDmg * 0.52,
+          vx: Math.cos(ang) * 105, vy: Math.sin(ang) * 105,
+          radius: (54 + level * 2.6) * GameApp.player.areaMult,
+          dmg: rawDmg * 0.56,
           type: "Psychic",
-          timer: 1.35, maxTime: 1.35,
-          tickTimer: 0.05, tickInterval: 0.32,
+          timer: 1.45, maxTime: 1.45,
+          tickTimer: 0.04, tickInterval: 0.30,
           color: "#F472B6"
         });
       }
@@ -688,7 +688,24 @@ const SkillsEngine = {
     GameApp.camera.shakeMagnitude = 3.0;
     SoundFX.play("ultimate");
 
-    const ultDmg = (meta.baseDmg * 2.8 + p.baseAtk * 1.3) * p.dmgMult * ultDmgScale;
+    const powerBonus = meta.ultPowerBonus || 1.0;
+    const ultDmg = (meta.baseDmg * 2.8 + p.baseAtk * 1.3) * p.dmgMult * ultDmgScale * powerBonus;
+
+    // 防領域重疊機制 (Anti-Overlap)：若場上已有同類型的持續領域超武，先清除舊領域再展開新領域，避免雙重疊加卡頓與倍率失控
+    const domainMap = {
+      Water: "blastoise_maelstrom",
+      Grass: "frenzy_plant_roots",
+      Flying: "tornado",
+      Poison: "toxic_swamp",
+      Ice: "ice_shatter_domain",
+      Ground: "quake_fissure",
+      Ghost: "gengar_grin_domain",
+      Psychic: meta.id === "Moonblast" ? "genesis_aurora" : "psychic_blackhole"
+    };
+    const domainKind = domainMap[meta.type];
+    if (domainKind) {
+      this.groundHazards = this.groundHazards.filter(h => h.kind !== domainKind);
+    }
 
     this.ultimateVfxList.push({
       type: meta.type,
@@ -841,7 +858,7 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Flying") {
-      // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（降低游走與自轉速度，牽引力遵守體重抗性）
+      // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（持續 3.1s，配合 4.2s 保底冷卻絕不疊出 6 道龍捲風）
       for (let i = 0; i < 3; i++) {
         const ang = (i * Math.PI * 2) / 3;
         this.groundHazards.push({
@@ -851,32 +868,39 @@ const SkillsEngine = {
           vx: Math.cos(ang) * 62,
           vy: Math.sin(ang) * 62,
           radius: 95 * p.areaMult,
-          dmg: ultDmg * 0.24,
+          dmg: ultDmg * 0.26,
           type: "Flying",
-          timer: 3.6, maxTime: 3.6,
+          timer: 3.1, maxTime: 3.1,
           tickTimer: 0.1, tickInterval: 0.25,
           color: "#818CF8"
         });
       }
     } else if (meta.type === "Poison") {
-      // 【劇毒沼澤】：展開持續 4.0 秒的 230px 沸騰劇毒領域，減速 30% 並使沼澤內中毒 DOT 翻倍
+      // 【劇毒沼澤】：展開持續 3.4 秒的 230px 沸騰劇毒領域，減速 30% 並使沼澤內中毒 DOT 翻倍
       this.groundHazards.push({
         kind: "toxic_swamp",
         x: p.x, y: p.y,
         followPlayer: true,
         radius: 230 * p.areaMult,
-        dmg: ultDmg * 0.22,
+        dmg: ultDmg * 0.24,
         type: "Poison",
-        timer: 4.0, maxTime: 4.0,
+        timer: 3.4, maxTime: 3.4,
         tickTimer: 0.1, tickInterval: 0.35,
         color: "#9333EA"
       });
     } else if (meta.type === "Ice") {
-      // 【絕對零度】：全場凍結 3 秒 + 0.9 秒後觸發二次「全屏冰晶碎裂」200% 破冰重擊
+      // 【絕對零度（防永凍平衡版）】：對 285px 極光圈內非韌性保護期的敵人凍結 2.0s (Boss 1.0s)，韌性保護期內則賦予極寒減速
+      const freezeRange = 285 * p.areaMult;
       GameApp.enemies.forEach(e => {
-        if (Math.hypot(e.x - p.x, e.y - p.y) <= 380) {
-          e.status = "Freeze";
-          e.statusTimer = e.isBoss ? 1.8 : 3.2;
+        if (Math.hypot(e.x - p.x, e.y - p.y) <= freezeRange + e.radius) {
+          if (e.ccImmunityTimer > 0) {
+            e.inFrostAura = true;
+            e.weakenTimer = Math.max(e.weakenTimer || 0, 2.5);
+          } else {
+            e.status = "Freeze";
+            e.statusTimer = e.isBoss ? 1.0 : (e.isElite ? 1.6 : 2.0);
+            e.ccImmunityTimer = e.isBoss ? 4.5 : (e.isElite ? 3.2 : 2.5);
+          }
         }
       });
       this.groundHazards.push({
@@ -917,9 +941,9 @@ const SkillsEngine = {
         kind: "quake_fissure",
         x: p.x, y: p.y,
         radius: 220 * p.areaMult,
-        dmg: ultDmg * 0.32,
+        dmg: ultDmg * 0.36,
         type: "Ground",
-        timer: 2.4, maxTime: 2.4,
+        timer: 2.0, maxTime: 2.0,
         tickTimer: 0.1, tickInterval: 0.45,
         color: "#D97706"
       });
@@ -929,9 +953,9 @@ const SkillsEngine = {
         kind: "gengar_grin_domain",
         x: p.x, y: p.y,
         radius: 235 * p.areaMult,
-        dmg: ultDmg * 0.28,
+        dmg: ultDmg * 0.32,
         type: "Ghost",
-        timer: 2.4, maxTime: 2.4,
+        timer: 2.1, maxTime: 2.1,
         tickTimer: 0.15, tickInterval: 0.42,
         color: "#A855F7"
       });
@@ -954,9 +978,9 @@ const SkillsEngine = {
         kind: "genesis_aurora",
         x: p.x, y: p.y,
         radius: 255 * p.areaMult,
-        dmg: ultDmg * 0.34,
+        dmg: ultDmg * 0.36,
         type: "Psychic",
-        timer: 2.2, maxTime: 2.2,
+        timer: 2.0, maxTime: 2.0,
         tickTimer: 0.14, tickInterval: 0.36,
         color: "#F472B6"
       });
@@ -966,9 +990,9 @@ const SkillsEngine = {
         kind: "psychic_blackhole",
         x: p.x, y: p.y,
         radius: 230 * p.areaMult,
-        dmg: ultDmg * 0.28,
+        dmg: ultDmg * 0.32,
         type: "Psychic",
-        timer: 2.5, maxTime: 2.5,
+        timer: 2.1, maxTime: 2.1,
         tickTimer: 0.15, tickInterval: 0.45,
         color: "#EC4899"
       });
@@ -1104,16 +1128,21 @@ const SkillsEngine = {
               GameApp.dealDamageToEnemy(e, pr.dmg, "Poison", pr.statusBonus, 6);
             }
           });
+          const activePuddles = this.groundHazards.filter(h => h.kind === "poison_puddle");
+          if (activePuddles.length >= 6) {
+            const firstIdx = this.groundHazards.findIndex(h => h.kind === "poison_puddle");
+            if (firstIdx !== -1) this.groundHazards.splice(firstIdx, 1);
+          }
           this.groundHazards.push({
             kind: "poison_puddle",
             x: pr.targetX,
             y: pr.targetY,
             radius: puddleR,
-            dmg: pr.dmg * 0.38,
+            dmg: pr.dmg * 0.42,
             type: "Poison",
-            timer: 3.2,
-            maxTime: 3.2,
-            tickTimer: 0.35,
+            timer: 2.2,
+            maxTime: 2.2,
+            tickTimer: 0.32,
             tickInterval: 0.42,
             color: "#9333EA"
           });
@@ -1384,14 +1413,28 @@ const SkillsEngine = {
           }
         });
       } else if (hz.kind === "moon_pillar") {
-        const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 380);
+        const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
         if (target) {
           const desired = Math.atan2(target.y - hz.y, target.x - hz.x);
-          hz.vx = Math.cos(desired) * 85;
-          hz.vy = Math.sin(desired) * 85;
+          const distToT = Math.hypot(target.x - hz.x, target.y - hz.y);
+          const trackSpd = distToT > 24 ? 125 : 40;
+          hz.vx = (hz.vx || 0) * 0.75 + Math.cos(desired) * trackSpd * 0.25;
+          hz.vy = (hz.vy || 0) * 0.75 + Math.sin(desired) * trackSpd * 0.25;
         }
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
+        // 持續向上噴發月華十字星屑粒子，賦予聖柱生動立體感
+        if (Math.random() < 0.55) {
+          const rx = hz.x + (Math.random() - 0.5) * hz.radius * 1.1;
+          const ry = hz.y + (Math.random() - 0.5) * hz.radius * 0.5;
+          this.spawnSubParticle(
+            rx, ry,
+            (Math.random() - 0.5) * 22, -65 - Math.random() * 55,
+            Math.random() < 0.55 ? "#FEF08A" : "#F472B6",
+            3.2 + Math.random() * 1.5, 0.42,
+            Math.random() < 0.65 ? "star" : "diamond"
+          );
+        }
       } else if (hz.kind === "tornado") {
         const target = GameApp.findNearestEnemyInViewport(hz.x, hz.y, 420);
         const curAng = Math.atan2(hz.vy || 0, hz.vx || 60);
@@ -1469,21 +1512,28 @@ const SkillsEngine = {
           });
           SoundFX.play("ultimate");
         } else {
+          const nowMs = performance.now();
           GameApp.enemies.forEach(e => {
             if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+              // 防多個普攻毒沼重疊秒殺：同一隻怪每 360ms 最多吃一次 poison_puddle 跳傷
+              if (hz.kind === "poison_puddle") {
+                if (e._lastPuddleHit && nowMs - e._lastPuddleHit < 360) return;
+                e._lastPuddleHit = nowMs;
+              }
               let dVal = hz.dmg;
               if (hz.kind === "quake_fissure" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
                 dVal *= 7.5; // 飛石對空破局
               }
               if (hz.kind === "genesis_aurora" || hz.kind === "moon_pillar") {
-                e.weakenTimer = 4.0; // 創世極光與月光聖柱：降低敵方 35% 攻擊力
+                const wasWeakened = (e.weakenTimer && e.weakenTimer > 0.5);
+                e.weakenTimer = 3.0; // 創世極光與月光聖柱：降低敵方 35% 攻擊力
+                if (!wasWeakened) {
+                  GameApp.spawnFloatingText(e.x, e.y - 24, "🌙 降攻 -35%!", "#F472B6", 11);
+                }
               }
               GameApp.dealDamageToEnemy(e, dVal, hz.type, 0.35, hz.kind === "dragon_wave" ? 14 : 2);
             }
           });
-          if (hz.kind === "frenzy_plant_roots" && p && p.hp < p.maxHp) {
-            p.hp = Math.min(p.maxHp, p.hp + Math.max(1, Math.round(p.maxHp * 0.012)));
-          }
         }
       }
 
@@ -2321,24 +2371,86 @@ const SkillsEngine = {
       ctx.save();
 
       if (hz.kind === "moon_pillar") {
-        const alpha = Math.sin((1 - prog) * Math.PI) * 0.85;
-        ctx.fillStyle = `rgba(131, 24, 67, ${alpha * 0.45})`;
-        ctx.strokeStyle = `rgba(244, 114, 182, ${alpha})`;
-        ctx.lineWidth = 3.5;
+        // 【月亮之力・3D 螺旋星落月光聖柱】：地面雙層旋轉月相陣 ＋ 雙股螺旋上升星軌光帶 ＋ 頂端新月聖徽
+        const alpha = Math.min(1, Math.sin((1 - prog) * Math.PI) * 1.15);
+        const r = hz.radius;
+        ctx.translate(sx, sy);
+
+        // 1. 地面雙層月華星陣與內縮脈動波
+        const baseGrad = ctx.createRadialGradient(0, 0, r * 0.1, 0, 0, r);
+        baseGrad.addColorStop(0, `rgba(254, 240, 138, ${alpha * 0.55})`);
+        baseGrad.addColorStop(0.6, `rgba(244, 114, 182, ${alpha * 0.42})`);
+        baseGrad.addColorStop(1, "rgba(131, 24, 67, 0)");
+        ctx.fillStyle = baseGrad;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, hz.radius, hz.radius * 0.55, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, r, r * 0.56, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.strokeStyle = `rgba(244, 114, 182, ${alpha * 0.95})`;
+        ctx.lineWidth = 3.0;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.92, r * 0.52, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        const grad = ctx.createLinearGradient(sx, sy, sx, sy - 200);
-        grad.addColorStop(0, `rgba(244, 114, 182, ${alpha * 0.75})`);
-        grad.addColorStop(0.5, `rgba(253, 224, 71, ${alpha * 0.55})`);
+        const pulseR = r * (0.35 + ((now * 1.8) % 0.65));
+        ctx.strokeStyle = `rgba(254, 240, 138, ${alpha * 0.85})`;
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, pulseR, pulseR * 0.52, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 2. 錐形漸層立體月光主柱與純白月芯
+        const pillarH = 195;
+        const grad = ctx.createLinearGradient(0, 0, 0, -pillarH);
+        grad.addColorStop(0, `rgba(244, 114, 182, ${alpha * 0.72})`);
+        grad.addColorStop(0.55, `rgba(253, 224, 71, ${alpha * 0.48})`);
         grad.addColorStop(1, "rgba(255, 255, 255, 0)");
         ctx.fillStyle = grad;
-        ctx.fillRect(sx - hz.radius * 0.65, sy - 200, hz.radius * 1.3, 200);
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.68, 0);
+        ctx.lineTo(-r * 0.42, -pillarH);
+        ctx.lineTo(r * 0.42, -pillarH);
+        ctx.lineTo(r * 0.68, 0);
+        ctx.closePath();
+        ctx.fill();
 
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
-        ctx.fillRect(sx - hz.radius * 0.25, sy - 200, hz.radius * 0.5, 200);
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.78})`;
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.24, 0);
+        ctx.lineTo(-r * 0.10, -pillarH * 0.92);
+        ctx.lineTo(r * 0.10, -pillarH * 0.92);
+        ctx.lineTo(r * 0.24, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        // 3. 環繞光柱高速盤旋上升的雙股粉金星軌絲帶 (Double Helix Ribbons)
+        for (let strand = 0; strand < 2; strand++) {
+          ctx.strokeStyle = strand === 0 ? `rgba(254, 240, 138, ${alpha * 0.92})` : `rgba(244, 114, 182, ${alpha * 0.92})`;
+          ctx.lineWidth = 2.6;
+          ctx.beginPath();
+          for (let h = 0; h <= pillarH * 0.85; h += 10) {
+            const t = h / pillarH;
+            const curW = r * (0.62 - t * 0.25);
+            const ang = now * 4.5 + h * 0.055 + strand * Math.PI;
+            const hx = Math.cos(ang) * curW;
+            const hy = -h + Math.sin(ang) * (curW * 0.25);
+            if (h === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.stroke();
+        }
+
+        // 4. 光柱頂端懸浮的立體黃金新月聖徽 (Crescent Moon Crest)
+        const crestY = -pillarH * 0.78 + Math.sin(now * 3.5) * 6;
+        ctx.fillStyle = `rgba(254, 240, 138, ${alpha * 0.95})`;
+        ctx.strokeStyle = `rgba(217, 119, 6, ${alpha * 0.9})`;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(0, crestY, 15, -Math.PI * 0.35, Math.PI * 0.85);
+        ctx.arc(6, crestY - 3, 12, Math.PI * 0.75, -Math.PI * 0.25, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
       } else if (hz.kind === "genesis_aurora") {
         // 【創世極光（高空層）】：頭頂高空浮現皎潔立體滿月虛影 ＋ 傾瀉而下的雙色垂直極光天幕
         ctx.translate(sx, sy);

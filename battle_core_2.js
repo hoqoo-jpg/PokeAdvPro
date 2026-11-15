@@ -1264,21 +1264,41 @@ window.GameApp = {
       const skIdCheck = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
       const skMetaCheck = SKILLS_CATALOG[skIdCheck];
       const isShortRange = !!(skMetaCheck && (skMetaCheck.isMelee || skIdCheck === "Thunderbolt"));
-      const nearTarget = this.findNearestEnemyInViewport(midX, midY, isShortRange ? 230 : 360);
+
+      // 目標鎖定記憶 (0.70s)：防止兩隻等距怪獸導致奇異種子等近戰夥伴高頻切換目標而抽搐閃動！
+      pt.lockTimer = Math.max(0, (pt.lockTimer || 0) - dt);
+      let nearTarget = pt.lockedTarget;
+      const maxSearchR = isShortRange ? 230 : 360;
+      const isValidLocked = nearTarget && nearTarget.hp > 0 && this.enemies.includes(nearTarget) && Math.hypot(nearTarget.x - midX, nearTarget.y - midY) <= maxSearchR + 35;
+
+      if (!isValidLocked || pt.lockTimer <= 0) {
+        nearTarget = this.findNearestEnemyInViewport(midX, midY, maxSearchR);
+        pt.lockedTarget = nearTarget;
+        pt.lockTimer = 0.70;
+      }
 
       let tx = midX + Math.cos(angle) * 78;
       let ty = midY + Math.sin(angle) * 60;
-      // 近戰或電系夥伴索敵時，自動朝敵人方向彈性突進至 135px 戰鬥半徑，不再原地揮空！
       if (isShortRange && nearTarget) {
         const lungeAng = Math.atan2(nearTarget.y - midY, nearTarget.x - midX);
-        const lungeDist = Math.min(138, Math.max(65, Math.hypot(nearTarget.x - midX, nearTarget.y - midY) - 22));
+        const lungeDist = Math.min(132, Math.max(68, Math.hypot(nearTarget.x - midX, nearTarget.y - midY) - 24));
         tx = midX + Math.cos(lungeAng) * lungeDist;
         ty = midY + Math.sin(lungeAng) * lungeDist;
       }
 
-      pt.x += (tx - pt.x) * Math.min(1, dt * 12);
-      pt.y += (ty - pt.y) * Math.min(1, dt * 12);
-      pt.facingX = nearTarget ? (nearTarget.x >= pt.x ? 1 : -1) : p.facingX;
+      // 柔和阻尼平滑插值 (5.5)，徹底杜絕瞬移閃動感
+      const prevX = pt.x;
+      pt.x += (tx - pt.x) * Math.min(1, dt * 5.5);
+      pt.y += (ty - pt.y) * Math.min(1, dt * 5.5);
+
+      const moveDx = pt.x - prevX;
+      if (nearTarget && Math.abs(nearTarget.x - pt.x) > 14) {
+        pt.facingX = nearTarget.x >= pt.x ? 1 : -1;
+      } else if (Math.abs(moveDx) > 0.6) {
+        pt.facingX = moveDx >= 0 ? 1 : -1;
+      } else {
+        pt.facingX = p.facingX;
+      }
       pt.facingY = p.facingY;
 
       pt.cdTimer -= dt;
@@ -1350,7 +1370,8 @@ window.GameApp = {
           const dualCdPenalty = hasDualSuper ? 1.18 : 1.0;
 
           SkillsEngine.triggerUltimateSuperMove(meta, skSlot, ultDmgScale);
-          skSlot.timer = Math.max(2.5, meta.baseCd * 1.95 * cdFactor * dualCdPenalty);
+          const minUltCd = (meta.ultMinCd || 3.2) * dualCdPenalty;
+          skSlot.timer = Math.max(minUltCd, meta.baseCd * 2.45 * cdFactor * dualCdPenalty);
           p.superMoveIcdTimer = 1.10; // 強制與下一發超武錯開至少 1.1 秒
           p.castStaggerTimer = 0.08;
         } else {
@@ -4193,6 +4214,23 @@ window.GameApp = {
           ctx.beginPath();
           ctx.arc(cx, cy + 1, 1.3, 0, Math.PI * 2);
           ctx.fill();
+        }
+
+        // 月亮之力 / 創世極光降攻標記：血條右側繪製粉紫向下箭頭符號 (Weaken Badge)
+        if (e.weakenTimer && e.weakenTimer > 0) {
+          const wx = barX + bw + 6;
+          const wy = barY + bh / 2;
+          ctx.globalAlpha = 1.0;
+          ctx.fillStyle = "#F472B6";
+          ctx.strokeStyle = "#831843";
+          ctx.lineWidth = 1.1;
+          ctx.beginPath();
+          ctx.moveTo(wx - 3.5, wy - 3);
+          ctx.lineTo(wx + 3.5, wy - 3);
+          ctx.lineTo(wx, wy + 3.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
         }
         ctx.restore();
       }

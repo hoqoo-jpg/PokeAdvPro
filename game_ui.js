@@ -480,7 +480,7 @@ Object.assign(window.GameApp, {
       const useShiny = hasShiny && !!this.useShinyStarter[p.id];
       const isBond = bondSet.has(p.id);
       const sk = SKILLS_CATALOG[p.skill];
-      const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 147 ? 350 : 100));
+      const unlockCost = p.id === 25 ? 0 : (p.id <= 9 ? 150 : (p.id >= 144 ? 350 : 100));
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
       const starCosts = [400, 800, 1500];
       const nextStarCost = starLv < 3 ? starCosts[starLv] : 0;
@@ -505,7 +505,11 @@ Object.assign(window.GameApp, {
                 <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
                   <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
                 </button>
-              ` : ''}
+              ` : (unlocked && !hasShiny ? `
+                <button onclick="event.stopPropagation(); GameApp.unlockPokemonShinyWithCoins(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border bg-purple-900/90 text-amber-200 border-amber-400 hover:bg-purple-800 flex items-center gap-0.5 shadow">
+                  <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>800金閃光
+                </button>
+              ` : '')}
             </div>
             <div class="font-black text-xs sm:text-sm text-slate-800 text-center truncate px-0.5">
               ${unlocked || seen ? p.name_zh : '？？？'}
@@ -678,6 +682,11 @@ Object.assign(window.GameApp, {
     this.openUnlockConfirmModal("star_upgrade", pokeId, cost);
   },
 
+  unlockPokemonShinyWithCoins(pokeId) {
+    if (this.saveData.shinyUnlocked && this.saveData.shinyUnlocked[pokeId]) return;
+    this.openUnlockConfirmModal("shiny_unlock", pokeId, 800);
+  },
+
   exportSaveDataCode() {
     try {
       const jsonStr = JSON.stringify(this.saveData);
@@ -770,13 +779,30 @@ Object.assign(window.GameApp, {
       const sk = SKILLS_CATALOG[p.skill];
       document.getElementById("unlockModalHeaderTitle").textContent = "寶可夢收服確認";
       document.getElementById("unlockConfirmFrontImg").src = p.forward_sprite;
+      document.getElementById("unlockConfirmFrontImg").className = "w-12 h-12 pixel-sprite object-contain";
       document.getElementById("unlockConfirmBackImg").src = p.back_sprite;
+      document.getElementById("unlockConfirmBackImg").className = "w-12 h-12 pixel-sprite object-contain";
       document.getElementById("unlockBackCol").classList.remove("hidden");
       document.getElementById("unlockConfirmName").textContent = `${p.name_zh} (#${String(p.id).padStart(3,'0')})`;
       document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
       document.getElementById("unlockConfirmStats").innerHTML = `
         <div>生命 HP：<strong>${p.hp}</strong> ｜ 攻擊：<strong>${p.atk}</strong> ｜ 速度：<strong>${p.speed}</strong></div>
         <div class="text-blue-700">初始招式：【${sk ? sk.name : p.skill}】</div>
+      `;
+    } else if (type === "shiny_unlock") {
+      const p = POKEMON_MAP.get(id);
+      document.getElementById("unlockModalHeaderTitle").textContent = "✨ 閃光寶可夢特訓覺醒確認";
+      document.getElementById("unlockConfirmFrontImg").src = p.forward_sprite;
+      document.getElementById("unlockConfirmFrontImg").className = "w-12 h-12 pixel-sprite object-contain shiny-sprite-filter";
+      document.getElementById("unlockConfirmBackImg").src = p.back_sprite;
+      document.getElementById("unlockConfirmBackImg").className = "w-12 h-12 pixel-sprite object-contain shiny-sprite-filter";
+      document.getElementById("unlockBackCol").classList.remove("hidden");
+      document.getElementById("unlockConfirmName").textContent = `閃光・${p.name_zh} (#${String(p.id).padStart(3,'0')})`;
+      document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
+      document.getElementById("unlockConfirmStats").innerHTML = `
+        <div class="text-purple-700 font-black">永久解鎖【${p.name_zh}】專屬閃光色違形態！</div>
+        <div>閃光出戰特典：基礎生命與攻擊力永久額外提升 <strong class="text-amber-600">+20%</strong>！</div>
+        <div class="text-slate-500">（當前持有代幣：<strong>${(this.saveData.coins || 0).toLocaleString()}</strong>）</div>
       `;
     } else if (type === "star_upgrade") {
       const p = POKEMON_MAP.get(id);
@@ -790,7 +816,9 @@ Object.assign(window.GameApp, {
 
       document.getElementById("unlockModalHeaderTitle").textContent = `👑 王冠極限突破確認 (★${curLv} ➔ ★${nextLv})`;
       document.getElementById("unlockConfirmFrontImg").src = p.forward_sprite;
+      document.getElementById("unlockConfirmFrontImg").className = "w-12 h-12 pixel-sprite object-contain";
       document.getElementById("unlockConfirmBackImg").src = p.back_sprite;
+      document.getElementById("unlockConfirmBackImg").className = "w-12 h-12 pixel-sprite object-contain";
       document.getElementById("unlockBackCol").classList.remove("hidden");
       document.getElementById("unlockConfirmName").textContent = `${p.name_zh} ${'★'.repeat(nextLv)}`;
       document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
@@ -840,6 +868,11 @@ Object.assign(window.GameApp, {
       this.saveData.unlockedPokemon[this.pendingUnlockId] = true;
       this.saveData.pokedexSeen[this.pendingUnlockId] = true;
       this.saveData.pokedexCaught[this.pendingUnlockId] = true;
+      this.selectedStarterId = this.pendingUnlockId;
+    } else if (this.pendingUnlockType === "shiny_unlock") {
+      if (!this.saveData.shinyUnlocked) this.saveData.shinyUnlocked = {};
+      this.saveData.shinyUnlocked[this.pendingUnlockId] = true;
+      this.useShinyStarter[this.pendingUnlockId] = true;
       this.selectedStarterId = this.pendingUnlockId;
     } else if (this.pendingUnlockType === "star_upgrade") {
       if (!this.saveData.pokemonStars) this.saveData.pokemonStars = {};

@@ -86,7 +86,7 @@ function renderTypeBadgeHTML(type) {
 // 2. 招式資料庫 (已優化 iPhone 擊退抗性 knockback)
 const SKILLS_CATALOG = {
       VineWhip: {
-    id: "VineWhip", name: "藤鞭", type: "Grass", baseDmg: 28, baseCd: 0.75,
+    id: "VineWhip", name: "藤鞭", type: "Grass", baseDmg: 28, baseCd: 0.75, ultMinCd: 3.6, ultPowerBonus: 1.0,
     knockback: 6, isMelee: true, meleeStyle: "vine_whip", reqItem: "miracle_seed",
     evolvedName: "瘋狂植物", color: "#15803D",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
@@ -94,7 +94,7 @@ const SKILLS_CATALOG = {
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
   RazorLeaf: {
-    id: "Razor Leaf", name: "飛葉快刀", type: "Grass", baseDmg: 29, baseCd: 0.88,
+    id: "Razor Leaf", name: "飛葉快刀", type: "Grass", baseDmg: 29, baseCd: 0.88, ultMinCd: 3.6, ultPowerBonus: 1.08,
     knockback: 6, isMelee: false, vfx: "leaf_blade", reqItem: "miracle_seed",
     evolvedName: "瘋狂植物", color: "#22C55E",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
@@ -102,7 +102,7 @@ const SKILLS_CATALOG = {
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
 Ember: {
-    id: "Ember", name: "火花", type: "Fire", baseDmg: 25, baseCd: 0.85,
+    id: "Ember", name: "火花", type: "Fire", baseDmg: 25, baseCd: 0.85, ultMinCd: 3.5, ultPowerBonus: 1.0,
     knockback: 0, isMelee: false, vfx: "ember_spark", reqItem: "charcoal",
     evolvedName: "大字爆炎", color: "#F97316",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
@@ -110,7 +110,7 @@ Ember: {
     evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
   },
   WaterGun: {
-    id: "WaterGun", name: "水槍", type: "Water", baseDmg: 26, baseCd: 0.90,
+    id: "WaterGun", name: "水槍", type: "Water", baseDmg: 26, baseCd: 0.90, ultMinCd: 3.4, ultPowerBonus: 1.0,
     knockback: 8, isMelee: false, vfx: "water_gun", reqItem: "mystic_water",
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
@@ -118,7 +118,7 @@ Ember: {
     evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
   },
   Tackle: {
-    id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 24, baseCd: 1.05,
+    id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 24, baseCd: 1.05, ultMinCd: 2.6, ultPowerBonus: 1.0,
     knockback: 8, isMelee: true, meleeStyle: "slam_wave", reqItem: "silk_scarf",
     evolvedName: "終極衝擊", color: "#CBD5E1",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silk-scarf.png",
@@ -126,7 +126,7 @@ Ember: {
     evoDesc: "【終極超武】全屏金白衝擊狂濤，造成 400% 毀滅巨損！"
   },
   Flamethrower: {
-    id: "Flamethrower", name: "噴射火焰", type: "Fire", baseDmg: 32, baseCd: 1.15,
+    id: "Flamethrower", name: "噴射火焰", type: "Fire", baseDmg: 32, baseCd: 1.15, ultMinCd: 3.5, ultPowerBonus: 1.15,
     knockback: 0, isMelee: false, vfx: "fire_stream", reqItem: "charcoal",
     evolvedName: "大字爆炎", color: "#EF4444",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
@@ -134,7 +134,7 @@ Ember: {
     evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
   },
   HydroPump: {
-    id: "Hydro Pump", name: "水炮", type: "Water", baseDmg: 38, baseCd: 1.45,
+    id: "Hydro Pump", name: "水炮", type: "Water", baseDmg: 38, baseCd: 1.45, ultMinCd: 3.4, ultPowerBonus: 1.18,
     knockback: 16, isMelee: false, vfx: "water_beam", reqItem: "mystic_water",
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
@@ -142,7 +142,7 @@ Ember: {
     evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
   },
   SeedBomb: {
-    id: "Seed Bomb", name: "種子炸彈", type: "Grass", baseDmg: 30, baseCd: 1.15,
+    id: "Seed Bomb", name: "種子炸彈", type: "Grass", baseDmg: 30, baseCd: 1.15, ultMinCd: 3.6, ultPowerBonus: 1.15,
     knockback: 10, isMelee: false, vfx: "seed_nut", reqItem: "miracle_seed",
     evolvedName: "瘋狂植物", color: "#65A30D",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
@@ -150,7 +150,7 @@ Ember: {
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
   Thunderbolt: {
-    id: "Thunderbolt", name: "十萬伏特", type: "Electric", baseDmg: 34, baseCd: 1.10,
+    id: "Thunderbolt", name: "十萬伏特", type: "Electric", baseDmg: 34, baseCd: 1.10, ultMinCd: 3.2, ultPowerBonus: 1.10,
     knockback: 2, isMelee: false, vfx: "lightning_chain", reqItem: "magnet",
     evolvedName: "打雷暴風雨", color: "#FACC15",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
@@ -158,7 +158,7 @@ Ember: {
     evoDesc: "【終極超武】全屏降下 14 道高壓萬鈞雷霆，附帶全屏白閃！"
   },
   ShadowBall: {
-    id: "Shadow Ball", name: "暗影球", type: "Ghost", baseDmg: 30, baseCd: 1.05,
+    id: "Shadow Ball", name: "暗影球", type: "Ghost", baseDmg: 30, baseCd: 1.05, ultMinCd: 3.6, ultPowerBonus: 1.10,
     knockback: 0, isMelee: false, vfx: "shadow_orb", reqItem: "spell_tag",
     evolvedName: "暗影死滅波", color: "#A855F7",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
@@ -166,7 +166,7 @@ Ember: {
     evoDesc: "【終極超武】全圖暗影鬼影奔襲撕咬，附帶混亂反向！"
   },
   Psystrike: {
-    id: "Psystrike", name: "精神擊破", type: "Psychic", baseDmg: 36, baseCd: 1.25,
+    id: "Psystrike", name: "精神擊破", type: "Psychic", baseDmg: 36, baseCd: 1.25, ultMinCd: 3.8, ultPowerBonus: 1.12,
     knockback: 0, isMelee: false, vfx: "psychic_lance", reqItem: "twisted_spoon",
     evolvedName: "精神強念領域", color: "#EC4899",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
@@ -174,7 +174,7 @@ Ember: {
     evoDesc: "【終極超武】釋放引力超能風暴，全屏崩解目標防禦！"
   },
   IceBeam: {
-    id: "Ice Beam", name: "冷凍光線", type: "Ice", baseDmg: 30, baseCd: 1.15,
+    id: "Ice Beam", name: "冷凍光線", type: "Ice", baseDmg: 30, baseCd: 1.15, ultMinCd: 4.8, ultPowerBonus: 1.08,
     knockback: 4, isMelee: false, vfx: "frost_beam", reqItem: "never_melt_ice",
     evolvedName: "絕對零度", color: "#67E8F9",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
@@ -182,7 +182,7 @@ Ember: {
     evoDesc: "【終極超武】凍結全屏怪物 3 秒，並引發全屏冰爆碎裂！"
   },
   Earthquake: {
-    id: "Earthquake", name: "地震", type: "Ground", baseDmg: 40, baseCd: 1.65,
+    id: "Earthquake", name: "地震", type: "Ground", baseDmg: 40, baseCd: 1.65, ultMinCd: 3.8, ultPowerBonus: 1.15,
     knockback: 28, isMelee: true, meleeStyle: "quake_wave", reqItem: "soft_sand",
     evolvedName: "地裂斷層破", color: "#D97706",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soft-sand.png",
@@ -190,7 +190,7 @@ Ember: {
     evoDesc: "【終極超武】全屏雙層地底深坑岩石爆裂，飛石對空重創飛行系並造成雙倍粉碎重擊！"
   },
   KarateChop: {
-    id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85,
+    id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85, ultMinCd: 3.0, ultPowerBonus: 1.08,
     knockback: 6, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
     evolvedName: "爆裂十字劈", color: "#B91C1C",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
@@ -198,7 +198,7 @@ Ember: {
     evoDesc: "【終極超武】向全方位轟出 10 道巨大氣勁武道金拳！"
   },
   AirSlash: {
-    id: "Air Slash", name: "空氣斬", type: "Flying", baseDmg: 28, baseCd: 0.95,
+    id: "Air Slash", name: "空氣斬", type: "Flying", baseDmg: 28, baseCd: 0.95, ultMinCd: 4.2, ultPowerBonus: 1.05,
     knockback: 6, isMelee: false, vfx: "wind_blade", reqItem: "sharp_beak",
     evolvedName: "暴風驟雨", color: "#818CF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sharp-beak.png",
@@ -206,7 +206,7 @@ Ember: {
     evoDesc: "【終極超武】全屏生成穿透龍捲風，將怪物扯入風眼！"
   },
   SludgeBomb: {
-    id: "Sludge Bomb", name: "污泥炸彈", type: "Poison", baseDmg: 30, baseCd: 1.15,
+    id: "Sludge Bomb", name: "污泥炸彈", type: "Poison", baseDmg: 30, baseCd: 1.15, ultMinCd: 4.6, ultPowerBonus: 1.08,
     knockback: 4, isMelee: false, vfx: "sludge_ball", reqItem: "poison_barb",
     evolvedName: "劇毒沼澤", color: "#9333EA",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poison-barb.png",
@@ -214,7 +214,7 @@ Ember: {
     evoDesc: "【終極超武】全屏覆蓋腐蝕性毒霧，中毒扣血速率提升 100%！"
   },
   Moonblast: {
-    id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.20,
+    id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.20, ultMinCd: 3.8, ultPowerBonus: 1.10,
     knockback: 0, isMelee: false, vfx: "moon_blast", reqItem: "twisted_spoon",
     evolvedName: "創世極光", color: "#F472B6",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
@@ -222,7 +222,7 @@ Ember: {
     evoDesc: "【終極超武】神聖極光洗禮全屏，超大幅度降低敵人攻擊力！"
   },
   DragonRush: {
-    id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.80,
+    id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.80, ultMinCd: 3.6, ultPowerBonus: 1.15,
     knockback: 24, isMelee: true, meleeStyle: "claw_slash", reqItem: "dragon_scale",
     evolvedName: "天龍流星雨", color: "#4338CA",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dragon-scale.png",
@@ -230,7 +230,7 @@ Ember: {
     evoDesc: "【終極超武】從九天召喚無數燃燒龍系流星砸碎地面！"
   },
   Metronome: {
-    id: "Metronome", name: "揮指功", type: "Normal", baseDmg: 30, baseCd: 1.30,
+    id: "Metronome", name: "揮指功", type: "Normal", baseDmg: 30, baseCd: 1.30, ultMinCd: 3.8, ultPowerBonus: 1.0,
     knockback: 8, isMelee: false, vfx: "star_shot", reqItem: "silk_scarf",
     evolvedName: "天命百寶袋", color: "#F59E0B",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/metronome.png",
