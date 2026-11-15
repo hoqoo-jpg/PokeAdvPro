@@ -58,10 +58,19 @@ Object.assign(window.GameApp, {
           pokedexCaught: { ...this.saveData.pokedexCaught, ...(parsed.pokedexCaught || {}) },
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
-          claimedAch: { ...(parsed.claimedAch || {}) }
+          claimedAch: { ...(parsed.claimedAch || {}) },
+          settings: {
+            mobCapProfile: "auto",
+            screenFilter: "none",
+            dmgTextMode: "all",
+            screenShake: "normal",
+            ...(this.saveData.settings || {}),
+            ...(parsed.settings || {})
+          }
         };
       }
     } catch (e) {}
+    this.applyVisualSettings();
   },
 
   saveToStorage() {
@@ -1568,6 +1577,166 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
+  },
+
+  // ==========================================================================
+  // 系統設定介面 (跨裝置怪量分流、GBA/CRT 復古濾鏡切換、傷害字體精簡、震動強度與 FPS 開關)
+  // ==========================================================================
+  ensureSettingsObject() {
+    if (!this.saveData.settings) {
+      this.saveData.settings = {
+        mobCapProfile: "auto",
+        screenFilter: "none",
+        dmgTextMode: "all",
+        screenShake: "normal"
+      };
+    }
+    return this.saveData.settings;
+  },
+
+  applyVisualSettings() {
+    const s = this.ensureSettingsObject();
+    const overlay = document.getElementById("screenFilterOverlay");
+    const canvas = document.getElementById("gameCanvas");
+    if (overlay) {
+      overlay.className = "pointer-events-none fixed inset-0 z-[15]";
+      if (s.screenFilter === "gba") {
+        overlay.classList.add("screen-filter-gba");
+      } else if (s.screenFilter === "crt") {
+        overlay.classList.add("screen-filter-crt");
+      } else {
+        overlay.classList.add("hidden");
+      }
+    }
+    if (canvas) {
+      canvas.classList.toggle("canvas-vivid-boost", s.screenFilter === "vivid");
+    }
+  },
+
+  openSettingsModal() {
+    SoundFX.play("hit");
+    this.renderSettingsModal();
+    const modal = document.getElementById("settingsModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+  },
+
+  closeSettingsModal() {
+    const modal = document.getElementById("settingsModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
+    this.saveToStorage();
+  },
+
+  updateSetting(key, val) {
+    const s = this.ensureSettingsObject();
+    s[key] = val;
+    if (key === "mobCapProfile") {
+      this.debugMobCap = 0; // 切換設定檔位時解除測試面板強制鎖定，讓設定檔位立即生效
+    }
+    SoundFX.play("hit");
+    this.applyVisualSettings();
+    this.saveToStorage();
+    this.renderSettingsModal();
+  },
+
+  resetDefaultSettings() {
+    this.saveData.settings = {
+      mobCapProfile: "auto",
+      screenFilter: "none",
+      dmgTextMode: "all",
+      screenShake: "normal"
+    };
+    this.debugMobCap = 0;
+    SoundFX.play("levelup");
+    this.applyVisualSettings();
+    this.saveToStorage();
+    this.renderSettingsModal();
+  },
+
+  renderSettingsModal() {
+    const box = document.getElementById("settingsContentBox");
+    if (!box) return;
+    const s = this.ensureSettingsObject();
+    const isMob = this.isMobileDevice ? this.isMobileDevice() : (window.innerWidth < 768);
+    const deviceLabel = isMob ? "📱 手機觸控模式 (自動上限 120隻 + 1.22x 經驗補償)" : "💻 電腦寬屏模式 (自動上限 190隻)";
+
+    const renderOptionBtn = (settingKey, val, label, sub) => {
+      const active = s[settingKey] === val;
+      return `
+        <button onclick="GameApp.updateSetting('${settingKey}', '${val}')" class="p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${active ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md' : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-800'}">
+          <div class="font-black text-[11px] flex items-center justify-between">
+            <span>${label}</span>
+            ${active ? '<i class="fa-solid fa-circle-check text-amber-400 text-[10px]"></i>' : ''}
+          </div>
+          ${sub ? `<div class="text-[9px] text-slate-400 mt-0.5 leading-tight">${sub}</div>` : ''}
+        </button>
+      `;
+    };
+
+    box.innerHTML = `
+      <!-- 1. 跨裝置怪量與效能分流 -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-microchip"></i> 同屏怪量與效能分流</span>
+          <span class="text-[10px] font-bold text-sky-400">${isMob ? '當前：手機端' : '當前：電腦端'}</span>
+        </div>
+        <div class="text-[10px] text-slate-400 leading-relaxed">${deviceLabel}</div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${renderOptionBtn("mobCapProfile", "auto", "🤖 自動依裝置", "手機120 / 電腦190")}
+          ${renderOptionBtn("mobCapProfile", "low", "⚡ 省電流暢 (100隻)", "穩鎖60幀 + 1.22x經驗")}
+          ${renderOptionBtn("mobCapProfile", "standard", "⚔️ 標準密度 (160隻)", "平衡視覺與流暢度")}
+          ${renderOptionBtn("mobCapProfile", "extreme", "🔥 狂暴怪海 (250隻)", "高壓爽快割草")}
+        </div>
+      </div>
+
+      <!-- 2. 畫面視覺濾鏡 (0 FPS 損耗 CSS 硬體加速) -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-tv"></i> 畫面視覺濾鏡 (零效能損耗)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${renderOptionBtn("screenFilter", "none", "✨ 現代高清", "原始銳利像素色彩")}
+          ${renderOptionBtn("screenFilter", "gba", "🎮 GBA 液晶網格", "經典掌機晶格質感")}
+          ${renderOptionBtn("screenFilter", "crt", "📺 CRT 街機掃描線", "復古映像管暗角氛圍")}
+          ${renderOptionBtn("screenFilter", "vivid", "🌈 鮮豔街機模式", "強化超武色彩對比度")}
+        </div>
+      </div>
+
+      <!-- 3. 浮動傷害數字顯示模式 -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-font"></i> 傷害跳字顯示 (後期流暢度關鍵)</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          ${renderOptionBtn("dmgTextMode", "all", "全部顯示", "所有攻擊跳字")}
+          ${renderOptionBtn("dmgTextMode", "crit_only", "精簡模式", "僅暴擊與克制")}
+          ${renderOptionBtn("dmgTextMode", "off", "關閉傷害字", "視野最乾淨")}
+        </div>
+      </div>
+
+      <!-- 4. 螢幕震動與頂部 FPS 監控 -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-mobile-screen-button"></i> 螢幕震動與幀率顯示</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          ${renderOptionBtn("screenShake", "normal", "震動：標準", "100% 震撼")}
+          ${renderOptionBtn("screenShake", "low", "震動：柔和", "減半不頭暈")}
+          ${renderOptionBtn("screenShake", "off", "震動：關閉", "完全靜止")}
+        </div>
+        <div class="pt-1 flex items-center justify-between border-t border-slate-800/80">
+          <span class="text-[11px] font-bold text-slate-300">頂部常駐即時 FPS ＆ 怪量標籤：</span>
+          <button onclick="GameApp.debugToggleFpsHud(); GameApp.renderSettingsModal();" class="px-3 py-1 rounded-xl font-black text-[11px] border ${this.showFpsHud ? 'bg-emerald-600 text-white border-emerald-400' : 'bg-slate-800 text-slate-400 border-slate-600'}">
+            ${this.showFpsHud ? '📊 已開啟' : '已關閉'}
+          </button>
+        </div>
+      </div>
+    `;
   },
 
   quitToTitle() {

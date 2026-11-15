@@ -28,8 +28,31 @@ const SkillsEngine = {
     this.groundHazards = [];
   },
 
+  // 空間網格快速範圍索敵：利用 battle_core_2 每幀建立的 80x80 spatialGrid，將彈幕與領域碰撞由 O(N) 全陣列掃描降至 O(1) 鄰近格查詢
+  getEnemiesInRadius(x, y, radius) {
+    const grid = GameApp.spatialGrid;
+    if (!grid || GameApp.enemies.length < 45) return GameApp.enemies;
+    const cellSize = 80;
+    const pad = radius + 46; // 涵蓋最大 Boss 半徑 (44px)
+    const minGx = Math.floor((x - pad) / cellSize);
+    const maxGx = Math.floor((x + pad) / cellSize);
+    const minGy = Math.floor((y - pad) / cellSize);
+    const maxGy = Math.floor((y + pad) / cellSize);
+    const res = [];
+    for (let gx = minGx; gx <= maxGx; gx++) {
+      for (let gy = minGy; gy <= maxGy; gy++) {
+        const cell = grid.get(`${gx},${gy}`);
+        if (cell) {
+          for (let i = 0; i < cell.length; i++) res.push(cell[i]);
+        }
+      }
+    }
+    return res;
+  },
+
   spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
-    if (this.subParticles.length > 250) this.subParticles.shift();
+    const maxCap = (GameApp.enemies && GameApp.enemies.length > 140) ? 130 : 240;
+    if (this.subParticles.length > maxCap) this.subParticles.shift();
     this.subParticles.push({
       x, y, vx, vy, color, size, life, maxLife: life, shape,
       rot: Math.random() * Math.PI * 2,
@@ -1226,10 +1249,13 @@ const SkillsEngine = {
 
       if (pr.spawnGraceTimer && pr.spawnGraceTimer > 0) continue;
       const tightRadius = pr.radius * 0.82; // 緊縮判定框 0.82x，確保子彈視覺前端真正嵌入怪獸身體才觸發命中
-      for (let j = GameApp.enemies.length - 1; j >= 0; j--) {
-        const e = GameApp.enemies[j];
-        if (pr.hitSet.has(e)) continue;
-        if (Math.hypot(e.x - pr.x, e.y - pr.y) <= tightRadius + e.radius * 0.9) {
+      const nearbyEnemies = this.getEnemiesInRadius(pr.x, pr.y, tightRadius);
+      for (let j = nearbyEnemies.length - 1; j >= 0; j--) {
+        const e = nearbyEnemies[j];
+        if (!e || e.hp <= 0 || pr.hitSet.has(e)) continue;
+        const dx = e.x - pr.x, dy = e.y - pr.y;
+        const rSum = tightRadius + e.radius * 0.9;
+        if (dx * dx + dy * dy <= rSum * rSum) {
           pr.hitSet.add(e);
           GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0);
 
@@ -1256,51 +1282,61 @@ const SkillsEngine = {
       m.timer -= dt;
       const prog = 1 - Math.max(0, m.timer / m.maxTime);
 
-      // 所見即所得波前推進判定 (Wavefront Active Hitframes)：藤鞭、地震與刀光伸展到哪裡，哪裡的怪才即時爆血！
+      // 所見即所得波前推進判定 (Wavefront Active Hitframes + Spatial Grid + 平方距離加速)
       if (m.hitSet && m.dmg) {
         if (m.style === "vine_whip") {
           const curReach = m.reach * Math.min(1, prog * 1.7);
           const ox = m.ox !== undefined ? m.ox : m.x;
           const oy = m.oy !== undefined ? m.oy : m.y;
-          GameApp.enemies.forEach(e => {
-            if (m.hitSet.has(e)) return;
+          const candidates = this.getEnemiesInRadius(ox, oy, curReach);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
             const dx = e.x - ox, dy = e.y - oy;
-            const dist = Math.hypot(dx, dy);
-            if (dist <= curReach + e.radius * 0.85) {
+            const rSum = curReach + e.radius * 0.85;
+            const dSq = dx * dx + dy * dy;
+            if (dSq <= rSum * rSum) {
               const eAng = Math.atan2(dy, dx);
               const diff = Math.abs(Math.atan2(Math.sin(eAng - m.angle), Math.cos(eAng - m.angle)));
-              if (diff <= 0.58 || dist < 32) {
+              if (diff <= 0.58 || dSq < 1024) {
                 m.hitSet.add(e);
                 GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 10);
               }
             }
-          });
+          }
         } else if (m.style === "quake_wave") {
           const curR = m.radius * (0.28 + prog * 0.72);
-          GameApp.enemies.forEach(e => {
-            if (m.hitSet.has(e)) return;
-            if (Math.hypot(e.x - m.x, e.y - m.y) <= curR + e.radius * 0.85) {
+          const candidates = this.getEnemiesInRadius(m.x, m.y, curR);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const dx = e.x - m.x, dy = e.y - m.y;
+            const rSum = curR + e.radius * 0.85;
+            if (dx * dx + dy * dy <= rSum * rSum) {
               m.hitSet.add(e);
               GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.25, m.kb || 20);
             }
-          });
+          }
         } else {
           const curR = m.radius * (0.28 + prog * 0.75);
           const ox = m.ox !== undefined ? m.ox : m.x;
           const oy = m.oy !== undefined ? m.oy : m.y;
-          GameApp.enemies.forEach(e => {
-            if (m.hitSet.has(e)) return;
+          const candidates = this.getEnemiesInRadius(ox, oy, curR);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
             const dx = e.x - ox, dy = e.y - oy;
-            const d = Math.hypot(dx, dy);
-            if (d <= curR + e.radius * 0.85) {
+            const rSum = curR + e.radius * 0.85;
+            const dSq = dx * dx + dy * dy;
+            if (dSq <= rSum * rSum) {
               const eAng = Math.atan2(dy, dx);
               const diff = Math.abs(Math.atan2(Math.sin(eAng - m.angle), Math.cos(eAng - m.angle)));
-              if (diff <= 0.90 || d < 36) {
+              if (diff <= 0.90 || dSq < 1296) {
                 m.hitSet.add(e);
                 GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.28, m.kb || 12);
               }
             }
-          });
+          }
         }
       }
 
@@ -1513,8 +1549,12 @@ const SkillsEngine = {
           SoundFX.play("ultimate");
         } else {
           const nowMs = performance.now();
-          GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+          const hzCandidates = this.getEnemiesInRadius(hz.x, hz.y, hz.radius);
+          hzCandidates.forEach(e => {
+            if (!e || e.hp <= 0) return;
+            const dx = e.x - hz.x, dy = e.y - hz.y;
+            const rSum = hz.radius + e.radius;
+            if (dx * dx + dy * dy <= rSum * rSum) {
               // 防多個普攻毒沼重疊秒殺：同一隻怪每 360ms 最多吃一次 poison_puddle 跳傷
               if (hz.kind === "poison_puddle") {
                 if (e._lastPuddleHit && nowMs - e._lastPuddleHit < 360) return;

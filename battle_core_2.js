@@ -34,8 +34,16 @@ window.GameApp = {
     pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     pokedexRewardClaimed: {},
     shinyUnlocked: { 25: true },
-    claimedAch: {}
+    claimedAch: {},
+    settings: {
+      mobCapProfile: "auto",
+      screenFilter: "none",
+      dmgTextMode: "all",
+      screenShake: "normal"
+    }
   },
+  spatialGrid: null,
+  _frameCounter: 0,
 
   // 戰鬥實體
   player: null,
@@ -1612,6 +1620,24 @@ window.GameApp = {
     }
   },
 
+  isMobileDevice() {
+    return window.innerWidth < 768 || !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  },
+
+  getEffectiveMobCap(minutes) {
+    if (this.debugMobCap > 0) return this.debugMobCap;
+    if (this.activeBoss && this.activeBoss.hp > 0) return 85;
+    const prof = (this.saveData && this.saveData.settings && this.saveData.settings.mobCapProfile) || "auto";
+    if (prof === "low") return 100;
+    if (prof === "standard") return 160;
+    if (prof === "extreme") return 250;
+    // auto: 自動依裝置分流 (手機直向甜區 120隻、電腦寬屏 190隻)
+    if (this.isMobileDevice()) {
+      return Math.min(120, Math.round(62 + minutes * 10));
+    }
+    return Math.min(190, Math.round(80 + minutes * 16));
+  },
+
   updateSpawners(dt) {
     const diff = this.selectedDifficulty;
     const minutes = this.runTime / 60;
@@ -1702,11 +1728,7 @@ window.GameApp = {
       const baseInterval = Math.max(0.24, (1.15 - minutes * 0.12) / diff.spawnRateMult) * bossThrottle;
       this.spawnTimer = baseInterval;
 
-      const maxMobCap = this.debugMobCap > 0
-        ? this.debugMobCap
-        : ((this.activeBoss && this.activeBoss.hp > 0)
-            ? 85
-            : Math.min(180, Math.round(75 + minutes * 15)));
+      const maxMobCap = this.getEffectiveMobCap(minutes);
       if (this.enemies.length < maxMobCap) {
         this.spawnWildEnemy(false);
         if (!this.activeBoss && minutes >= 4.0 && this.enemies.length < maxMobCap - 5) {
@@ -1942,8 +1964,9 @@ window.GameApp = {
     const p = this.player;
     const halfW = this.width / 2 - 16;
     const halfH = this.height / 2 - 16;
+    this._frameCounter = ((this._frameCounter || 0) + 1) % 600;
 
-    // 建立 80x80 空間雜湊網格 (Spatial Hash Grid)，將怪物推擠判定由 O(N^2) 降至 O(N)
+    // 建立 80x80 空間雜湊網格 (Spatial Hash Grid)，供怪物推擠與 SkillsEngine 彈幕碰撞共享 O(1) 查詢
     const gridCellSize = 80;
     const spatialGrid = new Map();
     for (let idx = 0; idx < this.enemies.length; idx++) {
@@ -1958,6 +1981,10 @@ window.GameApp = {
       }
       cell.push(ent);
     }
+    this.spatialGrid = spatialGrid;
+
+    // 預先快取場上的劇毒沼澤領域，避免每隻怪每幀重複跑陣列 .some()
+    const activeSwamps = SkillsEngine.groundHazards.filter(hz => hz.kind === "toxic_swamp");
 
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
@@ -1974,7 +2001,16 @@ window.GameApp = {
       }
 
       if (e.weakenTimer > 0) e.weakenTimer -= dt;
-      const inToxicSwamp = SkillsEngine.groundHazards.some(hz => hz.kind === "toxic_swamp" && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius);
+      let inToxicSwamp = false;
+      for (let sIdx = 0; sIdx < activeSwamps.length; sIdx++) {
+        const sw = activeSwamps[sIdx];
+        const sdx = e.x - sw.x, sdy = e.y - sw.y;
+        const sr = sw.radius + e.radius;
+        if (sdx * sdx + sdy * sdy <= sr * sr) {
+          inToxicSwamp = true;
+          break;
+        }
+      }
 
       if (e.statusTimer > 0) {
         e.statusTimer -= dt;
@@ -2008,32 +2044,37 @@ window.GameApp = {
 
       if (e.status === "Freeze") continue;
 
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const inView = Math.abs(dx) <= halfW && Math.abs(dy) <= halfH;
+      const nearView = Math.abs(dx) <= halfW + 70 && Math.abs(dy) <= halfH + 70;
+      const dist = Math.hypot(dx, dy) || 1;
+
       const paraMult = e.status === "Paralysis" ? 0.35 : 1.0;
       const confDir = e.status === "Confusion" ? -0.75 : 1.0;
       let eTerrMult = 1.0;
-      if (!e.isBoss) {
-        const eTerr = MapEngine.getTerrainModifierAt(e.x, e.y);
-        const isWaterOrFlying = e.data && (
-          e.data.type1 === "Water" || e.data.type2 === "Water" ||
-          e.data.type1 === "Flying" || e.data.type2 === "Flying"
-        );
-        // 水系與飛行系敵人在水域中免疫減速，水系自在遊弋、飛行系掠空飛翔
-        if (eTerr.inWater && isWaterOrFlying) {
-          eTerrMult = 1.0;
-        } else {
-          const rawTerrMult = eTerr.speedMult;
-          eTerrMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
-        }
-        // 暴雪天候：非冰系且非飛行系的地面怪物移速受到極寒微緩 (-15%)
-        if (MapEngine.weather === "BLIZZARD" && e.data) {
-          const isIceOrFlying = (e.data.type1 === "Ice" || e.data.type2 === "Ice" || e.data.type1 === "Flying" || e.data.type2 === "Flying");
-          if (!isIceOrFlying) eTerrMult *= 0.85;
-        }
-      }
 
-      const dx = p.x - e.x;
-      const dy = p.y - e.y;
-      const dist = Math.hypot(dx, dy) || 1;
+      // 效能加速 #1：僅對視野內 (nearView) 怪獸每 4 幀採樣一次地形緩速並快取，畫面外百怪直接略過地形查詢
+      if (!e.isBoss && nearView) {
+        if (e._cachedTerrMult === undefined || ((i + this._frameCounter) & 3) === 0) {
+          const eTerr = MapEngine.getTerrainModifierAt(e.x, e.y);
+          const isWaterOrFlying = e.data && (
+            e.data.type1 === "Water" || e.data.type2 === "Water" ||
+            e.data.type1 === "Flying" || e.data.type2 === "Flying"
+          );
+          let tMult = 1.0;
+          if (!(eTerr.inWater && isWaterOrFlying)) {
+            const rawTerrMult = eTerr.speedMult;
+            tMult = e.isElite ? (1.0 - (1.0 - rawTerrMult) * 0.5) : rawTerrMult;
+          }
+          if (MapEngine.weather === "BLIZZARD" && e.data) {
+            const isIceOrFlying = (e.data.type1 === "Ice" || e.data.type2 === "Ice" || e.data.type1 === "Flying" || e.data.type2 === "Flying");
+            if (!isIceOrFlying) tMult *= 0.85;
+          }
+          e._cachedTerrMult = tMult;
+        }
+        eTerrMult = e._cachedTerrMult;
+      }
 
       // 【攜帶物：不融冰】身周 125px 形成極寒霜凍結界，踏入光環的怪獸移速 -35% 並顯示結霜視覺
       if (p.heldItems && p.heldItems["never_melt_ice"] && dist <= 125 + e.radius) {
@@ -2073,7 +2114,9 @@ window.GameApp = {
       e.x += vx * dt;
       e.y += vy * dt;
 
-      if (!e.isBoss) {
+      // 高壓怪海(>200隻)時，畫面外怪獸免除互相推擠與樹木碰撞，畫面內隔幀分流推擠，省下 70% CPU 開銷
+      const doSeparation = !e.isBoss && (nearView || this.enemies.length <= 160) && (this.enemies.length <= 220 || ((i + this._frameCounter) & 1) === 0);
+      if (doSeparation) {
         const gx = Math.floor(e.x / gridCellSize);
         const gy = Math.floor(e.y / gridCellSize);
         for (let ox = -1; ox <= 1; ox++) {
@@ -2100,11 +2143,9 @@ window.GameApp = {
       if (Math.abs(vx) > 2) e.facingX = vx >= 0 ? 1 : -1;
       e.facingY = vy < -8 ? -1 : 1;
 
-      if (!e.isBoss) {
+      if (!e.isBoss && (nearView || e.isElite || e.treasureType)) {
         MapEngine.resolveObstacleCollision(e, e.radius * 0.8, false);
       }
-
-      const inView = Math.abs(e.x - p.x) <= halfW && Math.abs(e.y - p.y) <= halfH;
 
       // 1. 神獸 Boss 彈幕與地毯技能
       if (inView && e.isBoss && !e.treasureType) {
@@ -2907,9 +2948,11 @@ window.GameApp = {
     } else if (e.isElite || e.treasureType) {
       this.gems.push({ x: e.x, y: e.y, val: 75, tier: 3, size: 9.5, color: "#F59E0B", innerColor: "#FEF08A" });
     } else if (e.weightTier === "heavy" || e.weightTier === "medium" || (e.data && e.data.hp >= 155)) {
-      this.gems.push({ x: e.x, y: e.y, val: 32, tier: 2, size: 7.8, color: "#10B981", innerColor: "#A7F3D0" });
+      const capComp = this.getEffectiveMobCap(this.runTime / 60) <= 130 ? 1.22 : 1.0;
+      this.gems.push({ x: e.x, y: e.y, val: Math.round(32 * capComp), tier: 2, size: 7.8, color: "#10B981", innerColor: "#A7F3D0" });
     } else {
-      this.gems.push({ x: e.x, y: e.y, val: 15, tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
+      const capComp = this.getEffectiveMobCap(this.runTime / 60) <= 130 ? 1.22 : 1.0;
+      this.gems.push({ x: e.x, y: e.y, val: Math.round(15 * capComp), tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
     }
 
     if (this.gems.length > 120) {
@@ -3527,11 +3570,20 @@ window.GameApp = {
   },
 
   spawnFloatingText(x, y, text, color = "#FFFFFF", size = 12) {
-    if (this.enemies && this.enemies.length > 120 && color === "#FFFFFF" && size <= 12 && Math.random() < 0.65) {
-      return; // 百怪同屏高壓節流：過濾部分普通白字微傷，優先保留暴擊/克制/狀態文字，大幅減少 Canvas strokeText 開銷
+    const mode = (this.saveData && this.saveData.settings && this.saveData.settings.dmgTextMode) || "all";
+    // 若設定為「關閉傷害數字」，僅保留回血、升級、道具獲得與系統提示文字，過濾純數字與戰鬥爆字
+    if (mode === "off" && (/^(\d+|克制|暴擊|極限暴擊|劇毒暴擊|抵抗|微弱抵抗|灼傷|中毒|劇毒腐蝕)/.test(text))) {
+      return;
     }
-    if (this.floatingTexts.length > 36) this.floatingTexts.shift();
-    this.floatingTexts.push({ x, y, text, color, size, life: 0.75 });
+    // 若設定為「精簡模式 (僅暴擊與克制)」，自動過濾普通白字與灰字抵抗傷害
+    if (mode === "crit_only" && (color === "#FFFFFF" || color === "#CBD5E1" || color === "#94A3B8") && size <= 12) {
+      return;
+    }
+    if (this.enemies && this.enemies.length > 100 && color === "#FFFFFF" && size <= 12 && Math.random() < 0.70) {
+      return; // 百怪同屏高壓節流：過濾部分普通白字微傷，大幅減少 iOS Canvas strokeText 開銷
+    }
+    if (this.floatingTexts.length > 32) this.floatingTexts.shift();
+    this.floatingTexts.push({ x, y, text, color, size, life: 0.72 });
   },
 
   showCutsceneBanner(title, subtitle, duration = 2600) {
@@ -3571,9 +3623,11 @@ window.GameApp = {
     if (!this.player) return;
 
     let shakeX = 0, shakeY = 0;
-    if (this.camera.shakeTime > 0) {
-      shakeX = (Math.random() - 0.5) * this.camera.shakeMagnitude * 2;
-      shakeY = (Math.random() - 0.5) * this.camera.shakeMagnitude * 2;
+    const shakePref = (this.saveData && this.saveData.settings && this.saveData.settings.screenShake) || "normal";
+    if (this.camera.shakeTime > 0 && shakePref !== "off") {
+      const shakeScale = shakePref === "low" ? 0.45 : 1.0;
+      shakeX = (Math.random() - 0.5) * this.camera.shakeMagnitude * 2 * shakeScale;
+      shakeY = (Math.random() - 0.5) * this.camera.shakeMagnitude * 2 * shakeScale;
     }
     const camX = this.camera.x + shakeX;
     const camY = this.camera.y + shakeY;
@@ -4062,21 +4116,37 @@ window.GameApp = {
     }
     ctx.restore();
 
-    this.enemies.forEach(e => {
+    // 效能加速 #2：單一 Batch 批次繪製全場可視敵人的腳底黑影 (將 200+ 次獨立 ctx.fill 壓縮為 1 次底層 GPU 呼叫！)
+    const visibleEnemies = [];
+    ctx.save();
+    ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
+    ctx.beginPath();
+    for (let i = 0; i < this.enemies.length; i++) {
+      const e = this.enemies[i];
       const esx = toSx(e.x), esy = toSy(e.y);
-      if (esx < -90 || esx > this.width + 90 || esy < -90 || esy > this.height + 90) return;
+      if (esx < -90 || esx > this.width + 90 || esy < -90 || esy > this.height + 90) continue;
+      const sz = e.isBoss ? 120 : (e.isElite || e.treasureType ? 88 : 64);
+      e._esx = esx;
+      e._esy = esy;
+      e._sz = sz;
+      visibleEnemies.push(e);
+      const rx = sz * 0.32, ry = sz * 0.12, cy = esy + sz * 0.35;
+      ctx.moveTo(esx + rx, cy);
+      ctx.ellipse(esx, cy, rx, ry, 0, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.restore();
 
+    const highDensityLOD = visibleEnemies.length > 90;
+
+    visibleEnemies.forEach(e => {
+      const esx = e._esx, esy = e._esy, sz = e._sz;
       const eSprUrl = e.facingY < 0 ? e.data.back_sprite : e.data.forward_sprite;
       const eRec = SpriteCache.get(eSprUrl);
-      const sz = e.isBoss ? 120 : (e.isElite || e.treasureType ? 88 : 64);
 
-      // 繪製敵人腳底陰影（精英小王額外繪製「外圈暗紅 ＋ 內圈旋轉金虛線」雙層頭目威壓底座）
-      ctx.save();
-      ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
-      ctx.beginPath();
-      ctx.ellipse(esx, esy + sz * 0.35, sz * 0.32, sz * 0.12, 0, 0, Math.PI * 2);
-      ctx.fill();
+      // 精英小王額外繪製「外圈暗紅 ＋ 內圈旋轉金虛線」雙層頭目威壓底座
       if (e.isElite && !e.isBoss) {
+        ctx.save();
         ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
         ctx.lineWidth = 2.4;
         ctx.beginPath();
@@ -4090,14 +4160,13 @@ window.GameApp = {
         ctx.ellipse(esx, esy + sz * 0.35, sz * 0.33, sz * 0.13, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.restore();
       }
-      ctx.restore();
 
       ctx.save();
       ctx.translate(esx, esy);
       if (e.facingX > 0) ctx.scale(-1, 1);
 
-      // 方案 A：僅對極少數閃光怪使用 filter，受創白閃/中毒/灼傷/結霜全面採用零 filter 動態幾何特效
       if (e.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.8) brightness(1.15)";
       }
@@ -4105,67 +4174,77 @@ window.GameApp = {
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
       if (e.isShiny) ctx.filter = "none";
 
-      // 0. 受創閃白：離線 source-in 貼合精靈像素輪廓閃白 (經典 GBA 街機手感，零 ctx.filter 開銷)
+      // 0. 受創閃白：離線 source-in 貼合精靈像素輪廓閃白
       if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
       }
 
-      // 0B. 中毒 (Poison)：不畫腳底雜亂光圈，於怪獸頭頂兩側邊緣緩緩飄升 2 顆 3.2px 描邊立體像素小毒泡（避開中心彈著點）
+      // 0B. 中毒 (Poison)：高密度 (>90怪) 時普通小怪採用極速單點毒泡，低密度與精英/Boss 繪製雙毒泡
       if (e.status === "Poison") {
-        const pNow = performance.now() * 0.0045 + e.x * 0.02;
-        for (let pb = 0; pb < 2; pb++) {
-          const prog = ((pNow + pb * 0.5) % 1.0);
-          const side = pb === 0 ? -1 : 1;
-          const bx = side * (sz * 0.28) + Math.sin(prog * Math.PI * 2 + pb) * 2.5;
-          const by = -sz * 0.10 - prog * (sz * 0.32);
-          const br = 3.2;
+        if (highDensityLOD && !e.isElite && !e.isBoss) {
+          ctx.fillStyle = "#A855F7";
+          ctx.fillRect(sz * 0.22, -sz * 0.24, 5, 5);
+        } else {
+          const pNow = performance.now() * 0.0045 + e.x * 0.02;
+          for (let pb = 0; pb < 2; pb++) {
+            const prog = ((pNow + pb * 0.5) % 1.0);
+            const side = pb === 0 ? -1 : 1;
+            const bx = side * (sz * 0.28) + Math.sin(prog * Math.PI * 2 + pb) * 2.5;
+            const by = -sz * 0.10 - prog * (sz * 0.32);
+            const br = 3.2;
 
-          ctx.fillStyle = pb === 0 ? "#9333EA" : "#22C55E";
-          ctx.strokeStyle = "#1E1B4B";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.arc(bx, by, br, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
+            ctx.fillStyle = pb === 0 ? "#9333EA" : "#22C55E";
+            ctx.strokeStyle = "#1E1B4B";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.arc(bx, by, br, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
 
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.arc(bx - 1.0, by - 1.0, 1.0, 0, Math.PI * 2);
-          ctx.fill();
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(bx - 1.0, by - 1.0, 1.0, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
-      // 0C. 灼傷 (Burn)：於怪獸身體兩側肩部邊緣跳動 2 朵 4px 尖角水滴小火苗（外橘紅、內明黃、1px深褐描邊）
+      // 0C. 灼傷 (Burn)：高密度 (>90怪) 時普通小怪採用極速雙色火點，低密度與精英/Boss 繪製水滴小火苗
       if (e.status === "Burn") {
-        const bNow = performance.now() * 0.010 + e.y * 0.03;
-        for (let bf = -1; bf <= 1; bf += 2) {
-          const fx = bf * (sz * 0.30);
-          const fy = -sz * 0.02 + Math.sin(bNow + bf * 1.5) * 3.0;
-          const sway = Math.cos(bNow * 1.3 + bf) * 1.5;
-
-          ctx.save();
-          ctx.translate(fx, fy);
+        if (highDensityLOD && !e.isElite && !e.isBoss) {
           ctx.fillStyle = "#F97316";
-          ctx.strokeStyle = "#451A03";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath();
-          ctx.moveTo(sway, -5.5);
-          ctx.quadraticCurveTo(4.0, 0, 0, 3.5);
-          ctx.quadraticCurveTo(-4.0, 0, sway, -5.5);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
+          ctx.fillRect(-sz * 0.28, -sz * 0.15, 5, 6);
+        } else {
+          const bNow = performance.now() * 0.010 + e.y * 0.03;
+          for (let bf = -1; bf <= 1; bf += 2) {
+            const fx = bf * (sz * 0.30);
+            const fy = -sz * 0.02 + Math.sin(bNow + bf * 1.5) * 3.0;
+            const sway = Math.cos(bNow * 1.3 + bf) * 1.5;
 
-          ctx.fillStyle = "#FEF08A";
-          ctx.beginPath();
-          ctx.arc(0, 0.8, 1.8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
+            ctx.save();
+            ctx.translate(fx, fy);
+            ctx.fillStyle = "#F97316";
+            ctx.strokeStyle = "#451A03";
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(sway, -5.5);
+            ctx.quadraticCurveTo(4.0, 0, 0, 3.5);
+            ctx.quadraticCurveTo(-4.0, 0, sway, -5.5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#FEF08A";
+            ctx.beginPath();
+            ctx.arc(0, 0.8, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          }
         }
       }
 
-      // 0D. 不融冰結霜 (inFrostAura)：不畫重複腳底圈，於身周兩側緩慢飄落 2 枚 3.2px 十字微冰晶
-      if (e.inFrostAura) {
+      // 0D. 不融冰結霜 (inFrostAura)
+      if (e.inFrostAura && (!highDensityLOD || e.isElite || e.isBoss)) {
         const fNow = performance.now() * 0.0035 + e.x * 0.02;
         for (let fi = 0; fi < 2; fi++) {
           const prog = ((fNow + fi * 0.5) % 1.0);

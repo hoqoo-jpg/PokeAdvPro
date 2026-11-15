@@ -286,12 +286,29 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
+    /* 零效能負擔 CSS 硬體加速復古視覺濾鏡 (GBA 液晶晶格 / CRT 街機掃描線 / 鮮豔模式) */
+    .screen-filter-gba {
+      background-image:
+        repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.16) 0px, rgba(15, 23, 42, 0.16) 1px, transparent 1px, transparent 3px),
+        repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.13) 0px, rgba(15, 23, 42, 0.13) 1px, transparent 1px, transparent 3px);
+      box-shadow: inset 0 0 36px rgba(15, 23, 42, 0.38);
+    }
+    .screen-filter-crt {
+      background-image:
+        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.28) 0px, rgba(0, 0, 0, 0.28) 1.5px, transparent 1.5px, transparent 4px),
+        radial-gradient(circle, transparent 58%, rgba(0, 0, 0, 0.58) 100%);
+    }
+    .canvas-vivid-boost {
+      filter: saturate(1.22) contrast(1.06);
+    }
   </style>
 </head>
 <body class="w-screen h-screen overflow-hidden bg-slate-900 select-none">
 
   <!-- 1. 遊戲主畫面 Canvas (永遠位於最底層 z-0，持續跑自然生態與精靈漫步) -->
   <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
+  <!-- 零開銷 GPU 復古濾鏡遮罩層 (GBA 液晶網格 / CRT 掃描線) -->
+  <div id="screenFilterOverlay" class="pointer-events-none fixed inset-0 z-[15] hidden"></div>
 
   <!-- 2. 原版經典黑底 Loading 預載層 (Preloader Screen) -->
   <div id="preloader-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white p-6 select-none">
@@ -354,10 +371,13 @@
   <div id="titleScreen" class="absolute inset-0 z-30 hidden flex flex-col justify-between p-3 sm:p-5 overflow-y-auto">
     <!-- 頂部大廳導航資訊列 -->
     <div class="flex items-center justify-between z-10 shrink-0 mb-1">
-      <!-- 左側：音效與版本 -->
-      <div class="flex items-center gap-2">
+      <!-- 左側：音效、系統設定與版本 -->
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <button onclick="GameApp.toggleBgm()" class="w-9 h-9 bg-white/95 rounded-2xl border-2 border-slate-800 flex items-center justify-center shadow active:scale-95 transition-transform" title="音效/BGM開關">
           <i id="lobbyBgmIcon" class="fa-solid fa-volume-high text-blue-600 text-xs"></i>
+        </button>
+        <button onclick="GameApp.openSettingsModal()" class="px-2.5 py-1.5 bg-white/95 rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-xs shadow active:scale-95 transition-transform flex items-center gap-1" title="畫面濾鏡與效能設定">
+          <i class="fa-solid fa-sliders text-amber-600"></i> 設定
         </button>
         <button onclick="GameApp.backToSplash()" class="px-2.5 py-1.5 bg-white/95 rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-xs shadow active:scale-95 transition-transform flex items-center gap-1">
           <i class="fa-solid fa-arrow-left"></i> 封面
@@ -837,6 +857,9 @@
         <button id="btnResumeGame" onclick="GameApp.togglePause()" class="poke-btn-blue flex-1 py-2.5 text-xs font-black">
           繼續冒險
         </button>
+        <button onclick="GameApp.openSettingsModal()" class="poke-btn-yellow px-3.5 py-2.5 text-xs font-black flex items-center justify-center gap-1 shrink-0">
+          <i class="fa-solid fa-sliders"></i> 設定
+        </button>
         <button onclick="GameApp.quitToTitle()" class="poke-btn-red flex-1 py-2.5 text-xs font-black">
           返回大廳
         </button>
@@ -869,16 +892,18 @@
         <span>🔥 壓力測試 (怪量控制)：</span>
         <span id="debugMobCapLabel" class="text-sky-300">上限: 動態</span>
       </div>
-      <div class="grid grid-cols-4 gap-1">
-        <button onclick="GameApp.debugSetMobCap(0)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">預設</button>
-        <button onclick="GameApp.debugSetMobCap(150)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">150隻</button>
-        <button onclick="GameApp.debugSetMobCap(250)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">250隻</button>
-        <button onclick="GameApp.debugSetMobCap(350)" class="px-1 py-1 bg-rose-950 border border-rose-500/60 rounded text-[9px] text-rose-300 hover:bg-rose-900">350極限</button>
+      <div class="grid grid-cols-5 gap-1">
+        <button onclick="GameApp.debugSetMobCap(0)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">自動</button>
+        <button onclick="GameApp.debugSetMobCap(150)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">150</button>
+        <button onclick="GameApp.debugSetMobCap(250)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">250</button>
+        <button onclick="GameApp.debugSetMobCap(350)" class="px-1 py-1 bg-slate-800 rounded text-[9px] hover:bg-slate-700">350</button>
+        <button onclick="GameApp.debugSetMobCap(1000)" class="px-1 py-1 bg-rose-950 border border-rose-500/60 rounded text-[9px] text-rose-300 hover:bg-rose-900">1000</button>
       </div>
-      <div class="grid grid-cols-3 gap-1 pt-0.5">
-        <button onclick="GameApp.debugBatchSpawnMobs(30)" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">+30 怪獸</button>
-        <button onclick="GameApp.debugBatchSpawnMobs(80)" class="px-1.5 py-1 bg-rose-700 rounded text-[9px] font-bold">+80 怪海</button>
-        <button onclick="GameApp.debugClearRegularMobs()" class="px-1.5 py-1 bg-slate-700 rounded text-[9px] font-bold">🧹 清小怪</button>
+      <div class="grid grid-cols-4 gap-1 pt-0.5">
+        <button onclick="GameApp.debugBatchSpawnMobs(30)" class="px-1 py-1 bg-amber-700 rounded text-[9px] font-bold">+30怪</button>
+        <button onclick="GameApp.debugBatchSpawnMobs(80)" class="px-1 py-1 bg-orange-700 rounded text-[9px] font-bold">+80怪</button>
+        <button onclick="GameApp.debugBatchSpawnMobs(200)" class="px-1 py-1 bg-rose-700 rounded text-[9px] font-bold">+200潮</button>
+        <button onclick="GameApp.debugClearRegularMobs()" class="px-1 py-1 bg-slate-700 rounded text-[9px] font-bold">🧹清空</button>
       </div>
     </div>
 
@@ -918,6 +943,30 @@
         <button onclick="GameApp.debugTriggerSecretMew()" class="px-1.5 py-1 bg-pink-600 rounded text-[9px] font-bold">終極夢幻</button>
         <button onclick="GameApp.debugAddPartner()" class="px-1.5 py-1 bg-blue-700 rounded text-[9px] font-bold">+雙打夥伴</button>
         <button onclick="GameApp.debugSpawnPokeMart()" class="px-1.5 py-1 bg-sky-600 rounded text-[9px] font-bold col-span-2">🏪 刷友好商店</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 15B. 系統設定彈窗 (Settings Modal - 跨裝置怪量分流、復古濾鏡、傷害字體精簡、震動與FPS開關) -->
+  <div id="settingsModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
+    <div class="poke-card w-full max-w-md p-4 sm:p-5 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span>
+        </div>
+        <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
+      </div>
+
+      <div id="settingsContentBox" class="space-y-3.5 text-xs"></div>
+
+      <div class="mt-4 pt-3 border-t border-slate-700 flex gap-2">
+        <button onclick="GameApp.resetDefaultSettings()" class="poke-btn-white flex-1 py-2 text-xs font-black">
+          恢復預設
+        </button>
+        <button onclick="GameApp.closeSettingsModal()" class="poke-btn-red flex-1 py-2 text-xs font-black">
+          儲存並返回
+        </button>
       </div>
     </div>
   </div>
