@@ -735,7 +735,15 @@ window.GameApp = {
       jumpTimer: 0,
       jumpY: 0,
       xAttackTimer: 0,
-      xSpeedTimer: 0
+      xSpeedTimer: 0,
+      dashTimer: 0,
+      dashVx: 0,
+      dashVy: 0,
+      recoilTimer: 0,
+      recoilX: 0,
+      recoilY: 0,
+      slamHopTimer: 0,
+      speedTrails: []
     };
 
     //const initSkillId = SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle";
@@ -1093,8 +1101,23 @@ window.GameApp = {
     if (p.buffTimer <= 0 && p.shieldTimer <= 0 && p.trainerSkillCd > 0) {
       p.trainerSkillCd = Math.max(0, p.trainerSkillCd - dt);
     }
-    if (p.xAttackTimer > 0) p.xAttackTimer -= dt;
+    if (p.xAttackTimer > 0) {
+      p.xAttackTimer -= dt;
+      p._xAtkSparkTick = (p._xAtkSparkTick || 0) - dt;
+      if (p._xAtkSparkTick <= 0) {
+        p._xAtkSparkTick = 0.16;
+        const rx = p.x + (Math.random() - 0.5) * 32;
+        const ry = p.y + 10 - Math.random() * 16;
+        SkillsEngine.spawnSubParticle(rx, ry, (Math.random() - 0.5) * 18, -55 - Math.random() * 35, Math.random() < 0.5 ? "#EF4444" : "#FDE047", 3.0, 0.32, "star");
+      }
+    }
     if (p.xSpeedTimer > 0) p.xSpeedTimer -= dt;
+    if (p.recoilTimer > 0) {
+      p.recoilTimer = Math.max(0, p.recoilTimer - dt);
+    }
+    if (p.slamHopTimer > 0) {
+      p.slamHopTimer = Math.max(0, p.slamHopTimer - dt);
+    }
 
     if (this.camera.shakeTime > 0) this.camera.shakeTime -= dt;
 
@@ -1317,8 +1340,37 @@ window.GameApp = {
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
+    if (p.dashTimer > 0) {
+      p.dashTimer = Math.max(0, p.dashTimer - dt);
+      p.x += (p.vx * 0.5 + (p.dashVx || 0)) * dt;
+      p.y += (p.vy * 0.5 + (p.dashVy || 0)) * dt;
+    } else {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+    }
+
+    // 速度強化藥水 (X Speed) 或 衝鋒微步 (Dash) 殘影軌跡記錄
+    if (!p.speedTrails) p.speedTrails = [];
+    if ((p.xSpeedTimer > 0 && ilen > 0.05) || p.dashTimer > 0) {
+      p._trailSampleTimer = (p._trailSampleTimer || 0) - dt;
+      if (p._trailSampleTimer <= 0) {
+        p._trailSampleTimer = p.dashTimer > 0 ? 0.035 : 0.055;
+        p.speedTrails.push({
+          x: p.x,
+          y: p.y,
+          facingX: p.facingX,
+          facingY: p.facingY,
+          isDash: p.dashTimer > 0,
+          life: 0.20,
+          maxLife: 0.20
+        });
+        if (p.speedTrails.length > 5) p.speedTrails.shift();
+      }
+    }
+    for (let ti = p.speedTrails.length - 1; ti >= 0; ti--) {
+      p.speedTrails[ti].life -= dt;
+      if (p.speedTrails[ti].life <= 0) p.speedTrails.splice(ti, 1);
+    }
 
     MapEngine.resolveObstacleCollision(p, 18, true);
 
@@ -1925,13 +1977,18 @@ window.GameApp = {
     const tmCatalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
     const specItems = typeof MART_SPECIAL_ITEMS !== "undefined" ? MART_SPECIAL_ITEMS : {};
     
-    const hasSkill = (sId) => {
+    const findExistingSkill = (sId) => {
       const clean = sId.replace(/\s+/g, '');
-      return Object.keys(p.skills).some(k => k.replace(/\s+/g, '') === clean);
+      const key = Object.keys(p.skills).find(k => k.replace(/\s+/g, '') === clean);
+      return key ? p.skills[key] : null;
     };
 
     const shelf = [];
-    const availableTMs = Object.values(tmCatalog).filter(tm => !hasSkill(tm.id));
+    // 允許刷出尚未學習的 TM 或 已學習但尚未滿級 (<Lv.10) 的 TM，讓玩家既能學新招也能直接買 TM 升招式等級
+    const availableTMs = Object.values(tmCatalog).filter(tm => {
+      const ex = findExistingSkill(tm.id);
+      return !ex || ex.level < 10;
+    });
     if (availableTMs.length > 0) {
       shelf.push(availableTMs[Math.floor(Math.random() * availableTMs.length)]);
     }
@@ -4082,17 +4139,77 @@ window.GameApp = {
       ctx.stroke();
     }
 
+    // 【藥水視覺特效 1：速度強化 (X Speed) 與 撞擊衝鋒微步 (Dash) 疾風殘影】
+    if (p.speedTrails && p.speedTrails.length > 0) {
+      p.speedTrails.forEach(tr => {
+        const tsx = toSx(tr.x), tsy = toSy(tr.y);
+        const tUrl = tr.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
+        const tRec = SpriteCache.get(tUrl);
+        if (tRec && tRec.loaded) {
+          const alpha = Math.max(0, (tr.life / tr.maxLife) * (tr.isDash ? 0.52 : 0.38));
+          ctx.save();
+          ctx.translate(tsx, tsy + (inWater ? 10 : 0));
+          if (tr.facingX > 0) ctx.scale(-1, 1);
+          this.drawSilhouetteFlash(ctx, tRec.img, -26, -26, 52, 52, tr.isDash ? "#FDE047" : "#38BDF8", alpha);
+          ctx.restore();
+        }
+      });
+    }
+
+    // 【藥水視覺特效 2：力量強化 (X Attack) 戰意金紅鬥氣光環】
+    if (p.xAttackTimer > 0) {
+      const auraNow = performance.now() * 0.008;
+      const pulseR = 24 + Math.sin(auraNow * 2.2) * 3.5;
+      ctx.save();
+      const atkGrad = ctx.createRadialGradient(px, py + 4, 6, px, py + 4, pulseR + 8);
+      atkGrad.addColorStop(0, "rgba(239, 68, 68, 0.0)");
+      atkGrad.addColorStop(0.55, "rgba(239, 68, 68, 0.28)");
+      atkGrad.addColorStop(0.85, "rgba(250, 204, 21, 0.45)");
+      atkGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
+      ctx.fillStyle = atkGrad;
+      ctx.beginPath();
+      ctx.arc(px, py + 4, pulseR + 8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(254, 240, 138, 0.85)";
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.ellipse(px, py + 16, 22, 8.5, 0, auraNow, auraNow + Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 【藥水視覺特效 3：速度強化 (X Speed) 腳底疾風氣流環】
+    if (p.xSpeedTimer > 0) {
+      const spdNow = performance.now() * 0.01;
+      ctx.save();
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.82)";
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 17, 24, 8, 0, -spdNow, -spdNow + Math.PI * 1.35);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 計算遠程微後座力與地震重踏下壓位移 (純視覺表現，不影響物理碰撞座標)
+    const recScale = (p.recoilTimer > 0) ? (p.recoilTimer / 0.11) : 0;
+    const visOffsetX = (p.recoilX || 0) * recScale;
+    const slamProg = (p.slamHopTimer > 0) ? (1 - p.slamHopTimer / 0.24) : 0;
+    const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.55 ? -Math.sin((slamProg / 0.55) * Math.PI) * 14 : Math.sin(((slamProg - 0.55) / 0.45) * Math.PI) * 5) : 0;
+    const visOffsetY = (p.recoilY || 0) * recScale + slamHopY;
+
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
-      // 受傷無敵時間高頻半透明閃爍 (Sprite Blinking，經典 GBA 受創無敵反饋)
-      if (p.invulnTimer > 0) {
+      // 受傷無敵時間高頻半透明閃爍 (衝鋒微步期間保持實體高光不閃暗)
+      if (p.invulnTimer > 0 && !(p.dashTimer > 0)) {
         const blinkCycle = Math.floor(p.invulnTimer * 24) % 2;
         ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
       }
 
-      // 涉水時下沉 10px，造成半身浸在水面感
-      ctx.translate(px, py - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
+      // 涉水時下沉 10px，並套用遠程後座力與地震重踏高度偏移
+      ctx.translate(px + visOffsetX, py + visOffsetY - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
       if (p.facingX > 0) ctx.scale(-1, 1);
       if (p.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";

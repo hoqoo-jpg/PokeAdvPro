@@ -450,6 +450,14 @@ const SkillsEngine = {
         trailTimer: 0
       });
     }
+    // 遠程彈幕微幅視覺後座力 (Visual Recoil：僅偏移繪圖位置 3.5px，絕不干涉實際走位碰撞座標)
+    if (caster === GameApp.player) {
+      const recoilStrength = (cleanSkillId === "HydroPump" || cleanSkillId === "IceBeam") ? 5.0 : 3.2;
+      caster.recoilX = -Math.cos(baseAngle) * recoilStrength;
+      caster.recoilY = -Math.sin(baseAngle) * recoilStrength;
+      caster.recoilTimer = 0.11;
+    }
+
     if (cleanSkillId === "IceBeam" && caster && caster.id === 144) {
       [-0.22, 0.22].forEach(sideAng => {
         const a = baseAngle + sideAng;
@@ -533,7 +541,12 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 空手劈：剛猛「X 型白熾十字氣勁斬痕 + 拳風殘影」（取代空心黃圓圈）
+      // 空手劈：剛猛「X 型白熾十字氣勁斬痕 + 8px 貼身連打滑步」
+      if (caster === GameApp.player) {
+        caster.dashVx = Math.cos(baseAngle) * 95;
+        caster.dashVy = Math.sin(baseAngle) * 95;
+        caster.dashTimer = 0.085;
+      }
       const reach = 90 * areaScale;
       const strikes = Math.min(3, 1 + Math.floor(level / 4));
       for (let s = 0; s < strikes; s++) {
@@ -561,8 +574,14 @@ const SkillsEngine = {
       return;
     }
 
-    // 1. 撞擊專屬：主角身前 30px 淨空外推的「破空音爆氣錐 (Sonic Boom Cone)」
+    // 1. 撞擊專屬：衝鋒微步 (Dash-in 24px 物理突進 + 0.20s 短暫衝鋒無敵幀) + 主角身前「破空音爆氣錐」
     if (style === "slam_wave") {
+      if (caster === GameApp.player) {
+        caster.dashVx = Math.cos(baseAngle) * 175;
+        caster.dashVy = Math.sin(baseAngle) * 175;
+        caster.dashTimer = 0.14;
+        caster.invulnTimer = Math.max(caster.invulnTimer || 0, 0.20);
+      }
       const fDist = 34 * areaScale;
       const hitX = caster.x + Math.cos(baseAngle) * fDist;
       const hitY = caster.y + Math.sin(baseAngle) * fDist;
@@ -604,8 +623,13 @@ const SkillsEngine = {
       return;
     }
 
-    // 2. 地震專屬：大範圍環形地裂
+    // 2. 地震專屬：原地重踏起跳下壓感 (Slam Hop) + 大範圍環形地裂
     if (style === "quake_wave") {
+      if (caster === GameApp.player) {
+        caster.slamHopTimer = 0.24;
+        GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.14);
+        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 3.5);
+      }
       const rad = (85 + level * 4) * areaScale;
       this.meleeEffects.push({
         style,
@@ -632,8 +656,13 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波（快龍 #149 覺醒為雙倍寬幅金焰蒼龍王波 +1 波次）
+    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波 + 18px 龍威撲擊微步
     if (meta.type === "Dragon") {
+      if (caster === GameApp.player) {
+        caster.dashVx = Math.cos(baseAngle) * 150;
+        caster.dashVy = Math.sin(baseAngle) * 150;
+        caster.dashTimer = 0.12;
+      }
       const isDragonite = !!(caster && caster.id === 149);
       const dragonWaves = 1 + (level >= 6 ? 1 : 0) + (isDragonite ? 1 : 0);
       for (let d = 0; d < dragonWaves; d++) {

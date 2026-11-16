@@ -1182,7 +1182,7 @@ Object.assign(window.GameApp, {
     this.updateTitleUI();
   },
 
-  // 友好商店貨架渲染（支援滿槽自選遺忘視圖切換）
+  // 友好商店貨架渲染（支援當前已學招式等級一覽、TM 現有等級對比與滿槽自選遺忘視圖切換）
   renderMartModal(shelf) {
     this._pendingMartTM = null;
     const mainView = document.getElementById("martMainView");
@@ -1196,12 +1196,37 @@ Object.assign(window.GameApp, {
     const p = this.player;
     const curCount = p ? Object.keys(p.skills).length : 0;
     const maxSlots = p ? (p.maxSkillSlots || 3) : 3;
+
+    // 頂部即時展示「當前已裝備招式與現時等級」，方便玩家評估 PP 提升劑、神奇糖果與 TM 學習機
+    const currentSkillPills = p ? Object.values(p.skills).map(sk => {
+      const meta = (typeof SKILLS_CATALOG !== "undefined") ? SKILLS_CATALOG[sk.id] : null;
+      const skName = meta ? (sk.evolved ? meta.evolvedName : meta.name) : sk.id;
+      return `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border ${sk.evolved ? 'border-amber-400 text-amber-300' : (sk.level >= 10 ? 'border-emerald-400 text-emerald-300' : 'border-slate-700 text-slate-200')} text-[10px] font-black">
+          ${meta ? `<img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/>` : ''}
+          <span>${skName}</span>
+          <span class="font-pixel text-[8px] ${sk.evolved ? 'text-amber-300' : 'text-sky-300'}">${sk.evolved ? '★MAX' : `Lv.${sk.level}`}</span>
+        </span>
+      `;
+    }).join("") : "";
+
     const hintEl = document.getElementById("martSlotHintText");
     if (hintEl) {
-      hintEl.innerHTML = curCount >= maxSlots
-        ? `目前招式槽已滿 (<span class="text-amber-300">${curCount}/${maxSlots}</span>)，購買 TM 可<span class="text-amber-300">自選遺忘</span>舊招式！`
-        : `目前招式槽 (<span class="text-emerald-300">${curCount}/${maxSlots}</span>)，可直接學習新 TM 招式或補給道具！`;
+      const statusText = curCount >= maxSlots
+        ? `招式槽已滿 (<span class="text-amber-300">${curCount}/${maxSlots}</span>)，買新 TM 可<span class="text-amber-300">自選替換</span>：8`
+        : `招式槽 (<span class="text-emerald-300">${curCount}/${maxSlots}</span>)，目前持有招式與等級：`;
+      hintEl.innerHTML = `
+        <div class="mb-1">${statusText.replace('：8', '：')}</div>
+        <div class="flex flex-wrap gap-1">${currentSkillPills}</div>
+      `;
     }
+
+    const findPlayerSkill = (sId) => {
+      if (!p || !sId) return null;
+      const clean = sId.replace(/\s+/g, '');
+      const key = Object.keys(p.skills).find(k => k.replace(/\s+/g, '') === clean);
+      return key ? p.skills[key] : null;
+    };
 
     const box = document.getElementById("martShelfContainer");
     box.innerHTML = shelf.map((it) => {
@@ -1209,9 +1234,18 @@ Object.assign(window.GameApp, {
       const badgeText = isTM ? `${it.type}系` : (it.type === "buff" ? "戰鬥增益" : "特製藥劑");
       const badgeBg = isTM ? "bg-slate-700 text-amber-300" : (it.type === "buff" ? "bg-rose-900 text-rose-300" : "bg-emerald-900 text-emerald-300");
       const titleText = isTM ? `${it.tmNo} ${it.name}` : it.name;
-      const fullTag = (isTM && curCount >= maxSlots)
-        ? `<span class="px-1.5 py-0.2 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-400/50">自選替換</span>`
-        : '';
+
+      let statusTag = '';
+      if (isTM) {
+        const ownedSk = findPlayerSkill(it.id);
+        if (ownedSk) {
+          statusTag = `<span class="px-1.5 py-0.2 text-[9px] font-black rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/60">現有 Lv.${ownedSk.level} ➔ Lv.${Math.min(10, ownedSk.level + 1)}</span>`;
+        } else if (curCount >= maxSlots) {
+          statusTag = `<span class="px-1.5 py-0.2 text-[9px] font-black rounded bg-amber-500/20 text-amber-300 border border-amber-400/50">新習得 (自選替換)</span>`;
+        } else {
+          statusTag = `<span class="px-1.5 py-0.2 text-[9px] font-black rounded bg-sky-500/20 text-sky-300 border border-sky-400/50">新習得 Lv.1</span>`;
+        }
+      }
 
       return `
         <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
@@ -1223,7 +1257,7 @@ Object.assign(window.GameApp, {
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-black text-xs text-white">${titleText}</span>
                 <span class="px-1.5 py-0.2 text-[9px] font-bold rounded ${badgeBg}">${badgeText}</span>
-                ${fullTag}
+                ${statusTag}
               </div>
               <p class="text-[10px] text-slate-300 leading-snug mt-0.5 whitespace-normal break-words line-clamp-2">${it.desc}</p>
             </div>
@@ -1366,11 +1400,16 @@ Object.assign(window.GameApp, {
     const p = this.player;
     const isConsumable = ["pp_up", "full_restore", "x_attack", "x_speed", "master_candy", "mystery_held"].includes(itemId);
 
-    if (!isConsumable) {
+    const cleanItemId = itemId.replace(/\s+/g, '');
+    const existingSkillKey = !isConsumable
+      ? Object.keys(p.skills).find(k => k.replace(/\s+/g, '') === cleanItemId)
+      : null;
+
+    if (!isConsumable && !existingSkillKey) {
       const currentSkills = Object.keys(p.skills);
       const maxSlots = p.maxSkillSlots || (3 + ((this.saveData.upgrades.fourthSlot >= 1) ? 1 : 0));
       if (currentSkills.length >= maxSlots) {
-        // 滿槽時不直接扣款覆蓋，進入自選遺忘選擇介面
+        // 滿槽且購買未學過的新招式時，進入自選遺忘選擇介面
         this.promptMartForgetSkill(itemId, cost);
         return;
       }
@@ -1437,6 +1476,12 @@ Object.assign(window.GameApp, {
         p.dmgMult *= 1.15;
         this.spawnFloatingText(p.x, p.y - 25, "全攜帶物已齊備！全傷害額外 +15%！", "#FACC15", 14);
       }
+    } else if (existingSkillKey && p.skills[existingSkillKey]) {
+      const skObj = p.skills[existingSkillKey];
+      skObj.level = Math.min(10, skObj.level + 1);
+      SoundFX.play("levelup");
+      const skName = (typeof SKILLS_CATALOG !== "undefined" && SKILLS_CATALOG[skObj.id]) ? SKILLS_CATALOG[skObj.id].name : itemId;
+      this.spawnFloatingText(p.x, p.y - 25, `【${skName}】提升至 Lv.${skObj.level}！`, "#34D399", 15);
     } else {
       const stagger = Object.keys(p.skills).length * 0.22;
       p.skills[itemId] = { id: itemId, level: 1, evolved: false, timer: 0.12 + stagger };
