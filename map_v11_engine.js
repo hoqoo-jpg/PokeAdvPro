@@ -266,6 +266,10 @@ const MapEngine = {
       }
     }
 
+    if (this.chunkCache.size >= 64) {
+      const oldestKey = this.chunkCache.keys().next().value;
+      if (oldestKey !== undefined) this.chunkCache.delete(oldestKey);
+    }
     this.chunkCache.set(key, chunk);
     return chunk;
   },
@@ -890,23 +894,30 @@ const MapEngine = {
       ctx.strokeStyle = isThunder ? "rgba(224, 242, 254, 0.34)" : "rgba(186, 230, 253, 0.32)";
       ctx.lineWidth = isThunder ? 1.6 : 1.3;
       const slant = isThunder ? 24 : 12;
+      const dropLen = isThunder ? 32 : 22;
 
+      // 單一 Batch 批次繪製所有雨絲 (將 150+ 次獨立 stroke() 合併為 1 次，大幅降低 iOS 繪圖消耗)
+      ctx.beginPath();
       for (let x = -20; x < width + 50; x += (isThunder ? 32 : 46)) {
         for (let y = (x * 5 + this.rainOffset) % 65; y < height; y += 65) {
-          ctx.beginPath();
           ctx.moveTo(x, y);
-          ctx.lineTo(x - slant, y + (isThunder ? 32 : 22));
-          ctx.stroke();
+          ctx.lineTo(x - slant, y + dropLen);
         }
       }
+      ctx.stroke();
 
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
-      ctx.lineWidth = 1.0;
-      this.splashParticles.forEach(sp => {
+      if (this.splashParticles.length > 0) {
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.55)";
+        ctx.lineWidth = 1.0;
         ctx.beginPath();
-        ctx.ellipse(sp.x, sp.y, sp.r * 1.3, sp.r * 0.5, 0, 0, Math.PI * 2);
+        for (let i = 0; i < this.splashParticles.length; i++) {
+          const sp = this.splashParticles[i];
+          const rx = sp.r * 1.3;
+          ctx.moveTo(sp.x + rx, sp.y);
+          ctx.ellipse(sp.x, sp.y, rx, sp.r * 0.5, 0, 0, Math.PI * 2);
+        }
         ctx.stroke();
-      });
+      }
 
       if (isThunder && this.lightningFlashAlpha > 0) {
         ctx.fillStyle = `rgba(235, 245, 255, ${this.lightningFlashAlpha})`;
@@ -918,14 +929,15 @@ const MapEngine = {
       ctx.save();
       ctx.fillStyle = "rgba(224, 242, 254, 0.88)";
       const t = performance.now() * 0.002;
+      ctx.beginPath();
       for (let i = 0; i < 65; i++) {
         const sx = ((i * 47 + t * 45 + Math.sin(t * 1.5 + i) * 25) % width);
         const sy = ((i * 61 + t * 125) % height);
         const sz = (i % 3 === 0) ? 3.4 : (i % 2 === 0 ? 2.4 : 1.6);
-        ctx.beginPath();
+        ctx.moveTo(sx + sz, sy);
         ctx.arc(sx, sy, sz, 0, Math.PI * 2);
-        ctx.fill();
       }
+      ctx.fill();
       ctx.fillStyle = "rgba(186, 230, 253, 0.12)";
       ctx.fillRect(0, 0, width, height);
       ctx.restore();
@@ -937,26 +949,28 @@ const MapEngine = {
 
       ctx.fillStyle = "rgba(253, 224, 71, 0.45)";
       const t = performance.now() * 0.003;
+      ctx.beginPath();
       for (let i = 0; i < 30; i++) {
         const hx = (i * 73 + Math.sin(t * 2.0 + i) * 18) % width;
         const hy = height - ((i * 37 + t * 90) % height);
-        ctx.beginPath();
+        ctx.moveTo(hx + 2.2, hy);
         ctx.arc(hx, hy, 2.2, 0, Math.PI * 2);
-        ctx.fill();
       }
+      ctx.fill();
       ctx.restore();
 
     } else if (this.weather === "PSYCHIC") {
       ctx.save();
       ctx.fillStyle = "rgba(192, 132, 252, 0.65)";
       const t = performance.now() * 0.002;
+      ctx.beginPath();
       for (let i = 0; i < 22; i++) {
         const ax = ((i * 137 + t * 35) % width);
         const ay = ((i * 93 + Math.sin(t + i) * 80) % height);
-        ctx.beginPath();
+        ctx.moveTo(ax + 2.8, ay);
         ctx.arc(ax, ay, 2.8, 0, Math.PI * 2);
-        ctx.fill();
       }
+      ctx.fill();
       ctx.restore();
     }
   }

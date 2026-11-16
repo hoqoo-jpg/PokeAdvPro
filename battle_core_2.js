@@ -2822,7 +2822,8 @@ window.GameApp = {
   },
 
   handleEnemyDeath(e, idx) {
-    this.enemies.splice(idx, 1);
+    this.enemies[idx] = this.enemies[this.enemies.length - 1];
+    this.enemies.pop();
     this.kills += 1;
     this.saveData.stats.totalKills += 1;
     this.saveData.pokedexCaught[e.id] = true;
@@ -2985,25 +2986,45 @@ window.GameApp = {
 
     for (let i = this.gems.length - 1; i >= 0; i--) {
       const g = this.gems[i];
-      const d = Math.hypot(p.x - g.x, p.y - g.y);
-      if (d < effectiveMagnetR || g.magnetized) {
-        g.magnetized = true;
-        const ang = Math.atan2(p.y - g.y, p.x - g.x);
-        g.x += Math.cos(ang) * 440 * dt;
-        g.y += Math.sin(ang) * 440 * dt;
+      const dx = p.x - g.x, dy = p.y - g.y;
+      const dSq = dx * dx + dy * dy;
+
+      // 遠處遺留水晶自動聚攏：超過 950px 的遠處水晶自動折疊至主角視野邊緣，防止長局跑圖累積
+      if (dSq > 902500 && !g.magnetized) {
+        const rAng = Math.random() * Math.PI * 2;
+        g.x = p.x + Math.cos(rAng) * 320;
+        g.y = p.y + Math.sin(rAng) * 320;
+        continue;
       }
-      if (d < 22) {
-        this.gems.splice(i, 1);
+
+      if (dSq < effectiveMagnetR * effectiveMagnetR || g.magnetized) {
+        g.magnetized = true;
+        const d = Math.sqrt(dSq) || 1;
+        g.x += (dx / d) * 440 * dt;
+        g.y += (dy / d) * 440 * dt;
+      }
+      if (dSq < 484) {
+        this.gems[i] = this.gems[this.gems.length - 1];
+        this.gems.pop();
         this.gainExp(g.val);
       }
     }
 
     for (let i = this.mapItems.length - 1; i >= 0; i--) {
       const it = this.mapItems[i];
-	  if (it.id === "poke_mart") continue; // 👈 關鍵防護：商店絕不被碰撞拾取邏輯刪除！
-	  
+      if (it.id === "poke_mart") continue; // 商店絕不被碰撞拾取邏輯刪除
+
+      const distToItem = Math.hypot(p.x - it.x, p.y - it.y);
+      // 遠距離未拾取地面戰利品自動折疊順移至主角外圍 340px，避免無限累積
+      if (distToItem > 1400) {
+        const rAng = Math.random() * Math.PI * 2;
+        it.x = p.x + Math.cos(rAng) * 340;
+        it.y = p.y + Math.sin(rAng) * 340;
+        continue;
+      }
+
       it.bobPhase += dt * 4;
-      if (Math.hypot(p.x - it.x, p.y - it.y) < 30) {
+      if (distToItem < 30) {
         this.mapItems.splice(i, 1);
         if (it.id === "magnet") {
           this.gems.forEach(g => { g.magnetized = true; });
@@ -4635,11 +4656,12 @@ window.GameApp = {
         ctx.translate(arrowX, arrowY);
 
         ctx.fillStyle = arrowColor;
-        ctx.shadowColor = arrowColor;
-        ctx.shadowBlur = 10;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
         ctx.arc(0, 0, 16, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
 
         ctx.rotate(ang);
         ctx.fillStyle = "#FFFFFF";
@@ -4682,11 +4704,12 @@ window.GameApp = {
         ctx.save();
         ctx.translate(arrowX, arrowY);
         ctx.fillStyle = arrowColor;
-        ctx.shadowColor = arrowColor;
-        ctx.shadowBlur = 10;
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
         ctx.arc(0, 0, 15, 0, Math.PI * 2);
         ctx.fill();
+        ctx.stroke();
 
         ctx.rotate(ang);
         ctx.fillStyle = "#FFFFFF";
