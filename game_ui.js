@@ -530,8 +530,25 @@ Object.assign(window.GameApp, {
       return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
     });
 
+    const curSelPoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
+    const curSelTrait1 = (typeof getPokemonInnateTrait === "function" && curSelPoke) ? getPokemonInnateTrait(curSelPoke, 1) : null;
+    const selectedTraitBannerHtml = (curSelPoke && curSelTrait1) ? `
+      <div class="bg-slate-900 text-white p-2.5 rounded-2xl border-2 border-amber-400 shadow-md flex items-center justify-between gap-2.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <img src="${curSelPoke.forward_sprite}" class="w-10 h-10 pixel-sprite object-contain bg-slate-800 rounded-xl border border-slate-600 p-0.5 shrink-0"/>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-black text-xs text-amber-300">${curSelPoke.name_zh}</span>
+              <span class="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[9px] font-black"><i class="fa-solid ${curSelTrait1.icon} mr-0.5"></i>專屬特性：${curSelTrait1.name}</span>
+            </div>
+            <div class="text-[10px] text-slate-200 font-bold leading-snug mt-0.5 whitespace-normal break-words">${curSelTrait1.desc}（隨局內進化階級最高強化至 200%！）</div>
+          </div>
+        </div>
+      </div>
+    ` : "";
+
     const prevFilterScroll = document.getElementById("wizardStep2FilterBar") ? document.getElementById("wizardStep2FilterBar").scrollLeft : 0;
-    const filterBarHtml = `
+    const filterBarHtml = selectedTraitBannerHtml + `
       <div id="wizardStep2FilterBar" class="flex items-center gap-1.5 overflow-x-auto pb-1">
         ${filterTabs.map(t => `
           <button data-filter-key="${t.key}" onclick="GameApp.setWizardPokeFilter('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${activeFilter === t.key ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">
@@ -592,7 +609,11 @@ Object.assign(window.GameApp, {
                     const trMeta = typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(p, 1) : null;
                     return `<div class="flex justify-between"><span>HP:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispHp}</strong></span><span>ATK:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispAtk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
                             <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}${starLv >= 3 ? ' (開局Lv.2)' : ''}</div>
-                            ${trMeta ? `<div class="text-[9px] font-black truncate px-1 py-0.2 rounded bg-amber-100/80 text-amber-900 border border-amber-300/80" title="${trMeta.desc}"><i class="fa-solid ${trMeta.icon} text-[8px] mr-0.5"></i>特性：【${trMeta.name}】</div>` : ''}`;
+                            ${trMeta ? `
+                              <div class="mt-1 p-1 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 leading-tight whitespace-normal break-words">
+                                <div class="text-[9px] font-black text-amber-900"><i class="fa-solid ${trMeta.icon} text-[8px] mr-0.5"></i>特性：【${trMeta.name}】</div>
+                                <div class="text-[8px] font-bold text-amber-800 mt-0.5">${trMeta.desc}</div>
+                              </div>` : ''}`;
                   })()
                 : `<div class="text-center text-slate-400 py-1 font-bold">需在野外遭遇登錄圖鑑</div>`
               }
@@ -857,9 +878,11 @@ Object.assign(window.GameApp, {
       document.getElementById("unlockBackCol").classList.remove("hidden");
       document.getElementById("unlockConfirmName").textContent = `${p.name_zh} (#${String(p.id).padStart(3,'0')})`;
       document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
+      const trMeta = typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(p, 1) : null;
       document.getElementById("unlockConfirmStats").innerHTML = `
         <div>生命 HP：<strong>${p.hp}</strong> ｜ 攻擊：<strong>${p.atk}</strong> ｜ 速度：<strong>${p.speed}</strong></div>
         <div class="text-blue-700">初始招式：【${sk ? sk.name : p.skill}】</div>
+        ${trMeta ? `<div class="text-amber-800 bg-amber-50 p-1.5 rounded border border-amber-200 mt-1"><i class="fa-solid ${trMeta.icon} mr-1"></i><strong>特性【${trMeta.name}】</strong>：${trMeta.desc}</div>` : ''}
       `;
     } else if (type === "shiny_unlock") {
       const p = POKEMON_MAP.get(id);

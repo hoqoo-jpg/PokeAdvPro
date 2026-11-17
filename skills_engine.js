@@ -983,8 +983,9 @@ const SkillsEngine = {
       });
 
       // 十字斬瞬發破甲裁決判定
-      const crossCandidates = this.getEnemiesInRadius(cx, cy, armLen);
+      const crossCandidates = [...this.getEnemiesInRadius(cx, cy, armLen)];
       crossCandidates.forEach(e => {
+        if (!e || e.hp <= 0) return;
         const dx = e.x - cx, dy = e.y - cy;
         const d = Math.hypot(dx, dy);
         if (d <= armLen + e.radius) {
@@ -1156,8 +1157,9 @@ const SkillsEngine = {
       }
     }
 
-    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪，遠處敵人由超武實體波前（藤蔓/水柱/電網/隕石）推進命中結算！
-    GameApp.enemies.forEach(e => {
+    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪（使用淺拷貝快照防刪除錯位）
+    [...GameApp.enemies].forEach(e => {
+      if (!e || e.hp <= 0) return;
       if (Math.hypot(e.x - p.x, e.y - p.y) <= 115 + e.radius) {
         let adjustedDmg = ultDmg * 0.55;
         if (meta.type === "Ground" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
@@ -1557,56 +1559,6 @@ const SkillsEngine = {
             }
           }
         });
-      } else if (hz.kind === "cross_chop_cleave") {
-        // 【爆裂十字劈・高空巨型白熾 X 十字天譴破甲斬（空中層）】
-        ctx.translate(sx, sy);
-        const alpha = Math.min(1, hz.timer * 1.45);
-        ctx.globalAlpha = alpha;
-        const arm = hz.radius * Math.min(1, prog * 3.2);
-
-        [-Math.PI / 4, Math.PI / 4].forEach(rot => {
-          ctx.save();
-          ctx.rotate(rot);
-          // 耀金氣勁主刃
-          ctx.fillStyle = "#FACC15";
-          ctx.strokeStyle = "#991B1B";
-          ctx.lineWidth = 2.2;
-          ctx.beginPath();
-          ctx.moveTo(-arm, 0);
-          ctx.quadraticCurveTo(0, -18 * (1 - prog * 0.3), arm, 0);
-          ctx.quadraticCurveTo(0, 18 * (1 - prog * 0.3), -arm, 0);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-
-          // 純白熾熱核心劍脊
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.ellipse(0, 0, arm * 0.85, 5.5 * (1 - prog * 0.4), 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        });
-
-        // 十字交叉中心破甲震爆核心環与八芒星
-        const coreR = (38 + Math.sin(now * 14) * 6) * (1 - prog * 0.3);
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.arc(0, 0, coreR, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        for (let s = 0; s < 8; s++) {
-          const a = (s * Math.PI) / 4 + prog * 0.8;
-          const rOut = s % 2 === 0 ? coreR * 1.25 : coreR * 0.55;
-          const rIn = coreR * 0.22;
-          if (s === 0) ctx.moveTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
-          else ctx.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
-          ctx.lineTo(Math.cos(a + Math.PI / 8) * rIn, Math.sin(a + Math.PI / 8) * rIn);
-        }
-        ctx.closePath();
-        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
@@ -1723,7 +1675,7 @@ const SkillsEngine = {
           SoundFX.play("ultimate");
         } else {
           const nowMs = performance.now();
-          const hzCandidates = this.getEnemiesInRadius(hz.x, hz.y, hz.radius);
+          const hzCandidates = [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)];
           hzCandidates.forEach(e => {
             if (!e || e.hp <= 0) return;
             const dx = e.x - hz.x, dy = e.y - hz.y;
@@ -3155,6 +3107,56 @@ const SkillsEngine = {
           }
           ctx.restore();
         });
+      } else if (hz.kind === "cross_chop_cleave") {
+        // 【爆裂十字劈・高空巨型白熾 X 十字天譴破甲斬（空中層）】
+        ctx.translate(sx, sy);
+        const alpha = Math.min(1, hz.timer * 1.45);
+        ctx.globalAlpha = alpha;
+        const arm = hz.radius * Math.min(1, prog * 3.2);
+
+        [-Math.PI / 4, Math.PI / 4].forEach(rot => {
+          ctx.save();
+          ctx.rotate(rot);
+          // 耀金氣勁主刃
+          ctx.fillStyle = "#FACC15";
+          ctx.strokeStyle = "#991B1B";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(-arm, 0);
+          ctx.quadraticCurveTo(0, -18 * (1 - prog * 0.3), arm, 0);
+          ctx.quadraticCurveTo(0, 18 * (1 - prog * 0.3), -arm, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 純白熾熱核心劍脊
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, arm * 0.85, 5.5 * (1 - prog * 0.4), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // 十字交叉中心破甲震爆核心環與八芒星
+        const coreR = (38 + Math.sin(now * 14) * 6) * (1 - prog * 0.3);
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        for (let s = 0; s < 8; s++) {
+          const a = (s * Math.PI) / 4 + prog * 0.8;
+          const rOut = s % 2 === 0 ? coreR * 1.25 : coreR * 0.55;
+          const rIn = coreR * 0.22;
+          if (s === 0) ctx.moveTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+          else ctx.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+          ctx.lineTo(Math.cos(a + Math.PI / 8) * rIn, Math.sin(a + Math.PI / 8) * rIn);
+        }
+        ctx.closePath();
+        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         // 【噴火龍超武・立體大字爆炎】：由密集翻滾動態火球簇構成『大』字圖騰，筆畫末端帶烈焰尖角
         ctx.translate(sx, sy);

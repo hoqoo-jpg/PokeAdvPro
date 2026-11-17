@@ -519,8 +519,9 @@
       </div>
     </div>
 
-    <!-- 地形與狀態提示標籤 (緊貼左上玩家血條卡正下方，横向並排不佔垂直空間) -->
-    <div class="absolute top-[68px] sm:top-[74px] left-2 flex flex-wrap items-center gap-1 pointer-events-none z-10 max-w-[65%]">
+    <!-- 種族特性、王權護盾、地形與狀態提示標籤 (緊貼左上玩家血條卡正下方，横向並排不佔垂直空間) -->
+    <div class="absolute top-[68px] sm:top-[74px] left-2 flex flex-wrap items-center gap-1 pointer-events-none z-10 max-w-[78%]">
+      <span id="hudTraitBadge" class="px-2 py-0.5 bg-slate-950/90 text-amber-300 border border-amber-500/80 rounded-full font-black text-[9px] sm:text-[10px] shadow flex items-center gap-1"></span>
       <span id="hudTerrainBadge" class="hidden px-2 py-0.5 bg-emerald-950/90 text-emerald-300 border border-emerald-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">草叢</span>
       <span id="hudPlayerStatusBadge" class="hidden px-2 py-0.5 bg-rose-950/90 text-rose-300 border border-rose-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">異常狀態</span>
     </div>
@@ -821,15 +822,15 @@
   </div>
 </div>
 
-  <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal) -->
-  <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
-    <div class="poke-card w-full max-w-md p-5 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
-      <div class="text-center mb-3">
-        <h2 id="endModalTitle" class="font-pixel text-xl sm:text-2xl text-amber-400">BATTLE FINISHED</h2>
+  <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal - 支援手機端限高與內部獨立垂直滑動，底部按鈕永不擠出畫面) -->
+  <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm">
+    <div class="poke-card w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden p-4 sm:p-5 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
+      <div class="text-center mb-2.5 shrink-0">
+        <h2 id="endModalTitle" class="font-pixel text-lg sm:text-2xl text-amber-400">BATTLE FINISHED</h2>
         <p id="endModalSubtitle" class="text-xs text-slate-300 font-bold mt-1">冒險已暫停或結算完成</p>
       </div>
 
-      <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3">
+      <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3 flex-1 overflow-y-auto min-h-0">
         <div class="flex justify-between items-center border-b border-slate-700/70 pb-1">
           <span class="text-slate-400">即時效能 (FPS / 同屏實體)：</span>
           <span id="endStatFps" class="font-pixel text-[10px] text-emerald-400">60 FPS (0 怪)</span>
@@ -838,9 +839,9 @@
           <span class="text-slate-400">存活時間：</span>
           <span id="endStatTime" class="font-pixel text-amber-300">00:00</span>
         </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">出戰陣容：</span>
-          <span id="endStatPartner" class="text-white truncate max-w-[200px]">小智 & 皮卡丘</span>
+        <div class="flex justify-between gap-2">
+          <span class="text-slate-400 shrink-0">出戰陣容：</span>
+          <span id="endStatPartner" class="text-white text-right break-words">小智 & 皮卡丘</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-400">擊退怪獸：</span>
@@ -853,7 +854,7 @@
         <div id="endStatDpsContainer"></div>
       </div>
 
-      <div class="flex gap-2">
+      <div class="flex gap-2 shrink-0">
         <button id="btnResumeGame" onclick="GameApp.togglePause()" class="poke-btn-blue flex-1 py-2.5 text-xs font-black">
           繼續冒險
         </button>

@@ -699,6 +699,7 @@ window.GameApp = {
       finalEvoArmor: basePoke.id >= 144 ? 0.12 : 0,
       multiscaleTimer: 10.0,
       multiscaleReady: basePoke.id >= 144,
+      royalAutoPulseTimer: 6.5,
       isTrainerBond: isBond,
       bondColor: tr.bondColor || "#F59E0B",
       bondName: tr.bondName || "專屬羈絆",
@@ -1101,6 +1102,49 @@ window.GameApp = {
         p.trainerSkillCd = p.trainerSkillMaxCd;
       }
     }
+    // 繪製【傳說王權 / 多重鱗片】六角星冕護盾圈與充能進度環
+    if (p.id === 149 || p.id >= 144) {
+      if (p.multiscaleReady) {
+        const crownNow = performance.now() * 0.0035;
+        const isLegend = p.id >= 144 && p.id !== 149;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(crownNow);
+        ctx.strokeStyle = isLegend ? "rgba(244, 114, 182, 0.88)" : "rgba(250, 204, 21, 0.85)";
+        ctx.fillStyle = isLegend ? "rgba(244, 114, 182, 0.10)" : "rgba(250, 204, 21, 0.08)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          const rx = Math.cos(a) * 31, ry = Math.sin(a) * 31;
+          if (k === 0) ctx.moveTo(rx, ry);
+          else ctx.lineTo(rx, ry);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 護盾頂點星芒小點
+        ctx.fillStyle = "#FEF08A";
+        for (let k = 0; k < 3; k++) {
+          const a = (k * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * 31, Math.sin(a) * 31, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        const chargePct = Math.max(0, 1 - (p.multiscaleTimer || 0) / 10.0);
+        ctx.save();
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(px, py + 14, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct, false);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
     if (p.shieldTimer > 0) {
       p.shieldTimer -= dt;
       if (p.shieldTimer <= 0) {
@@ -1279,13 +1323,26 @@ window.GameApp = {
       }
     }
 
-    // 【準神快龍 #149 ＆ 傳說五神獸專屬：多重鱗片 / 王權護盾】(每 10 秒自動生成 1 層抵擋傷害護盾)
-    if ((p.id === 149 || p.id >= 144) && !p.multiscaleReady) {
-      p.multiscaleTimer = (p.multiscaleTimer || 10.0) - dt;
-      if (p.multiscaleTimer <= 0) {
-        p.multiscaleReady = true;
-        p.multiscaleTimer = 10.0;
-        this.spawnFloatingText(p.x, p.y - 26, "🛡️ 龍鱗王權護盾就緒!", "#FACC15", 12);
+    // 【準神快龍 #149 ＆ 傳說五神獸專屬：多重鱗片 / 傳說王權星冕護盾】(每 10 秒充能，五神獸護盾就緒滿 6.5 秒且身邊有怪時更會主動爆發王權威壓新星！)
+    if (p.id === 149 || p.id >= 144) {
+      if (!p.multiscaleReady) {
+        p.multiscaleTimer = (p.multiscaleTimer || 10.0) - dt;
+        if (p.multiscaleTimer <= 0) {
+          p.multiscaleReady = true;
+          p.multiscaleTimer = 10.0;
+          p.royalAutoPulseTimer = 6.5;
+          this.spawnFloatingText(p.x, p.y - 26, p.id >= 144 && p.id !== 149 ? "👑 傳說王權護盾就緒!" : "🛡️ 多重鱗片護盾就緒!", "#FACC15", 13);
+        }
+      } else if (p.innateTrait && p.innateTrait.id === "legendary_pressure") {
+        p.royalAutoPulseTimer = (p.royalAutoPulseTimer === undefined ? 6.5 : p.royalAutoPulseTimer - dt);
+        if (p.royalAutoPulseTimer <= 0) {
+          const nearbyEnemy = this.findNearestEnemyInViewport(p.x, p.y, 175);
+          if (nearbyEnemy) {
+            this.triggerRoyalShieldBurst(true);
+          } else {
+            p.royalAutoPulseTimer = 1.0;
+          }
+        }
       }
     }
 
@@ -2057,6 +2114,41 @@ window.GameApp = {
     if (this.buyMartItem) this.buyMartItem(skillId, cost);
   },
 
+  triggerRoyalShieldBurst(isAutoPulse = false) {
+    const p = this.player;
+    if (!p) return;
+    p.multiscaleReady = false;
+    p.multiscaleTimer = 10.0;
+    p.royalAutoPulseTimer = 6.5;
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.65);
+
+    this.spawnParticleCluster(p.x, p.y, "#FACC15", "#38BDF8", 20, "star", 1.1);
+    if (p.innateTrait && p.innateTrait.id === "legendary_pressure") {
+      const novaCol = TYPE_COLORS[p.data.type1] || "#F472B6";
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: p.x, y: p.y,
+        radius: 185, timer: 0.40, maxTime: 0.40,
+        color: novaCol
+      });
+      [...this.enemies].forEach(en => {
+        if (en && en.hp > 0 && Math.hypot(en.x - p.x, en.y - p.y) <= 190 + en.radius) {
+          if (!en.isBoss) {
+            const a = Math.atan2(en.y - p.y, en.x - p.x);
+            en.x += Math.cos(a) * 85;
+            en.y += Math.sin(a) * 85;
+          }
+          this.dealDamageToEnemy(en, (p.baseAtk * 1.25 + 35) * p.dmgMult, p.data.type1 || "Psychic", 0.60, 22);
+        }
+      });
+      SoundFX.play("super");
+      this.spawnFloatingText(p.x, p.y - 28, isAutoPulse ? "👑 傳說王權：神聖威壓新星!" : "👑 傳說王權：護盾反震新星!", "#FACC15", 14);
+    } else {
+      SoundFX.play("hit");
+      this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
+    }
+  },
+
   updateEnemies(dt) {
     const p = this.player;
     const halfW = this.width / 2 - 16;
@@ -2440,33 +2532,12 @@ window.GameApp = {
       const hitPoke = distToPoke < e.radius + 16;
       const hitTrainer = tc && (distToTrainer < e.radius + 11);
 
-      if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0 && !this.debugGodMode) {
+      if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
-          p.multiscaleReady = false;
-          p.multiscaleTimer = 10.0;
-          p.invulnTimer = 0.55;
-          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#38BDF8", 18, "star", 1.0);
-          if (p.innateTrait && p.innateTrait.id === "legendary_pressure") {
-            SkillsEngine.meleeEffects.push({
-              style: "slam_wave",
-              x: p.x, y: p.y,
-              radius: 170, timer: 0.38, maxTime: 0.38,
-              color: "#F472B6"
-            });
-            this.enemies.forEach(en => {
-              if (!en.isBoss && Math.hypot(en.x - p.x, en.y - p.y) <= 175) {
-                const a = Math.atan2(en.y - p.y, en.x - p.x);
-                en.x += Math.cos(a) * 85;
-                en.y += Math.sin(a) * 85;
-                this.dealDamageToEnemy(en, p.baseAtk * 1.1 * p.dmgMult, p.data.type1 || "Psychic", 0.50, 20);
-              }
-            });
-            this.spawnFloatingText(p.x, p.y - 26, "👑 傳說王權：護盾反震新星!", "#F472B6", 14);
-          } else {
-            this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
-          }
+          this.triggerRoyalShieldBurst(false);
           continue;
         }
+        if (this.debugGodMode) continue;
         // 【攜帶物：柔軟沙子】受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
@@ -2720,7 +2791,13 @@ window.GameApp = {
       const hitPoke = distToPoke < ep.radius + 14;
       const hitTrainer = tc && (distToTrainer < ep.radius + 11);
 
-      if ((hitPoke || hitTrainer) && p.invulnTimer <= 0 && !this.debugGodMode) {
+      if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        if (p.multiscaleReady) {
+          this.triggerRoyalShieldBurst(false);
+          this.enemyProjectiles.splice(i, 1);
+          continue;
+        }
+        if (this.debugGodMode) continue;
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
           this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.85);
@@ -4950,6 +5027,25 @@ window.GameApp = {
     }
 
     document.getElementById("hudLevelText").textContent = `Lv.${p.level}`;
+    const traitBadgeEl = document.getElementById("hudTraitBadge");
+    if (traitBadgeEl) {
+      if (p.innateTrait) {
+        const hasCrownShield = (p.id === 149 || p.id >= 144);
+        const shieldHtml = hasCrownShield
+          ? (p.multiscaleReady
+              ? `<span class="text-emerald-300 ml-0.5">[🛡️就緒]</span>`
+              : `<span class="text-slate-400 ml-0.5">[${Math.ceil(p.multiscaleTimer || 0)}s]</span>`)
+          : '';
+        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
+        if (this._lastTraitBadgeKey !== nextBadgeKey) {
+          this._lastTraitBadgeKey = nextBadgeKey;
+          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${shieldHtml}`;
+          traitBadgeEl.classList.remove("hidden");
+        }
+      } else {
+        traitBadgeEl.classList.add("hidden");
+      }
+    }
 
     // 2. 血條與經驗條（僅在血量區間變化時切換漸層背景）
     const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
