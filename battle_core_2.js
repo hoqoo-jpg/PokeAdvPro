@@ -739,6 +739,13 @@ window.GameApp = {
       dashTimer: 0,
       dashVx: 0,
       dashVy: 0,
+      lungeTimer: 0,
+      lungeMaxTime: 0.16,
+      lungeAngle: 0,
+      lungeDist: 0,
+      inputX: 0,
+      inputY: 0,
+      inputActive: false,
       recoilTimer: 0,
       recoilX: 0,
       recoilY: 0,
@@ -1118,6 +1125,9 @@ window.GameApp = {
     if (p.slamHopTimer > 0) {
       p.slamHopTimer = Math.max(0, p.slamHopTimer - dt);
     }
+    if (p.lungeTimer > 0) {
+      p.lungeTimer = Math.max(0, p.lungeTimer - dt);
+    }
 
     if (this.camera.shakeTime > 0) this.camera.shakeTime -= dt;
 
@@ -1149,6 +1159,9 @@ window.GameApp = {
     if (ilen > 0.05) {
       ix /= ilen;
       iy /= ilen;
+      p.inputX = ix;
+      p.inputY = iy;
+      p.inputActive = true;
       if (Math.abs(ix) > Math.abs(iy)) {
         p.facingX = ix >= 0 ? 1 : -1;
         p.facingY = 0;
@@ -1159,6 +1172,9 @@ window.GameApp = {
       }
       p.walkBob += dt * 12;
     } else {
+      p.inputX = 0;
+      p.inputY = 0;
+      p.inputActive = false;
       p.walkBob = 0;
     }
 	
@@ -1341,17 +1357,26 @@ window.GameApp = {
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
     if (p.dashTimer > 0) {
-      p.dashTimer = Math.max(0, p.dashTimer - dt);
-      p.x += (p.vx * 0.5 + (p.dashVx || 0)) * dt;
-      p.y += (p.vy * 0.5 + (p.dashVy || 0)) * dt;
+      // 若衝刺中途玩家突然將搖桿拉向反方向逃命，立即中斷物理衝刺，100% 歸還逃生控制權
+      const dashLen = Math.hypot(p.dashVx || 0, p.dashVy || 0) || 1;
+      const cosCancel = p.inputActive ? ((p.inputX * (p.dashVx || 0) + p.inputY * (p.dashVy || 0)) / dashLen) : 1;
+      if (p.inputActive && cosCancel < -0.10) {
+        p.dashTimer = 0;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+      } else {
+        p.dashTimer = Math.max(0, p.dashTimer - dt);
+        p.x += (p.vx * 0.75 + (p.dashVx || 0)) * dt;
+        p.y += (p.vy * 0.75 + (p.dashVy || 0)) * dt;
+      }
     } else {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
     }
 
-    // 速度強化藥水 (X Speed) 或 衝鋒微步 (Dash) 殘影軌跡記錄
+    // 速度強化藥水 (X Speed) 或 近戰前撲 (Dash / Lunge) 殘影軌跡記錄
     if (!p.speedTrails) p.speedTrails = [];
-    if ((p.xSpeedTimer > 0 && ilen > 0.05) || p.dashTimer > 0) {
+    if ((p.xSpeedTimer > 0 && ilen > 0.05) || p.dashTimer > 0 || p.lungeTimer > 0.06) {
       p._trailSampleTimer = (p._trailSampleTimer || 0) - dt;
       if (p._trailSampleTimer <= 0) {
         p._trailSampleTimer = p.dashTimer > 0 ? 0.035 : 0.055;
@@ -4192,25 +4217,33 @@ window.GameApp = {
       ctx.restore();
     }
 
-    // 計算遠程微後座力與地震重踏下壓位移 (純視覺表現，不影響物理碰撞座標)
+    // 計算近戰前撲 (Visual Lunge)、遠程微後座力與地震重踏下壓位移
     const recScale = (p.recoilTimer > 0) ? (p.recoilTimer / 0.11) : 0;
-    const visOffsetX = (p.recoilX || 0) * recScale;
+    const lungePhase = (p.lungeTimer > 0) ? Math.sin((1 - p.lungeTimer / (p.lungeMaxTime || 0.16)) * Math.PI) : 0;
+    const lungeOffsetX = Math.cos(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
+    const lungeOffsetY = Math.sin(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
+
+    const visOffsetX = (p.recoilX || 0) * recScale + lungeOffsetX;
     const slamProg = (p.slamHopTimer > 0) ? (1 - p.slamHopTimer / 0.24) : 0;
     const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.55 ? -Math.sin((slamProg / 0.55) * Math.PI) * 14 : Math.sin(((slamProg - 0.55) / 0.45) * Math.PI) * 5) : 0;
-    const visOffsetY = (p.recoilY || 0) * recScale + slamHopY;
+    const visOffsetY = (p.recoilY || 0) * recScale + slamHopY + lungeOffsetY;
+
+    // 衝撞前撲瞬間的擠壓拉伸形變 (Squash & Stretch：橫向拉伸 +16%、縱向壓低 -10%)
+    const stretchX = 1 + lungePhase * 0.16;
+    const squashY = 1 - lungePhase * 0.10;
 
     const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
     const pRec = SpriteCache.get(pSprUrl);
     if (pRec && pRec.loaded) {
       // 受傷無敵時間高頻半透明閃爍 (衝鋒微步期間保持實體高光不閃暗)
-      if (p.invulnTimer > 0 && !(p.dashTimer > 0)) {
+      if (p.invulnTimer > 0 && !(p.dashTimer > 0) && !(p.lungeTimer > 0)) {
         const blinkCycle = Math.floor(p.invulnTimer * 24) % 2;
         ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
       }
 
-      // 涉水時下沉 10px，並套用遠程後座力與地震重踏高度偏移
+      // 涉水時下沉 10px，並套用前撲、後座力與地震重踏高度偏移與拉伸形變
       ctx.translate(px + visOffsetX, py + visOffsetY - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
-      if (p.facingX > 0) ctx.scale(-1, 1);
+      ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
       if (p.isShiny) {
         ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";
       }

@@ -489,6 +489,28 @@ const SkillsEngine = {
     SoundFX.play("hit");
   },
 
+  // 方案 B 智慧近戰撲擊控制：靜止或順向進攻(夾角<65度)時觸發物理突進；逆向拉搖桿風箏逃跑時 0 物理拉扯，改為純視覺本體前撲形變！
+  triggerSmartMeleeLunge(caster, attackAngle, dashSpeed, dashDur, lungeVisualPx = 14, grantInvuln = 0) {
+    if (!caster || caster !== GameApp.player) return;
+    const cosDiff = (caster.inputX || 0) * Math.cos(attackAngle) + (caster.inputY || 0) * Math.sin(attackAngle);
+    const allowPhysicalDash = !caster.inputActive || GameApp.manualAimMode || cosDiff >= 0.42;
+
+    if (allowPhysicalDash && dashSpeed > 0) {
+      caster.dashVx = Math.cos(attackAngle) * dashSpeed;
+      caster.dashVy = Math.sin(attackAngle) * dashSpeed;
+      caster.dashTimer = dashDur;
+      if (grantInvuln > 0) {
+        caster.invulnTimer = Math.max(caster.invulnTimer || 0, grantInvuln);
+      }
+    }
+
+    // 無論物理順向突進或逆向風箏，皆賦予精靈本體「壓低前撲＋拉伸形變 (Squash & Stretch)」視覺張力
+    caster.lungeAngle = attackAngle;
+    caster.lungeDist = allowPhysicalDash ? lungeVisualPx * 0.68 : lungeVisualPx;
+    caster.lungeTimer = 0.16;
+    caster.lungeMaxTime = 0.16;
+  },
+
   executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg) {
     const style = meta.meleeStyle || "claw_slash";
     const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
@@ -541,79 +563,72 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 空手劈：剛猛「X 型白熾十字氣勁斬痕 + 8px 貼身連打滑步」
-      if (caster === GameApp.player) {
-        caster.dashVx = Math.cos(baseAngle) * 95;
-        caster.dashVy = Math.sin(baseAngle) * 95;
-        caster.dashTimer = 0.085;
-      }
+      // 空手劈：方案 B 智慧順向滑步 (逆向逃跑 0 拉扯) ＋ 貼身「X 型白熾十字氣勁斬痕」
+      this.triggerSmartMeleeLunge(caster, baseAngle, 95, 0.085, 10, 0);
       const reach = 90 * areaScale;
       const strikes = Math.min(3, 1 + Math.floor(level / 4));
       for (let s = 0; s < strikes; s++) {
         const fAng = baseAngle + (s - (strikes - 1) / 2) * 0.28;
-        const fx = caster.x + Math.cos(fAng) * (34 + reach * 0.52);
-        const fy = caster.y + Math.sin(fAng) * (34 + reach * 0.52);
+        const fx = caster.x + Math.cos(fAng) * (24 + reach * 0.42);
+        const fy = caster.y + Math.sin(fAng) * (24 + reach * 0.42);
         this.meleeEffects.push({
           style: "karate_cross",
           x: fx,
           y: fy,
           angle: fAng,
           radius: reach * 0.58,
-          timer: 0.26,
-          maxTime: 0.26,
+          timer: 0.24,
+          maxTime: 0.24,
           color: "#EF4444"
         });
-        GameApp.enemies.forEach(e => {
+        const hitCandidates = this.getEnemiesInRadius(fx, fy, reach * 0.62);
+        hitCandidates.forEach(e => {
           if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.62 + e.radius) {
             GameApp.dealDamageToEnemy(e, rawDmg * 1.25, meta.type, 0.30, kb * 1.35);
           }
         });
       }
-      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 34, caster.y + Math.sin(baseAngle) * 34, "#FFFFFF", "#FACC15", 10, "star", 1.0);
+      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 26, caster.y + Math.sin(baseAngle) * 26, "#FFFFFF", "#FACC15", 8, "star", 0.9);
       SoundFX.play("hit");
       return;
     }
 
-    // 1. 撞擊專屬：衝鋒微步 (Dash-in 24px 物理突進 + 0.20s 短暫衝鋒無敵幀) + 主角身前「破空音爆氣錐」
+    // 1. 撞擊專屬：方案 B 智慧順向衝鋒 ＋ 本體拉伸前撲 ＋ 緊貼頭頂「破空貼身氣罩 (Body-Locked Impact Shroud)」
     if (style === "slam_wave") {
-      if (caster === GameApp.player) {
-        caster.dashVx = Math.cos(baseAngle) * 175;
-        caster.dashVy = Math.sin(baseAngle) * 175;
-        caster.dashTimer = 0.14;
-        caster.invulnTimer = Math.max(caster.invulnTimer || 0, 0.20);
-      }
-      const fDist = 34 * areaScale;
+      this.triggerSmartMeleeLunge(caster, baseAngle, 175, 0.14, 15, 0.20);
+      const fDist = 26 * areaScale;
       const hitX = caster.x + Math.cos(baseAngle) * fDist;
       const hitY = caster.y + Math.sin(baseAngle) * fDist;
-      const rad = 48 * areaScale;
+      const rad = 50 * areaScale;
 
       this.meleeEffects.push({
         style: "sonic_cone",
-        ox: caster.x + Math.cos(baseAngle) * 26,
-        oy: caster.y + Math.sin(baseAngle) * 26,
+        casterRef: caster,
+        ox: caster.x + Math.cos(baseAngle) * 8,
+        oy: caster.y + Math.sin(baseAngle) * 8,
         x: hitX,
         y: hitY,
         angle: baseAngle,
         radius: rad,
-        timer: 0.22,
-        maxTime: 0.22,
+        timer: 0.20,
+        maxTime: 0.20,
         color: "#F8FAFC"
       });
 
-      // 輕量保留 3 顆極淡的微型菱形碎屑，保留反饋但尺寸僅 1.8px，絕不遮擋或混淆敵方飛行道具
-      for (let d = 0; d < 3; d++) {
-        const dAng = baseAngle + (Math.random() - 0.5) * 0.8;
-        const dSpd = 30 + Math.random() * 35;
-        this.spawnSubParticle(
-          hitX, hitY,
-          Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd,
-          "rgba(226, 232, 240, 0.45)", 1.8, 0.25, "diamond"
-        );
-      }
-
-      GameApp.enemies.forEach(e => {
+      const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
+      hitCandidates.forEach(e => {
         if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
           GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.20, kb);
+          // 命中敵人瞬間在怪獸身上炸開十字撞擊星花，強化肉體撞擊實感
+          this.meleeEffects.push({
+            style: "z_spark",
+            x: (e.x + caster.x) * 0.5,
+            y: (e.y + caster.y) * 0.5,
+            radius: 18,
+            timer: 0.16,
+            maxTime: 0.16,
+            color: "#FFFFFF"
+          });
           if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
             GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
           }
@@ -656,12 +671,11 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 龍之俯衝 (Dragon Rush)：釋放向前推進的多段蒼藍龍魂衝擊波 + 18px 龍威撲擊微步
+    // 3. 龍之俯衝 (Dragon Rush)：方案 B 智慧龍威撲擊 (含騰空飛撲小跳與 0.18s 霸體) ＋ 蒼藍/金焰龍首氣旋直接從胸前咆哮衝出
     if (meta.type === "Dragon") {
+      this.triggerSmartMeleeLunge(caster, baseAngle, 155, 0.12, 14, 0.18);
       if (caster === GameApp.player) {
-        caster.dashVx = Math.cos(baseAngle) * 150;
-        caster.dashVy = Math.sin(baseAngle) * 150;
-        caster.dashTimer = 0.12;
+        caster.slamHopTimer = 0.18;
       }
       const isDragonite = !!(caster && caster.id === 149);
       const dragonWaves = 1 + (level >= 6 ? 1 : 0) + (isDragonite ? 1 : 0);
@@ -670,21 +684,23 @@ const SkillsEngine = {
         this.groundHazards.push({
           kind: "dragon_wave",
           isDragoniteKing: isDragonite,
-          x: caster.x + Math.cos(ang) * 24,
-          y: caster.y + Math.sin(ang) * 24,
+          x: caster.x + Math.cos(ang) * 16,
+          y: caster.y + Math.sin(ang) * 16,
           vx: Math.cos(ang) * (isDragonite ? 290 : 260),
           vy: Math.sin(ang) * (isDragonite ? 290 : 260),
           angle: ang,
           radius: (isDragonite ? 58 : 42) * areaScale,
-          dmg: rawDmg * (isDragonite ? 0.68 : 0.55),
+          dmg: rawDmg * (isDragonite ? 0.72 : 0.60),
           type: "Dragon",
           timer: 0.68,
           maxTime: 0.68,
-          tickTimer: 0.02,
-          tickInterval: 0.16,
+          tickTimer: 0.01,
+          tickInterval: 0.15,
           color: isDragonite ? "#F59E0B" : "#4338CA"
         });
       }
+      SoundFX.play("hit");
+      return;
     }
 
     const maxReach = 105 * areaScale;
@@ -2433,14 +2449,20 @@ const SkillsEngine = {
       const osy = toSy(m.oy !== undefined ? m.oy : m.y);
 
       if (m.style === "sonic_cone") {
-        const curR = m.radius * (0.42 + prog * 0.68);
+        const cRef = m.casterRef;
+        const lungeProg = (cRef && cRef.lungeTimer > 0) ? Math.sin((1 - cRef.lungeTimer / (cRef.lungeMaxTime || 0.16)) * Math.PI) : 0;
+        const lx = cRef ? Math.cos(cRef.lungeAngle || 0) * (cRef.lungeDist || 0) * lungeProg : 0;
+        const ly = cRef ? Math.sin(cRef.lungeAngle || 0) * (cRef.lungeDist || 0) * lungeProg : 0;
+        const baseSx = cRef ? toSx(cRef.x) + lx : osx;
+        const baseSy = cRef ? toSy(cRef.y) + ly : osy;
+        const curR = m.radius * (0.48 + prog * 0.42);
         ctx.save();
-        ctx.translate(osx, osy + 8);
+        ctx.translate(baseSx, baseSy + 12);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog) * 0.45);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.55)";
+        ctx.globalAlpha = Math.max(0, (1 - prog) * 0.42);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.50)";
         ctx.beginPath();
-        ctx.ellipse(curR * 0.45, 0, curR * 0.52, curR * 0.36, 0, 0, Math.PI * 2);
+        ctx.ellipse(6, 0, curR * 0.46, curR * 0.28, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
         return;
@@ -3141,54 +3163,64 @@ const SkillsEngine = {
         });
         ctx.restore();
       } else if (m.style === "sonic_cone") {
-        // 【撞擊（Tackle）・3層動態推進音爆衝擊】：推進位移氣錐 ＋ 4道破風速度線 ＋ 雙層高壓新月波與音爆雲環
-        const osx = toSx(m.ox !== undefined ? m.ox : m.x);
-        const osy = toSy(m.oy !== undefined ? m.oy : m.y);
-        const curR = m.radius * (0.42 + prog * 0.68);
-        const thrustX = prog * 18;
+        // 【撞擊（Tackle）・一體化貼身破空衝鋒風罩】：動態鎖定精靈前撲本體，緊貼鼻尖包覆身體兩側，徹底消除空殼分離感！
+        const cRef = m.casterRef;
+        const lungeProg = (cRef && cRef.lungeTimer > 0) ? Math.sin((1 - cRef.lungeTimer / (cRef.lungeMaxTime || 0.16)) * Math.PI) : 0;
+        const lx = cRef ? Math.cos(cRef.lungeAngle || 0) * (cRef.lungeDist || 0) * lungeProg : 0;
+        const ly = cRef ? Math.sin(cRef.lungeAngle || 0) * (cRef.lungeDist || 0) * lungeProg : 0;
+        const baseSx = cRef ? toSx(cRef.x) + lx : toSx(m.ox !== undefined ? m.ox : m.x);
+        const baseSy = cRef ? toSy(cRef.y) + ly : toSy(m.oy !== undefined ? m.oy : m.y);
+        const shroudR = 26 + prog * 10;
+
         ctx.save();
-        ctx.translate(osx, osy);
+        ctx.translate(baseSx, baseSy);
         ctx.rotate(m.angle || 0);
 
-        // 1. 底層：4 條銳利破風速度線 (Speed Streaks)
-        ctx.strokeStyle = "rgba(226, 232, 240, 0.75)";
-        ctx.lineWidth = 2.0;
-        [-0.45, -0.18, 0.18, 0.45].forEach((yRatio, idx) => {
-          const syLine = curR * yRatio;
-          const sxStart = thrustX - 8 + (idx % 2) * 6;
+        // 1. 身體兩側向後掠起的破風流線羽翼 (Swept-back Slipstreams，從頭頂包覆至身後)
+        ctx.strokeStyle = "rgba(224, 242, 254, 0.82)";
+        ctx.lineWidth = 2.4 * (1 - prog * 0.35);
+        ctx.lineCap = "round";
+        [-1, 1].forEach(side => {
           ctx.beginPath();
-          ctx.moveTo(sxStart, syLine);
-          ctx.lineTo(sxStart + curR * 0.55, syLine);
+          ctx.moveTo(16, side * 6);
+          ctx.quadraticCurveTo(2, side * (shroudR * 0.85), -20 - prog * 8, side * (shroudR * 0.95));
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(254, 240, 138, 0.75)";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(12, side * 12);
+          ctx.lineTo(-14 - prog * 10, side * 18);
           ctx.stroke();
         });
 
-        // 2. 中層：後段壓縮橢圓音爆雲環 (Sonic Boom Ring)
-        ctx.strokeStyle = "#E2E8F0";
-        ctx.lineWidth = 3.4 * (1 - prog * 0.45);
+        // 2. 緊貼精靈鼻尖前緣 (僅 +6px) 的半透明貼身破空弧形風罩 (Mach Bow Shock)
+        const bowGrad = ctx.createRadialGradient(8, 0, 6, 8, 0, shroudR);
+        bowGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
+        bowGrad.addColorStop(0.55, "rgba(186, 230, 253, 0.35)");
+        bowGrad.addColorStop(0.88, "rgba(255, 255, 255, 0.92)");
+        bowGrad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+        ctx.fillStyle = bowGrad;
         ctx.beginPath();
-        ctx.ellipse(thrustX + curR * 0.28, 0, curR * 0.22, curR * 0.68, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // 3. 頂層：前方厚實雙層新月破空激波（銀藍底邊 + 純白熾亮前鋒）
-        ctx.fillStyle = "rgba(148, 163, 184, 0.45)";
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 3.0;
-        ctx.beginPath();
-        ctx.arc(thrustX + curR * 0.25, 0, curR * 0.78, -0.88, 0.88);
-        ctx.arc(thrustX + curR * 0.05, 0, curR * 0.62, 0.88, -0.88, true);
+        ctx.arc(4, 0, shroudR, -1.05, 1.05);
+        ctx.arc(-4, 0, shroudR * 0.72, 1.05, -1.05, true);
         ctx.closePath();
         ctx.fill();
+
+        // 風罩最前緣銳利純白高光刃線
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 3.0 * (1 - prog * 0.3);
+        ctx.beginPath();
+        ctx.arc(5, 0, shroudR * 0.96, -0.92, 0.92);
         ctx.stroke();
 
-        // 撞擊頂點十字爆裂高光星
-        if (prog > 0.25) {
-          const tipX = thrustX + curR * 1.02;
-          ctx.fillStyle = "#FFFFFF";
+        // 鼻尖破空閃光點
+        if (prog < 0.65) {
+          const tipX = 5 + shroudR * 0.98;
+          ctx.fillStyle = "#FEF08A";
           ctx.beginPath();
-          ctx.moveTo(tipX, -9); ctx.lineTo(tipX + 2.5, -2.5);
-          ctx.lineTo(tipX + 9, 0); ctx.lineTo(tipX + 2.5, 2.5);
-          ctx.lineTo(tipX, 9); ctx.lineTo(tipX - 2.5, 2.5);
-          ctx.lineTo(tipX - 9, 0); ctx.lineTo(tipX - 2.5, -2.5);
+          ctx.moveTo(tipX + 7, 0); ctx.lineTo(tipX, -3.5);
+          ctx.lineTo(tipX - 3, 0); ctx.lineTo(tipX, 3.5);
           ctx.closePath();
           ctx.fill();
         }
