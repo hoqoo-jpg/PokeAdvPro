@@ -489,26 +489,17 @@ const SkillsEngine = {
     SoundFX.play("hit");
   },
 
-  // 方案 B 智慧近戰撲擊控制：靜止或順向進攻(夾角<65度)時觸發物理突進；逆向拉搖桿風箏逃跑時 0 物理拉扯，改為純視覺本體前撲形變！
-  triggerSmartMeleeLunge(caster, attackAngle, dashSpeed, dashDur, lungeVisualPx = 14, grantInvuln = 0) {
+  // 方案 C 純視覺撲擊控制 (100% 零物理座標位移)：完全不改變角色物理 Hitbox 座標，精準控距零失誤，同時保留精靈立繪「閃電前撲＋擠壓拉伸形變 (Squash & Stretch)」與金色殘影！
+  triggerSmartMeleeLunge(caster, attackAngle, dashSpeed, dashDur, lungeVisualPx = 18, grantInvuln = 0) {
     if (!caster || caster !== GameApp.player) return;
-    const cosDiff = (caster.inputX || 0) * Math.cos(attackAngle) + (caster.inputY || 0) * Math.sin(attackAngle);
-    const allowPhysicalDash = !caster.inputActive || GameApp.manualAimMode || cosDiff >= 0.42;
+    caster.dashTimer = 0;
+    caster.dashVx = 0;
+    caster.dashVy = 0;
 
-    if (allowPhysicalDash && dashSpeed > 0) {
-      caster.dashVx = Math.cos(attackAngle) * dashSpeed;
-      caster.dashVy = Math.sin(attackAngle) * dashSpeed;
-      caster.dashTimer = dashDur;
-      if (grantInvuln > 0) {
-        caster.invulnTimer = Math.max(caster.invulnTimer || 0, grantInvuln);
-      }
-    }
-
-    // 無論物理順向突進或逆向風箏，皆賦予精靈本體「壓低前撲＋拉伸形變 (Squash & Stretch)」視覺張力
     caster.lungeAngle = attackAngle;
-    caster.lungeDist = allowPhysicalDash ? lungeVisualPx * 0.68 : lungeVisualPx;
-    caster.lungeTimer = 0.16;
-    caster.lungeMaxTime = 0.16;
+    caster.lungeDist = lungeVisualPx;
+    caster.lungeTimer = 0.17;
+    caster.lungeMaxTime = 0.17;
   },
 
   executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg) {
@@ -593,48 +584,70 @@ const SkillsEngine = {
       return;
     }
 
-    // 1. 撞擊專屬：方案 B 智慧順向衝鋒 ＋ 本體拉伸前撲 ＋ 緊貼頭頂「破空貼身氣罩 (Body-Locked Impact Shroud)」
+    // 1. 撞擊專屬：方案 C 零物理位移（純視覺 18px 閃電前撲彈回）＋ 高強度擊退 (20~27px) ＋ Lv.4 二段 / Lv.8 三段連環破空震波推進！
     if (style === "slam_wave") {
-      this.triggerSmartMeleeLunge(caster, baseAngle, 175, 0.14, 15, 0.20);
-      const fDist = 26 * areaScale;
-      const hitX = caster.x + Math.cos(baseAngle) * fDist;
-      const hitY = caster.y + Math.sin(baseAngle) * fDist;
-      const rad = 50 * areaScale;
+      const tackleAreaScale = GameApp.player.areaMult * (level >= 3 ? 1.20 : 1.0) * (level >= 8 ? 1.25 : 1.0);
+      const visualLungePx = 17 + (level >= 3 ? 3 : 0) + (level >= 8 ? 4 : 0);
+      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, visualLungePx, 0);
 
-      this.meleeEffects.push({
-        style: "sonic_cone",
-        casterRef: caster,
-        ox: caster.x + Math.cos(baseAngle) * 8,
-        oy: caster.y + Math.sin(baseAngle) * 8,
-        x: hitX,
-        y: hitY,
-        angle: baseAngle,
-        radius: rad,
-        timer: 0.20,
-        maxTime: 0.20,
-        color: "#F8FAFC"
-      });
+      const totalWaves = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0);
+      const effectiveKb = (kb || 20) * (level >= 6 ? 1.35 : 1.0);
+      const drainPct = level >= 6 ? 0.015 : 0.008;
 
-      const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
-      hitCandidates.forEach(e => {
-        if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
-          GameApp.dealDamageToEnemy(e, rawDmg, meta.type, 0.20, kb);
-          // 命中敵人瞬間在怪獸身上炸開十字撞擊星花，強化肉體撞擊實感
-          this.meleeEffects.push({
-            style: "z_spark",
-            x: (e.x + caster.x) * 0.5,
-            y: (e.y + caster.y) * 0.5,
-            radius: 18,
-            timer: 0.16,
-            maxTime: 0.16,
-            color: "#FFFFFF"
-          });
-          if (caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
-            GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * 0.008));
-          }
+      const fireTackleWave = (waveIdx) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const forwardStep = (28 + waveIdx * 24) * tackleAreaScale;
+        const hitX = caster.x + Math.cos(baseAngle) * forwardStep;
+        const hitY = caster.y + Math.sin(baseAngle) * forwardStep;
+        const rad = (52 + waveIdx * 10) * tackleAreaScale;
+        const waveDmg = rawDmg * (waveIdx === 0 ? 1.0 : (waveIdx === 1 ? 0.65 : 0.50));
+
+        if (waveIdx > 0 && caster === GameApp.player) {
+          this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, visualLungePx * 0.75, 0);
         }
-      });
-      SoundFX.play("hit");
+
+        this.meleeEffects.push({
+          style: "sonic_cone",
+          casterRef: waveIdx === 0 ? caster : null,
+          ox: caster.x + Math.cos(baseAngle) * (8 + waveIdx * 22),
+          oy: caster.y + Math.sin(baseAngle) * (8 + waveIdx * 22),
+          x: hitX,
+          y: hitY,
+          angle: baseAngle,
+          radius: rad,
+          waveIdx: waveIdx,
+          timer: 0.20,
+          maxTime: 0.20,
+          color: waveIdx === 0 ? "#F8FAFC" : (waveIdx === 1 ? "#BAE6FD" : "#FEF08A")
+        });
+
+        let healedThisWave = false;
+        const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
+        hitCandidates.forEach(e => {
+          if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
+            GameApp.dealDamageToEnemy(e, waveDmg, meta.type, 0.20, effectiveKb);
+            this.meleeEffects.push({
+              style: "z_spark",
+              x: (e.x + hitX) * 0.5,
+              y: (e.y + hitY) * 0.5,
+              radius: 18 + waveIdx * 3,
+              timer: 0.16,
+              maxTime: 0.16,
+              color: waveIdx >= 2 ? "#FEF08A" : "#FFFFFF"
+            });
+            if (!healedThisWave && caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
+              healedThisWave = true;
+              GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * drainPct));
+            }
+          }
+        });
+        SoundFX.play("hit");
+      };
+
+      fireTackleWave(0);
+      for (let w = 1; w < totalWaves; w++) {
+        setTimeout(() => fireTackleWave(w), w * 115);
+      }
       return;
     }
 

@@ -118,11 +118,11 @@ Ember: {
     evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
   },
   Tackle: {
-    id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 24, baseCd: 1.05, ultMinCd: 2.6, ultPowerBonus: 1.0,
-    knockback: 8, isMelee: true, meleeStyle: "slam_wave", reqItem: "silk_scarf",
+    id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 26, baseCd: 1.02, ultMinCd: 2.6, ultPowerBonus: 1.05,
+    knockback: 20, isMelee: true, meleeStyle: "slam_wave", reqItem: "silk_scarf",
     evolvedName: "終極衝擊", color: "#CBD5E1",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silk-scarf.png",
-    desc: "向身前施展猛烈衝撞，微幅擊退身周敵人。",
+    desc: "向身前猛烈撲擊並強力撞退敵群（零位移干擾走位），升級解鎖二段與三段連環破空震波！",
     evoDesc: "【終極超武】全屏金白衝擊狂濤，造成 400% 毀滅巨損！"
   },
   Flamethrower: {
@@ -191,7 +191,7 @@ Ember: {
   },
   KarateChop: {
     id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85, ultMinCd: 3.0, ultPowerBonus: 1.08,
-    knockback: 6, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
+    knockback: 14, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
     evolvedName: "爆裂十字劈", color: "#B91C1C",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
     desc: "高頻連續金色拳印，極微擊退，完美黏怪打滿連招。",
