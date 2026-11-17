@@ -190,12 +190,12 @@ Ember: {
     evoDesc: "【終極超武】全屏雙層地底深坑岩石爆裂，飛石對空重創飛行系並造成雙倍粉碎重擊！"
   },
   KarateChop: {
-    id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85, ultMinCd: 3.0, ultPowerBonus: 1.08,
+    id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85, ultMinCd: 3.0, ultPowerBonus: 1.15,
     knockback: 14, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
     evolvedName: "爆裂十字劈", color: "#B91C1C",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
-    desc: "高頻連續金色拳印，極微擊退，完美黏怪打滿連招。",
-    evoDesc: "【終極超武】向全方位轟出 10 道巨大氣勁武道金拳！"
+    desc: "高頻連續金色拳印，貼身壓制連打，升級增加揮拳數。",
+    evoDesc: "【終極超武】身周爆發阿修羅百裂拳網，並鎖定敵陣降下巨型白熾「X 十字天譴破甲斬」與 1.8s 武神霸體陣！"
   },
   AirSlash: {
     id: "Air Slash", name: "空氣斬", type: "Flying", baseDmg: 28, baseCd: 0.95, ultMinCd: 4.2, ultPowerBonus: 1.05,
@@ -1331,3 +1331,156 @@ const MART_SPECIAL_ITEMS = {
     desc: "【高階補給】立即隨機獲得一件對應當前已學招式的超武攜帶物！"
   }
 };
+
+
+// ============================================================================
+// 14. 寶可夢專屬種族被動特性系統 (Innate Passives - 8大核心流派 ＆ 三階進化成長)
+// ============================================================================
+const INNATE_TRAITS = {
+  heavy_slam: {
+    id: "heavy_slam",
+    name: "重量級霸體",
+    badgeColor: "#D97706",
+    icon: "fa-weight-hanging",
+    summary: (t) => `撞擊/地震範圍+${Math.round(18 * t)}%・擊退+${Math.round(30 * t)}%・近戰減傷${Math.round(10 * t)}%`
+  },
+  quick_attack: {
+    id: "quick_attack",
+    name: "電光疾行",
+    badgeColor: "#EAB308",
+    icon: "fa-bolt-lightning",
+    summary: (t) => `撞擊/風刃/電擊冷卻-${Math.round(10 * t)}%・前撲距離+25%・出招後輕巧加速`
+  },
+  iron_fist: {
+    id: "iron_fist",
+    name: "鐵拳宗師",
+    badgeColor: "#DC2626",
+    icon: "fa-hand-fist",
+    summary: (t) => `空手劈/近戰暴擊+${Math.round(8 * t)}%・拳風範圍+${Math.round(12 * t)}%${t >= 1.8 ? '・空手劈額外+1拳' : ''}`
+  },
+  mega_launcher: {
+    id: "mega_launcher",
+    name: "超級發射器",
+    badgeColor: "#0284C7",
+    icon: "fa-water",
+    summary: (t) => `水炮/水槍/冰光寬度+${Math.round(18 * t)}%・水冰擊退推阻+${Math.round(25 * t)}%`
+  },
+  overgrow_thorn: {
+    id: "overgrow_thorn",
+    name: "茂盛荊棘",
+    badgeColor: "#16A34A",
+    icon: "fa-seedling",
+    summary: (t) => `藤鞭/葉刀/種彈範圍+${Math.round(15 * t)}%・草毒招式吸血與回血效率+${Math.round(30 * t)}%`
+  },
+  dragon_maw: {
+    id: "dragon_maw",
+    name: "猛火龍威",
+    badgeColor: "#EA580C",
+    icon: "fa-fire-flame-curved",
+    summary: (t) => `火系/龍系範圍+${Math.round(15 * t)}%・對灼傷狀態敵人全傷害+${Math.round(15 * t)}%`
+  },
+  psychic_surge: {
+    id: "psychic_surge",
+    name: "超能共鳴",
+    badgeColor: "#9333EA",
+    icon: "fa-wand-sparkles",
+    summary: (t) => `念力/暗影穿透+${t >= 1.8 ? 2 : 1}・月光柱與毒沼持續+${Math.round(15 * t)}%・異常暴擊+12%`
+  },
+  legendary_pressure: {
+    id: "legendary_pressure",
+    name: "傳說王權",
+    badgeColor: "#DB2777",
+    icon: "fa-crown",
+    summary: () => `全招式範圍+25%・冷卻-12%・王權護盾破裂時爆發全屏屬性震退新星`
+  }
+};
+
+function getPokemonEvolutionTierScale(pokeData, currentLevel = 1) {
+  if (!pokeData) return { tier: 1, scale: 1.0, label: "一階" };
+  if (pokeData.id >= 144 && pokeData.id !== 147 && pokeData.id !== 148 && pokeData.id !== 149) {
+    return { tier: 3, scale: 2.0, label: "傳說王權" };
+  }
+  const hasParent = POKEMON_DB.some(parent => parent.evo_to === pokeData.id || ([134, 135, 136].includes(pokeData.id) && parent.id === 133));
+  const hasGrandParent = POKEMON_DB.some(parent => parent.evo_to === pokeData.id && POKEMON_DB.some(gp => gp.evo_to === parent.id));
+  if (hasGrandParent) return { tier: 3, scale: 2.0, label: "三階完全體" };
+  if (hasParent && !pokeData.evo_to) return { tier: 3, scale: 1.85, label: "最終完全體" };
+  if (hasParent && pokeData.evo_to) return { tier: 2, scale: 1.4, label: "二階進化" };
+  if (!hasParent && !pokeData.evo_to) {
+    return currentLevel >= 18
+      ? { tier: 3, scale: 1.9, label: "潛能突破" }
+      : { tier: 2, scale: 1.35, label: "單階精銳" };
+  }
+  return { tier: 1, scale: 1.0, label: "一階幼體" };
+}
+
+function getPokemonInnateTrait(pokeData, currentLevel = 1) {
+  if (!pokeData) pokeData = POKEMON_MAP.get(25);
+  const id = pokeData.id;
+  const tierInfo = getPokemonEvolutionTierScale(pokeData, currentLevel);
+  const t = tierInfo.scale;
+
+  let traitKey = "quick_attack";
+  // 1. 傳說五神獸
+  if ([144, 145, 146, 150, 151].includes(id)) {
+    traitKey = "legendary_pressure";
+  }
+  // 2. 重量級霸體代表 (卡比獸、小拳石家族、獨角犀牛家族、大岩蛇、袋獸、肯泰羅、大舌頭、吉利蛋、穿山鼠家族、卡拉卡拉家族、尼多王/后)
+  else if ([27, 28, 31, 34, 50, 51, 74, 75, 76, 95, 104, 105, 108, 111, 112, 113, 115, 128, 143].includes(id)) {
+    traitKey = "heavy_slam";
+  }
+  // 3. 鐵拳宗師代表 (腕力家族、猴怪家族、飛腿郎、快拳郎、蚊香泳士、凱羅斯、鐮刀盔、巨鉗蟹)
+  else if ([56, 57, 62, 66, 67, 68, 98, 99, 106, 107, 127, 140, 141].includes(id) || pokeData.type1 === "Fighting") {
+    traitKey = "iron_fist";
+  }
+  // 4. 電光疾行代表 (皮卡丘、雷丘、伊布、雷伊布、小拉達、波波家族、烈雀、喵喵、飛天螳螂、化石翼龍、霹靂電球、電擊獸、嘟嘟)
+  else if ([16, 17, 18, 19, 20, 21, 22, 25, 26, 52, 53, 83, 84, 85, 100, 101, 123, 125, 133, 135, 142].includes(id) || pokeData.type1 === "Electric") {
+    traitKey = "quick_attack";
+  }
+  // 5. 超級發射器代表 (傑尼龜家族、水伊布、墨海馬、可達鴨、拉普拉斯、暴鯉龍、海星星、小海獅、大舌貝、菊石獸等水/冰系)
+  else if (id === 134 || pokeData.type1 === "Water" || pokeData.type1 === "Ice" || pokeData.type2 === "Ice") {
+    traitKey = "mega_launcher";
+  }
+  // 6. 猛火龍威代表 (小火龍家族、火伊布、迷你龍家族、六尾、卡蒂狗、小火馬、鴨嘴火獸)
+  else if (id === 136 || pokeData.type1 === "Fire" || pokeData.type1 === "Dragon") {
+    traitKey = "dragon_maw";
+  }
+  // 7. 茂盛荊棘代表 (妙蛙種子家族、走路草、喇叭芽、派拉斯、蔓藤怪、蛋蛋、綠毛蟲、獨角蟲等草/蟲系)
+  else if (pokeData.type1 === "Grass" || pokeData.type1 === "Bug") {
+    traitKey = "overgrow_thorn";
+  }
+  // 8. 超能共鳴代表 (凱西家族、鬼斯家族、皮皮、胖丁、催眠貘、魔牆人偶、臭泥、瓦斯彈、阿柏蛇等超能/幽靈/毒系)
+  else if (pokeData.type1 === "Psychic" || pokeData.type1 === "Ghost" || pokeData.type1 === "Poison") {
+    traitKey = "psychic_surge";
+  }
+
+  const baseMeta = INNATE_TRAITS[traitKey] || INNATE_TRAITS.quick_attack;
+  return {
+    id: baseMeta.id,
+    name: baseMeta.name,
+    badgeColor: baseMeta.badgeColor,
+    icon: baseMeta.icon,
+    tier: tierInfo.tier,
+    tierLabel: tierInfo.label,
+    scale: t,
+    desc: baseMeta.summary(t),
+    // 具體物理與戰鬥調用數值 (加法安全邊界)
+    tackleQuakeAreaBonus: traitKey === "heavy_slam" ? 0.18 * t : (traitKey === "legendary_pressure" ? 0.25 : 0),
+    tackleQuakeKbBonus: traitKey === "heavy_slam" ? 0.30 * t : 0,
+    meleeDmgReduction: traitKey === "heavy_slam" ? 0.10 * t : 0,
+    quickAttackCdMult: traitKey === "quick_attack" ? (1 - 0.10 * t) : (traitKey === "legendary_pressure" ? 0.88 : 1.0),
+    quickAttackLungeBonus: traitKey === "quick_attack" ? 0.25 : 0,
+    ironFistCritBonus: traitKey === "iron_fist" ? 0.08 * t : 0,
+    ironFistAreaBonus: traitKey === "iron_fist" ? 0.12 * t : 0,
+    ironFistExtraStrike: (traitKey === "iron_fist" && t >= 1.8) ? 1 : 0,
+    megaLauncherSizeBonus: traitKey === "mega_launcher" ? 0.18 * t : 0,
+    megaLauncherKbBonus: traitKey === "mega_launcher" ? 0.25 * t : 0,
+    overgrowAreaBonus: traitKey === "overgrow_thorn" ? 0.15 * t : 0,
+    overgrowHealMult: traitKey === "overgrow_thorn" ? (1 + 0.30 * t) : 1.0,
+    dragonMawAreaBonus: traitKey === "dragon_maw" ? 0.15 * t : 0,
+    dragonMawBurnAmp: traitKey === "dragon_maw" ? 0.15 * t : 0,
+    psychicExtraPierce: traitKey === "psychic_surge" ? (t >= 1.8 ? 2 : 1) : 0,
+    psychicHazardDurMult: traitKey === "psychic_surge" ? (1 + 0.15 * t) : 1.0,
+    psychicStatusCritBonus: traitKey === "psychic_surge" ? 0.12 : 0,
+    legendaryAreaBonus: traitKey === "legendary_pressure" ? 0.25 : 0
+  };
+}

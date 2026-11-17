@@ -588,8 +588,12 @@ Object.assign(window.GameApp, {
             </div>
             <div class="text-[10px] font-bold text-slate-600 bg-slate-50 p-1.5 rounded-lg border border-slate-200 space-y-0.5">
               ${unlocked || seen
-                ? `<div class="flex justify-between"><span>HP:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispHp}</strong></span><span>ATK:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispAtk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
-                   <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}${starLv >= 3 ? ' (開局Lv.2)' : ''}</div>`
+                ? (() => {
+                    const trMeta = typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(p, 1) : null;
+                    return `<div class="flex justify-between"><span>HP:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispHp}</strong></span><span>ATK:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispAtk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
+                            <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}${starLv >= 3 ? ' (開局Lv.2)' : ''}</div>
+                            ${trMeta ? `<div class="text-[9px] font-black truncate px-1 py-0.2 rounded bg-amber-100/80 text-amber-900 border border-amber-300/80" title="${trMeta.desc}"><i class="fa-solid ${trMeta.icon} text-[8px] mr-0.5"></i>特性：【${trMeta.name}】</div>` : ''}`;
+                  })()
                 : `<div class="text-center text-slate-400 py-1 font-bold">需在野外遭遇登錄圖鑑</div>`
               }
             </div>
@@ -1586,7 +1590,20 @@ Object.assign(window.GameApp, {
         `;
       }).join("") : "";
 
-      dpsBox.innerHTML = `
+      const activeTrait = p && p.innateTrait ? p.innateTrait : (p && typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(p.data, p.level) : null);
+      const traitBannerHtml = activeTrait ? `
+        <div class="mt-2 pt-2 border-t border-slate-700/80">
+          <div class="bg-slate-900/95 border border-amber-500/60 rounded-xl p-2 flex flex-col gap-0.5">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="font-black text-amber-300 flex items-center gap-1"><i class="fa-solid ${activeTrait.icon}"></i> 種族特性：【${activeTrait.name}】</span>
+              <span class="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-200 font-pixel text-[8px]">${activeTrait.tierLabel}</span>
+            </div>
+            <div class="text-[10px] text-slate-300 font-bold leading-snug">${activeTrait.desc}</div>
+          </div>
+        </div>
+      ` : "";
+
+      dpsBox.innerHTML = traitBannerHtml + `
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
           <div class="text-[11px] font-black text-amber-300 mb-1.5 flex items-center gap-1">
             <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>

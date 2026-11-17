@@ -144,6 +144,11 @@ const SkillsEngine = {
       if (meta.type === "Dragon" && GameApp.player.heldItems["dragon_scale"]) heldItemMult *= 1.20;
     }
 
+    const trait = (caster === GameApp.player && GameApp.player.innateTrait)
+      ? GameApp.player.innateTrait
+      : (typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(caster.data, caster.level || 1) : {});
+    caster._activeTrait = trait;
+
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
     // 依據最新版，xAtkMod 在 battle_core_2 的 dealDamageToEnemy 結算，此處不重複乘算
     const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
@@ -238,7 +243,7 @@ const SkillsEngine = {
           angle: spreadAng,
           progress: 0,
           arcHeight: 68 + i * 8,
-          radius: (13 + level * 0.5) * GameApp.player.areaMult,
+          radius: (13 + level * 0.5) * GameApp.player.areaMult * (1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
           dmg: rawDmg * 1.15,
           type: "Grass",
           skillId: "Seed Bomb",
@@ -297,10 +302,10 @@ const SkillsEngine = {
           kind: "moon_pillar",
           x: px, y: py,
           vx: Math.cos(ang) * 105, vy: Math.sin(ang) * 105,
-          radius: (54 + level * 2.6) * GameApp.player.areaMult,
+          radius: (54 + level * 2.6) * GameApp.player.areaMult * (1 + (trait.legendaryAreaBonus || 0)),
           dmg: rawDmg * 0.56,
           type: "Psychic",
-          timer: 1.45, maxTime: 1.45,
+          timer: 1.45 * (trait.psychicHazardDurMult || 1.0), maxTime: 1.45 * (trait.psychicHazardDurMult || 1.0),
           tickTimer: 0.04, tickInterval: 0.30,
           color: "#F472B6"
         });
@@ -374,7 +379,7 @@ const SkillsEngine = {
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
             angle: ang,
-            radius: (15 + w * 4.5) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
+            radius: (15 + w * 4.5) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
             dmg: rawDmg * 0.62,
             type: "Fire",
             skillId,
@@ -424,6 +429,14 @@ const SkillsEngine = {
       const spawnY = caster.y + Math.sin(perpAng) * lateralOffset + Math.sin(ang) * forwardStagger;
 
       const isBoomerang = (cleanSkillId === "AirSlash");
+      const traitSizeMult = 1
+        + ((meta.type === "Water" || meta.type === "Ice") ? (trait.megaLauncherSizeBonus || 0) : 0)
+        + (meta.type === "Grass" ? (trait.overgrowAreaBonus || 0) : 0)
+        + (meta.type === "Fire" ? (trait.dragonMawAreaBonus || 0) : 0)
+        + (trait.legendaryAreaBonus || 0);
+      const traitKbMult = 1 + ((meta.type === "Water" || meta.type === "Ice") ? (trait.megaLauncherKbBonus || 0) : 0);
+      const traitPierceBonus = (meta.type === "Psychic" || meta.type === "Ghost") ? (trait.psychicExtraPierce || 0) : 0;
+
       this.projectiles.push({
         x: spawnX,
         y: spawnY,
@@ -434,15 +447,15 @@ const SkillsEngine = {
         casterRef: caster,
         isBoomerang,
         returning: false,
-        radius: (cleanSkillId === "HydroPump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0),
+        radius: (cleanSkillId === "HydroPump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * traitSizeMult,
         dmg: isBoomerang ? rawDmg * 0.72 : rawDmg,
         type: meta.type,
         skillId,
         vfx: meta.vfx || "star_shot",
         homing: isHoming,
         color: meta.color,
-        pierce: isBoomerang ? (level >= 6 ? 6 : 4) : ((level >= 6 ? 3 : 2) + (cleanSkillId === "IceBeam" ? 1 : 0)),
-        knockback: meta.knockback !== undefined ? meta.knockback : 0,
+        pierce: (isBoomerang ? (level >= 6 ? 6 : 4) : ((level >= 6 ? 3 : 2) + (cleanSkillId === "IceBeam" ? 1 : 0))) + traitPierceBonus,
+        knockback: (meta.knockback !== undefined ? meta.knockback : 0) * traitKbMult,
         life: isBoomerang ? 1.25 : 0.88,
         maxLife: isBoomerang ? 1.25 : 0.88,
         statusBonus: level >= 5 ? 0.30 : 0,
@@ -503,14 +516,18 @@ const SkillsEngine = {
   },
 
   executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg) {
+    const trait = caster._activeTrait || ((caster === GameApp.player && GameApp.player.innateTrait) ? GameApp.player.innateTrait : {});
+    if (caster === GameApp.player && trait.id === "quick_attack") {
+      caster.quickStepTimer = 1.1; // 電光疾行：施展近戰後獲得 1.1 秒 +15% 輕巧步伐加速
+    }
     const style = meta.meleeStyle || "claw_slash";
-    const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0);
+    const areaScale = GameApp.player.areaMult * (level >= 3 ? 1.15 : 1.0) * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.legendaryAreaBonus || 0));
     const kb = meta.knockback !== undefined ? meta.knockback : 8;
 
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "vine_whip") {
       const whipCount = 1 + (level >= 5 ? 1 : 0);
-      const reach = (135 + level * 7) * areaScale;
+      const reach = (135 + level * 7) * areaScale * (1 + (trait.overgrowAreaBonus || 0));
       const perp = baseAngle + Math.PI / 2;
       for (let w = 0; w < whipCount; w++) {
         const spread = (w - (whipCount - 1) / 2) * 0.30;
@@ -554,10 +571,10 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 空手劈：方案 B 智慧順向滑步 (逆向逃跑 0 拉扯) ＋ 貼身「X 型白熾十字氣勁斬痕」
-      this.triggerSmartMeleeLunge(caster, baseAngle, 95, 0.085, 10, 0);
-      const reach = 90 * areaScale;
-      const strikes = Math.min(3, 1 + Math.floor(level / 4));
+      // 空手劈：方案 C 零物理位移 ＋ 鐵拳宗師特性加成 (範圍擴大 + 滿階額外多揮 1 道氣勁拳印)
+      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 12, 0);
+      const reach = 90 * areaScale * (1 + (trait.ironFistAreaBonus || 0));
+      const strikes = Math.min(4, 1 + Math.floor(level / 4) + (trait.ironFistExtraStrike || 0));
       for (let s = 0; s < strikes; s++) {
         const fAng = baseAngle + (s - (strikes - 1) / 2) * 0.28;
         const fx = caster.x + Math.cos(fAng) * (24 + reach * 0.42);
@@ -584,14 +601,14 @@ const SkillsEngine = {
       return;
     }
 
-    // 1. 撞擊專屬：方案 C 零物理位移（純視覺 18px 閃電前撲彈回）＋ 高強度擊退 (20~27px) ＋ Lv.4 二段 / Lv.8 三段連環破空震波推進！
+    // 1. 撞擊專屬：方案 C 零物理位移 ＋ 重量級霸體/電光疾行特性加成 ＋ Lv.4 二段 / Lv.8 三段連環破空震波推進！
     if (style === "slam_wave") {
-      const tackleAreaScale = GameApp.player.areaMult * (level >= 3 ? 1.20 : 1.0) * (level >= 8 ? 1.25 : 1.0);
-      const visualLungePx = 17 + (level >= 3 ? 3 : 0) + (level >= 8 ? 4 : 0);
+      const tackleAreaScale = GameApp.player.areaMult * (level >= 3 ? 1.20 : 1.0) * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0));
+      const visualLungePx = (17 + (level >= 3 ? 3 : 0) + (level >= 8 ? 4 : 0)) * (1 + (trait.quickAttackLungeBonus || 0));
       this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, visualLungePx, 0);
 
       const totalWaves = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0);
-      const effectiveKb = (kb || 20) * (level >= 6 ? 1.35 : 1.0);
+      const effectiveKb = (kb || 20) * (level >= 6 ? 1.35 : 1.0) * (1 + (trait.tackleQuakeKbBonus || 0));
       const drainPct = level >= 6 ? 0.015 : 0.008;
 
       const fireTackleWave = (waveIdx) => {
@@ -651,14 +668,15 @@ const SkillsEngine = {
       return;
     }
 
-    // 2. 地震專屬：原地重踏起跳下壓感 (Slam Hop) + 大範圍環形地裂
+    // 2. 地震專屬：原地重踏起跳下壓感 (Slam Hop) + 大範圍環形地裂 (支援【重量級霸體】範圍與擊退強化)
     if (style === "quake_wave") {
       if (caster === GameApp.player) {
         caster.slamHopTimer = 0.24;
         GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.14);
         GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 3.5);
       }
-      const rad = (85 + level * 4) * areaScale;
+      const rad = (85 + level * 4) * areaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
+      const quakeKb = kb * (1 + (trait.tackleQuakeKbBonus || 0));
       this.meleeEffects.push({
         style,
         casterRef: caster,
@@ -667,7 +685,7 @@ const SkillsEngine = {
         radius: rad,
         dmg: rawDmg,
         type: meta.type,
-        kb: kb,
+        kb: quakeKb,
         hitSet: new Set(),
         timer: 0.50,
         maxTime: 0.50,
@@ -702,7 +720,7 @@ const SkillsEngine = {
           vx: Math.cos(ang) * (isDragonite ? 290 : 260),
           vy: Math.sin(ang) * (isDragonite ? 290 : 260),
           angle: ang,
-          radius: (isDragonite ? 58 : 42) * areaScale,
+          radius: (isDragonite ? 58 : 42) * areaScale * (1 + (trait.dragonMawAreaBonus || 0)),
           dmg: rawDmg * (isDragonite ? 0.72 : 0.60),
           type: "Dragon",
           timer: 0.68,
@@ -780,6 +798,7 @@ const SkillsEngine = {
       Poison: "toxic_swamp",
       Ice: "ice_shatter_domain",
       Ground: "quake_fissure",
+      Fighting: "martial_aura_domain",
       Ghost: "gengar_grin_domain",
       Psychic: meta.id === "Moonblast" ? "genesis_aurora" : "psychic_blackhole"
     };
@@ -916,28 +935,74 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Fighting") {
-      // 【爆裂十字劈】：底層展開赤金武神鬥氣震波陣 ＋ 10 道寬幅螺旋推進的立體指節金紅重拳
+      // 【爆裂十字劈（武神阿修羅破）・三階段進化重製】：
+      // 階段 1：隨身 1.8 秒赤金武神霸體陣（賦予主角 +20% 暴擊與 30% 減傷，高頻震退貼身敵群）
+      p.martialGodTimer = 1.80;
       this.groundHazards.push({
         kind: "martial_aura_domain",
         x: p.x, y: p.y,
-        radius: 195 * p.areaMult,
-        dmg: ultDmg * 0.25,
+        followPlayer: true,
+        radius: 215 * p.areaMult,
+        dmg: ultDmg * 0.34,
         type: "Fighting",
-        timer: 0.85, maxTime: 0.85,
-        tickTimer: 0.12, tickInterval: 0.40,
+        timer: 1.80, maxTime: 1.80,
+        tickTimer: 0.06, tickInterval: 0.28,
         color: "#DC2626"
       });
-      for (let i = 0; i < 10; i++) {
-        const ang = (i * Math.PI * 2) / 10;
+
+      // 階段 2：阿修羅百裂拳網（12 道螺旋金紅重拳護體掃除四周）
+      for (let i = 0; i < 12; i++) {
+        const ang = (i * Math.PI * 2) / 12;
         this.projectiles.push({
-          x: p.x + Math.cos(ang) * 26, y: p.y + Math.sin(ang) * 26,
-          vx: Math.cos(ang) * 290, vy: Math.sin(ang) * 290,
-          angle: ang, spinSpeed: (i % 2 === 0 ? 0.95 : -0.95),
-          radius: 27, dmg: ultDmg * 0.65,
+          x: p.x + Math.cos(ang) * 24, y: p.y + Math.sin(ang) * 24,
+          vx: Math.cos(ang) * 310, vy: Math.sin(ang) * 310,
+          angle: ang, spinSpeed: (i % 2 === 0 ? 1.05 : -1.05),
+          radius: 28 * p.areaMult, dmg: ultDmg * 0.68,
           type: "Fighting", skillId: "Karate Chop", vfx: "giant_fist",
-          color: "#DC2626", pierce: 12, knockback: 18, life: 1.35, statusBonus: 0.4, hitSet: new Set(), trailTimer: 0
+          color: "#DC2626", pierce: 14, knockback: 24, life: 1.35, statusBonus: 0.45, hitSet: new Set(), trailTimer: 0
         });
       }
+
+      // 階段 3：巨型白熾「X 十字天譴破甲斬」（鎖定視野內最高血量頭目或最密集怪群中心，降下橫跨 320px 的巨型十字裂地斬，交叉心 1.5x 破甲暴擊並震懾麻痺 1.5s！）
+      const crossTarget = GameApp.findPriorityTargetInViewport
+        ? (GameApp.findPriorityTargetInViewport(p.x, p.y, 320, "highest_hp") || GameApp.findPriorityTargetInViewport(p.x, p.y, 320, "cluster"))
+        : GameApp.findNearestEnemyInViewport(p.x, p.y, 300);
+      const cx = crossTarget ? crossTarget.x : (p.x + (p.facingX >= 0 ? 95 : -95));
+      const cy = crossTarget ? crossTarget.y : p.y;
+      const armLen = 185 * p.areaMult;
+
+      this.groundHazards.push({
+        kind: "cross_chop_cleave",
+        x: cx, y: cy,
+        radius: armLen,
+        dmg: ultDmg * 0.55,
+        type: "Fighting",
+        timer: 0.95, maxTime: 0.95,
+        tickTimer: 0.18, tickInterval: 0.35,
+        color: "#FACC15"
+      });
+
+      // 十字斬瞬發破甲裁決判定
+      const crossCandidates = this.getEnemiesInRadius(cx, cy, armLen);
+      crossCandidates.forEach(e => {
+        const dx = e.x - cx, dy = e.y - cy;
+        const d = Math.hypot(dx, dy);
+        if (d <= armLen + e.radius) {
+          // 檢查是否位於 X 十字對角斬擊帶上或中心破甲核心 (75px)
+          const diag1 = Math.abs(dx - dy) * 0.707;
+          const diag2 = Math.abs(dx + dy) * 0.707;
+          const inCore = d <= 78 * p.areaMult + e.radius;
+          if (inCore || diag1 <= 42 * p.areaMult + e.radius || diag2 <= 42 * p.areaMult + e.radius) {
+            const armorBreakMult = inCore ? 1.45 : 1.15;
+            GameApp.dealDamageToEnemy(e, ultDmg * armorBreakMult, "Fighting", 0.65, 28);
+            if (!e.status && !(e.ccImmunityTimer > 0)) {
+              e.status = "Paralysis";
+              e.statusTimer = e.isBoss ? 1.2 : 2.0;
+              e.ccImmunityTimer = e.isBoss ? 3.5 : 2.2;
+            }
+          }
+        }
+      });
     } else if (meta.type === "Flying") {
       // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（持續 3.1s，配合 4.2s 保底冷卻絕不疊出 6 道龍捲風）
       for (let i = 0; i < 3; i++) {
@@ -1103,7 +1168,8 @@ const SkillsEngine = {
     });
 
     if (meta.type === "Grass") {
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.08));
+      const healMult = (p.innateTrait && p.innateTrait.overgrowHealMult) ? p.innateTrait.overgrowHealMult : 1.0;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.08 * healMult));
     }
   },
 
@@ -1491,6 +1557,56 @@ const SkillsEngine = {
             }
           }
         });
+      } else if (hz.kind === "cross_chop_cleave") {
+        // 【爆裂十字劈・高空巨型白熾 X 十字天譴破甲斬（空中層）】
+        ctx.translate(sx, sy);
+        const alpha = Math.min(1, hz.timer * 1.45);
+        ctx.globalAlpha = alpha;
+        const arm = hz.radius * Math.min(1, prog * 3.2);
+
+        [-Math.PI / 4, Math.PI / 4].forEach(rot => {
+          ctx.save();
+          ctx.rotate(rot);
+          // 耀金氣勁主刃
+          ctx.fillStyle = "#FACC15";
+          ctx.strokeStyle = "#991B1B";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.moveTo(-arm, 0);
+          ctx.quadraticCurveTo(0, -18 * (1 - prog * 0.3), arm, 0);
+          ctx.quadraticCurveTo(0, 18 * (1 - prog * 0.3), -arm, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 純白熾熱核心劍脊
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, arm * 0.85, 5.5 * (1 - prog * 0.4), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // 十字交叉中心破甲震爆核心環与八芒星
+        const coreR = (38 + Math.sin(now * 14) * 6) * (1 - prog * 0.3);
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, coreR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        for (let s = 0; s < 8; s++) {
+          const a = (s * Math.PI) / 4 + prog * 0.8;
+          const rOut = s % 2 === 0 ? coreR * 1.25 : coreR * 0.55;
+          const rIn = coreR * 0.22;
+          if (s === 0) ctx.moveTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+          else ctx.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut);
+          ctx.lineTo(Math.cos(a + Math.PI / 8) * rIn, Math.sin(a + Math.PI / 8) * rIn);
+        }
+        ctx.closePath();
+        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
@@ -2000,11 +2116,34 @@ const SkillsEngine = {
           ctx.stroke();
         });
         ctx.restore();
+      } else if (hz.kind === "cross_chop_cleave") {
+        // 【爆裂十字劈・巨型白熾 X 十字天譴裂地痕（底層）】
+        ctx.translate(sx, sy);
+        const alpha = Math.min(1, hz.timer * 1.5);
+        ctx.globalAlpha = alpha;
+        const arm = hz.radius * Math.min(1, prog * 3.2);
+
+        [-Math.PI / 4, Math.PI / 4].forEach(rot => {
+          ctx.save();
+          ctx.rotate(rot);
+          // 焦黑裂地深溝
+          ctx.fillStyle = "rgba(69, 10, 10, 0.78)";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, arm, 22 * (1 - prog * 0.35), 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 赤紅熔岩武道氣焰外框
+          ctx.fillStyle = "#DC2626";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, arm * 0.94, 14 * (1 - prog * 0.35), 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
       } else if (hz.kind === "martial_aura_domain") {
         // 【爆裂十字劈・底層武神八卦氣浪陣】：赤金雙層震地氣環 ＋ 十字裂地氣勁
         ctx.translate(sx, sy);
-        const alpha = Math.max(0, hz.timer / hz.maxTime);
-        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
+        const alpha = Math.min(1, hz.timer * 1.2);
+        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.8));
         ctx.globalAlpha = alpha;
 
         const mGrad = ctx.createRadialGradient(0, 0, 26, 0, 0, curR);

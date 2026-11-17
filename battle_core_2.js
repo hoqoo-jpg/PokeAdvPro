@@ -750,6 +750,9 @@ window.GameApp = {
       recoilX: 0,
       recoilY: 0,
       slamHopTimer: 0,
+      quickStepTimer: 0,
+      martialGodTimer: 0,
+      innateTrait: typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(basePoke, 1) : null,
       speedTrails: []
     };
 
@@ -1128,6 +1131,12 @@ window.GameApp = {
     if (p.lungeTimer > 0) {
       p.lungeTimer = Math.max(0, p.lungeTimer - dt);
     }
+    if (p.quickStepTimer > 0) {
+      p.quickStepTimer = Math.max(0, p.quickStepTimer - dt);
+    }
+    if (p.martialGodTimer > 0) {
+      p.martialGodTimer = Math.max(0, p.martialGodTimer - dt);
+    }
 
     if (this.camera.shakeTime > 0) this.camera.shakeTime -= dt;
 
@@ -1202,7 +1211,8 @@ window.GameApp = {
     // 【攜帶物：奇蹟種子】常駐光合作用回血 (0.8%/s)，處於草叢/淺灘/超能陣等特殊地形時提升至 1.8%/s，並每 1.2 秒跳出綠字與嫩葉粒子
     if (p.heldItems && p.heldItems["miracle_seed"] && p.hp < p.maxHp) {
       const inSpecialZone = !!(terrain.inWater || (terrain.label && (terrain.label.includes("草叢") || terrain.label.includes("重力陣"))));
-      const healRate = inSpecialZone ? 0.018 : 0.008;
+      const overgrowMult = (p.innateTrait && p.innateTrait.overgrowHealMult) ? p.innateTrait.overgrowHealMult : 1.0;
+      const healRate = (inSpecialZone ? 0.018 : 0.008) * overgrowMult;
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * healRate * dt);
       p.miracleSeedTick = (p.miracleSeedTick || 0) - dt;
       if (p.miracleSeedTick <= 0) {
@@ -1350,7 +1360,8 @@ window.GameApp = {
     const finalTerrainSpd = (hasSharpBeak && terrain.speedMult < 1.0)
       ? 1.0
       : ((p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult);
-    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod;
+    const quickStepMod = (p.quickStepTimer > 0) ? 1.15 : 1.0;
+    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod;
     // 主角速度軟上限 180 px/s，確保微操靈敏但避免中後期無腦風箏
     const moveSpd = Math.min(180, rawMoveSpd);
 
@@ -1570,7 +1581,11 @@ window.GameApp = {
           }
           SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
           const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
-          skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * cdFactor);
+          const isQuickSkill = ["Tackle", "AirSlash", "Air Slash", "Thunderbolt"].includes(skSlot.id);
+          const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
+            ? (p.innateTrait.quickAttackCdMult || 1.0)
+            : 1.0;
+          skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
           p.castStaggerTimer = 0.085;
         }
       }
@@ -2430,8 +2445,26 @@ window.GameApp = {
           p.multiscaleReady = false;
           p.multiscaleTimer = 10.0;
           p.invulnTimer = 0.55;
-          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#38BDF8", 16, "star", 0.9);
-          this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
+          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#38BDF8", 18, "star", 1.0);
+          if (p.innateTrait && p.innateTrait.id === "legendary_pressure") {
+            SkillsEngine.meleeEffects.push({
+              style: "slam_wave",
+              x: p.x, y: p.y,
+              radius: 170, timer: 0.38, maxTime: 0.38,
+              color: "#F472B6"
+            });
+            this.enemies.forEach(en => {
+              if (!en.isBoss && Math.hypot(en.x - p.x, en.y - p.y) <= 175) {
+                const a = Math.atan2(en.y - p.y, en.x - p.x);
+                en.x += Math.cos(a) * 85;
+                en.y += Math.sin(a) * 85;
+                this.dealDamageToEnemy(en, p.baseAtk * 1.1 * p.dmgMult, p.data.type1 || "Psychic", 0.50, 20);
+              }
+            });
+            this.spawnFloatingText(p.x, p.y - 26, "👑 傳說王權：護盾反震新星!", "#F472B6", 14);
+          } else {
+            this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
+          }
           continue;
         }
         // 【攜帶物：柔軟沙子】受到近戰攻擊時 25% 機率揚起沙塵使怪獸失誤！
@@ -2442,7 +2475,9 @@ window.GameApp = {
           continue;
         }
 
-        const armorMult = 1 - (p.finalEvoArmor || 0);
+        const traitMeleeRed = (p.innateTrait && p.innateTrait.meleeDmgReduction) ? (1 - p.innateTrait.meleeDmgReduction) : 1.0;
+        const martialGodRed = (p.martialGodTimer > 0) ? 0.70 : 1.0;
+        const armorMult = (1 - (p.finalEvoArmor || 0)) * traitMeleeRed * martialGodRed;
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
         const burnMod = (e.status === "Burn" ? 0.72 : 1.0) * (e.weakenTimer > 0 ? 0.65 : 1.0);
@@ -2788,13 +2823,18 @@ window.GameApp = {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const psychicCritBonus = (MapEngine.weather === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) ? 0.15 : 0;
     // 【攜帶物：毒針】對處於中毒狀態的敵人額外暴擊率 +25%
+    const pTrait = (this.player && this.player.innateTrait) ? this.player.innateTrait : {};
+    const ironFistCrit = (["Fighting", "Normal", "Ground", "Rock"].includes(moveType)) ? (pTrait.ironFistCritBonus || 0) : 0;
+    const psySurgeCrit = ((enemy.status === "Poison" || enemy.status === "Confusion") && pTrait.psychicStatusCritBonus) ? pTrait.psychicStatusCritBonus : 0;
+    const martialGodCrit = (this.player.martialGodTimer > 0) ? 0.20 : 0;
     const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
     const dualSuperCritBonus = Object.values(this.player.skills || {}).filter(s => s.evolved).length >= 2 ? 0.08 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus);
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit);
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
     const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
     const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
-    let finalDmg = Math.round(rawDmg * eff * critMult * xAtkMod);
+    const dragonMawMod = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? (1 + pTrait.dragonMawBurnAmp) : 1.0;
+    let finalDmg = Math.round(rawDmg * eff * critMult * xAtkMod * dragonMawMod);
     if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
 
     enemy.hp -= finalDmg;
@@ -3204,6 +3244,9 @@ window.GameApp = {
       } else if (!p.data.evo_to && p.id < 144 && p.level === 18 && !p.singleStageAwakened) {
         // 單一階無進化精靈（卡比獸、拉普拉斯、飛天螳螂等）Lv.18 潛能突破覺醒
         p.singleStageAwakened = true;
+        if (typeof getPokemonInnateTrait === "function") {
+          p.innateTrait = getPokemonInnateTrait(p.data, p.level);
+        }
         p.maxHp = Math.round(p.maxHp * 1.35);
         p.hp = p.maxHp;
         p.dmgMult *= 1.15;
@@ -3285,6 +3328,9 @@ window.GameApp = {
     const starMult = p.starMult || 1.0;
     p.baseAtk = nextData.atk * (p.isShiny ? 1.2 : 1.0) * starMult;
     p.baseSpeed = nextData.speed;
+    if (typeof getPokemonInnateTrait === "function") {
+      p.innateTrait = getPokemonInnateTrait(nextData, p.level);
+    }
 
     // 同步合併新形態的天生招式池（例如噴火龍解鎖空氣斬 AirSlash）
     if (typeof getNaturalSkillsForPokemon === "function") {
@@ -3304,9 +3350,10 @@ window.GameApp = {
 
     SoundFX.play("levelup");
     this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 44, "star", 1.5);
+    const traitLabel = p.innateTrait ? ` ‧ 特性【${p.innateTrait.name}】進階強化！` : "！";
     const evoBannerSub = isFinalForm
-      ? `【最終完全體覺醒】HP上限提升至 ${p.maxHp}、全傷+18%、範圍+10% 並獲 12% 霸體減傷！`
-      : `生命上限提升至 ${p.maxHp}、全傷+12% 並立即回滿狀態！`;
+      ? `【最終完全體覺醒】HP上限 ${p.maxHp}、全傷+18%、12%霸體${traitLabel}`
+      : `生命上限提升至 ${p.maxHp}、全傷+12% 並回滿狀態${traitLabel}`;
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, evoBannerSub, 3400);
   },
 
