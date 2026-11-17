@@ -458,7 +458,7 @@ Object.assign(window.GameApp, {
           <div>
             <div class="flex items-center gap-3 mb-2">
               <div class="w-13 h-13 rounded-2xl bg-amber-50 border-2 border-slate-800 flex items-center justify-center shrink-0">
-                <img src="${t.sprite}" class="w-11 h-11 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="${t.name}" />
+                <img src="${t.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-11 h-11 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="${t.name}" />
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-1">
@@ -928,7 +928,7 @@ Object.assign(window.GameApp, {
     } else {
       const t = TRAINERS.find(x => x.id === id);
       document.getElementById("unlockModalHeaderTitle").textContent = "隨行訓練家解鎖確認";
-      document.getElementById("unlockConfirmFrontImg").src = t.sprite;
+      const uFront = document.getElementById("unlockConfirmFrontImg"); uFront.onerror = function(){this.onerror=null;this.src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png";}; uFront.src = t.sprite;
       document.getElementById("unlockBackCol").classList.add("hidden");
       document.getElementById("unlockConfirmName").textContent = t.name;
       document.getElementById("unlockConfirmTypes").innerHTML = `<span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-black rounded-full">${t.title}</span>`;
