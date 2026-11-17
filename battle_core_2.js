@@ -1102,49 +1102,6 @@ window.GameApp = {
         p.trainerSkillCd = p.trainerSkillMaxCd;
       }
     }
-    // 繪製【傳說王權 / 多重鱗片】六角星冕護盾圈與充能進度環
-    if (p.id === 149 || p.id >= 144) {
-      if (p.multiscaleReady) {
-        const crownNow = performance.now() * 0.0035;
-        const isLegend = p.id >= 144 && p.id !== 149;
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(crownNow);
-        ctx.strokeStyle = isLegend ? "rgba(244, 114, 182, 0.88)" : "rgba(250, 204, 21, 0.85)";
-        ctx.fillStyle = isLegend ? "rgba(244, 114, 182, 0.10)" : "rgba(250, 204, 21, 0.08)";
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        for (let k = 0; k < 6; k++) {
-          const a = (k * Math.PI) / 3;
-          const rx = Math.cos(a) * 31, ry = Math.sin(a) * 31;
-          if (k === 0) ctx.moveTo(rx, ry);
-          else ctx.lineTo(rx, ry);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // 護盾頂點星芒小點
-        ctx.fillStyle = "#FEF08A";
-        for (let k = 0; k < 3; k++) {
-          const a = (k * Math.PI * 2) / 3;
-          ctx.beginPath();
-          ctx.arc(Math.cos(a) * 31, Math.sin(a) * 31, 2.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      } else {
-        const chargePct = Math.max(0, 1 - (p.multiscaleTimer || 0) / 10.0);
-        ctx.save();
-        ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.arc(px, py + 14, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct, false);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
     if (p.shieldTimer > 0) {
       p.shieldTimer -= dt;
       if (p.shieldTimer <= 0) {
@@ -4268,6 +4225,49 @@ window.GameApp = {
       ctx.fill();
       ctx.stroke();
       ctx.restore();
+    }
+
+    // 繪製【傳說王權 / 多重鱗片】六角星冕護盾圈與充能進度環
+    if (p.id === 149 || p.id >= 144) {
+      if (p.multiscaleReady) {
+        const crownNow = performance.now() * 0.0035;
+        const isLegend = p.id >= 144 && p.id !== 149;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(crownNow);
+        ctx.strokeStyle = isLegend ? "rgba(244, 114, 182, 0.88)" : "rgba(250, 204, 21, 0.85)";
+        ctx.fillStyle = isLegend ? "rgba(244, 114, 182, 0.10)" : "rgba(250, 204, 21, 0.08)";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          const rx = Math.cos(a) * 31, ry = Math.sin(a) * 31;
+          if (k === 0) ctx.moveTo(rx, ry);
+          else ctx.lineTo(rx, ry);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 護盾頂點星芒小點
+        ctx.fillStyle = "#FEF08A";
+        for (let k = 0; k < 3; k++) {
+          const a = (k * Math.PI * 2) / 3;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * 31, Math.sin(a) * 31, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        const chargePct = Math.max(0, 1 - (p.multiscaleTimer || 0) / 10.0);
+        ctx.save();
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(px, py + 14, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct, false);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
 
     if (p.shieldTimer > 0) {
