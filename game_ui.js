@@ -1839,7 +1839,8 @@ Object.assign(window.GameApp, {
       MapEngine.lightningFlashAlpha = 0;
     }
     if (this.ctx) {
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const dpr = this.dpr || 1;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.ctx.globalAlpha = 1.0;
       this.ctx.globalCompositeOperation = "source-over";
       this.ctx.filter = "none";

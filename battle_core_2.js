@@ -108,12 +108,19 @@ window.GameApp = {
     if (this.runAssetPreloader) this.runAssetPreloader();
   },
 
+  dpr: 1,
+
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.canvas.width = this.width;
-    this.canvas.height = this.height;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    this.dpr = dpr;
+    this.canvas.width = Math.round(this.width * dpr);
+    this.canvas.height = Math.round(this.height * dpr);
+    this.canvas.style.width = `${this.width}px`;
+    this.canvas.style.height = `${this.height}px`;
     if (this.ctx) {
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.ctx.imageSmoothingEnabled = false;
       this.ctx.webkitImageSmoothingEnabled = false;
     }
@@ -717,13 +724,14 @@ window.GameApp = {
     });
 
     // 重置 Canvas 繪圖狀態與鏡頭座標，防止前一局殘留狀態或座標偏移造成黑屏
+    this.resize();
     if (this.ctx) {
-      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      const dpr = this.dpr || 1;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       this.ctx.globalAlpha = 1.0;
       this.ctx.globalCompositeOperation = "source-over";
       this.ctx.filter = "none";
     }
-    this.resize();
 
     // 重置幀時間戳與打擊停頓，防止首幀時間差爆炸造成瞬移或物理崩潰
     this.lastFrameTime = performance.now();
@@ -1162,6 +1170,9 @@ window.GameApp = {
 
   renderTitleDemo() {
     const ctx = this.ctx;
+    const dpr = this.dpr || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, this.width, this.height);
     if (!this.titleDemo) return;
     const camX = this.titleDemo.camX;
@@ -4159,6 +4170,8 @@ window.GameApp = {
 
   renderCombat() {
     const ctx = this.ctx;
+    const dpr = this.dpr || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, this.width, this.height);
     if (!this.player) return;
@@ -4458,12 +4471,12 @@ window.GameApp = {
       ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 - waveCycle / Math.PI})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.ellipse(px, py + 16, 16 + waveCycle * 8, 7 + waveCycle * 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 15, 16 + waveCycle * 8, 7 + waveCycle * 3.5, 0, 0, Math.PI * 2);
       ctx.stroke();
     } else {
       ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
       ctx.beginPath();
-      ctx.ellipse(px, py + 18, 14, 5.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 15, 14, 5.5, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -4471,7 +4484,7 @@ window.GameApp = {
       ctx.strokeStyle = p.bondColor;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.ellipse(px, py + 19, 22, 7.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 16, 20, 7.0, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -4481,7 +4494,7 @@ window.GameApp = {
       ctx.lineWidth = 2.2;
       ctx.setLineDash([7, 5]);
       ctx.beginPath();
-      ctx.ellipse(px, py + 19, 27, 9.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 16, 25, 8.8, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -4674,7 +4687,11 @@ window.GameApp = {
       const tRec = SpriteCache.get(activeUrl);
 
       ctx.save();
-      ctx.imageSmoothingEnabled = false;
+      // 智慧解析度分流：高解析訓練員原圖 (如 512x512 / 1024x1024 PNG) 開啟高階平滑縮放至 Retina 畫布，避免五官黑線被抽樣切碎；低解析點陣圖則維持像素銳利
+      const isHiResTrainer = !!(tRec && tRec.loaded && (tRec.img.naturalWidth || tRec.img.width || 0) > 160);
+      ctx.imageSmoothingEnabled = isHiResTrainer;
+      if (isHiResTrainer) ctx.imageSmoothingQuality = "high";
+
       // 對齊腳底陰影中心 (tsy + 18) 並套用海中涉水下沉 14px
       ctx.translate(tsx, tsy - (tInWater ? bob * 0.45 : bob) + (tc.jumpY || 0) + (tInWater ? 14 : 0));
       if (strideTilt !== 0) ctx.rotate(strideTilt);
@@ -4792,7 +4809,7 @@ window.GameApp = {
             ctx.save();
             ctx.translate(tsx, tsy + (inWater ? 10 : 0));
             if (tr.facingX > 0) ctx.scale(-1, 1);
-            this.drawSilhouetteFlash(ctx, tRec.img, -26, -26, 52, 52, tr.isDash ? "#FDE047" : "#38BDF8", alpha);
+            this.drawSilhouetteFlash(ctx, tRec.img, -26, -21, 52, 52, tr.isDash ? "#FDE047" : "#38BDF8", alpha);
             ctx.restore();
           }
         });
@@ -4843,28 +4860,32 @@ window.GameApp = {
           ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
         }
 
+        const isHiResPoke = ((pRec.img.naturalWidth || pRec.img.width || 0) > 160);
+        ctx.imageSmoothingEnabled = isHiResPoke;
+        if (isHiResPoke) ctx.imageSmoothingQuality = "high";
+
         const isFlyingPoke = p.data && (p.data.type1 === "Flying" || p.data.type2 === "Flying" || [92, 93, 94, 150, 151].includes(p.id));
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
-        ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 13 : 0));
+        ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
 
         if (submergeWater) {
           ctx.save();
           ctx.beginPath();
-          ctx.rect(-26, -26, 52, 32); // 裁切至腹部吃水線 (y: -26 ~ +6)
+          ctx.rect(-26, -21, 52, 29); // 校準腳底透明留白 (+5px)，裁切至腹部吃水線 (y: -21 ~ +8)
           ctx.clip();
-          ctx.drawImage(pRec.img, -26, -26, 52, 52);
+          ctx.drawImage(pRec.img, -26, -21, 52, 52);
           if (p.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
+            this.drawSilhouetteFlash(ctx, pRec.img, -26, -21, 52, 52, "#FFFFFF", 0.75);
           }
           ctx.restore();
-          drawPixelWaterlineFoam(6, 16, 0);
+          drawPixelWaterlineFoam(8, 16, 0);
         } else {
-          ctx.drawImage(pRec.img, -26, -26, 52, 52);
+          ctx.drawImage(pRec.img, -26, -21, 52, 52);
           if (p.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
+            this.drawSilhouetteFlash(ctx, pRec.img, -26, -21, 52, 52, "#FFFFFF", 0.75);
           }
         }
 
