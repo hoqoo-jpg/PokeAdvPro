@@ -180,7 +180,7 @@ const MapEngine = {
     });
   },
 
-  // GBA 火紅/葉綠風格程序化像素物件預烘焙器 (離線一次性生成，戰鬥中 0 向量運算直接 drawImage)
+  // GBA 火紅/葉綠/寶石版程序化像素物件預烘焙器 (全三關卡離線一次性生成，戰鬥中 0 向量運算直接 drawImage)
   prebakePixelProps() {
     const P = 2; // 2x2 像素點陣單位，營造道地 16-bit 顆粒感
     const dot = (c, x, y, w, h, col) => {
@@ -201,7 +201,7 @@ const MapEngine = {
       }
     };
 
-    // 1. GBA 常磐森林三層簇狀點陣大樹 (oak_tree_base 樹幹底座 + oak_tree_canopy 茂密像素樹冠)
+    // 1. GBA 常磐森林三層簇狀點陣大樹 (oak_tree_full + oak_tree_canopy)
     const treeW = 72, treeH = 76;
     const canTreeFull = document.createElement("canvas");
     canTreeFull.width = treeW; canTreeFull.height = treeH;
@@ -211,20 +211,15 @@ const MapEngine = {
     canTreeCanopy.width = treeW; canTreeCanopy.height = treeH;
     const cc = canTreeCanopy.getContext("2d");
 
-    // 樹底橢圓像素落影
     fillPixelBlob(ct, 36, 64, 26, 9, "rgba(15, 23, 42, 0.38)");
-
-    // 像素樹幹與盤根細節 (僅繪製於底座層)
     dot(ct, 24, 42, 24, 24, "#3E1F0D");
     dot(ct, 26, 42, 20, 22, "#5C2E14");
     dot(ct, 28, 44, 8, 20, "#7C3F1D");
     dot(ct, 32, 46, 4, 16, "#9A5226");
-    // 盤根外擴像素
     dot(ct, 20, 60, 8, 6, "#3E1F0D");
     dot(ct, 44, 60, 8, 6, "#3E1F0D");
     dot(ct, 22, 60, 6, 4, "#7C3F1D");
 
-    // 繪製三層像素簇狀樹冠的共用函數 (同時寫入全樹與前景樹冠層)
     const bakeCanopy = (ctx) => {
       const clusters = [
         { x: 22, y: 36, rx: 16, ry: 15 },
@@ -235,18 +230,13 @@ const MapEngine = {
         { x: 36, y: 24, rx: 22, ry: 18 },
         { x: 36, y: 15, rx: 17, ry: 13 }
       ];
-      // 第一層：GBA 深墨綠粗像素外輪廓與底影 (#13381F)
       clusters.forEach(cl => fillPixelBlob(ctx, cl.x, cl.y + 2, cl.rx + 2, cl.ry + 2, "#13381F"));
-      // 第二層：森林深綠背光葉簇 (#1F5C2E)
       clusters.forEach(cl => fillPixelBlob(ctx, cl.x, cl.y, cl.rx, cl.ry, "#1F5C2E"));
-      // 第三層：中層翠綠飽滿葉團 (#2E8540)
       clusters.forEach(cl => fillPixelBlob(ctx, cl.x, cl.y - 2, cl.rx - 2, cl.ry - 3, "#2E8540"));
-      // 第四層：頂部受光嫩綠像素亮團 (#52B756)
       fillPixelBlob(ctx, 24, 19, 10, 8, "#52B756");
       fillPixelBlob(ctx, 46, 19, 10, 8, "#52B756");
       fillPixelBlob(ctx, 35, 13, 13, 9, "#52B756");
       fillPixelBlob(ctx, 33, 29, 14, 8, "#52B756");
-      // 第五層：GBA 標誌性檸檬綠點陣鋸齒高光 (#8CE070)
       const highlights = [
         [28, 8], [32, 6], [36, 6], [40, 8],
         [18, 14], [22, 12], [46, 12], [50, 14],
@@ -270,21 +260,17 @@ const MapEngine = {
     canRoof.width = hw; canRoof.height = hh;
     const cr = canRoof.getContext("2d");
 
-    // 房屋地面像素陰影與石砌地基
     dot(ch, 6, 36, 92, 54, "rgba(15, 23, 42, 0.35)");
     dot(ch, 4, 34, 92, 52, "#1E293B");
     dot(ch, 6, 78, 88, 6, "#64748B");
     dot(ch, 6, 36, 88, 42, "#FFFBEB");
-    // 牆面水平木紋磚線
     for (let wy = 44; wy < 76; wy += 8) {
       dot(ch, 6, wy, 88, 2, "#E2E8F0");
     }
-    // 像素木門與金門把
     dot(ch, 20, 50, 24, 34, "#451A03");
     dot(ch, 22, 52, 20, 32, "#92400E");
     dot(ch, 24, 54, 16, 12, "#B45309");
     dot(ch, 36, 68, 4, 4, "#FACC15");
-    // 像素玻璃格窗與木窗台
     dot(ch, 58, 48, 26, 24, "#0F172A");
     dot(ch, 60, 50, 22, 20, "#38BDF8");
     dot(ch, 62, 52, 8, 8, "#BAE6FD");
@@ -293,7 +279,6 @@ const MapEngine = {
     dot(ch, 56, 70, 30, 4, "#B45309");
 
     const bakeRoof = (ctx) => {
-      // 階梯狀像素斜屋頂 + 瓦片橫紋
       for (let ry = 4; ry <= 38; ry += P) {
         const prog = (ry - 4) / 34;
         const halfSpan = Math.round((12 + prog * 38) / P) * P;
@@ -303,7 +288,6 @@ const MapEngine = {
           dot(ctx, 50 - halfSpan + 4, ry, halfSpan * 2 - 8, P, "#EF4444");
         }
       }
-      // 屋脊亮紅高光條
       dot(ctx, 36, 4, 28, 4, "#FCA5A5");
       dot(ctx, 4, 36, 92, 4, "#991B1B");
     };
@@ -312,15 +296,56 @@ const MapEngine = {
     this.spritePropCache.set("house_full", canHouse);
     this.spritePropCache.set("house_roof", canRoof);
 
-    // 3. GBA 像素紅白小花叢 (flower_red / flower_white)
+    // 3. GBA 像素橫木 (fallen_log_pixel 100x44) ＆ 斷木樁 (tree_stump_pixel 52x52) ＆ 木路牌 (crooked_sign_pixel 28x28)
+    const canLog = document.createElement("canvas");
+    canLog.width = 100; canLog.height = 44;
+    const clg = canLog.getContext("2d");
+    dot(clg, 6, 16, 90, 24, "rgba(15, 23, 42, 0.35)");
+    dot(clg, 2, 10, 96, 26, "#2E1505");
+    dot(clg, 4, 12, 92, 22, "#5C2D0C");
+    dot(clg, 10, 14, 80, 6, "#78350F");
+    dot(clg, 16, 24, 68, 4, "#3E1F0D");
+    // 兩端像素年輪切面与青苔點綴
+    fillPixelBlob(clg, 8, 23, 5, 10, "#D97706");
+    fillPixelBlob(clg, 8, 23, 2, 5, "#FDE68A");
+    fillPixelBlob(clg, 92, 23, 5, 10, "#B45309");
+    dot(clg, 24, 12, 10, 4, "#2E8540");
+    dot(clg, 26, 10, 6, 4, "#52B756");
+    this.spritePropCache.set("fallen_log_pixel", canLog);
+
+    const canStump = document.createElement("canvas");
+    canStump.width = 52; canStump.height = 52;
+    const cst = canStump.getContext("2d");
+    fillPixelBlob(cst, 26, 38, 22, 10, "rgba(15, 23, 42, 0.35)");
+    dot(cst, 8, 20, 36, 24, "#2E1505");
+    dot(cst, 6, 36, 40, 8, "#2E1505");
+    dot(cst, 10, 22, 32, 20, "#5C2D0C");
+    dot(cst, 14, 24, 6, 18, "#78350F");
+    dot(cst, 26, 26, 4, 16, "#3E1F0D");
+    fillPixelBlob(cst, 26, 20, 17, 9, "#2E1505");
+    fillPixelBlob(cst, 26, 20, 15, 7, "#D97706");
+    fillPixelBlob(cst, 26, 20, 10, 4, "#F59E0B");
+    fillPixelBlob(cst, 26, 20, 4, 2, "#FEF08A");
+    this.spritePropCache.set("tree_stump_pixel", canStump);
+
+    const canSign = document.createElement("canvas");
+    canSign.width = 28; canSign.height = 28;
+    const csg = canSign.getContext("2d");
+    dot(csg, 10, 22, 10, 4, "rgba(15, 23, 42, 0.35)");
+    dot(csg, 12, 14, 4, 10, "#451A03");
+    dot(csg, 4, 4, 20, 14, "#451A03");
+    dot(csg, 6, 6, 16, 10, "#D97706");
+    dot(csg, 8, 8, 12, 2, "#FEF08A");
+    dot(csg, 8, 12, 8, 2, "#92400E");
+    this.spritePropCache.set("crooked_sign_pixel", canSign);
+
+    // 4. GBA 像素紅白小花叢 (flower_red / flower_white)
     ["red", "white"].forEach(kind => {
       const cfCan = document.createElement("canvas");
       cfCan.width = 20; cfCan.height = 20;
       const cfc = cfCan.getContext("2d");
-      // 翠綠底座葉片
       dot(cfc, 4, 12, 12, 4, "#15803D");
       dot(cfc, 6, 10, 8, 4, "#22C55E");
-      // 花瓣與花蕊
       const petalCol = kind === "red" ? "#F87171" : "#F8FAFC";
       const shadeCol = kind === "red" ? "#DC2626" : "#CBD5E1";
       dot(cfc, 6, 4, 8, 8, shadeCol);
@@ -329,6 +354,106 @@ const MapEngine = {
       dot(cfc, 8, 6, 4, 4, "#FACC15");
       this.spritePropCache.set(`flower_${kind}`, cfCan);
     });
+
+    // 5. 【華藍海岬專屬 GBA 像素物件】珊瑚暗礁 (reef_pixel 64x64)、像素海星 (starfish_pixel 20x20)、像素扇貝 (shell_pixel 20x20)
+    const canReef = document.createElement("canvas");
+    canReef.width = 64; canReef.height = 64;
+    const crf = canReef.getContext("2d");
+    // 礁石底部拍岸白沫圈
+    fillPixelBlob(crf, 32, 38, 27, 18, "rgba(224, 242, 254, 0.75)");
+    fillPixelBlob(crf, 32, 36, 24, 16, "#0F172A");
+    fillPixelBlob(crf, 32, 34, 22, 15, "#334155");
+    fillPixelBlob(crf, 28, 28, 16, 12, "#475569");
+    fillPixelBlob(crf, 24, 24, 9, 7, "#94A3B8");
+    // 礁石頂部像素紅珊瑚簇
+    dot(crf, 34, 18, 6, 10, "#BE123C");
+    dot(crf, 30, 20, 14, 6, "#FB7185");
+    dot(crf, 36, 16, 4, 4, "#FDA4AF");
+    this.spritePropCache.set("reef_pixel", canReef);
+
+    const canStar = document.createElement("canvas");
+    canStar.width = 20; canStar.height = 20;
+    const cstr = canStar.getContext("2d");
+    dot(cstr, 8, 2, 4, 14, "#BE123C");
+    dot(cstr, 2, 6, 16, 4, "#BE123C");
+    dot(cstr, 4, 12, 4, 6, "#BE123C");
+    dot(cstr, 12, 12, 4, 6, "#BE123C");
+    dot(cstr, 8, 4, 4, 10, "#FB7185");
+    dot(cstr, 4, 6, 12, 4, "#FB7185");
+    dot(cstr, 8, 8, 4, 4, "#FEF08A");
+    this.spritePropCache.set("starfish_pixel", canStar);
+
+    const canShell = document.createElement("canvas");
+    canShell.width = 20; canShell.height = 20;
+    const csh = canShell.getContext("2d");
+    fillPixelBlob(csh, 10, 10, 7, 6, "#92400E");
+    fillPixelBlob(csh, 10, 9, 6, 5, "#FDE68A");
+    dot(csh, 8, 6, 2, 6, "#D97706");
+    dot(csh, 12, 6, 2, 6, "#D97706");
+    dot(csh, 6, 14, 8, 2, "#B45309");
+    this.spritePropCache.set("shell_pixel", canShell);
+
+    // 6. 【石英高原古神殿專屬 GBA 像素物件】翼神獸古代雕像 (statue_full + statue_top 64x80) ＆ 斷裂青苔古柱 (broken_pillar_pixel 64x80)
+    const canStat = document.createElement("canvas");
+    canStat.width = 64; canStat.height = 80;
+    const csa = canStat.getContext("2d");
+
+    const canStatTop = document.createElement("canvas");
+    canStatTop.width = 64; canStatTop.height = 80;
+    const cstTop = canStatTop.getContext("2d");
+
+    // 雕像底層基座與金色銘文
+    dot(csa, 6, 52, 52, 24, "rgba(15, 23, 42, 0.45)");
+    dot(csa, 6, 46, 52, 28, "#0F172A");
+    dot(csa, 8, 48, 48, 24, "#334155");
+    dot(csa, 10, 50, 44, 6, "#64748B");
+    dot(csa, 12, 58, 40, 12, "#475569");
+    dot(csa, 16, 60, 32, 4, "#D97706");
+    dot(csa, 20, 62, 24, 2, "#FEF08A");
+    // 雕像立柱中段
+    dot(csa, 14, 30, 36, 18, "#0F172A");
+    dot(csa, 16, 32, 32, 16, "#475569");
+    dot(csa, 20, 32, 6, 16, "#94A3B8");
+    dot(csa, 38, 32, 6, 16, "#1E293B");
+
+    const bakeStatueTop = (ctx) => {
+      // 展開的像素雙翼與神獸冠冕頭雕
+      dot(ctx, 4, 14, 16, 16, "#0F172A");
+      dot(ctx, 44, 14, 16, 16, "#0F172A");
+      dot(ctx, 6, 16, 14, 12, "#64748B");
+      dot(ctx, 44, 16, 14, 12, "#475569");
+      dot(ctx, 8, 16, 10, 4, "#CBD5E1");
+      dot(ctx, 46, 16, 10, 4, "#94A3B8");
+      // 中央神獸石首與三尖王冠
+      fillPixelBlob(ctx, 32, 20, 14, 13, "#0F172A");
+      fillPixelBlob(ctx, 32, 20, 12, 11, "#64748B");
+      fillPixelBlob(ctx, 30, 17, 8, 6, "#94A3B8");
+      dot(ctx, 24, 4, 4, 8, "#D97706");
+      dot(ctx, 30, 2, 4, 10, "#FACC15");
+      dot(ctx, 36, 4, 4, 8, "#D97706");
+    };
+    bakeStatueTop(csa);
+    bakeStatueTop(cstTop);
+    this.spritePropCache.set("statue_full", canStat);
+    this.spritePropCache.set("statue_top", canStatTop);
+
+    const canPil = document.createElement("canvas");
+    canPil.width = 64; canPil.height = 80;
+    const cpl = canPil.getContext("2d");
+    dot(cpl, 6, 52, 52, 24, "rgba(15, 23, 42, 0.45)");
+    dot(cpl, 8, 34, 48, 40, "#0F172A");
+    dot(cpl, 10, 36, 44, 36, "#475569");
+    // 羅馬柱縱向凹槽像素光影
+    for (let px = 14; px <= 46; px += 8) {
+      dot(cpl, px, 38, 4, 30, px <= 26 ? "#94A3B8" : "#334155");
+    }
+    // 頂部斜切崩裂斷面與紫晶青苔點綴
+    dot(cpl, 10, 32, 28, 6, "#64748B");
+    dot(cpl, 14, 28, 16, 6, "#94A3B8");
+    dot(cpl, 36, 38, 14, 6, "#1E293B");
+    dot(cpl, 12, 64, 14, 6, "#6B21A8");
+    dot(cpl, 14, 62, 10, 4, "#A855F7");
+    this.spritePropCache.set("broken_pillar_pixel", canPil);
   },
 
   setStage(stageId) {
@@ -493,12 +618,8 @@ const MapEngine = {
         const chunk = this.getBiomeChunk(cx + dx, cy + dy);
 
         for (const ob of chunk.obstacles) {
-          // 方案 A：橫木 (fallen_log) 跨越與防卡邏輯
           if (ob.kind === "fallen_log") {
-            // 怪物追擊主角時，直接允許跨越橫木忽略剛體碰撞，不再被卡死！
             if (!isPlayer) continue;
-
-            // 玩家向下移動時觸發跨躍起跳
             if (ent.vy > 0 && ent.y >= ob.y - 18 && ent.y <= ob.y + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
               if (!ent.isJumpingLedge) {
                 ent.isJumpingLedge = true;
@@ -542,7 +663,7 @@ const MapEngine = {
   },
 
   updateWeather(dt, width, height) {
-    this.cloudTime += dt;
+    this.cloudTime = (this.cloudTime || 0) + dt;
 
     if (this.weather === "RAIN") {
       this.rainOffset = (this.rainOffset + dt * 440) % 500;
@@ -563,6 +684,8 @@ const MapEngine = {
       if (Math.random() < 0.50) {
         this.splashParticles.push({ x: Math.random() * width, y: Math.random() * height, r: 2, life: 0.24 });
       }
+    } else {
+      this.lightningFlashAlpha = 0;
     }
 
     for (let i = this.splashParticles.length - 1; i >= 0; i--) {
@@ -574,13 +697,27 @@ const MapEngine = {
   },
 
   renderBiomeWorld(ctx, camX, camY, width, height) {
-    const stage = this.currentStage;
+    // 防黑屏核心保護：每幀渲染地表前強制歸位 Canvas 狀態、混合模式與座標有效性
+    ctx.save();
+    ctx.globalAlpha = 1.0;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.filter = "none";
+
+    if (!Number.isFinite(camX)) camX = 0;
+    if (!Number.isFinite(camY)) camY = 0;
+
+    if (!this.tileCache || this.tileCache.size === 0) {
+      this.prebakeTileTextures();
+      this.prebakePixelProps();
+    }
+
+    const stage = this.currentStage || STAGES[0];
 
     if (stage.id === "cerulean_bay") {
-      ctx.fillStyle = stage.waterColor;
+      ctx.fillStyle = stage.waterColor || "#0284C7";
       ctx.fillRect(0, 0, width, height);
     } else {
-      ctx.fillStyle = stage.tileLight;
+      ctx.fillStyle = stage.tileLight || "#4E8245";
       ctx.fillRect(0, 0, width, height);
 
       const tileSize = 60;
@@ -617,7 +754,8 @@ const MapEngine = {
         const chunk = this.getBiomeChunk(cx, cy);
 
         if (stage.id === "cerulean_bay") {
-          const stepX = 54, stepY = 38;
+          // GBA 紅寶石/藍寶石版階梯狀像素海浪與白沫波峰
+          const stepX = 56, stepY = 40;
           const swx = chunk.baseX - camX + width / 2;
           const swy = chunk.baseY - camY + height / 2;
 
@@ -627,112 +765,153 @@ const MapEngine = {
             for (let gx = 16; gx < chunk.size - 10; gx += stepX) {
               const waveSeed = (chunk.cx * 11 + chunk.cy * 17 + rowIndex * 7 + (gx / stepX)) * 0.8;
               const waveCycle = Math.sin(now * 1.5 + waveSeed);
-              const wx = swx + gx + xOffset + Math.cos(now * 1.1 + waveSeed) * 3.5;
-              const wy = swy + gy + Math.sin(now * 1.3 + waveSeed) * 1.8;
+              const wx = Math.round(swx + gx + xOffset + Math.cos(now * 1.1 + waveSeed) * 3.5);
+              const wy = Math.round(swy + gy + Math.sin(now * 1.3 + waveSeed) * 1.8);
 
-              ctx.strokeStyle = "rgba(7, 89, 133, 0.65)";
-              ctx.lineWidth = 2.2;
-              ctx.lineCap = "round";
-              ctx.beginPath();
-              ctx.moveTo(wx - 14, wy + 2);
-              ctx.quadraticCurveTo(wx, wy - 5 + 2, wx + 14, wy + 2);
-              ctx.stroke();
+              // 深海浪谷像素底影
+              ctx.fillStyle = "rgba(7, 89, 133, 0.72)";
+              ctx.fillRect(wx - 12, wy + 2, 24, 3);
+              ctx.fillRect(wx - 8, wy, 16, 2);
 
-              const crestAlpha = 0.45 + waveCycle * 0.35;
-              ctx.strokeStyle = `rgba(224, 242, 254, ${crestAlpha})`;
-              ctx.lineWidth = 1.8;
-              ctx.beginPath();
-              ctx.moveTo(wx - 14, wy);
-              ctx.quadraticCurveTo(wx, wy - 5, wx + 14, wy);
-              ctx.stroke();
+              // 階梯狀像素亮白浪尖
+              const crestAlpha = 0.50 + waveCycle * 0.35;
+              ctx.fillStyle = `rgba(224, 242, 254, ${crestAlpha})`;
+              ctx.fillRect(wx - 10, wy, 20, 2);
+              ctx.fillRect(wx - 6, wy - 2, 12, 2);
             }
           }
         }
 
         chunk.sandIslets.forEach(isl => {
-          const ix = isl.x - camX + width / 2;
-          const iy = isl.y - camY + height / 2;
+          const ix = Math.round(isl.x - camX + width / 2);
+          const iy = Math.round(isl.y - camY + height / 2);
+          // 像素拍岸淺灘水環 + 濕沙外框 + 暖金沙洲
+          const wavePhase = (now * 1.6 + isl.x * 0.02) % Math.PI;
+          const waveExpand = Math.round(Math.sin(wavePhase) * 5);
+          ctx.fillStyle = `rgba(224, 242, 254, ${0.35 + Math.sin(wavePhase) * 0.45})`;
+          ctx.fillRect(ix - 12 - waveExpand, iy - 12 - waveExpand, isl.w + 24 + waveExpand * 2, isl.h + 24 + waveExpand * 2);
+
+          ctx.fillStyle = "#B48A3E";
+          ctx.fillRect(ix - 10, iy - 10, isl.w + 20, isl.h + 20);
           ctx.fillStyle = "#E0C068";
-          ctx.fillRect(ix - 8, iy - 8, isl.w + 16, isl.h + 16);
+          ctx.fillRect(ix - 6, iy - 6, isl.w + 12, isl.h + 12);
           ctx.fillStyle = "#F5D77F";
           ctx.fillRect(ix, iy, isl.w, isl.h);
 
-          const wavePhase = (now * 1.6 + isl.x * 0.02) % Math.PI;
-          const waveDist = Math.sin(wavePhase) * 6.5;
-          ctx.strokeStyle = `rgba(255, 255, 255, ${Math.sin(wavePhase) * 0.75})`;
-          ctx.lineWidth = 2.2;
-          ctx.strokeRect(ix - (8 - waveDist), iy - (8 - waveDist), isl.w + 16 - waveDist * 2, isl.h + 16 - waveDist * 2);
+          // 沙灘世界座標固定貝殼砂礫點綴
+          for (let ox = 16; ox < isl.w - 16; ox += 28) {
+            for (let oy = 16; oy < isl.h - 16; oy += 28) {
+              ctx.fillStyle = "#D4AF53";
+              ctx.fillRect(ix + ox, iy + oy, 4, 3);
+              ctx.fillStyle = "#FFFBEB";
+              ctx.fillRect(ix + ox + 8, iy + oy + 6, 3, 2);
+            }
+          }
         });
 
         (chunk.roads || []).concat(chunk.piers || []).forEach(r => {
-          const rx = r.x - camX + width / 2;
-          const ry = r.y - camY + height / 2;
+          const rx = Math.round(r.x - camX + width / 2);
+          const ry = Math.round(r.y - camY + height / 2);
 
           if (r.isMarble) {
+            // GBA 石英高原像素大理石金邊大道（綁定世界座標石板接縫與金磚雕花）
+            ctx.fillStyle = "#1E1B4B";
+            ctx.fillRect(rx - 2, ry, r.w + 4, r.h);
             ctx.fillStyle = "#E2E8F0";
             ctx.fillRect(rx, ry, r.w, r.h);
-            ctx.fillStyle = "#F59E0B";
-            ctx.fillRect(rx, ry, 7, r.h);
-            ctx.fillRect(rx + r.w - 7, ry, 7, r.h);
+            ctx.fillStyle = "#F8FAFC";
+            ctx.fillRect(rx + 14, ry, r.w - 28, r.h);
 
-            ctx.strokeStyle = "#CBD5E1";
-            ctx.lineWidth = 1.5;
-            for (let py = ry; py < ry + r.h; py += 30) {
-              ctx.beginPath();
-              ctx.moveTo(rx + 7, py); ctx.lineTo(rx + r.w - 7, py);
-              ctx.stroke();
+            // 左右兩側雙層黃金蓮花磚邊
+            ctx.fillStyle = "#B45309";
+            ctx.fillRect(rx, ry, 10, r.h);
+            ctx.fillRect(rx + r.w - 10, ry, 10, r.h);
+            ctx.fillStyle = "#FACC15";
+            ctx.fillRect(rx + 2, ry, 6, r.h);
+            ctx.fillRect(rx + r.w - 8, ry, 6, r.h);
+
+            for (let wy = r.y; wy < r.y + r.h; wy += 30) {
+              const sy = Math.round(wy - camY + height / 2);
+              ctx.fillStyle = "#CBD5E1";
+              ctx.fillRect(rx + 10, sy, r.w - 20, 2);
+              ctx.fillStyle = "#94A3B8";
+              ctx.fillRect(rx + Math.floor(r.w * 0.5), sy, 2, 30);
+              // 金邊上的紅寶石像素嵌飾
+              ctx.fillStyle = "#EF4444";
+              ctx.fillRect(rx + 3, sy + 12, 4, 4);
+              ctx.fillRect(rx + r.w - 7, sy + 12, 4, 4);
             }
           } else if (stage.id === "cerulean_bay") {
-            ctx.fillStyle = "rgba(3, 40, 75, 0.45)";
+            // GBA 華藍海岬像素木棧道（水下立體木樁 + 像素木板紋 + 金屬鉚釘）
+            ctx.fillStyle = "rgba(3, 40, 75, 0.52)";
             ctx.fillRect(rx + 6, ry + 8, r.w, r.h);
 
-            ctx.fillStyle = "#4A2A12";
+            ctx.fillStyle = "#3E1F0D";
             if (r.dir === "V") {
               ctx.fillRect(rx + r.w, ry, 8, r.h);
+              ctx.fillRect(rx - 3, ry, 3, r.h);
             } else {
               ctx.fillRect(rx, ry + r.h, r.w, 8);
+              ctx.fillRect(rx, ry - 3, r.w, 3);
             }
 
             ctx.fillStyle = stage.roadColor;
             ctx.fillRect(rx, ry, r.w, r.h);
-            ctx.strokeStyle = stage.roadBorder;
-            ctx.lineWidth = 2.2;
-            ctx.strokeRect(rx, ry, r.w, r.h);
+            ctx.fillStyle = "#9A6238";
+            if (r.dir === "V") ctx.fillRect(rx + 8, ry, r.w - 16, r.h);
+            else ctx.fillRect(rx, ry + 8, r.w, r.h - 16);
 
-            ctx.strokeStyle = "rgba(45, 20, 5, 0.45)";
-            ctx.lineWidth = 1.8;
-            ctx.fillStyle = "rgba(40, 20, 5, 0.6)";
-            for (let py = ry; py < ry + r.h; py += 20) {
-              ctx.beginPath();
-              ctx.moveTo(rx, py); ctx.lineTo(rx + r.w, py);
-              ctx.stroke();
-              ctx.fillRect(rx + 4, py - 3, 2, 2);
-              ctx.fillRect(rx + r.w - 6, py - 3, 2, 2);
+            if (r.dir === "V") {
+              for (let wy = r.y; wy < r.y + r.h; wy += 20) {
+                const sy = Math.round(wy - camY + height / 2);
+                ctx.fillStyle = "#4A2A12";
+                ctx.fillRect(rx, sy, r.w, 2);
+                ctx.fillStyle = "#B07548";
+                ctx.fillRect(rx + 4, sy + 2, r.w - 8, 2);
+                ctx.fillStyle = "#1E293B";
+                ctx.fillRect(rx + 5, sy + 5, 3, 3);
+                ctx.fillRect(rx + r.w - 8, sy + 5, 3, 3);
+              }
+            } else {
+              for (let wx = r.x; wx < r.x + r.w; wx += 20) {
+                const sx = Math.round(wx - camX + width / 2);
+                ctx.fillStyle = "#4A2A12";
+                ctx.fillRect(sx, ry, 2, r.h);
+                ctx.fillStyle = "#B07548";
+                ctx.fillRect(sx + 2, ry + 4, 2, r.h - 8);
+                ctx.fillStyle = "#1E293B";
+                ctx.fillRect(sx + 5, ry + 5, 3, 3);
+                ctx.fillRect(sx + 5, ry + r.h - 8, 3, 3);
+              }
             }
           } else {
-            // GBA 1號道路鵝卵石自然咬合泥土路（溫暖沙黃路徑 + 像素鋸齒草皮咬合邊 + 鵝卵石顆粒）
+            // GBA 1號道路鵝卵石自然咬合泥土路（100% 綁定世界座標 wx / wy，走路時石頭與草邊絕對穩固不蠕動！）
             ctx.fillStyle = "#C29B61";
             ctx.fillRect(rx, ry, r.w, r.h);
             ctx.fillStyle = "#D6B278";
             if (r.dir === "H") {
               ctx.fillRect(rx, ry + 8, r.w, r.h - 16);
-              // 上下草皮像素鋸齒咬合邊與內凹暗影
-              for (let sx = rx; sx < rx + r.w; sx += 12) {
+              for (let wx = r.x; wx < r.x + r.w; wx += 12) {
+                const sx = Math.round(wx - camX + width / 2);
+                const h1 = Math.abs((wx * 7) + r.y * 3) % 30;
+                const h2 = Math.abs((wx * 13) + r.y * 5) % 24;
                 ctx.fillStyle = "#3B6634";
                 ctx.fillRect(sx, ry, 8, 4);
                 ctx.fillRect(sx + 4, ry + r.h - 4, 8, 4);
                 ctx.fillStyle = "#8C673A";
                 ctx.fillRect(sx, ry + 4, 8, 3);
                 ctx.fillRect(sx + 4, ry + r.h - 7, 8, 3);
-                // 路面鵝卵石與小碎石點綴
                 ctx.fillStyle = "#A8824C";
-                ctx.fillRect(sx + 2, ry + 16 + ((sx * 7) % 30), 6, 4);
+                ctx.fillRect(sx + 2, ry + 16 + h1, 6, 4);
                 ctx.fillStyle = "#EAD09E";
-                ctx.fillRect(sx + 6, ry + 22 + ((sx * 13) % 24), 4, 3);
+                ctx.fillRect(sx + 6, ry + 22 + h2, 4, 3);
               }
             } else {
               ctx.fillRect(rx + 8, ry, r.w - 16, r.h);
-              for (let sy = ry; sy < ry + r.h; sy += 12) {
+              for (let wy = r.y; wy < r.y + r.h; wy += 12) {
+                const sy = Math.round(wy - camY + height / 2);
+                const h1 = Math.abs((wy * 7) + r.x * 3) % 30;
+                const h2 = Math.abs((wy * 13) + r.x * 5) % 24;
                 ctx.fillStyle = "#3B6634";
                 ctx.fillRect(rx, sy, 4, 8);
                 ctx.fillRect(rx + r.w - 4, sy + 4, 4, 8);
@@ -740,17 +919,17 @@ const MapEngine = {
                 ctx.fillRect(rx + 4, sy, 3, 8);
                 ctx.fillRect(rx + r.w - 7, sy + 4, 3, 8);
                 ctx.fillStyle = "#A8824C";
-                ctx.fillRect(rx + 16 + ((sy * 7) % 30), sy + 2, 4, 6);
+                ctx.fillRect(rx + 16 + h1, sy + 2, 4, 6);
                 ctx.fillStyle = "#EAD09E";
-                ctx.fillRect(rx + 22 + ((sy * 13) % 24), sy + 6, 3, 4);
+                ctx.fillRect(rx + 22 + h2, sy + 6, 3, 4);
               }
             }
           }
         });
 
         chunk.grassTiles.forEach(g => {
-          const gx = g.x - camX + width / 2;
-          const gy = g.y - camY + height / 2;
+          const gx = Math.round(g.x - camX + width / 2);
+          const gy = Math.round(g.y - camY + height / 2);
 
           if (g.isPsychicWell) {
             ctx.save();
@@ -843,24 +1022,23 @@ const MapEngine = {
 
             ctx.restore();
           } else {
-            // GBA 經典深綠茂密野生高草叢（帶像素鋸齒邊框與隨風搖曳的雙色像素草簇）
+            // GBA 經典深綠茂密野生高草叢（相位綁定世界座標 wpx / wpy，搖曳自然不閃動）
             ctx.fillStyle = "#14381F";
             ctx.fillRect(gx - 2, gy - 2, g.w + 4, g.h + 4);
             ctx.fillStyle = stage.slowZoneColor;
             ctx.fillRect(gx, gy, g.w, g.h);
 
-            for (let px = gx + 10; px < gx + g.w - 8; px += 18) {
-              for (let py = gy + 12; py < gy + g.h - 6; py += 18) {
-                const sway = Math.round(Math.sin(now * 1.8 + px * 0.05 + py * 0.05) * 2.0);
-                // 像素草簇深色根部
+            for (let wpx = g.x + 10; wpx < g.x + g.w - 8; wpx += 18) {
+              for (let wpy = g.y + 12; wpy < g.y + g.h - 6; wpy += 18) {
+                const px = Math.round(wpx - camX + width / 2);
+                const py = Math.round(wpy - camY + height / 2);
+                const sway = Math.round(Math.sin(now * 1.8 + wpx * 0.05 + wpy * 0.05) * 2.0);
                 ctx.fillStyle = "#0F2917";
                 ctx.fillRect(px - 5, py - 2, 10, 4);
-                // 左中右三片像素草葉
                 ctx.fillStyle = "#2E8540";
                 ctx.fillRect(px - 6 + sway, py - 7, 3, 6);
                 ctx.fillRect(px - 1 + sway, py - 9, 3, 8);
                 ctx.fillRect(px + 4 + sway, py - 7, 3, 6);
-                // 草葉受光亮尖
                 ctx.fillStyle = "#74E068";
                 ctx.fillRect(px - 6 + sway, py - 8, 3, 2);
                 ctx.fillRect(px - 1 + sway, py - 10, 3, 2);
@@ -871,9 +1049,8 @@ const MapEngine = {
         });
 
         chunk.ledges.forEach(l => {
-          const lx = l.x - camX + width / 2;
-          const ly = l.y - camY + height / 2;
-          // GBA 三段式立體跳崖（底部落地暗影 + 垂直岩石切面 + 頂部亮綠懸崖草皮邊）
+          const lx = Math.round(l.x - camX + width / 2);
+          const ly = Math.round(l.y - camY + height / 2);
           ctx.fillStyle = "rgba(15, 23, 42, 0.38)";
           ctx.fillRect(lx + 2, ly + l.h, l.w - 4, 6);
 
@@ -883,7 +1060,6 @@ const MapEngine = {
           ctx.fillStyle = "#7C3F1D";
           ctx.fillRect(lx, ly + 4, l.w, l.h - 4);
 
-          // 岩壁像素縱向立體凹凸紋
           for (let rx = lx + 6; rx < lx + l.w - 6; rx += 14) {
             ctx.fillStyle = "#5C2E14";
             ctx.fillRect(rx, ly + 6, 4, l.h - 8);
@@ -891,7 +1067,6 @@ const MapEngine = {
             ctx.fillRect(rx + 4, ly + 6, 4, l.h - 10);
           }
 
-          // 懸崖上緣覆蓋亮綠草皮齒邊
           ctx.fillStyle = "#68A357";
           ctx.fillRect(lx, ly - 2, l.w, 5);
           ctx.fillStyle = "#46783E";
@@ -899,7 +1074,6 @@ const MapEngine = {
             ctx.fillRect(gx, ly + 2, 6, 3);
           }
 
-          // 經典單向跳崖指示小箭頭
           ctx.fillStyle = "#FEF08A";
           const count = Math.max(1, Math.floor((l.w - 30) / 42));
           const spacing = (l.w - 40) / (count > 1 ? count - 1 : 1);
@@ -912,117 +1086,51 @@ const MapEngine = {
         });
 
         chunk.obstacles.forEach(ob => {
-          const ox = ob.x - camX + width / 2;
-          const oy = ob.y - camY + height / 2;
-          if (ob.kind !== "oak_tree" && ob.kind !== "house") {
-            ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.fillRect(ox + 4, oy + 6, ob.w, ob.h);
-          }
+          const ox = Math.round(ob.x - camX + width / 2);
+          const oy = Math.round(ob.y - camY + height / 2);
 
           if (ob.kind === "house") {
             const hCan = this.spritePropCache.get("house_full");
-            if (hCan) {
-              ctx.drawImage(hCan, ox - 4, oy - 4);
-            }
+            if (hCan) ctx.drawImage(hCan, ox - 4, oy - 4);
           } else if (ob.kind === "statue") {
-            ctx.fillStyle = "#475569";
-            ctx.fillRect(ox, oy + 18, ob.w, ob.h - 18);
-            ctx.strokeStyle = "#1E293B";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(ox, oy + 18, ob.w, ob.h - 18);
-            ctx.fillStyle = "#64748B";
-            ctx.beginPath();
-            ctx.arc(ox + ob.w / 2, oy + 14, 16, 0, Math.PI * 2);
-            ctx.fill(); ctx.stroke();
-
-            const eyeGlow = 0.85 + Math.sin(now * 2.4 + ob.x * 0.1) * 0.15;
+            const sCan = this.spritePropCache.get("statue_full");
+            if (sCan) ctx.drawImage(sCan, ox - 4, oy - 4);
+            const eyeGlow = 0.80 + Math.sin(now * 2.4 + ob.x * 0.1) * 0.20;
             ctx.fillStyle = `rgba(250, 204, 21, ${eyeGlow})`;
-            ctx.fillRect(ox + ob.w / 2 - 7, oy + 11, 4, 4);
-            ctx.fillRect(ox + ob.w / 2 + 3, oy + 11, 4, 4);
-
+            ctx.fillRect(ox + 21, oy + 14, 4, 4);
+            ctx.fillRect(ox + 31, oy + 14, 4, 4);
           } else if (ob.kind === "broken_pillar") {
-            ctx.fillStyle = "#475569";
-            ctx.fillRect(ox, oy + 32, ob.w, ob.h - 32);
-            ctx.strokeStyle = "#1E293B";
-            ctx.lineWidth = 2;
-            ctx.strokeRect(ox, oy + 32, ob.w, ob.h - 32);
+            const pCan = this.spritePropCache.get("broken_pillar_pixel");
+            if (pCan) ctx.drawImage(pCan, ox - 4, oy - 4);
           } else if (ob.kind === "reef") {
-            ctx.fillStyle = "#334155";
-            ctx.beginPath();
-            ctx.arc(ox + ob.w / 2, oy + ob.h / 2, ob.w * 0.45, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#FB7185";
-            ctx.beginPath();
-            ctx.arc(ox + ob.w * 0.38, oy + ob.h * 0.38, 7, 0, Math.PI * 2);
-            ctx.fill();
+            const rCan = this.spritePropCache.get("reef_pixel");
+            if (rCan) ctx.drawImage(rCan, ox - 2, oy - 2);
           } else if (ob.kind === "fallen_log") {
-            // 橫木 (fallen_log)：GBA 樹皮橫幹 + 兩端年輪切面
-            ctx.fillStyle = "#5C2D0C";
-            ctx.strokeStyle = "#2E1505";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(ox, oy + 8, ob.w, ob.h - 12, 8);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = "#78350F";
-            ctx.fillRect(ox + 8, oy + 12, ob.w - 16, 6);
-
-            ctx.fillStyle = "#D97706";
-            ctx.beginPath();
-            ctx.ellipse(ox + 6, oy + ob.h / 2 + 2, 5, (ob.h - 14) / 2, 0, 0, Math.PI * 2);
-            ctx.ellipse(ox + ob.w - 6, oy + ob.h / 2 + 2, 5, (ob.h - 14) / 2, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            const lCan = this.spritePropCache.get("fallen_log_pixel");
+            if (lCan) ctx.drawImage(lCan, ox - 2, oy - 2);
           } else if (ob.kind === "tree_stump") {
-            // 斷木樁 (tree_stump)：立體樹根底座 + 頂部淺木色年輪
-            ctx.fillStyle = "#5C2D0C";
-            ctx.strokeStyle = "#2E1505";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.roundRect(ox + 4, oy + 14, ob.w - 8, ob.h - 16, 6);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.fillStyle = "#F59E0B";
-            ctx.beginPath();
-            ctx.ellipse(ox + ob.w / 2, oy + 16, (ob.w - 10) / 2, 10, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.strokeStyle = "#92400E";
-            ctx.lineWidth = 1.2;
-            ctx.beginPath();
-            ctx.ellipse(ox + ob.w / 2, oy + 16, (ob.w - 22) / 2, 5, 0, 0, Math.PI * 2);
-            ctx.stroke();
+            const stCan = this.spritePropCache.get("tree_stump_pixel");
+            if (stCan) ctx.drawImage(stCan, ox - 2, oy - 2);
           } else {
             const tCan = this.spritePropCache.get("oak_tree_full");
-            if (tCan) {
-              ctx.drawImage(tCan, ox - 4, oy - 4);
-            }
+            if (tCan) ctx.drawImage(tCan, ox - 4, oy - 4);
           }
         });
 
         chunk.decorList.forEach(d => {
-          const dx = d.x - camX + width / 2;
-          const dy = d.y - camY + height / 2;
+          const dx = Math.round(d.x - camX + width / 2);
+          const dy = Math.round(d.y - camY + height / 2);
           ctx.save();
           ctx.translate(dx, dy);
           if (d.type === "starfish") {
-            ctx.fillStyle = "#FB7185";
-            ctx.beginPath(); ctx.arc(0, 0, 4.5, 0, Math.PI * 2); ctx.fill();
+            const sfCan = this.spritePropCache.get("starfish_pixel");
+            if (sfCan) ctx.drawImage(sfCan, -10, -10);
           } else if (d.type === "shell") {
-            ctx.fillStyle = "#FDE68A";
-            ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI); ctx.fill();
+            const shCan = this.spritePropCache.get("shell_pixel");
+            if (shCan) ctx.drawImage(shCan, -10, -10);
           } else if (d.type === "crooked_sign") {
-            ctx.rotate(-0.12);
-            ctx.fillStyle = "#78350F";
-            ctx.fillRect(-2, 0, 4, 9);
-            ctx.fillStyle = "#D97706";
-            ctx.strokeStyle = "#451A03";
-            ctx.lineWidth = 1.5;
-            ctx.fillRect(-9, -8, 18, 10);
-            ctx.strokeRect(-9, -8, 18, 10);
+            const sgCan = this.spritePropCache.get("crooked_sign_pixel");
+            if (sgCan) ctx.drawImage(sgCan, -14, -14);
           } else {
             const fKey = (d.color === "#F87171") ? "flower_red" : "flower_white";
             const fCan = this.spritePropCache.get(fKey);
@@ -1044,8 +1152,8 @@ const MapEngine = {
     const shadowColor = isBay ? "rgba(2, 28, 62, " : "rgba(8, 30, 14, ";
 
     this.clouds.forEach(c => {
-      const moveX = c.x + this.cloudTime * c.speed - camX * plx;
-      const moveY = c.y + this.cloudTime * (c.speed * 0.3) - camY * plx;
+      const moveX = c.x + (this.cloudTime || 0) * c.speed - camX * plx;
+      const moveY = c.y + (this.cloudTime || 0) * (c.speed * 0.3) - camY * plx;
       const sx = ((moveX % areaW) + areaW) % areaW - (areaW * 0.25);
       const sy = ((moveY % areaH) + areaH) % areaH - (areaH * 0.25);
 
@@ -1066,11 +1174,11 @@ const MapEngine = {
       });
     });
     ctx.restore();
+    ctx.restore();
   },
 
-  // P1 新增：GBA 2.5D 樹冠與屋頂前景遮擋層（角色走到樹後/屋頂北側時自動產生半透明景深遮罩）
+  // P1 新增：GBA 2.5D 樹冠、屋頂與古代神獸雕像前景遮擋層（角色走到後方時自動產生半透明景深遮罩）
   renderForegroundCanopies(ctx, camX, camY, width, height, player, trainer) {
-    const stage = this.currentStage;
     const startCx = Math.floor((camX - width / 2) / 600) - 1;
     const endCx = Math.floor((camX + width / 2) / 600) + 1;
     const startCy = Math.floor((camY - height / 2) / 600) - 1;
@@ -1080,7 +1188,6 @@ const MapEngine = {
     const checkOccluded = (ent, ob) => {
       if (!ent) return false;
       const footY = ent.y + 18;
-      // 角色腳底位於障礙物底部北側（上方），且身體與樹冠/屋頂上半部重疊
       return (
         footY < ob.y + ob.h * 0.88 &&
         ent.y > ob.y - 28 &&
@@ -1094,32 +1201,26 @@ const MapEngine = {
         const chunk = this.getBiomeChunk(cx, cy);
         chunk.obstacles.forEach(ob => {
           if (ob.kind !== "oak_tree" && ob.kind !== "house" && ob.kind !== "statue") return;
-          const ox = ob.x - camX + width / 2;
-          const oy = ob.y - camY + height / 2;
+          const ox = Math.round(ob.x - camX + width / 2);
+          const oy = Math.round(ob.y - camY + height / 2);
           if (ox + ob.w < -40 || ox > width + 40 || oy + ob.h < -40 || oy > height + 40) return;
 
           const playerBehind = checkOccluded(player, ob) || checkOccluded(trainer, ob);
-          // 只有當主角、訓練家或附近怪獸處於該障礙物北側（或為營造樹冠立體層次）時重繪上半部樹冠/屋頂
           ctx.save();
           if (playerBehind) {
-            ctx.globalAlpha = 0.52; // 角色走到樹冠或屋簷後方時自動半透明，兼顧 2.5D 遮擋感與視野清晰度
+            ctx.globalAlpha = 0.52;
           }
 
           if (ob.kind === "house") {
             const rCan = this.spritePropCache.get("house_roof");
             if (rCan) ctx.drawImage(rCan, ox - 4, oy - 4);
           } else if (ob.kind === "statue") {
-            ctx.fillStyle = "#64748B";
-            ctx.strokeStyle = "#1E293B";
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(ox + ob.w / 2, oy + 14, 16, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            const eyeGlow = 0.85 + Math.sin(now * 2.4 + ob.x * 0.1) * 0.15;
+            const stTop = this.spritePropCache.get("statue_top");
+            if (stTop) ctx.drawImage(stTop, ox - 4, oy - 4);
+            const eyeGlow = 0.80 + Math.sin(now * 2.4 + ob.x * 0.1) * 0.20;
             ctx.fillStyle = `rgba(250, 204, 21, ${eyeGlow})`;
-            ctx.fillRect(ox + ob.w / 2 - 7, oy + 11, 4, 4);
-            ctx.fillRect(ox + ob.w / 2 + 3, oy + 11, 4, 4);
+            ctx.fillRect(ox + 21, oy + 14, 4, 4);
+            ctx.fillRect(ox + 31, oy + 14, 4, 4);
           } else if (ob.kind === "oak_tree") {
             const cCan = this.spritePropCache.get("oak_tree_canopy");
             if (cCan) ctx.drawImage(cCan, ox - 4, oy - 4);

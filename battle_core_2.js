@@ -698,18 +698,35 @@ window.GameApp = {
   startGameRun() {
     SoundFX.init();
     const stageId = (this.selectedStage && this.selectedStage.id) ? this.selectedStage.id : "pallet";
+    if (typeof MapEngine !== "undefined") {
+      MapEngine.setStage(stageId);
+      MapEngine.cloudTime = 0;
+      MapEngine.lightningFlashAlpha = 0;
+      MapEngine.splashParticles = [];
+    }
     SoundFX.playBgm(stageId, true);
 
-    // 徹底隱藏大廳、結算以及所有局內可能殘留的彈窗
-    ["setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal"].forEach(mId => {
+    // 徹底隱藏大廳、結算、過場以及所有局內可能殘留的全屏遮罩彈窗（根除第二局黑屏）
+    ["preloader-screen", "splashScreen", "cutInLayer", "setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "settingsModal", "unlock-confirm-modal", "pokedexModal", "skillTreeModal", "achievementModal"].forEach(mId => {
       const el = document.getElementById(mId);
       if (el) { el.classList.add("hidden"); el.style.display = "none"; }
     });
+
+    // 重置 Canvas 繪圖狀態與鏡頭座標，防止前一局殘留狀態或座標偏移造成黑屏
+    if (this.ctx) {
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.ctx.globalAlpha = 1.0;
+      this.ctx.globalCompositeOperation = "source-over";
+      this.ctx.filter = "none";
+    }
+    this.resize();
 
     // 重置幀時間戳與打擊停頓，防止首幀時間差爆炸造成瞬移或物理崩潰
     this.lastFrameTime = performance.now();
     this.hitStopTimer = 0;
     this.killSlowmoTimer = 0;
+    this.camera.x = 0;
+    this.camera.y = 0;
     this.camera.shakeTime = 0;
     this.camera.shakeMagnitude = 0;
     this.touchJoy.active = false;
@@ -4569,14 +4586,48 @@ window.GameApp = {
 
     renderQueue.sort((a, b) => a.sortY - b.sortY);
 
+    // 共用 GBA 像素草簇遮腿繪製器（與地圖高草叢 100% 畫風統一：深綠根部 + 三片搖曳像素草葉 + 亮綠葉尖）
+    const drawPixelGrassOverlay = (worldX, worldY, rootY, spreadList) => {
+      const gNow = performance.now() * 0.0016;
+      spreadList.forEach(ox => {
+        const sway = Math.round(Math.sin(gNow * 1.8 + (worldX + ox) * 0.05 + worldY * 0.05) * 2.0);
+        ctx.fillStyle = "#0F2917";
+        ctx.fillRect(ox - 5, rootY - 2, 10, 4);
+        ctx.fillStyle = "#2E8540";
+        ctx.fillRect(ox - 6 + sway, rootY - 8, 3, 7);
+        ctx.fillRect(ox - 1 + sway, rootY - 10, 3, 9);
+        ctx.fillRect(ox + 4 + sway, rootY - 8, 3, 7);
+        ctx.fillStyle = "#74E068";
+        ctx.fillRect(ox - 6 + sway, rootY - 9, 3, 2);
+        ctx.fillRect(ox - 1 + sway, rootY - 11, 3, 2);
+        ctx.fillRect(ox + 4 + sway, rootY - 9, 3, 2);
+      });
+    };
+
+    // 共用 GBA 像素涉水吃水線與水花波紋繪製器（營造腰部以下真正泡在海水中的真實折射與白沫感）
+    const drawPixelWaterlineFoam = (cutY, halfWidth, phaseOffset = 0) => {
+      const wNow = performance.now() * 0.004 + phaseOffset;
+      // 水面下微藍海水折射半透明遮罩邊
+      ctx.fillStyle = "rgba(2, 132, 199, 0.55)";
+      ctx.fillRect(-halfWidth, cutY - 3, halfWidth * 2, 4);
+      // 貼合腰部切線的階梯狀跳動像素白沫水花
+      ctx.fillStyle = "rgba(224, 242, 254, 0.92)";
+      for (let wx = -halfWidth + 2; wx <= halfWidth - 6; wx += 8) {
+        const wyOff = Math.round(Math.sin(wNow + wx * 0.25) * 1.2);
+        ctx.fillRect(wx, cutY - 1 + wyOff, 5, 2);
+      }
+      ctx.fillStyle = "#BAE6FD";
+      ctx.fillRect(-halfWidth + 5, cutY + 1, halfWidth * 2 - 10, 2);
+    };
+
     // 定義各類實體的精確繪製函數
     const drawTrainerEntity = () => {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
-      const bob = Math.abs(Math.sin(tc.walkBob)) * 3.5;
+      const bob = Math.abs(Math.sin(tc.walkBob)) * (tc.isJumpingLedge ? 1.5 : 3.0);
       const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
-      const tInWater = tTerrain.inWater;
-      const tInGrass = tTerrain.label.includes("草叢");
+      const tInWater = tTerrain.inWater && !tc.isJumpingLedge;
+      const tInGrass = tTerrain.label.includes("草叢") && !tc.isJumpingLedge;
 
       let activeUrl = tc.sprite;
       let needFlip = false;
@@ -4591,37 +4642,31 @@ window.GameApp = {
       const tRec = SpriteCache.get(activeUrl);
 
       ctx.save();
-      ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
+      // 海中涉水真實深度：訓練員身體下沉 14px，並於腰部 (y = +5) 裁切下半身，搭配像素吃水線白沫
+      ctx.translate(tsx, tsy - (tInWater ? bob * 0.45 : bob) + (tc.jumpY || 0) + (tInWater ? 14 : 0));
       if (needFlip) ctx.scale(-1, 1);
       if (tRec && tRec.loaded) {
         if (tInWater) {
           ctx.save();
           ctx.beginPath();
-          ctx.rect(-28, -28, 56, 40);
+          ctx.rect(-28, -28, 56, 33); // 裁切至腰部 (y: -28 ~ +5)，讓雙腿完全浸入海中
           ctx.clip();
           ctx.drawImage(tRec.img, -28, -28, 56, 56);
+          if (tc.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+          }
           ctx.restore();
+          drawPixelWaterlineFoam(5, 17, 1.2);
         } else {
           ctx.drawImage(tRec.img, -28, -28, 56, 56);
-        }
-        if (tc.whiteFlashTimer > 0) {
-          this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+          if (tc.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+          }
         }
         if (tInGrass) {
           ctx.save();
-          const gNow = performance.now() * 0.0025;
-          ctx.strokeStyle = "#4ADE80";
-          ctx.lineWidth = 1.6;
-          [-15, -2, 11].forEach(ox => {
-            const sway = Math.sin(gNow * 1.8 + (tc.x + ox) * 0.05) * 2.5;
-            const rootY = 24;
-            ctx.beginPath();
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox - 3 + sway, rootY - 7);
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox + 3 + sway, rootY - 7);
-            ctx.stroke();
-          });
+          if (needFlip) ctx.scale(-1, 1); // 保持草葉搖曳方向與世界一致
+          drawPixelGrassOverlay(tc.x, tc.y, 24, [-12, 0, 12]);
           ctx.restore();
         }
       }
@@ -4763,39 +4808,35 @@ window.GameApp = {
           ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
         }
 
-        ctx.translate(px + visOffsetX, py + visOffsetY - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
+        const isFlyingPoke = p.data && (p.data.type1 === "Flying" || p.data.type2 === "Flying" || [92, 93, 94, 150, 151].includes(p.id));
+        const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
+        const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
+
+        ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 13 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
 
-        if (inWater) {
+        if (submergeWater) {
           ctx.save();
           ctx.beginPath();
-          ctx.rect(-26, -26, 52, 38);
+          ctx.rect(-26, -26, 52, 32); // 裁切至腹部吃水線 (y: -26 ~ +6)
           ctx.clip();
           ctx.drawImage(pRec.img, -26, -26, 52, 52);
+          if (p.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
+          }
           ctx.restore();
+          drawPixelWaterlineFoam(6, 16, 0);
         } else {
           ctx.drawImage(pRec.img, -26, -26, 52, 52);
+          if (p.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
+          }
         }
 
-        if (p.whiteFlashTimer > 0) {
-          this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
-        }
-
-        if (inGrass) {
+        if (submergeGrass) {
           ctx.save();
-          const gNow = performance.now() * 0.0025;
-          ctx.strokeStyle = "#4ADE80";
-          ctx.lineWidth = 1.6;
-          [-15, -2, 11].forEach(ox => {
-            const sway = Math.sin(gNow * 1.8 + (p.x + ox) * 0.05) * 2.5;
-            const rootY = 22;
-            ctx.beginPath();
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox - 3 + sway, rootY - 7);
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox + 3 + sway, rootY - 7);
-            ctx.stroke();
-          });
+          if (p.facingX > 0) ctx.scale(-1, 1);
+          drawPixelGrassOverlay(p.x, p.y, 22, [-13, 0, 13]);
           ctx.restore();
         }
       }

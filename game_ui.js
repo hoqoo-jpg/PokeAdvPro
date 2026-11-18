@@ -1827,15 +1827,22 @@ Object.assign(window.GameApp, {
   quitToTitle() {
     this.saveToStorage();
     SoundFX.startBgm("lobby");
-    const endEl = document.getElementById("endModal");
-    if (endEl) {
-      endEl.classList.add("hidden");
-      endEl.style.display = "none";
+    ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "cutInLayer", "setupModal"].forEach(mId => {
+      const el = document.getElementById(mId);
+      if (el) {
+        el.classList.add("hidden");
+        el.style.display = "none";
+      }
+    });
+    if (typeof MapEngine !== "undefined") {
+      MapEngine.setWeather("CLEAR");
+      MapEngine.lightningFlashAlpha = 0;
     }
-    const hudEl = document.getElementById("hudLayer");
-    if (hudEl) {
-      hudEl.classList.add("hidden");
-      hudEl.style.display = "none";
+    if (this.ctx) {
+      this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      this.ctx.globalAlpha = 1.0;
+      this.ctx.globalCompositeOperation = "source-over";
+      this.ctx.filter = "none";
     }
     const titleEl = document.getElementById("titleScreen");
     if (titleEl) {
@@ -1844,11 +1851,8 @@ Object.assign(window.GameApp, {
     }
     this.state = "TITLE";
     this.updateTitleUI();
-    // 解決 iOS Safari 在局間彈出工具列導致視口被擠壓遮擋問題
     window.scrollTo(0, 0);
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 50);
+    this.resize();
   }
 });
 
