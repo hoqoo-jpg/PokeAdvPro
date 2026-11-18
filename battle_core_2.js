@@ -1858,8 +1858,23 @@ window.GameApp = {
     const isWater = spawnTerrain.inWater;
 
     let candidates = REGULAR_MOB_POOL;
-    if (minutes < 1.5) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 140);
-    else if (minutes < 4.0) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 260);
+    if (isElite) {
+      // 【精英小王階級門檻】：嚴格限定僅會刷出「二階進化型、三階最終完全體、或單階猛將」，絕不出現一階幼體小怪戴皇冠！
+      const evolvedOrSingleStrong = REGULAR_MOB_POOL.filter(p => {
+        const hasParent = POKEMON_DB.some(parent => parent.evo_to === p.id || ([134, 135, 136].includes(p.id) && parent.id === 133));
+        const isSinglePowerhouse = (!hasParent && !p.evo_to && p.hp >= 132);
+        return hasParent || isSinglePowerhouse;
+      });
+      if (minutes >= 3.0) {
+        const finalForms = evolvedOrSingleStrong.filter(p => !p.evo_to);
+        candidates = finalForms.length > 0 ? finalForms : evolvedOrSingleStrong;
+      } else {
+        candidates = evolvedOrSingleStrong.length > 0 ? evolvedOrSingleStrong : REGULAR_MOB_POOL;
+      }
+    } else {
+      if (minutes < 1.5) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 140);
+      else if (minutes < 4.0) candidates = REGULAR_MOB_POOL.filter(p => p.hp <= 260);
+    }
 
     if (MapEngine.currentStage.id === "cerulean_bay" && isWater) {
       const waterFlyPool = candidates.filter(p => 
@@ -2552,6 +2567,151 @@ window.GameApp = {
 
   spawnEnemyTelegraphAttack(enemy) {
     const p = this.player;
+    const angToPlayer = Math.atan2(p.y - enemy.y, p.x - enemy.x);
+
+    // 【精英小王五大種族流派專屬技能 ＋ 時間差連點 ＋ 彈幕連攜】
+    if (!enemy.isBoss && enemy.isElite) {
+      const t1 = enemy.data ? enemy.data.type1 : "Normal";
+      const t2 = enemy.data ? enemy.data.type2 : "None";
+      const hasType = (list) => list.includes(t1) || list.includes(t2);
+      const atkIdx = (enemy.bossAttackIdx || 0) % 2;
+      enemy.bossAttackIdx = (enemy.bossAttackIdx || 0) + 1;
+      const eliteDmg = Math.round(enemy.atk * 1.25);
+
+      // 流派 A：火 / 龍 / 電系 ——【追身時間差三連爆】＋【高速星火彈幕】
+      if (hasType(["Fire", "Dragon", "Electric"])) {
+        const isElec = hasType(["Electric"]);
+        const col = isElec ? "#FACC15" : "#EF4444";
+        for (let k = 0; k < 3; k++) {
+          const leadDist = k * 42;
+          const ox = p.x + Math.cos(angToPlayer) * leadDist + (Math.random() - 0.5) * 36;
+          const oy = p.y + Math.sin(angToPlayer) * leadDist + (Math.random() - 0.5) * 36;
+          this.telegraphs.push({
+            shape: "circle", owner: enemy,
+            x: ox, y: oy, radius: 46,
+            timer: 0.70 + k * 0.18, maxTime: 0.70 + k * 0.18,
+            dmg: eliteDmg, color: col, isBoss: false
+          });
+        }
+        // 連攜 4 顆扇形火星 / 高速星彈
+        [-0.36, -0.12, 0.12, 0.36].forEach(off => {
+          const a = angToPlayer + off;
+          this.enemyProjectiles.push({
+            x: enemy.x, y: enemy.y,
+            vx: Math.cos(a) * 185, vy: Math.sin(a) * 185,
+            angle: a, radius: 8.5, dmg: Math.round(enemy.atk * 0.75),
+            color: col, vfx: isElec ? "swift_star" : "fire_spark",
+            statusEffect: isElec ? "Paralysis" : "Burn", statusChance: 0.25,
+            life: 2.8, rot: 0
+          });
+        });
+        return;
+      }
+
+      // 流派 B：地面 / 岩石 / 格鬥 / 一般系 —— 輪換【直線骨牌四連地裂 (時差連點)】與【破空音爆野蠻衝撞】
+      if (hasType(["Ground", "Rock", "Fighting"]) || t1 === "Normal") {
+        if (atkIdx === 0) {
+          // 直線骨牌四連爆（每隔 58px 往前推進、引爆時間差 0.15s）
+          for (let step = 1; step <= 4; step++) {
+            const dist = step * 58;
+            this.telegraphs.push({
+              shape: "circle", owner: enemy,
+              x: enemy.x + Math.cos(angToPlayer) * dist,
+              y: enemy.y + Math.sin(angToPlayer) * dist,
+              radius: 44,
+              timer: 0.62 + (step - 1) * 0.15,
+              maxTime: 0.62 + (step - 1) * 0.15,
+              dmg: eliteDmg, color: "#D97706", isBoss: false
+            });
+          }
+        } else {
+          // 破空音爆直線衝撞
+          this.telegraphs.push({
+            shape: "line", owner: enemy,
+            startX: enemy.x, startY: enemy.y,
+            angle: angToPlayer, length: 265, width: 40,
+            timer: 0.72, maxTime: 0.72,
+            dmg: eliteDmg, speed: 440, color: "#F59E0B", isBoss: false
+          });
+        }
+        return;
+      }
+
+      // 流派 C：水 / 冰系 ——【內外雙環潮汐陣】＋【扇形三叉冰錐/水滴彈】
+      if (hasType(["Water", "Ice"])) {
+        const isIce = hasType(["Ice"]);
+        this.telegraphs.push({
+          shape: "ring", owner: enemy,
+          x: enemy.x, y: enemy.y,
+          radius: 145, innerRadius: 42,
+          timer: 0.85, maxTime: 0.85,
+          dmg: eliteDmg, color: "#38BDF8", isBoss: false
+        });
+        [-0.25, 0, 0.25].forEach(off => {
+          const a = angToPlayer + off;
+          this.enemyProjectiles.push({
+            x: enemy.x, y: enemy.y,
+            vx: Math.cos(a) * 195, vy: Math.sin(a) * 195,
+            angle: a, radius: 9, dmg: Math.round(enemy.atk * 0.80),
+            color: "#38BDF8", vfx: isIce ? "frost_lance" : "water_drop",
+            statusEffect: "Freeze", statusChance: 0.30,
+            life: 3.0, rot: 0
+          });
+        });
+        return;
+      }
+
+      // 流派 D：超能 / 幽靈 / 毒系 ——【引力黑洞 ＋ 時差雙側爆】＋【追蹤念力核 / 毒霧球】
+      if (hasType(["Psychic", "Ghost", "Poison"])) {
+        this.telegraphs.push({
+          shape: "circle", owner: enemy,
+          x: p.x, y: p.y, radius: 58,
+          timer: 0.82, maxTime: 0.82,
+          dmg: eliteDmg, isSuction: true, color: "#A855F7", isBoss: false
+        });
+        [-1, 1].forEach((side, idx) => {
+          const perp = angToPlayer + side * (Math.PI / 2);
+          this.telegraphs.push({
+            shape: "circle", owner: enemy,
+            x: p.x + Math.cos(perp) * 68, y: p.y + Math.sin(perp) * 68,
+            radius: 42,
+            timer: 0.98 + idx * 0.14, maxTime: 0.98 + idx * 0.14,
+            dmg: eliteDmg, color: "#C084FC", isBoss: false
+          });
+        });
+        this.enemyProjectiles.push({
+          x: enemy.x, y: enemy.y,
+          vx: Math.cos(angToPlayer) * 125, vy: Math.sin(angToPlayer) * 125,
+          angle: angToPlayer, radius: 12, dmg: Math.round(enemy.atk * 0.85),
+          color: "#C084FC", vfx: hasType(["Poison"]) ? "poison_orb" : "psy_wave",
+          homing: !hasType(["Poison"]),
+          life: 3.4, rot: 0
+        });
+        return;
+      }
+
+      // 流派 E：草 / 蟲 / 飛行系 ——【破空疾風衝刺】＋【扇形飛葉 / 風刃連射】
+      this.telegraphs.push({
+        shape: "line", owner: enemy,
+        startX: enemy.x, startY: enemy.y,
+        angle: angToPlayer, length: 270, width: 38,
+        timer: 0.70, maxTime: 0.70,
+        dmg: eliteDmg, speed: 450, color: "#4ADE80", isBoss: false
+      });
+      [-0.28, 0, 0.28].forEach(off => {
+        const a = angToPlayer + off;
+        this.enemyProjectiles.push({
+          x: enemy.x, y: enemy.y,
+          vx: Math.cos(a) * 185, vy: Math.sin(a) * 185,
+          angle: a, radius: 8.5, dmg: Math.round(enemy.atk * 0.75),
+          color: hasType(["Flying"]) ? "#818CF8" : "#22C55E",
+          vfx: hasType(["Flying"]) ? "wind_bullet" : "leaf_bullet",
+          life: 3.0, rot: 0
+        });
+      });
+      return;
+    }
+
     const bPattern = BOSS_ATTACK_PATTERNS[enemy.id] || BOSS_ATTACK_PATTERNS.default_elite;
     const skillList = bPattern.skills;
     
@@ -2661,8 +2821,25 @@ window.GameApp = {
             if (Math.hypot(p.x - nearX, p.y - nearY) <= tg.width / 2 + 16) hitPlayer = true;
           }
           if (tg.owner && tg.owner.hp > 0) {
+            // 【衝撞視覺升級】：沿衝鋒路徑生成 3 道破空音爆風罩 (sonic_cone) 與揚塵粒子，告別乾癟瞬移感！
+            for (let step = 1; step <= 3; step++) {
+              const frac = step * 0.28;
+              const cx = tg.startX + Math.cos(tg.angle) * (tg.length * frac);
+              const cy = tg.startY + Math.sin(tg.angle) * (tg.length * frac);
+              SkillsEngine.meleeEffects.push({
+                style: "sonic_cone",
+                casterRef: step === 3 ? tg.owner : null,
+                ox: cx, oy: cy, x: cx, y: cy,
+                angle: tg.angle,
+                radius: (tg.width || 40) * (0.85 + step * 0.12),
+                waveIdx: step - 1,
+                timer: 0.22, maxTime: 0.22,
+                color: tg.color || "#F8FAFC"
+              });
+            }
             tg.owner.x = tg.startX + Math.cos(tg.angle) * (tg.length * 0.85);
             tg.owner.y = tg.startY + Math.sin(tg.angle) * (tg.length * 0.85);
+            this.spawnParticleCluster(tg.owner.x, tg.owner.y, tg.color || "#F59E0B", "#FFFFFF", 10, "star", 0.85);
           }
         } else if (tg.shape === "ring") {
           const d = Math.hypot(p.x - tg.x, p.y - tg.y);

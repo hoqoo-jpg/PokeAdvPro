@@ -935,22 +935,22 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Fighting") {
-      // 【爆裂十字劈（武神阿修羅破）・三階段進化重製】：
-      // 階段 1：隨身 1.8 秒赤金武神霸體陣（賦予主角 +20% 暴擊與 30% 減傷，高頻震退貼身敵群）
-      p.martialGodTimer = 1.80;
+      // 【爆裂十字劈（太極八卦武神破）・三段式武學連招】：
+      // 第 1 拍（0.0s 立陣）：隨身展開 1.95 秒「太極八卦武神陣」（外卦八宮＋中層交錯金剛星盤＋內圈陰陽雙魚氣旋，賦予 +20% 暴擊與 30% 減傷）
+      p.martialGodTimer = 1.95;
       this.groundHazards.push({
         kind: "martial_aura_domain",
         x: p.x, y: p.y,
         followPlayer: true,
-        radius: 215 * p.areaMult,
+        radius: 225 * p.areaMult,
         dmg: ultDmg * 0.34,
         type: "Fighting",
-        timer: 1.80, maxTime: 1.80,
+        timer: 1.95, maxTime: 1.95,
         tickTimer: 0.06, tickInterval: 0.28,
         color: "#DC2626"
       });
 
-      // 階段 2：阿修羅百裂拳網（12 道螺旋金紅重拳護體掃除四周）
+      // 第 2 拍（0.0s 百裂）：12 道阿修羅螺旋金紅重拳護體掃除四周
       for (let i = 0; i < 12; i++) {
         const ang = (i * Math.PI * 2) / 12;
         this.projectiles.push({
@@ -963,47 +963,49 @@ const SkillsEngine = {
         });
       }
 
-      // 階段 3：巨型白熾「X 十字天譴破甲斬」（鎖定視野內最高血量頭目或最密集怪群中心，降下橫跨 320px 的巨型十字裂地斬，交叉心 1.5x 破甲暴擊並震懾麻痺 1.5s！）
-      const crossTarget = GameApp.findPriorityTargetInViewport
-        ? (GameApp.findPriorityTargetInViewport(p.x, p.y, 320, "highest_hp") || GameApp.findPriorityTargetInViewport(p.x, p.y, 320, "cluster"))
-        : GameApp.findNearestEnemyInViewport(p.x, p.y, 300);
-      const cx = crossTarget ? crossTarget.x : (p.x + (p.facingX >= 0 ? 95 : -95));
-      const cy = crossTarget ? crossTarget.y : p.y;
-      const armLen = 185 * p.areaMult;
+      // 第 3 拍（0.28s 鎮嶽終結斬）：以主角自身為中心且全程跟隨主角移動（followPlayer: true），劈開橫跨全屏的白熾「X 十字天譴破甲斬」！
+      setTimeout(() => {
+        if (GameApp.state !== "PLAYING" || !GameApp.player) return;
+        const pl = GameApp.player;
+        const armLen = 235 * pl.areaMult;
+        this.groundHazards = this.groundHazards.filter(h => h.kind !== "cross_chop_cleave");
+        this.groundHazards.push({
+          kind: "cross_chop_cleave",
+          x: pl.x, y: pl.y,
+          followPlayer: true,
+          radius: armLen,
+          dmg: ultDmg * 0.58,
+          type: "Fighting",
+          timer: 1.05, maxTime: 1.05,
+          tickTimer: 0.16, tickInterval: 0.30,
+          color: "#FACC15"
+        });
+        SoundFX.play("ultimate");
+        GameApp.camera.shakeTime = 0.20;
+        GameApp.camera.shakeMagnitude = 5.5;
 
-      this.groundHazards.push({
-        kind: "cross_chop_cleave",
-        x: cx, y: cy,
-        radius: armLen,
-        dmg: ultDmg * 0.55,
-        type: "Fighting",
-        timer: 0.95, maxTime: 0.95,
-        tickTimer: 0.18, tickInterval: 0.35,
-        color: "#FACC15"
-      });
-
-      // 十字斬瞬發破甲裁決判定
-      const crossCandidates = [...this.getEnemiesInRadius(cx, cy, armLen)];
-      crossCandidates.forEach(e => {
-        if (!e || e.hp <= 0) return;
-        const dx = e.x - cx, dy = e.y - cy;
-        const d = Math.hypot(dx, dy);
-        if (d <= armLen + e.radius) {
-          // 檢查是否位於 X 十字對角斬擊帶上或中心破甲核心 (75px)
-          const diag1 = Math.abs(dx - dy) * 0.707;
-          const diag2 = Math.abs(dx + dy) * 0.707;
-          const inCore = d <= 78 * p.areaMult + e.radius;
-          if (inCore || diag1 <= 42 * p.areaMult + e.radius || diag2 <= 42 * p.areaMult + e.radius) {
-            const armorBreakMult = inCore ? 1.45 : 1.15;
-            GameApp.dealDamageToEnemy(e, ultDmg * armorBreakMult, "Fighting", 0.65, 28);
-            if (!e.status && !(e.ccImmunityTimer > 0)) {
-              e.status = "Paralysis";
-              e.statusTimer = e.isBoss ? 1.2 : 2.0;
-              e.ccImmunityTimer = e.isBoss ? 3.5 : 2.2;
+        // 自身周圍十字斬瞬發破甲裁決判定
+        const crossCandidates = [...this.getEnemiesInRadius(pl.x, pl.y, armLen)];
+        crossCandidates.forEach(e => {
+          if (!e || e.hp <= 0) return;
+          const dx = e.x - pl.x, dy = e.y - pl.y;
+          const d = Math.hypot(dx, dy);
+          if (d <= armLen + e.radius) {
+            const diag1 = Math.abs(dx - dy) * 0.707;
+            const diag2 = Math.abs(dx + dy) * 0.707;
+            const inCore = d <= 88 * pl.areaMult + e.radius;
+            if (inCore || diag1 <= 48 * pl.areaMult + e.radius || diag2 <= 48 * pl.areaMult + e.radius) {
+              const armorBreakMult = inCore ? 1.45 : 1.18;
+              GameApp.dealDamageToEnemy(e, ultDmg * armorBreakMult, "Fighting", 0.65, 28);
+              if (!e.status && !(e.ccImmunityTimer > 0)) {
+                e.status = "Paralysis";
+                e.statusTimer = e.isBoss ? 1.2 : 2.0;
+                e.ccImmunityTimer = e.isBoss ? 3.5 : 2.2;
+              }
             }
           }
-        }
-      });
+        });
+      }, 280);
     } else if (meta.type === "Flying") {
       // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（持續 3.1s，配合 4.2s 保底冷卻絕不疊出 6 道龍捲風）
       for (let i = 0; i < 3; i++) {
@@ -2092,37 +2094,141 @@ const SkillsEngine = {
           ctx.restore();
         });
       } else if (hz.kind === "martial_aura_domain") {
-        // 【爆裂十字劈・底層武神八卦氣浪陣】：赤金雙層震地氣環 ＋ 十字裂地氣勁
+        // 【太極八卦武神陣（底層三層中式武道法陣）】：
+        // 1. 鎮嶽焦黑石板底盤 2. 外圈順時針八卦方位陣盤與卦象符紋 3. 中層逆時針交錯金剛八角星盤 4. 內圈陰陽雙魚流體氣旋
         ctx.translate(sx, sy);
-        const alpha = Math.min(1, hz.timer * 1.2);
-        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.8));
+        const alpha = Math.min(1, hz.timer * 1.25);
+        const curR = Math.max(36, hz.radius * Math.min(1, prog * 3.0));
         ctx.globalAlpha = alpha;
 
-        const mGrad = ctx.createRadialGradient(0, 0, 26, 0, 0, curR);
-        mGrad.addColorStop(0, "rgba(220, 38, 38, 0.0)");
-        mGrad.addColorStop(0.35, "rgba(220, 38, 38, 0.42)");
-        mGrad.addColorStop(0.8, "rgba(250, 204, 21, 0.32)");
+        // 第 1 層：入木三分的暗紅焦黑武道石板底盤（凸顯上方金紅陣紋）
+        const mGrad = ctx.createRadialGradient(0, 0, 28, 0, 0, curR);
+        mGrad.addColorStop(0, "rgba(15, 23, 42, 0.0)");
+        mGrad.addColorStop(0.22, "rgba(69, 10, 10, 0.62)");
+        mGrad.addColorStop(0.72, "rgba(185, 28, 28, 0.45)");
+        mGrad.addColorStop(0.92, "rgba(250, 204, 21, 0.32)");
         mGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
         ctx.fillStyle = mGrad;
         ctx.beginPath();
         ctx.arc(0, 0, curR, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 3.5;
+        // 第 2 層：外圈順時針「正八邊形八卦外盤 ＋ 八宮三畫卦象金紋 ＋ 八方鎮陣符印」
+        ctx.save();
+        ctx.rotate(now * 0.45);
+        const octR = curR * 0.92;
+        const innerOctR = curR * 0.72;
+
+        // 外八角雙線金框
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 3.0;
         ctx.beginPath();
-        ctx.arc(0, 0, curR * 0.86, 0, Math.PI * 2);
+        for (let k = 0; k < 8; k++) {
+          const a = (k * Math.PI) / 4;
+          const ox = Math.cos(a) * octR, oy = Math.sin(a) * octR;
+          if (k === 0) ctx.moveTo(ox, oy);
+          else ctx.lineTo(ox, oy);
+        }
+        ctx.closePath();
         ctx.stroke();
 
-        // 八向武道破空震波線
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.75)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
         for (let k = 0; k < 8; k++) {
-          const a = (k * Math.PI) / 4 + prog * 0.3;
-          ctx.strokeStyle = k % 2 === 0 ? "#EF4444" : "#FACC15";
-          ctx.lineWidth = 3.2;
+          const a = (k * Math.PI) / 4;
+          const ox = Math.cos(a) * innerOctR, oy = Math.sin(a) * innerOctR;
+          if (k === 0) ctx.moveTo(ox, oy);
+          else ctx.lineTo(ox, oy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // 八卦三畫卦象（乾、兌、離、震、巽、坎、艮、坤：1代表陽爻長線，0代表陰爻斷線）
+        const trigrams = [
+          [1, 1, 1], [0, 1, 1], [1, 0, 1], [0, 0, 1],
+          [1, 1, 0], [0, 1, 0], [1, 0, 0], [0, 0, 0]
+        ];
+        for (let k = 0; k < 8; k++) {
+          const midA = (k * Math.PI) / 4 + Math.PI / 8;
+          ctx.save();
+          ctx.rotate(midA);
+          const baseDist = curR * 0.76;
+          const tri = trigrams[k];
+          ctx.strokeStyle = "#FEF08A";
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = "round";
+          for (let lineIdx = 0; lineIdx < 3; lineIdx++) {
+            const rDist = baseDist + lineIdx * (curR * 0.042);
+            const barHalfW = curR * 0.085;
+            ctx.beginPath();
+            if (tri[lineIdx] === 1) {
+              // 陽爻（長實線）
+              ctx.moveTo(rDist, -barHalfW);
+              ctx.lineTo(rDist, barHalfW);
+            } else {
+              // 陰爻（雙短斷線）
+              ctx.moveTo(rDist, -barHalfW);
+              ctx.lineTo(rDist, -barHalfW * 0.22);
+              ctx.moveTo(rDist, barHalfW * 0.22);
+              ctx.lineTo(rDist, barHalfW);
+            }
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // 八角頂點鎮陣赤金菱形陣眼
+          const vx = Math.cos((k * Math.PI) / 4) * octR;
+          const vy = Math.sin((k * Math.PI) / 4) * octR;
+          ctx.fillStyle = "#FEF08A";
+          ctx.strokeStyle = "#991B1B";
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.moveTo(Math.cos(a) * 32, Math.sin(a) * 32);
-          ctx.lineTo(Math.cos(a) * curR, Math.sin(a) * curR);
+          ctx.arc(vx, vy, 4.2, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
+        }
+        ctx.restore();
+
+        // 第 3 層：中圈逆時針「交錯八角金剛星盤（兩個 45 度交疊正方形陣紋）」
+        ctx.save();
+        ctx.rotate(-now * 0.65);
+        const sqR = curR * 0.66;
+        [0, Math.PI / 4].forEach((rotOff, idx) => {
+          ctx.save();
+          ctx.rotate(rotOff);
+          ctx.strokeStyle = idx === 0 ? "rgba(239, 68, 68, 0.88)" : "rgba(250, 204, 21, 0.85)";
+          ctx.lineWidth = 2.4;
+          ctx.beginPath();
+          for (let s = 0; s < 4; s++) {
+            const a = (s * Math.PI) / 2;
+            const px = Math.cos(a) * sqR, py = Math.sin(a) * sqR;
+            if (s === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
+        });
+        ctx.restore();
+
+        // 第 4 層：內圈「太極陰陽雙魚氣旋」（一赤紅一耀金圍繞主角 42px 淨空區高速盤旋）
+        const yinYangR = Math.max(36, curR * 0.36);
+        for (let arm = 0; arm < 2; arm++) {
+          const startA = now * 2.2 + arm * Math.PI;
+          ctx.strokeStyle = arm === 0 ? "#FEF08A" : "#EF4444";
+          ctx.lineWidth = 5.5;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.arc(0, 0, yinYangR, startA, startA + Math.PI * 0.78);
+          ctx.stroke();
+
+          // 魚眼陣樞圓點
+          const headA = startA + Math.PI * 0.78;
+          ctx.fillStyle = arm === 0 ? "#EF4444" : "#FEF08A";
+          ctx.beginPath();
+          ctx.arc(Math.cos(headA) * yinYangR, Math.sin(headA) * yinYangR, 4.5, 0, Math.PI * 2);
+          ctx.fill();
         }
       } else if (hz.kind === "genesis_aurora") {
         // 【創世極光（月亮之力超武・底層）】：月華星河投影陣 ＋ 雙向交織波浪極光帶 ＋ 閃爍十字星芒
