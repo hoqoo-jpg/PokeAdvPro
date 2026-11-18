@@ -113,6 +113,10 @@ window.GameApp = {
     this.height = window.innerHeight;
     this.canvas.width = this.width;
     this.canvas.height = this.height;
+    if (this.ctx) {
+      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.webkitImageSmoothingEnabled = false;
+    }
   },
 
   bindInputs() {
@@ -953,11 +957,16 @@ window.GameApp = {
     const cutStrip = document.getElementById("cutInStrip");
 
     if (cutLayer) {
+      cutLayer.style.display = "flex";
       cutLayer.classList.remove("hidden");
 
       const showFallbackStrip = () => {
         if (!cutStrip) return;
-        if (cutBannerWrap) cutBannerWrap.classList.add("hidden");
+        if (cutBannerWrap) {
+          cutBannerWrap.classList.add("hidden");
+          cutBannerWrap.style.display = "none";
+        }
+        cutStrip.style.display = "flex";
         cutStrip.classList.remove("hidden");
         document.getElementById("cutInAvatar").src = tr.sprite;
         document.getElementById("cutInTrainer").textContent = `${tr.name} ‧ 戰術指令`;
@@ -968,14 +977,27 @@ window.GameApp = {
       };
 
       const cutRec = tr.cutin ? SpriteCache.get(tr.cutin) : null;
-      if (tr.cutin && cutBannerImg && cutBannerWrap && cutRec && cutRec.loaded && !cutRec.error) {
-        cutStrip.classList.add("hidden");
+      if (tr.cutin && cutBannerImg && cutBannerWrap && !(cutRec && cutRec.error)) {
+        if (cutStrip) {
+          cutStrip.classList.add("hidden");
+          cutStrip.style.display = "none";
+        }
+        cutBannerWrap.style.display = "flex";
         cutBannerWrap.classList.remove("hidden");
         cutBannerImg.onerror = () => {
           if (cutRec) cutRec.error = true;
           showFallbackStrip();
         };
         cutBannerImg.src = tr.cutin;
+        const bTrainerEl = document.getElementById("cutInBannerTrainer");
+        const bSkillEl = document.getElementById("cutInBannerSkill");
+        const bBoxEl = document.getElementById("cutInBannerOverlayBox");
+        if (bTrainerEl) bTrainerEl.textContent = `${tr.name} ‧ 戰術指令`;
+        if (bSkillEl) bSkillEl.textContent = `【${tr.skillName}】`;
+        if (bBoxEl) {
+          bBoxEl.style.borderColor = tr.bondColor || "#FBBF24";
+          cutBannerImg.style.borderColor = tr.bondColor || "#FBBF24";
+        }
         cutBannerWrap.classList.remove("cut-in-banner-active");
         void cutBannerWrap.offsetWidth;
         cutBannerWrap.classList.add("cut-in-banner-active");
@@ -983,7 +1005,11 @@ window.GameApp = {
         showFallbackStrip();
       }
 
-      setTimeout(() => cutLayer.classList.add("hidden"), 750);
+      clearTimeout(this._cutInHideTimer);
+      this._cutInHideTimer = setTimeout(() => {
+        cutLayer.classList.add("hidden");
+        cutLayer.style.display = "none";
+      }, 750);
     }
 
     this.hitStopTimer = 0.08;
@@ -4133,6 +4159,7 @@ window.GameApp = {
 
   renderCombat() {
     const ctx = this.ctx;
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, this.width, this.height);
     if (!this.player) return;
 
@@ -4624,7 +4651,12 @@ window.GameApp = {
     const drawTrainerEntity = () => {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
-      const bob = Math.abs(Math.sin(tc.walkBob)) * (tc.isJumpingLedge ? 1.5 : 3.0);
+      const isMoving = tc.walkBob > 0.01;
+      const bob = isMoving ? Math.abs(Math.sin(tc.walkBob)) * (tc.isJumpingLedge ? 1.5 : 3.2) : 0;
+      // 針對雙腳並攏的立正像素圖 (Ash_01, brock_01 等)，加入步伐左右微傾角與輕微彈性縮放，消除立正跳躍感
+      const strideTilt = isMoving ? Math.sin(tc.walkBob) * (tInWater => tInWater ? 0.035 : 0.068)(MapEngine.getTerrainModifierAt(tc.x, tc.y).inWater) : 0;
+      const strideSquashY = isMoving ? (1 - Math.abs(Math.cos(tc.walkBob)) * 0.035) : 1.0;
+
       const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
       const tInWater = tTerrain.inWater && !tc.isJumpingLedge;
       const tInGrass = tTerrain.label.includes("草叢") && !tc.isJumpingLedge;
@@ -4642,31 +4674,34 @@ window.GameApp = {
       const tRec = SpriteCache.get(activeUrl);
 
       ctx.save();
-      // 海中涉水真實深度：訓練員身體下沉 14px，並於腰部 (y = +5) 裁切下半身，搭配像素吃水線白沫
+      ctx.imageSmoothingEnabled = false;
+      // 對齊腳底陰影中心 (tsy + 18) 並套用海中涉水下沉 14px
       ctx.translate(tsx, tsy - (tInWater ? bob * 0.45 : bob) + (tc.jumpY || 0) + (tInWater ? 14 : 0));
-      if (needFlip) ctx.scale(-1, 1);
+      if (strideTilt !== 0) ctx.rotate(strideTilt);
+      ctx.scale(needFlip ? -1 : 1, strideSquashY);
+
       if (tRec && tRec.loaded) {
         if (tInWater) {
           ctx.save();
           ctx.beginPath();
-          ctx.rect(-28, -28, 56, 33); // 裁切至腰部 (y: -28 ~ +5)，讓雙腿完全浸入海中
+          ctx.rect(-28, -32, 56, 37); // 裁切至腰部 (y: -32 ~ +5)，讓雙腿完全浸入海中
           ctx.clip();
-          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+          ctx.drawImage(tRec.img, -28, -32, 56, 56);
           if (tc.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+            this.drawSilhouetteFlash(ctx, tRec.img, -28, -32, 56, 56, "#FF6B4A", 0.70);
           }
           ctx.restore();
           drawPixelWaterlineFoam(5, 17, 1.2);
         } else {
-          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+          ctx.drawImage(tRec.img, -28, -32, 56, 56);
           if (tc.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+            this.drawSilhouetteFlash(ctx, tRec.img, -28, -32, 56, 56, "#FF6B4A", 0.70);
           }
         }
         if (tInGrass) {
           ctx.save();
           if (needFlip) ctx.scale(-1, 1); // 保持草葉搖曳方向與世界一致
-          drawPixelGrassOverlay(tc.x, tc.y, 24, [-12, 0, 12]);
+          drawPixelGrassOverlay(tc.x, tc.y, 22, [-12, 0, 12]);
           ctx.restore();
         }
       }

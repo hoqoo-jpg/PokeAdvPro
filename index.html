@@ -588,9 +588,13 @@
 
   <!-- 6. 二次元戰術大招 Cut-in 動態層 (支援專屬滿版插圖與備用橫幅) -->
   <div id="cutInLayer" class="absolute inset-0 z-40 hidden pointer-events-none flex items-center justify-center overflow-hidden bg-slate-950/40 backdrop-blur-[1px]">
-    <!-- 專屬全圖橫幅 (小智專用大招特寫插畫) -->
-    <div id="cutInBannerWrap" class="w-full flex items-center justify-center">
-      <img id="cutInBannerImg" src="images/cutin_ash.png" class="w-full max-w-4xl max-h-[38vh] object-contain drop-shadow-[0_0_35px_rgba(245,158,11,0.85)] border-y-4 border-amber-400" alt="Special Cut-In" />
+    <!-- 專屬全圖橫幅 (全訓練家大招特寫插畫 + 右下角斜切必殺技字幕疊加演出) -->
+    <div id="cutInBannerWrap" class="relative w-full max-w-4xl flex items-center justify-center mx-auto">
+      <img id="cutInBannerImg" src="images/cutin_ash.png" class="w-full max-h-[38vh] object-contain drop-shadow-[0_0_35px_rgba(245,158,11,0.85)] border-y-4 border-amber-400" alt="Special Cut-In" />
+      <div id="cutInBannerOverlayBox" class="absolute bottom-2 right-3 sm:bottom-3 sm:right-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-red-950/95 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-xl border-2 border-amber-400 shadow-[0_6px_20px_rgba(0,0,0,0.9)] transform -skew-x-12 flex flex-col items-end pointer-events-none">
+        <div id="cutInBannerTrainer" class="font-pixel text-[10px] sm:text-xs text-amber-300 font-bold tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">小智 (Ash) ‧ 戰術指令</div>
+        <div id="cutInBannerSkill" class="text-lg sm:text-2xl font-black italic text-white tracking-wider drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)] -mt-0.5">【就決定是你了！】</div>
+      </div>
     </div>
 
     <!-- 備用純色斜切橫幅 (其他尚未配置大招圖的訓練家降級使用) -->
@@ -979,10 +983,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=10.2"></script>
-  <script src="map_v11_engine.js?v=10.2"></script>
-  <script src="skills_engine.js?v=10.2"></script>
-  <script src="battle_core_2.js?v=10.2"></script>
-  <script src="game_ui.js?v=10.2"></script>
+  <script src="pokedex_data.js?v=10.4"></script>
+  <script src="map_v11_engine.js?v=10.4"></script>
+  <script src="skills_engine.js?v=10.4"></script>
+  <script src="battle_core_2.js?v=10.4"></script>
+  <script src="game_ui.js?v=10.4"></script>
 </body>
 </html>
