@@ -887,6 +887,83 @@ const MapEngine = {
     ctx.restore();
   },
 
+  // P1 新增：GBA 2.5D 樹冠與屋頂前景遮擋層（角色走到樹後/屋頂北側時自動產生半透明景深遮罩）
+  renderForegroundCanopies(ctx, camX, camY, width, height, player, trainer) {
+    const stage = this.currentStage;
+    const startCx = Math.floor((camX - width / 2) / 600) - 1;
+    const endCx = Math.floor((camX + width / 2) / 600) + 1;
+    const startCy = Math.floor((camY - height / 2) / 600) - 1;
+    const endCy = Math.floor((camY + height / 2) / 600) + 1;
+    const now = performance.now() * 0.0016;
+
+    const checkOccluded = (ent, ob) => {
+      if (!ent) return false;
+      const footY = ent.y + 18;
+      // 角色腳底位於障礙物底部北側（上方），且身體與樹冠/屋頂上半部重疊
+      return (
+        footY < ob.y + ob.h * 0.88 &&
+        ent.y > ob.y - 28 &&
+        ent.x > ob.x - 24 &&
+        ent.x < ob.x + ob.w + 24
+      );
+    };
+
+    for (let cx = startCx; cx <= endCx; cx++) {
+      for (let cy = startCy; cy <= endCy; cy++) {
+        const chunk = this.getBiomeChunk(cx, cy);
+        chunk.obstacles.forEach(ob => {
+          if (ob.kind !== "oak_tree" && ob.kind !== "house" && ob.kind !== "statue") return;
+          const ox = ob.x - camX + width / 2;
+          const oy = ob.y - camY + height / 2;
+          if (ox + ob.w < -40 || ox > width + 40 || oy + ob.h < -40 || oy > height + 40) return;
+
+          const playerBehind = checkOccluded(player, ob) || checkOccluded(trainer, ob);
+          // 只有當主角、訓練家或附近怪獸處於該障礙物北側（或為營造樹冠立體層次）時重繪上半部樹冠/屋頂
+          ctx.save();
+          if (playerBehind) {
+            ctx.globalAlpha = 0.52; // 角色走到樹冠或屋簷後方時自動半透明，兼顧 2.5D 遮擋感與視野清晰度
+          }
+
+          if (ob.kind === "house") {
+            ctx.fillStyle = "#DC2626";
+            ctx.strokeStyle = "#1E293B";
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(ox - 6, oy + ob.h * 0.38);
+            ctx.lineTo(ox + ob.w / 2, oy);
+            ctx.lineTo(ox + ob.w + 6, oy + ob.h * 0.38);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else if (ob.kind === "statue") {
+            ctx.fillStyle = "#64748B";
+            ctx.strokeStyle = "#1E293B";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ox + ob.w / 2, oy + 14, 16, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            const eyeGlow = 0.85 + Math.sin(now * 2.4 + ob.x * 0.1) * 0.15;
+            ctx.fillStyle = `rgba(250, 204, 21, ${eyeGlow})`;
+            ctx.fillRect(ox + ob.w / 2 - 7, oy + 11, 4, 4);
+            ctx.fillRect(ox + ob.w / 2 + 3, oy + 11, 4, 4);
+          } else if (ob.kind === "oak_tree") {
+            const treeSway = Math.sin(now * 1.3 + ob.x * 0.05) * 2.2;
+            ctx.fillStyle = "#15803D";
+            ctx.beginPath();
+            ctx.arc(ox + ob.w / 2 + treeSway, oy + ob.h * 0.42, ob.w * 0.46, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#22C55E";
+            ctx.beginPath();
+            ctx.arc(ox + ob.w * 0.44 + treeSway * 1.2, oy + ob.h * 0.34, ob.w * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+      }
+    }
+  },
+
   renderWeatherOverlays(ctx, width, height) {
     if (this.weather === "RAIN" || this.weather === "THUNDER") {
       ctx.save();

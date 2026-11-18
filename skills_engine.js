@@ -190,7 +190,7 @@ const SkillsEngine = {
           const rDist = (125 + Math.random() * 85) * GameApp.player.areaMult;
           endX = caster.x + Math.cos(strikeAng) * rDist;
           endY = caster.y + Math.sin(strikeAng) * rDist;
-          GameApp.enemies.forEach(e => {
+          this.getEnemiesInRadius(endX, endY, 44).forEach(e => {
             if (Math.hypot(e.x - endX, e.y - endY) <= 44 + e.radius) {
               GameApp.dealDamageToEnemy(e, rawDmg * 0.85, meta.type, 0.35, meta.knockback !== undefined ? meta.knockback : 2);
             }
@@ -217,7 +217,7 @@ const SkillsEngine = {
           this.spawnSubParticle(endX, endY, Math.cos(sAng) * spd, Math.sin(sAng) * spd, sp % 2 === 0 ? "#FEF08A" : "#FFFFFF", 2.8 + Math.random() * 2, 0.35, "star");
         }
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Electric");
       return;
     }
 
@@ -258,7 +258,7 @@ const SkillsEngine = {
           trailTimer: 0
         });
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Grass");
       return;
     }
 
@@ -286,7 +286,7 @@ const SkillsEngine = {
           hitSet: new Set(), trailTimer: 0
         });
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Poison");
       return;
     }
 
@@ -360,7 +360,7 @@ const SkillsEngine = {
           color: "#EC4899"
         });
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Psychic");
       return;
     }
 
@@ -395,7 +395,7 @@ const SkillsEngine = {
           });
         }
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Fire");
       return;
     }
 
@@ -499,7 +499,7 @@ const SkillsEngine = {
         });
       });
     }
-    SoundFX.play("hit");
+    SoundFX.play("hit", meta.type);
   },
 
   // 方案 C 純視覺撲擊控制 (100% 零物理座標位移)：完全不改變角色物理 Hitbox 座標，精準控距零失誤，同時保留精靈立繪「閃電前撲＋擠壓拉伸形變 (Squash & Stretch)」與金色殘影！
@@ -566,7 +566,7 @@ const SkillsEngine = {
           );
         }
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Grass");
       return;
     }
 
@@ -597,7 +597,7 @@ const SkillsEngine = {
         });
       }
       GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 26, caster.y + Math.sin(baseAngle) * 26, "#FFFFFF", "#FACC15", 8, "star", 0.9);
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Fighting");
       return;
     }
 
@@ -658,7 +658,7 @@ const SkillsEngine = {
             }
           }
         });
-        SoundFX.play("hit");
+        SoundFX.play("hit", "Normal");
       };
 
       fireTackleWave(0);
@@ -730,7 +730,7 @@ const SkillsEngine = {
           color: isDragonite ? "#F59E0B" : "#4338CA"
         });
       }
-      SoundFX.play("hit");
+      SoundFX.play("hit", "Dragon");
       return;
     }
 
@@ -756,7 +756,7 @@ const SkillsEngine = {
         color: meta.color
       });
     }
-    SoundFX.play("hit");
+    SoundFX.play("hit", meta.type);
   },
 
   triggerUltimateSuperMove(meta, skSlot, ultDmgScale = 1.0) {
@@ -1040,7 +1040,7 @@ const SkillsEngine = {
     } else if (meta.type === "Ice") {
       // 【絕對零度（防永凍平衡版）】：對 285px 極光圈內非韌性保護期的敵人凍結 2.0s (Boss 1.0s)，韌性保護期內則賦予極寒減速
       const freezeRange = 285 * p.areaMult;
-      GameApp.enemies.forEach(e => {
+      this.getEnemiesInRadius(p.x, p.y, freezeRange).forEach(e => {
         if (Math.hypot(e.x - p.x, e.y - p.y) <= freezeRange + e.radius) {
           if (e.ccImmunityTimer > 0) {
             e.inFrostAura = true;
@@ -1159,8 +1159,8 @@ const SkillsEngine = {
       }
     }
 
-    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪（使用淺拷貝快照防刪除錯位）
-    [...GameApp.enemies].forEach(e => {
+    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪（使用空間網格與淺拷貝快照防刪除錯位）
+    [...this.getEnemiesInRadius(p.x, p.y, 115)].forEach(e => {
       if (!e || e.hp <= 0) return;
       if (Math.hypot(e.x - p.x, e.y - p.y) <= 115 + e.radius) {
         let adjustedDmg = ultDmg * 0.55;
@@ -1274,8 +1274,8 @@ const SkillsEngine = {
             const spd = 25 + Math.random() * 55;
             this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? "#9333EA" : "#4ADE80", 4.5, 0.42, "circle");
           }
-          GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= puddleR + e.radius) {
+          [...this.getEnemiesInRadius(pr.targetX, pr.targetY, puddleR)].forEach(e => {
+            if (e && e.hp > 0 && Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= puddleR + e.radius) {
               GameApp.dealDamageToEnemy(e, pr.dmg, "Poison", pr.statusBonus, 6);
             }
           });
@@ -1297,7 +1297,7 @@ const SkillsEngine = {
             tickInterval: 0.42,
             color: "#9333EA"
           });
-          SoundFX.play("hit");
+          SoundFX.play("hit", "Poison");
           this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
           this.projectiles.pop();
         }
@@ -1336,12 +1336,12 @@ const SkillsEngine = {
             maxTime: 0.26,
             color: "#65A30D"
           });
-          GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= blastRadius + e.radius) {
+          [...this.getEnemiesInRadius(pr.targetX, pr.targetY, blastRadius)].forEach(e => {
+            if (e && e.hp > 0 && Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= blastRadius + e.radius) {
               GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 10);
             }
           });
-          SoundFX.play("hit");
+          SoundFX.play("hit", "Grass");
           this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
           this.projectiles.pop();
         }
@@ -1526,12 +1526,12 @@ const SkillsEngine = {
             const a = (k * Math.PI * 2) / 6;
             this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * 65, Math.sin(a) * 65, k % 2 === 0 ? "#38BDF8" : "#FDE047", 3.5, 0.32, "star");
           }
-          GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+          [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)].forEach(e => {
+            if (e && e.hp > 0 && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
               GameApp.dealDamageToEnemy(e, hz.dmg, "Dragon", 0.40, 18);
             }
           });
-          SoundFX.play("hit");
+          SoundFX.play("hit", "Dragon");
           this.groundHazards[i] = this.groundHazards[this.groundHazards.length - 1];
           this.groundHazards.pop();
         }
@@ -1545,9 +1545,9 @@ const SkillsEngine = {
       }
       if (hz.kind === "blastoise_maelstrom") {
         hz.rotAngle = (hz.rotAngle || 0) + dt * 1.85;
-        // 潮旋激流：轉速沉穩化，且外推力納入怪獸體重抗性 (kbResist) 與精英減免
-        GameApp.enemies.forEach(e => {
-          if (!e.isBoss) {
+        // 潮旋激流：轉速沉穩化，且外推力透過空間網格查詢並納入怪獸體重抗性 (kbResist) 與精英減免
+        this.getEnemiesInRadius(hz.x, hz.y, hz.radius).forEach(e => {
+          if (e && !e.isBoss) {
             const d = Math.hypot(e.x - hz.x, e.y - hz.y);
             if (d < hz.radius && d > 10) {
               const resist = e.kbResist !== undefined ? e.kbResist : 0;
@@ -1614,9 +1614,9 @@ const SkillsEngine = {
         }
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
-        // 龍捲風牽引吸力納入怪獸體重抗性 (kbResist) 與精英減免
-        GameApp.enemies.forEach(e => {
-          if (!e.isBoss) {
+        // 龍捲風牽引吸力透過空間網格查詢並納入怪獸體重抗性 (kbResist) 與精英減免
+        this.getEnemiesInRadius(hz.x, hz.y, hz.radius * 1.30).forEach(e => {
+          if (e && !e.isBoss) {
             const d = Math.hypot(hz.x - e.x, hz.y - e.y);
             if (d < hz.radius * 1.30 && d > 14) {
               const resist = e.kbResist !== undefined ? e.kbResist : 0;
@@ -1631,8 +1631,8 @@ const SkillsEngine = {
           }
         });
       } else if (hz.kind === "psychic_blackhole") {
-        GameApp.enemies.forEach(e => {
-          if (!e.isBoss) {
+        this.getEnemiesInRadius(hz.x, hz.y, hz.radius).forEach(e => {
+          if (e && !e.isBoss) {
             const d = Math.hypot(hz.x - e.x, hz.y - e.y);
             if (d < hz.radius && d > 16) {
               const resist = e.kbResist !== undefined ? e.kbResist : 0;
@@ -1668,8 +1668,8 @@ const SkillsEngine = {
             const spd = 60 + Math.random() * 140;
             this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * spd, Math.sin(a) * spd, k % 2 === 0 ? "#67E8F9" : "#FFFFFF", 4.2, 0.45, "diamond");
           }
-          GameApp.enemies.forEach(e => {
-            if (Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
+          [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)].forEach(e => {
+            if (e && e.hp > 0 && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
               const shatterMult = (e.status === "Freeze") ? 1.65 : 1.0;
               GameApp.dealDamageToEnemy(e, hz.dmg * shatterMult, "Ice", 0.5, 14);
             }

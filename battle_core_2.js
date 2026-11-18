@@ -52,6 +52,7 @@ window.GameApp = {
   partnerOrbitBase: 0,
   camera: { x: 0, y: 0, shakeTime: 0, shakeMagnitude: 0 },
   hitStopTimer: 0,
+  killSlowmoTimer: 0,
 
   enemies: [],
   particles: [],
@@ -507,6 +508,61 @@ window.GameApp = {
     }
   },
 
+  triggerMigrationSwarmEvent(isDebug = false) {
+    if (!this.player) return;
+    const isBay = MapEngine.currentStage.id === "cerulean_bay";
+    const swarmId = isBay ? 16 : 12; // 華藍海岬刷波波群，常磐森林/神殿刷巴大蝶群
+    const sData = POKEMON_MAP.get(swarmId);
+    this.showCutsceneBanner(
+      isDebug ? "【生態大遷徙潮 (DEBUG)】" : "【1:30 關都生態大遷徙】",
+      `成群的【${sData.name_zh}】正橫越戰場！擊破牠們賺取大量初期經驗水晶！`,
+      3200
+    );
+    SoundFX.play("super");
+    this.saveData.pokedexSeen[swarmId] = true;
+    const baseHp = Math.round(68 * this.selectedDifficulty.hpMult);
+    for (let k = 0; k < 14; k++) {
+      const side = k % 2 === 0 ? 1 : -1;
+      const ex = this.player.x + side * (this.width / 2 + 55 + (k % 4) * 28);
+      const ey = this.player.y + ((k - 7) * 34);
+      this.enemies.push({
+        id: swarmId, data: sData, x: ex, y: ey,
+        hp: baseHp, maxHp: baseHp,
+        atk: 11, speed: 92, radius: 18, isElite: false, isBoss: false, isShiny: false,
+        facingX: -side, facingY: 1, status: null, statusTimer: 0, statusTick: 0,
+        ccImmunityTimer: 0, rangedCd: 999, whiteFlashTimer: 0, weightTier: "light", kbResist: 0.0
+      });
+    }
+  },
+
+  triggerPrehistoricTrialEvent(isDebug = false) {
+    if (!this.player) return;
+    this.showCutsceneBanner(
+      isDebug ? "【遠古化石甦醒試煉 (DEBUG)】" : "【6:15 冠軍之路・遠古試煉】",
+      "遠古霸主【化石翼龍 ＆ 鐮刀盔】甦醒包夾！擊破可獲高額經驗與神奇糖果！",
+      3500
+    );
+    SoundFX.play("boss");
+    const ids = [142, 141, 139, 142];
+    ids.forEach((pId, idx) => {
+      const ang = (idx * Math.PI * 2) / ids.length + Math.PI / 4;
+      const ex = this.player.x + Math.cos(ang) * 340;
+      const ey = this.player.y + Math.sin(ang) * 340;
+      const pData = POKEMON_MAP.get(pId);
+      const hp = Math.round(1350 * this.selectedDifficulty.hpMult);
+      this.saveData.pokedexSeen[pId] = true;
+      this.enemies.push({
+        id: pId, data: pData, x: ex, y: ey,
+        hp, maxHp: hp,
+        atk: Math.round(34 * this.selectedDifficulty.atkMult),
+        speed: 112 * this.selectedDifficulty.spdMult,
+        radius: 30, isElite: true, isBoss: false, isShiny: false,
+        facingX: -1, facingY: 1, status: null, statusTimer: 0, statusTick: 0,
+        ccImmunityTimer: 1.5, rangedCd: 1.8, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.85
+      });
+    });
+  },
+
   debugAddPartner() {
     if (!this.player) return;
     this.summonOrUpgradePartner();
@@ -653,6 +709,7 @@ window.GameApp = {
     // 重置幀時間戳與打擊停頓，防止首幀時間差爆炸造成瞬移或物理崩潰
     this.lastFrameTime = performance.now();
     this.hitStopTimer = 0;
+    this.killSlowmoTimer = 0;
     this.camera.shakeTime = 0;
     this.camera.shakeMagnitude = 0;
     this.touchJoy.active = false;
@@ -844,8 +901,10 @@ window.GameApp = {
     this.treasureSpawnTimer = 38;
     this.magnetSpawnTimer = 35;
 	this.martSpawnTimer = 110;
+    this.migrationEventTriggered = false;
     this.rocketEventTriggered = false;
     this.taurosStampedeTriggered = false;
+    this.prehistoricEventTriggered = false;
     this.birdBossSpawned = false;
     this.mewtwoBossSpawned = false;
     this.secretMewSpawned = false;
@@ -1036,7 +1095,12 @@ window.GameApp = {
       if (this.hitStopTimer > 0) {
         this.hitStopTimer -= rawDt;
       } else {
-        const dt = rawDt * this.timeScale;
+        let slowMult = 1.0;
+        if (this.killSlowmoTimer > 0) {
+          this.killSlowmoTimer = Math.max(0, this.killSlowmoTimer - rawDt);
+          slowMult = 0.22;
+        }
+        const dt = rawDt * this.timeScale * slowMult;
         this.updateCombat(dt);
       }
       this.renderCombat();
@@ -1325,9 +1389,10 @@ window.GameApp = {
       if (lf.tickTimer <= 0) {
         lf.tickTimer = 0.45;
         const lavaDmg = Math.max(4, Math.round((8 + p.baseAtk * 0.22) * p.dmgMult));
-        for (let j = this.enemies.length - 1; j >= 0; j--) {
-          const e = this.enemies[j];
-          if (Math.hypot(e.x - lf.x, e.y - lf.y) <= lf.radius + e.radius) {
+        const nearLava = SkillsEngine.getEnemiesInRadius(lf.x, lf.y, lf.radius);
+        for (let j = nearLava.length - 1; j >= 0; j--) {
+          const e = nearLava[j];
+          if (e && e.hp > 0 && Math.hypot(e.x - lf.x, e.y - lf.y) <= lf.radius + e.radius) {
             this.dealDamageToEnemy(e, lavaDmg, "Fire", 0.20, 0);
           }
         }
@@ -1651,7 +1716,12 @@ window.GameApp = {
     const now = performance.now();
     const halfW = this.width / 2 + 40;
     const halfH = this.height / 2 + 40;
-    for (const e of this.enemies) {
+    const pool = (typeof SkillsEngine !== "undefined" && SkillsEngine.getEnemiesInRadius)
+      ? SkillsEngine.getEnemiesInRadius(ox, oy, maxRange)
+      : this.enemies;
+    for (let i = 0; i < pool.length; i++) {
+      const e = pool[i];
+      if (!e || e.hp <= 0) continue;
       if (Math.abs(e.x - this.player.x) > halfW || Math.abs(e.y - this.player.y) > halfH) continue;
       const d = Math.hypot(e.x - ox, e.y - oy);
       if (d > maxRange) continue;
@@ -1670,7 +1740,12 @@ window.GameApp = {
     const halfW = this.width / 2 + 40;
     const halfH = this.height / 2 + 40;
     const candidates = [];
-    for (const e of this.enemies) {
+    const pool = (typeof SkillsEngine !== "undefined" && SkillsEngine.getEnemiesInRadius)
+      ? SkillsEngine.getEnemiesInRadius(ox, oy, maxRange)
+      : this.enemies;
+    for (let i = 0; i < pool.length; i++) {
+      const e = pool[i];
+      if (!e || e.hp <= 0) continue;
       if (Math.abs(e.x - this.player.x) > halfW || Math.abs(e.y - this.player.y) > halfH) continue;
       const d = Math.hypot(e.x - ox, e.y - oy);
       if (d <= maxRange) candidates.push({ e, d });
@@ -1692,7 +1767,8 @@ window.GameApp = {
       for (const c of candidates) {
         let neighbors = 0;
         for (const other of candidates) {
-          if (Math.hypot(other.e.x - c.e.x, other.e.y - c.e.y) <= 85) neighbors++;
+          const dx = other.e.x - c.e.x, dy = other.e.y - c.e.y;
+          if (dx * dx + dy * dy <= 7225) neighbors++;
         }
         const score = neighbors * 100 - c.d * 0.1;
         if (score > bestScore) {
@@ -1754,6 +1830,11 @@ window.GameApp = {
       this.spawnPokeMartEntity(false);
     }
 
+    if (!this.migrationEventTriggered && this.runTime >= 90) {
+      this.migrationEventTriggered = true;
+      this.triggerMigrationSwarmEvent(false);
+    }
+
     if (!this.rocketEventTriggered && this.runTime >= 195) {
       this.rocketEventTriggered = true;
       this.showCutsceneBanner("【火箭隊突襲】", "黑化怪獸帶著劇毒霧氣包夾衝鋒！", 3200);
@@ -1798,6 +1879,11 @@ window.GameApp = {
       this.birdBossSpawned = true;
       const birdIds = [144, 145, 146];
       this.spawnBoss(birdIds[Math.floor(Math.random() * birdIds.length)], false);
+    }
+
+    if (!this.prehistoricEventTriggered && this.runTime >= 375) {
+      this.prehistoricEventTriggered = true;
+      this.triggerPrehistoricTrialEvent(false);
     }
 
     if (!this.mewtwoBossSpawned && this.runTime >= 450) {
@@ -3046,11 +3132,52 @@ window.GameApp = {
     const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
     const dragonMawMod = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? (1 + pTrait.dragonMawBurnAmp) : 1.0;
     let finalDmg = Math.round(rawDmg * eff * critMult * xAtkMod * dragonMawMod);
-    if (enemy.isBoss) finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * 0.085));
+    if (enemy.isBoss) {
+      // P2 動態傷害上限：高單發慢速重擊招式（地震、龍之俯衝、水炮、撞擊超武等）放寬單發上限至 13.5%，確保重武器打王不吃虧
+      const isHeavySingleHit = ["Ground", "Dragon", "Normal", "Fighting"].includes(moveType) || knockback >= 16;
+      const capRatio = isHeavySingleHit ? 0.135 : 0.088;
+      finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * capRatio));
+    }
 
     enemy.hp -= finalDmg;
     // 任何受傷均觸發明顯白閃反饋
     enemy.whiteFlashTimer = (isCrit || eff > 1.1) ? 0.14 : 0.11;
+
+    // P2 Boss 50% 血量二階段【領域覺醒 (Overdrive)】演出與氣浪震退
+    if (enemy.isBoss && enemy.hp > 0 && !enemy.overdriveTriggered && (enemy.hp / enemy.maxHp) <= 0.50) {
+      enemy.overdriveTriggered = true;
+      enemy.status = null;
+      enemy.statusTimer = 0;
+      enemy.ccImmunityTimer = 3.0;
+      this.hitStopTimer = 0.06;
+      this.killSlowmoTimer = 0.38;
+      this.camera.shakeTime = 0.45;
+      this.camera.shakeMagnitude = 12;
+      SoundFX.play("boss");
+
+      const bCol = TYPE_COLORS[enemy.data.type1] || "#EF4444";
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: enemy.x, y: enemy.y,
+        radius: 195, timer: 0.45, maxTime: 0.45,
+        color: bCol
+      });
+      this.spawnParticleCluster(enemy.x, enemy.y, bCol, "#FDE047", 32, "star", 1.5);
+      this.showCutsceneBanner(
+        `【⚡ BOSS 領域覺醒：${enemy.data.name_zh}】`,
+        "生命跌破 50%！神獸解放狂暴姿態，攻速與彈幕全面強化！",
+        3000
+      );
+      this.spawnFloatingText(enemy.x, enemy.y - 36, "🔥 狂暴領域覺醒 OVERDRIVE!!", "#FACC15", 15);
+
+      // 覺醒氣浪將貼身玩家溫和震開 75px，給予反應空間並要求重新走位切入
+      if (this.player && Math.hypot(this.player.x - enemy.x, this.player.y - enemy.y) < 180) {
+        const pushAng = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
+        this.player.x += Math.cos(pushAng) * 75;
+        this.player.y += Math.sin(pushAng) * 75;
+        MapEngine.resolveObstacleCollision(this.player, 18, true);
+      }
+    }
 
     this.skillDamageStats[moveType] = (this.skillDamageStats[moveType] || 0) + finalDmg;
 
@@ -3213,11 +3340,20 @@ window.GameApp = {
     }
 
     if (e.isElite && !e.isBoss) {
+      // P3 精英小王擊破微頓幀 (斬肉頓幀感 Hit-Stop)
+      this.hitStopTimer = Math.max(this.hitStopTimer || 0, 0.035);
+      this.spawnParticleCluster(e.x, e.y, "#FACC15", "#EF4444", 18, "star", 1.15);
       const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
       this.spawnMapLoot(dropId, e.x, e.y);
     }
 
     if (e.isBoss) {
+      // P3 神獸 Boss 擊破特寫慢動作 (Kill Cam Slow-Mo 0.65s) 與全屏星芒爆散
+      this.hitStopTimer = 0.07;
+      this.killSlowmoTimer = 0.65;
+      this.camera.shakeTime = 0.50;
+      this.camera.shakeMagnitude = 14;
+      this.spawnParticleCluster(e.x, e.y, "#FACC15", "#FFFFFF", 42, "star", 1.75);
       this.activeBoss = this.enemies.find(x => x.isBoss) || null;
       if (!this.activeBoss) {
         MapEngine.setWeather("CLEAR");
@@ -4228,28 +4364,20 @@ window.GameApp = {
       }
     });
 
+    const p = this.player;
+    const px = toSx(p.x), py = toSy(p.y);
+    const pBob = Math.abs(Math.sin(p.walkBob)) * 4;
+    const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
+    const inWater = terrain.inWater;
+    const inGrass = terrain.label.includes("草叢");
+
+    // 1. 先繪製主角與隨行訓練家的地面光環、水波紋與戰術指標（屬於貼地層，永不遮擋任何角色腳部）
     if (this.trainerCompanion) {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
-      const bob = Math.abs(Math.sin(tc.walkBob)) * 3.5;
       const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
-      const tInWater = tTerrain.inWater;
-      const tInGrass = tTerrain.label.includes("草叢");
-
-      let activeUrl = tc.sprite;
-      let needFlip = false;
-      if (tc.sprites) {
-        if (tc.facingY < 0) activeUrl = tc.sprites.up;
-        else if (tc.facingY > 0) activeUrl = tc.sprites.down;
-        else if (tc.facingX < 0) activeUrl = tc.sprites.left;
-        else activeUrl = tc.sprites.right;
-      } else {
-        needFlip = tc.facingX > 0;
-      }
-      const tRec = SpriteCache.get(activeUrl);
-
       ctx.save();
-      if (tInWater) {
+      if (tTerrain.inWater) {
         const waveCycle = (performance.now() * 0.005 + 1.2) % Math.PI;
         ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 - waveCycle / Math.PI})`;
         ctx.lineWidth = 1.8;
@@ -4262,78 +4390,25 @@ window.GameApp = {
         ctx.ellipse(tsx, tsy + 18, 14, 5.5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
-
-      // 隨行訓練家腳底戰術光環（同步緊縮至 13px 核心判定圈，平時淡青藍，受創時閃爍鮮紅警戒圈）
       ctx.strokeStyle = tc.whiteFlashTimer > 0 ? "rgba(239, 68, 68, 0.95)" : "rgba(56, 189, 248, 0.45)";
       ctx.lineWidth = tc.whiteFlashTimer > 0 ? 3.0 : 1.6;
       ctx.beginPath();
       ctx.ellipse(tsx, tsy + 18, 13, 5.2, 0, 0, Math.PI * 2);
       ctx.stroke();
-
-      ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
-      if (needFlip) ctx.scale(-1, 1);
-      if (tRec && tRec.loaded) {
-        if (tInWater) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(-28, -28, 56, 40);
-          ctx.clip();
-          ctx.drawImage(tRec.img, -28, -28, 56, 56);
-          ctx.restore();
-        } else {
-          ctx.drawImage(tRec.img, -28, -28, 56, 56);
-        }
-        if (tc.whiteFlashTimer > 0) {
-          this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
-        }
-        if (tInGrass) {
-          ctx.save();
-          const gNow = performance.now() * 0.0025;
-          ctx.strokeStyle = "#4ADE80";
-          ctx.lineWidth = 1.6;
-          const vOffsets = [-15, -2, 11];
-          vOffsets.forEach((ox, i) => {
-            const sway = Math.sin(gNow * 1.8 + (tc.x + ox) * 0.05) * 2.5;
-            const rootY = 24;
-            ctx.beginPath();
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox - 3 + sway, rootY - 7);
-            ctx.moveTo(ox, rootY);
-            ctx.lineTo(ox + 3 + sway, rootY - 7);
-            ctx.stroke();
-          });
-          ctx.restore();
-        }
-      }
       ctx.restore();
     }
 
     this.partners.forEach(pt => {
       const psx = toSx(pt.x), psy = toSy(pt.y);
-      const sprUrl = pt.facingY < 0 ? pt.data.back_sprite : pt.data.forward_sprite;
-      const rec = SpriteCache.get(sprUrl);
       ctx.save();
       ctx.fillStyle = "rgba(236,72,153,0.28)";
       ctx.beginPath();
       ctx.ellipse(psx, psy + 16, 13, 5, 0, 0, Math.PI * 2);
       ctx.fill();
-      if (rec && rec.loaded) {
-        ctx.translate(psx, psy);
-        if (pt.facingX > 0) ctx.scale(-1, 1);
-        ctx.drawImage(rec.img, -20, -20, 40, 40);
-      }
       ctx.restore();
     });
 
-    const p = this.player;
-    const px = toSx(p.x), py = toSy(p.y);
-    const pBob = Math.abs(Math.sin(p.walkBob)) * 4;
-    const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
-    const inWater = terrain.inWater;
-    const inGrass = terrain.label.includes("草叢");
-
     ctx.save();
-
     if (inWater) {
       const waveCycle = (performance.now() * 0.005) % Math.PI;
       ctx.strokeStyle = `rgba(255, 255, 255, ${0.8 - waveCycle / Math.PI})`;
@@ -4356,7 +4431,6 @@ window.GameApp = {
       ctx.stroke();
     }
 
-    // 雙超武共鳴光環（當同時突破 2 把超武時，腳底浮現旋轉金燦雙星環，常駐暴擊 +8%）
     if (Object.values(p.skills || {}).filter(s => s.evolved).length >= 2) {
       ctx.save();
       ctx.strokeStyle = "rgba(250, 204, 21, 0.9)";
@@ -4368,7 +4442,6 @@ window.GameApp = {
       ctx.restore();
     }
 
-    // 手動突圍瞄準模式時：在主角身前繪製翠綠戰術準星箭頭，清楚指示當前移動開火方向
     if (this.manualAimMode) {
       const aimAng = (p.vx || p.vy)
         ? Math.atan2(p.vy, p.vx)
@@ -4390,7 +4463,6 @@ window.GameApp = {
       ctx.restore();
     }
 
-    // 繪製【不融冰】125px 極寒霜凍結界光環 (超低不透明度 0.05 底霧 + 0.35 虛線邊框，不掩蓋中央角色立繪)
     if (p.heldItems && p.heldItems["never_melt_ice"]) {
       ctx.save();
       ctx.strokeStyle = "rgba(130, 230, 255, 0.35)";
@@ -4404,109 +4476,6 @@ window.GameApp = {
       ctx.restore();
     }
 
-    // 繪製【傳說王權 / 多重鱗片】六角星冕護盾圈與充能進度環
-    if (p.id === 149 || p.id >= 144) {
-      if (p.multiscaleReady) {
-        const crownNow = performance.now() * 0.0035;
-        const isLegend = p.id >= 144 && p.id !== 149;
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(crownNow);
-        ctx.strokeStyle = isLegend ? "rgba(244, 114, 182, 0.88)" : "rgba(250, 204, 21, 0.85)";
-        ctx.fillStyle = isLegend ? "rgba(244, 114, 182, 0.10)" : "rgba(250, 204, 21, 0.08)";
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        for (let k = 0; k < 6; k++) {
-          const a = (k * Math.PI) / 3;
-          const rx = Math.cos(a) * 31, ry = Math.sin(a) * 31;
-          if (k === 0) ctx.moveTo(rx, ry);
-          else ctx.lineTo(rx, ry);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // 護盾頂點星芒小點
-        ctx.fillStyle = "#FEF08A";
-        for (let k = 0; k < 3; k++) {
-          const a = (k * Math.PI * 2) / 3;
-          ctx.beginPath();
-          ctx.arc(Math.cos(a) * 31, Math.sin(a) * 31, 2.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-      } else {
-        const chargePct = Math.max(0, 1 - (p.multiscaleTimer || 0) / 10.0);
-        ctx.save();
-        ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.arc(px, py + 14, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct, false);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
-    if (p.shieldTimer > 0) {
-      const shieldPct = p.shieldTimer / p.maxShieldTimer;
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.arc(px, py, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldPct, false);
-      ctx.stroke();
-    }
-
-    if (p.buffTimer > 0) {
-      const buffPct = p.buffTimer / p.maxBuffTimer;
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
-      ctx.lineWidth = 3.5;
-      ctx.beginPath();
-      ctx.arc(px, py + 12, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
-      ctx.stroke();
-    }
-
-    // 【藥水視覺特效 1：速度強化 (X Speed) 與 撞擊衝鋒微步 (Dash) 疾風殘影】
-    if (p.speedTrails && p.speedTrails.length > 0) {
-      p.speedTrails.forEach(tr => {
-        const tsx = toSx(tr.x), tsy = toSy(tr.y);
-        const tUrl = tr.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
-        const tRec = SpriteCache.get(tUrl);
-        if (tRec && tRec.loaded) {
-          const alpha = Math.max(0, (tr.life / tr.maxLife) * (tr.isDash ? 0.52 : 0.38));
-          ctx.save();
-          ctx.translate(tsx, tsy + (inWater ? 10 : 0));
-          if (tr.facingX > 0) ctx.scale(-1, 1);
-          this.drawSilhouetteFlash(ctx, tRec.img, -26, -26, 52, 52, tr.isDash ? "#FDE047" : "#38BDF8", alpha);
-          ctx.restore();
-        }
-      });
-    }
-
-    // 【藥水視覺特效 2：力量強化 (X Attack) 戰意金紅鬥氣光環】
-    if (p.xAttackTimer > 0) {
-      const auraNow = performance.now() * 0.008;
-      const pulseR = 24 + Math.sin(auraNow * 2.2) * 3.5;
-      ctx.save();
-      const atkGrad = ctx.createRadialGradient(px, py + 4, 6, px, py + 4, pulseR + 8);
-      atkGrad.addColorStop(0, "rgba(239, 68, 68, 0.0)");
-      atkGrad.addColorStop(0.55, "rgba(239, 68, 68, 0.28)");
-      atkGrad.addColorStop(0.85, "rgba(250, 204, 21, 0.45)");
-      atkGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
-      ctx.fillStyle = atkGrad;
-      ctx.beginPath();
-      ctx.arc(px, py + 4, pulseR + 8, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = "rgba(254, 240, 138, 0.85)";
-      ctx.lineWidth = 2.0;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.ellipse(px, py + 16, 22, 8.5, 0, auraNow, auraNow + Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // 【藥水視覺特效 3：速度強化 (X Speed) 腳底疾風氣流環】
     if (p.xSpeedTimer > 0) {
       const spdNow = performance.now() * 0.01;
       ctx.save();
@@ -4517,78 +4486,9 @@ window.GameApp = {
       ctx.stroke();
       ctx.restore();
     }
-
-    // 計算近戰前撲 (Visual Lunge)、遠程微後座力與地震重踏下壓位移
-    const recScale = (p.recoilTimer > 0) ? (p.recoilTimer / 0.11) : 0;
-    const lungePhase = (p.lungeTimer > 0) ? Math.sin((1 - p.lungeTimer / (p.lungeMaxTime || 0.16)) * Math.PI) : 0;
-    const lungeOffsetX = Math.cos(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
-    const lungeOffsetY = Math.sin(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
-
-    const visOffsetX = (p.recoilX || 0) * recScale + lungeOffsetX;
-    const slamProg = (p.slamHopTimer > 0) ? (1 - p.slamHopTimer / 0.24) : 0;
-    const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.55 ? -Math.sin((slamProg / 0.55) * Math.PI) * 14 : Math.sin(((slamProg - 0.55) / 0.45) * Math.PI) * 5) : 0;
-    const visOffsetY = (p.recoilY || 0) * recScale + slamHopY + lungeOffsetY;
-
-    // 衝撞前撲瞬間的擠壓拉伸形變 (Squash & Stretch：橫向拉伸 +16%、縱向壓低 -10%)
-    const stretchX = 1 + lungePhase * 0.16;
-    const squashY = 1 - lungePhase * 0.10;
-
-    const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
-    const pRec = SpriteCache.get(pSprUrl);
-    if (pRec && pRec.loaded) {
-      // 受傷無敵時間高頻半透明閃爍 (衝鋒微步期間保持實體高光不閃暗)
-      if (p.invulnTimer > 0 && !(p.dashTimer > 0) && !(p.lungeTimer > 0)) {
-        const blinkCycle = Math.floor(p.invulnTimer * 24) % 2;
-        ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
-      }
-
-      // 涉水時下沉 10px，並套用前撲、後座力與地震重踏高度偏移與拉伸形變
-      ctx.translate(px + visOffsetX, py + visOffsetY - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
-      ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
-      if (p.isShiny) {
-        ctx.filter = "hue-rotate(48deg) saturate(1.75) brightness(1.15)";
-      }
-      
-      // 若在水中，裁剪下半身 14px，只露出上半身
-      if (inWater) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(-26, -26, 52, 38);
-        ctx.clip();
-        ctx.drawImage(pRec.img, -26, -26, 52, 52);
-        ctx.restore();
-      } else {
-        ctx.drawImage(pRec.img, -26, -26, 52, 52);
-      }
-      if (p.isShiny) ctx.filter = "none";
-
-      if (p.whiteFlashTimer > 0) {
-        this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
-      }
-
-      // 若在草叢中，直接沿用背景同款復古 V 形分叉像素小草，自然融入場景
-      if (inGrass) {
-        ctx.save();
-        const gNow = performance.now() * 0.0025;
-        ctx.strokeStyle = "#4ADE80";
-        ctx.lineWidth = 1.6;
-        const vOffsets = [-15, -2, 11];
-        vOffsets.forEach((ox, i) => {
-          const sway = Math.sin(gNow * 1.8 + (p.x + ox) * 0.05) * 2.5;
-          const rootY = 22;
-          ctx.beginPath();
-          ctx.moveTo(ox, rootY);
-          ctx.lineTo(ox - 3 + sway, rootY - 7);
-          ctx.moveTo(ox, rootY);
-          ctx.lineTo(ox + 3 + sway, rootY - 7);
-          ctx.stroke();
-        });
-        ctx.restore();
-      }
-    }
     ctx.restore();
 
-    // 效能加速 #2：單一 Batch 批次繪製全場可視敵人的腳底黑影 (將 200+ 次獨立 ctx.fill 壓縮為 1 次底層 GPU 呼叫！)
+    // 2. 單一 Batch 批次繪製全場可視敵人的腳底黑影 (1 次底層 GPU 呼叫)
     const visibleEnemies = [];
     ctx.save();
     ctx.fillStyle = "rgba(15, 23, 42, 0.32)";
@@ -4609,15 +4509,28 @@ window.GameApp = {
     ctx.fill();
     ctx.restore();
 
-    const highDensityLOD = visibleEnemies.length > 90;
-
+    // 精英小王腳底雙層頭目威壓底座 ＆ 神獸 Boss 二階段 Overdrive 狂暴光環（貼地層）
     visibleEnemies.forEach(e => {
-      const esx = e._esx, esy = e._esy, sz = e._sz;
-      const eSprUrl = e.facingY < 0 ? e.data.back_sprite : e.data.forward_sprite;
-      const eRec = SpriteCache.get(eSprUrl);
+      if (e.isBoss && e.overdriveTriggered) {
+        const esx = e._esx, esy = e._esy, sz = e._sz;
+        const pulse = Math.sin(performance.now() * 0.01) * 4;
+        ctx.save();
+        ctx.strokeStyle = "rgba(239, 68, 68, 0.90)";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.44 + pulse, sz * 0.19 + pulse * 0.4, 0, 0, Math.PI * 2);
+        ctx.stroke();
 
-      // 精英小王額外繪製「外圈暗紅 ＋ 內圈旋轉金虛線」雙層頭目威壓底座
-      if (e.isElite && !e.isBoss) {
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([8, 5]);
+        ctx.beginPath();
+        ctx.ellipse(esx, esy + sz * 0.35, sz * 0.36, sz * 0.15, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else if (e.isElite && !e.isBoss) {
+        const esx = e._esx, esy = e._esy, sz = e._sz;
         ctx.save();
         ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
         ctx.lineWidth = 2.4;
@@ -4634,24 +4547,277 @@ window.GameApp = {
         ctx.setLineDash([]);
         ctx.restore();
       }
+    });
+
+    const highDensityLOD = visibleEnemies.length > 90;
+
+    // 3. P1 關鍵升級：建立 2.5D Y-Axis 深度排序佇列 (Y-Sorting Queue)
+    // 依據每個實體腳底接觸地面的螢幕 Y 座標升序排列，徹底解決角色與怪獸上下交錯時的頭腳穿幫問題
+    const renderQueue = [];
+
+    if (this.trainerCompanion) {
+      renderQueue.push({ kind: "trainer", sortY: toSy(this.trainerCompanion.y) + 18 });
+    }
+    this.partners.forEach(pt => {
+      renderQueue.push({ kind: "partner", pt, sortY: toSy(pt.y) + 16 });
+    });
+    renderQueue.push({ kind: "player", sortY: py + 18 });
+    for (let i = 0; i < visibleEnemies.length; i++) {
+      const e = visibleEnemies[i];
+      renderQueue.push({ kind: "enemy", e, sortY: e._esy + e._sz * 0.35 });
+    }
+
+    renderQueue.sort((a, b) => a.sortY - b.sortY);
+
+    // 定義各類實體的精確繪製函數
+    const drawTrainerEntity = () => {
+      const tc = this.trainerCompanion;
+      const tsx = toSx(tc.x), tsy = toSy(tc.y);
+      const bob = Math.abs(Math.sin(tc.walkBob)) * 3.5;
+      const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
+      const tInWater = tTerrain.inWater;
+      const tInGrass = tTerrain.label.includes("草叢");
+
+      let activeUrl = tc.sprite;
+      let needFlip = false;
+      if (tc.sprites) {
+        if (tc.facingY < 0) activeUrl = tc.sprites.up;
+        else if (tc.facingY > 0) activeUrl = tc.sprites.down;
+        else if (tc.facingX < 0) activeUrl = tc.sprites.left;
+        else activeUrl = tc.sprites.right;
+      } else {
+        needFlip = tc.facingX > 0;
+      }
+      const tRec = SpriteCache.get(activeUrl);
+
+      ctx.save();
+      ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + (tInWater ? 11 : 0));
+      if (needFlip) ctx.scale(-1, 1);
+      if (tRec && tRec.loaded) {
+        if (tInWater) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-28, -28, 56, 40);
+          ctx.clip();
+          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+          ctx.restore();
+        } else {
+          ctx.drawImage(tRec.img, -28, -28, 56, 56);
+        }
+        if (tc.whiteFlashTimer > 0) {
+          this.drawSilhouetteFlash(ctx, tRec.img, -28, -28, 56, 56, "#FF6B4A", 0.70);
+        }
+        if (tInGrass) {
+          ctx.save();
+          const gNow = performance.now() * 0.0025;
+          ctx.strokeStyle = "#4ADE80";
+          ctx.lineWidth = 1.6;
+          [-15, -2, 11].forEach(ox => {
+            const sway = Math.sin(gNow * 1.8 + (tc.x + ox) * 0.05) * 2.5;
+            const rootY = 24;
+            ctx.beginPath();
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox - 3 + sway, rootY - 7);
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox + 3 + sway, rootY - 7);
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    };
+
+    const drawPartnerEntity = (pt) => {
+      const psx = toSx(pt.x), psy = toSy(pt.y);
+      const sprUrl = pt.facingY < 0 ? pt.data.back_sprite : pt.data.forward_sprite;
+      const rec = SpriteCache.get(sprUrl);
+      if (rec && rec.loaded) {
+        ctx.save();
+        ctx.translate(psx, psy);
+        if (pt.facingX > 0) ctx.scale(-1, 1);
+        ctx.drawImage(rec.img, -20, -20, 40, 40);
+        ctx.restore();
+      }
+    };
+
+    const drawPlayerEntity = () => {
+      ctx.save();
+      if (p.id === 149 || p.id >= 144) {
+        if (p.multiscaleReady) {
+          const crownNow = performance.now() * 0.0035;
+          const isLegend = p.id >= 144 && p.id !== 149;
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(crownNow);
+          ctx.strokeStyle = isLegend ? "rgba(244, 114, 182, 0.88)" : "rgba(250, 204, 21, 0.85)";
+          ctx.fillStyle = isLegend ? "rgba(244, 114, 182, 0.10)" : "rgba(250, 204, 21, 0.08)";
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          for (let k = 0; k < 6; k++) {
+            const a = (k * Math.PI) / 3;
+            const rx = Math.cos(a) * 31, ry = Math.sin(a) * 31;
+            if (k === 0) ctx.moveTo(rx, ry);
+            else ctx.lineTo(rx, ry);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#FEF08A";
+          for (let k = 0; k < 3; k++) {
+            const a = (k * Math.PI * 2) / 3;
+            ctx.beginPath();
+            ctx.arc(Math.cos(a) * 31, Math.sin(a) * 31, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        } else {
+          const chargePct = Math.max(0, 1 - (p.multiscaleTimer || 0) / 10.0);
+          ctx.save();
+          ctx.strokeStyle = "rgba(250, 204, 21, 0.45)";
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.arc(px, py + 14, 24, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * chargePct, false);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      if (p.shieldTimer > 0) {
+        const shieldPct = p.shieldTimer / p.maxShieldTimer;
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(px, py, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldPct, false);
+        ctx.stroke();
+      }
+
+      if (p.buffTimer > 0) {
+        const buffPct = p.buffTimer / p.maxBuffTimer;
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(px, py + 12, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
+        ctx.stroke();
+      }
+
+      if (p.speedTrails && p.speedTrails.length > 0) {
+        p.speedTrails.forEach(tr => {
+          const tsx = toSx(tr.x), tsy = toSy(tr.y);
+          const tUrl = tr.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
+          const tRec = SpriteCache.get(tUrl);
+          if (tRec && tRec.loaded) {
+            const alpha = Math.max(0, (tr.life / tr.maxLife) * (tr.isDash ? 0.52 : 0.38));
+            ctx.save();
+            ctx.translate(tsx, tsy + (inWater ? 10 : 0));
+            if (tr.facingX > 0) ctx.scale(-1, 1);
+            this.drawSilhouetteFlash(ctx, tRec.img, -26, -26, 52, 52, tr.isDash ? "#FDE047" : "#38BDF8", alpha);
+            ctx.restore();
+          }
+        });
+      }
+
+      if (p.xAttackTimer > 0) {
+        const auraNow = performance.now() * 0.008;
+        const pulseR = 24 + Math.sin(auraNow * 2.2) * 3.5;
+        ctx.save();
+        const atkGrad = ctx.createRadialGradient(px, py + 4, 6, px, py + 4, pulseR + 8);
+        atkGrad.addColorStop(0, "rgba(239, 68, 68, 0.0)");
+        atkGrad.addColorStop(0.55, "rgba(239, 68, 68, 0.28)");
+        atkGrad.addColorStop(0.85, "rgba(250, 204, 21, 0.45)");
+        atkGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
+        ctx.fillStyle = atkGrad;
+        ctx.beginPath();
+        ctx.arc(px, py + 4, pulseR + 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.85)";
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.ellipse(px, py + 16, 22, 8.5, 0, auraNow, auraNow + Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      const recScale = (p.recoilTimer > 0) ? (p.recoilTimer / 0.11) : 0;
+      const lungePhase = (p.lungeTimer > 0) ? Math.sin((1 - p.lungeTimer / (p.lungeMaxTime || 0.16)) * Math.PI) : 0;
+      const lungeOffsetX = Math.cos(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
+      const lungeOffsetY = Math.sin(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
+
+      const visOffsetX = (p.recoilX || 0) * recScale + lungeOffsetX;
+      const slamProg = (p.slamHopTimer > 0) ? (1 - p.slamHopTimer / 0.24) : 0;
+      const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.55 ? -Math.sin((slamProg / 0.55) * Math.PI) * 14 : Math.sin(((slamProg - 0.55) / 0.45) * Math.PI) * 5) : 0;
+      const visOffsetY = (p.recoilY || 0) * recScale + slamHopY + lungeOffsetY;
+
+      const stretchX = 1 + lungePhase * 0.16;
+      const squashY = 1 - lungePhase * 0.10;
+
+      const pSprUrl = p.facingY < 0 ? p.data.back_sprite : p.data.forward_sprite;
+      // P0 關鍵優化：使用離線預烘焙閃光圖 (SpriteCache.getShiny)，徹底移除戰鬥循環內的 ctx.filter！
+      const pRec = p.isShiny ? SpriteCache.getShiny(pSprUrl) : SpriteCache.get(pSprUrl);
+      if (pRec && pRec.loaded) {
+        if (p.invulnTimer > 0 && !(p.dashTimer > 0) && !(p.lungeTimer > 0)) {
+          const blinkCycle = Math.floor(p.invulnTimer * 24) % 2;
+          ctx.globalAlpha = blinkCycle === 0 ? 0.35 : 0.95;
+        }
+
+        ctx.translate(px + visOffsetX, py + visOffsetY - pBob + (p.jumpY || 0) + (inWater ? 10 : 0));
+        ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
+
+        if (inWater) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-26, -26, 52, 38);
+          ctx.clip();
+          ctx.drawImage(pRec.img, -26, -26, 52, 52);
+          ctx.restore();
+        } else {
+          ctx.drawImage(pRec.img, -26, -26, 52, 52);
+        }
+
+        if (p.whiteFlashTimer > 0) {
+          this.drawSilhouetteFlash(ctx, pRec.img, -26, -26, 52, 52, "#FFFFFF", 0.75);
+        }
+
+        if (inGrass) {
+          ctx.save();
+          const gNow = performance.now() * 0.0025;
+          ctx.strokeStyle = "#4ADE80";
+          ctx.lineWidth = 1.6;
+          [-15, -2, 11].forEach(ox => {
+            const sway = Math.sin(gNow * 1.8 + (p.x + ox) * 0.05) * 2.5;
+            const rootY = 22;
+            ctx.beginPath();
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox - 3 + sway, rootY - 7);
+            ctx.moveTo(ox, rootY);
+            ctx.lineTo(ox + 3 + sway, rootY - 7);
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    };
+
+    const drawEnemyEntity = (e) => {
+      const esx = e._esx, esy = e._esy, sz = e._sz;
+      const eSprUrl = e.facingY < 0 ? e.data.back_sprite : e.data.forward_sprite;
+      // P0 關鍵優化：使用離線預烘焙閃光圖 (SpriteCache.getShiny)，0 ctx.filter 開銷
+      const eRec = e.isShiny ? SpriteCache.getShiny(eSprUrl) : SpriteCache.get(eSprUrl);
 
       ctx.save();
       ctx.translate(esx, esy);
       if (e.facingX > 0) ctx.scale(-1, 1);
 
-      if (e.isShiny) {
-        ctx.filter = "hue-rotate(48deg) saturate(1.8) brightness(1.15)";
-      }
-
       if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
-      if (e.isShiny) ctx.filter = "none";
 
-      // 0. 受創閃白：離線 source-in 貼合精靈像素輪廓閃白
       if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
       }
 
-      // 0B. 中毒 (Poison)：高密度 (>90怪) 時普通小怪採用極速單點毒泡，低密度與精英/Boss 繪製雙毒泡
       if (e.status === "Poison") {
         if (highDensityLOD && !e.isElite && !e.isBoss) {
           ctx.fillStyle = "#A855F7";
@@ -4681,7 +4847,6 @@ window.GameApp = {
         }
       }
 
-      // 0C. 灼傷 (Burn)：高密度 (>90怪) 時普通小怪採用極速雙色火點，低密度與精英/Boss 繪製水滴小火苗
       if (e.status === "Burn") {
         if (highDensityLOD && !e.isElite && !e.isBoss) {
           ctx.fillStyle = "#F97316";
@@ -4715,7 +4880,6 @@ window.GameApp = {
         }
       }
 
-      // 0D. 不融冰結霜 (inFrostAura)
       if (e.inFrostAura && (!highDensityLOD || e.isElite || e.isBoss)) {
         const fNow = performance.now() * 0.0035 + e.x * 0.02;
         for (let fi = 0; fi < 2; fi++) {
@@ -4741,8 +4905,6 @@ window.GameApp = {
         }
       }
 
-      // --- 沙盒 V10 狀態視覺效果 (告別純色濾鏡，辨識度極高且不遮擋彈道) ---
-      // 1. 麻痺 (Paralysis)：周身跳動 2 條隨機白金微電弧
       if (e.status === "Paralysis") {
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 2.0;
@@ -4756,7 +4918,6 @@ window.GameApp = {
         }
       }
 
-      // 2. 冰凍 (Freeze)：沙盒 V10 六角透明折射稜柱冰棺
       if (e.status === "Freeze") {
         ctx.save();
         ctx.fillStyle = "rgba(56, 189, 248, 0.35)";
@@ -4775,7 +4936,6 @@ window.GameApp = {
         ctx.fill();
         ctx.stroke();
 
-        // 冰棺白色反光斜切高光線
         ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
         ctx.lineWidth = 1.6;
         ctx.beginPath();
@@ -4785,7 +4945,6 @@ window.GameApp = {
         ctx.restore();
       }
 
-      // 3. 混亂 (Confusion)：傾斜星芒
       if (e.status === "Confusion") {
         ctx.save();
         const rot = performance.now() * 0.006;
@@ -4803,7 +4962,6 @@ window.GameApp = {
 
       ctx.restore();
 
-      // 遠程怪射擊前 0.35s 嘴邊/頭頂凝聚微型光點蓄力預警 (避免滿屏紅線干擾視線)
       const rangedMobSet = [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120];
       if (!e.treasureType && !e.isBoss && rangedMobSet.includes(e.id) && e.rangedCd !== undefined && e.rangedCd > 0 && e.rangedCd <= 0.35) {
         const chargeProgress = 1 - (e.rangedCd / 0.35);
@@ -4826,7 +4984,6 @@ window.GameApp = {
         ctx.restore();
       }
 
-      // --- 敵方血條美術升級：精英小王左側繪製「金紅立體像素小皇冠符號」與金邊血條 ---
       if (e.hp < e.maxHp || e.isElite || e.treasureType) {
         const bw = e.isBoss ? 72 : (e.isElite ? 50 : 44);
         const bh = e.isBoss ? 6 : (e.isElite ? 6.0 : 5.5);
@@ -4857,7 +5014,6 @@ window.GameApp = {
         ctx.fillStyle = barColor;
         ctx.fillRect(barX + 0.5, barY + 0.5, (bw - 1) * hpRatio, bh - 1);
 
-        // 精英小王專屬：血條左側繪製立體三尖金紅像素小皇冠符號 (Crown Badge)
         if (e.isElite && !e.isBoss) {
           const cx = barX - 8;
           const cy = barY + bh / 2;
@@ -4883,7 +5039,6 @@ window.GameApp = {
           ctx.fill();
         }
 
-        // 月亮之力 / 創世極光降攻標記：血條右側繪製粉紫向下箭頭符號 (Weaken Badge)
         if (e.weakenTimer && e.weakenTimer > 0) {
           const wx = barX + bw + 6;
           const wy = barY + bh / 2;
@@ -4901,7 +5056,21 @@ window.GameApp = {
         }
         ctx.restore();
       }
-    });
+    };
+
+    // 依 Y-Sorting 順序統一繪製所有角色與怪獸
+    for (let q = 0; q < renderQueue.length; q++) {
+      const item = renderQueue[q];
+      if (item.kind === "enemy") drawEnemyEntity(item.e);
+      else if (item.kind === "player") drawPlayerEntity();
+      else if (item.kind === "trainer") drawTrainerEntity();
+      else if (item.kind === "partner") drawPartnerEntity(item.pt);
+    }
+
+    // 4. P1 關鍵升級：繪製 GBA 2.5D 樹冠與屋頂前景遮罩層（當角色走到樹冠或屋簷北側時自動呈半透明遮擋）
+    if (typeof MapEngine.renderForegroundCanopies === "function") {
+      MapEngine.renderForegroundCanopies(ctx, camX, camY, this.width, this.height, this.player, this.trainerCompanion);
+    }
 
     ctx.save();
     SkillsEngine.renderAerialLayer(ctx, toSx, toSy);

@@ -752,6 +752,36 @@ const ITEM_SPRITES = {
 // 12. Sprite 快取載入器 (移除 crossOrigin 避免與 HTML <img> 標籤產生快取模式衝突，並支援網路瞬斷自動重試)
 const SpriteCache = {
   cache: new Map(),
+  shinyCache: new Map(),
+  getShiny(url) {
+    const baseRec = this.get(url);
+    if (!baseRec || !baseRec.loaded) return baseRec;
+    if (this.shinyCache.has(url)) return this.shinyCache.get(url);
+
+    const can = document.createElement("canvas");
+    const w = baseRec.img.naturalWidth || 96;
+    const h = baseRec.img.naturalHeight || 96;
+    can.width = w;
+    can.height = h;
+    const c = can.getContext("2d");
+
+    // 離線一次性烘焙閃光色相與金芒濾鏡，戰鬥主循環 0 ctx.filter 開銷
+    try {
+      c.filter = "hue-rotate(48deg) saturate(1.8) brightness(1.15)";
+    } catch (e) {}
+    c.drawImage(baseRec.img, 0, 0, w, h);
+    c.filter = "none";
+
+    // 針對不支援 Canvas filter 的行動端核心，疊加輕量級 source-atop 閃光金澤確保視覺一致
+    c.globalCompositeOperation = "source-atop";
+    c.fillStyle = "rgba(250, 204, 21, 0.22)";
+    c.fillRect(0, 0, w, h);
+    c.globalCompositeOperation = "source-over";
+
+    const shinyRec = { img: can, loaded: true, error: false };
+    this.shinyCache.set(url, shinyRec);
+    return shinyRec;
+  },
   get(url) {
     if (!url) return null;
     if (this.cache.has(url)) {
@@ -1109,12 +1139,26 @@ const SoundFX = {
   },
 
   lastHitTime: 0,
+  _noiseBuffer: null,
 
-  play(type) {
+  getNoiseBuffer() {
+    if (!this.ctx) return null;
+    if (this._noiseBuffer) return this._noiseBuffer;
+    const bufSize = Math.floor(this.ctx.sampleRate * 0.12);
+    const buffer = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    this._noiseBuffer = buffer;
+    return buffer;
+  },
+
+  play(type, moveType = null) {
     if (this.muted) return;
     if (type === "hit") {
       const perfNow = performance.now();
-      if (perfNow - (this.lastHitTime || 0) < 40) return;
+      if (perfNow - (this.lastHitTime || 0) < 38) return;
       this.lastHitTime = perfNow;
     }
     this.init();
@@ -1127,15 +1171,70 @@ const SoundFX = {
       gain.connect(this.sfxGain || this.ctx.destination);
 
       if (type === "hit") {
-        osc.type = "sawtooth";
-        const startFreq = 140 + (Math.random() - 0.5) * 30;
-        const endFreq = Math.max(25, 40 + (Math.random() - 0.5) * 12);
-        osc.frequency.setValueAtTime(startFreq, now);
-        osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.08);
-        gain.gain.setValueAtTime(0.16, now);
-        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
-        osc.start(now);
-        osc.stop(now + 0.08);
+        // P3 屬性化 WebAudio 命中音色分流：消除長時間聽覺疲勞，賦予各系招式獨特物理打擊感
+        if (moveType === "Fire" || moveType === "Ground" || moveType === "Rock") {
+          // 爆裂灼燒 / 重踏震地：低頻下潛 + 短促白噪音爆裂層
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(125 + Math.random() * 20, now);
+          osc.frequency.exponentialRampToValueAtTime(28, now + 0.095);
+          gain.gain.setValueAtTime(0.17, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.095);
+          osc.start(now);
+          osc.stop(now + 0.095);
+
+          const nBuf = this.getNoiseBuffer();
+          if (nBuf) {
+            const nSrc = this.ctx.createBufferSource();
+            const nGain = this.ctx.createGain();
+            nSrc.buffer = nBuf;
+            nSrc.connect(nGain);
+            nGain.connect(this.sfxGain || this.ctx.destination);
+            nGain.gain.setValueAtTime(0.11, now);
+            nGain.gain.exponentialRampToValueAtTime(0.008, now + 0.075);
+            nSrc.start(now);
+            nSrc.stop(now + 0.075);
+          }
+        } else if (moveType === "Ice" || moveType === "Psychic" || moveType === "Ghost") {
+          // 寒冰結晶 / 超能念刃：清脆高頻泛音雙振盪
+          osc.type = "sine";
+          const f0 = moveType === "Ice" ? 920 : 680;
+          osc.frequency.setValueAtTime(f0 + (Math.random() - 0.5) * 60, now);
+          osc.frequency.exponentialRampToValueAtTime(f0 * 0.42, now + 0.085);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.085);
+          osc.start(now);
+          osc.stop(now + 0.085);
+        } else if (moveType === "Electric") {
+          // 電漿麻痺：高頻方波快速跳變
+          osc.type = "square";
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.setValueAtTime(240, now + 0.025);
+          osc.frequency.setValueAtTime(640, now + 0.05);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } else if (moveType === "Fighting" || moveType === "Normal" || moveType === "Dragon") {
+          // 重拳悶響 / 破空衝撞：厚實三角波重擊下潛
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(165 + (Math.random() - 0.5) * 20, now);
+          osc.frequency.exponentialRampToValueAtTime(34, now + 0.09);
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+          osc.start(now);
+          osc.stop(now + 0.09);
+        } else {
+          // 水 / 草 / 飛 / 毒系：流暢帶彈性的標準像素打擊音
+          osc.type = "sawtooth";
+          const startFreq = 155 + (Math.random() - 0.5) * 35;
+          const endFreq = Math.max(28, 45 + (Math.random() - 0.5) * 14);
+          osc.frequency.setValueAtTime(startFreq, now);
+          osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.08);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        }
       } else if (type === "levelup") {
         osc.type = "square";
         osc.frequency.setValueAtTime(330, now);
