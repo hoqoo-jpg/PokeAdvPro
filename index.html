@@ -70,11 +70,11 @@
       bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 94px) !important;
     }
 
-    /* 封面毛玻璃朦朧濾鏡與暗角效果，凸顯標題與提示 */
+    /* 封面輕微暗角與清晰像素背景穿透，凸顯 3D 標題與後方 GBA 像素地圖漫步 */
     #splashScreen {
-      backdrop-filter: blur(6px) brightness(0.82);
-      -webkit-backdrop-filter: blur(6px) brightness(0.82);
-      background: radial-gradient(circle, rgba(15, 23, 42, 0.25) 0%, rgba(15, 23, 42, 0.72) 100%);
+      backdrop-filter: blur(1.5px) brightness(0.92);
+      -webkit-backdrop-filter: blur(1.5px) brightness(0.92);
+      background: radial-gradient(circle, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.62) 100%);
       padding-bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 24px) !important;
     }
 
@@ -348,8 +348,12 @@
         ★ GBA 復古像素重構版 ★
       </div>
 
-      <!-- 經典金黃色像素大標題 (帶粗黑立體描邊) -->
-      <h1 class="font-pixel text-3xl sm:text-5xl text-amber-300 tracking-wider drop-shadow-[0_4px_0_#78350f] mb-3">
+      <!-- 3D 經典黃藍立體標題 Logo (支援無縫 fallback 至像素文字標題) -->
+      <img id="splashLogoImg" src="images/logo_title.png" 
+           onerror="this.classList.add('hidden'); document.getElementById('splashFallbackTitle').classList.remove('hidden');"
+           class="w-72 sm:w-[430px] max-w-[88vw] object-contain drop-shadow-[0_10px_22px_rgba(0,0,0,0.75)] animate-bounce-slow mb-3" 
+           alt="POKÉMON ADV SURVIVORS 寶可夢大冒險" />
+      <h1 id="splashFallbackTitle" class="hidden font-pixel text-3xl sm:text-5xl text-amber-300 tracking-wider drop-shadow-[0_4px_0_#78350f] mb-3">
         POKÉMON ADV SURVIVORS
       </h1>
 
@@ -975,10 +979,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=10.0"></script>
-  <script src="map_v11_engine.js?v=10.0"></script>
-  <script src="skills_engine.js?v=10.0"></script>
-  <script src="battle_core_2.js?v=10.0"></script>
-  <script src="game_ui.js?v=10.0"></script>
+  <script src="pokedex_data.js?v=10.1"></script>
+  <script src="map_v11_engine.js?v=10.1"></script>
+  <script src="skills_engine.js?v=10.1"></script>
+  <script src="battle_core_2.js?v=10.1"></script>
+  <script src="game_ui.js?v=10.1"></script>
 </body>
 </html>

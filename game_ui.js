@@ -81,7 +81,7 @@ Object.assign(window.GameApp, {
   },
 
   runAssetPreloader() {
-    const priorityUrls = new Set();
+    const priorityUrls = new Set(["images/logo_title.png"]);
     const secondaryUrls = new Set();
 
     // 1. 優先佇列：所有道具、攜帶物、技能圖標、商店與研究所圖標、訓練家與一階出戰精靈
