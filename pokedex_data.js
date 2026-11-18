@@ -110,11 +110,11 @@ const SKILLS_CATALOG = {
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
 Ember: {
-    id: "Ember", name: "火花", type: "Fire", baseDmg: 25, baseCd: 0.85, ultMinCd: 3.5, ultPowerBonus: 1.0,
+    id: "Ember", name: "火花", type: "Fire", baseDmg: 22, baseCd: 0.78, ultMinCd: 3.5, ultPowerBonus: 1.0,
     knockback: 0, isMelee: false, vfx: "ember_spark", reqItem: "charcoal",
     evolvedName: "大字爆炎", color: "#F97316",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
-    desc: "噴吐數團跳動小火花，攻速極快，高頻引發灼傷！",
+    desc: "向身前廣角扇面噴吐 2～4 團跳動火花，短射程高頻壓制並引發灼傷！",
     evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
   },
   WaterGun: {
@@ -1419,8 +1419,17 @@ const POKEMON_NATURAL_SKILLS = {
   13:  { name: "獨角蟲",   skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
+  29:  { name: "尼多蘭",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  30:  { name: "尼多娜",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  31:  { name: "尼多后",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  32:  { name: "尼多朗",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  33:  { name: "尼多力諾", skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  34:  { name: "尼多王",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
   43:  { name: "走路草",   skills: ["RazorLeaf", "BulletSeed", "SludgeBomb"] },
   69:  { name: "喇叭芽",   skills: ["RazorLeaf", "VineWhip", "SludgeBomb"] },
+  92:  { name: "鬼斯",     skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
+  93:  { name: "鬼斯通",   skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
+  94:  { name: "耿鬼",     skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
   114: { name: "蔓藤怪",   skills: ["BulletSeed", "VineWhip", "SeedBomb"] },
   116: { name: "墨海馬",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   117: { name: "海刺龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
@@ -1443,12 +1452,12 @@ const TYPE_SKILL_POOLS = {
   Electric: ["Thunderbolt", "AirSlash", "Tackle"],
   Ice:      ["IceBeam", "WaterGun", "HydroPump"],
   Fighting: ["KarateChop", "Earthquake", "Tackle"],
-  Poison:   ["SludgeBomb", "ShadowBall", "SeedBomb"],
+  Poison:   ["SludgeBomb", "ShadowBall", "Tackle"],
   Ground:   ["Earthquake", "KarateChop", "Tackle"],
   Flying:   ["AirSlash", "DragonRush", "Tackle"],
   Psychic:  ["Psystrike", "Moonblast", "ShadowBall"],
-  Bug:      ["BulletSeed", "SludgeBomb", "AirSlash"],
-  Rock:     ["Earthquake", "KarateChop", "Tackle"],
+  Bug:      ["AirSlash", "Tackle", "RazorLeaf"],
+  Rock:     ["Earthquake", "Tackle", "DragonRush"],
   Ghost:    ["ShadowBall", "SludgeBomb", "Psystrike"],
   Dragon:   ["DragonRush", "Flamethrower", "Thunderbolt"],
   Steel:    ["Thunderbolt", "Earthquake", "Tackle"],
@@ -1691,3 +1700,56 @@ function getPokemonInnateTrait(pokeData, currentLevel = 1) {
     legendaryAreaBonus: traitKey === "legendary_pressure" ? 0.25 : 0
   };
 }
+
+
+// 開局戰術特訓補給多選庫 (STEP 3 可同時勾選多項)
+const TACTICAL_LOADOUTS = [
+  {
+    id: "combat_pack",
+    name: "戰鬥強化補給包",
+    cost: 150,
+    badge: "150 金",
+    sprite: ITEM_SPRITES.protein,
+    desc: "開局自帶 45 秒【力量強化(全傷+35%)】＆【速度強化(移速+30%)】與 +25% 額外最大護盾 HP！"
+  },
+  {
+    id: "held_box",
+    name: "本命超武攜帶物盲盒",
+    cost: 220,
+    badge: "220 金",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/exp-share.png",
+    desc: "開局直接獲贈 1 件對應出戰精靈主招式的【超武核心攜帶物】（全傷+12% 且滿級直通超武）！"
+  },
+  {
+    id: "skill_manual",
+    name: "初始招式特訓手冊",
+    cost: 180,
+    badge: "180 金",
+    sprite: ITEM_SPRITES.rareCandy,
+    desc: "開局初始主招式直接升至 Lv.3（若已滿三星金冠則直升 Lv.4 提前解鎖彈幕連發）！"
+  },
+  {
+    id: "extra_partner",
+    name: "雙打夥伴召喚球",
+    cost: 250,
+    badge: "250 金",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/heal-ball.png",
+    desc: "開局額外多召喚 1 隻雙打夥伴並肩作戰（可與莎莉娜或研究所天賦疊加至雙夥伴滿編）！"
+  },
+  {
+    id: "magnet_badge",
+    name: "黃金聚寶磁力徽章",
+    cost: 160,
+    badge: "160 金",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
+    desc: "整局經驗拾取範圍永久 +40%，且每 25 秒自動釋放一次全場水晶牽引脈衝！"
+  },
+  {
+    id: "shiny_charm_pass",
+    name: "閃光幸運護符",
+    cost: 300,
+    badge: "300 金",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/shiny-charm.png",
+    desc: "本局野生閃光寶可夢遭遇率提升 3 倍，且最終結算代幣總額額外 +25%！"
+  }
+];

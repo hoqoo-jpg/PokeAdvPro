@@ -899,31 +899,66 @@ window.GameApp = {
       this.summonOrUpgradePartner();
     }
 
-    // 兌現 STEP 3 勾選的「開局戰術特訓補給」
-    if (this.selectedLoadout === "combat_pack" && (this.saveData.coins || 0) >= 150) {
-      this.saveData.coins -= 150;
-      this.saveToStorage();
-      this.player.xAttackTimer = 45.0;
-      this.player.xSpeedTimer = 45.0;
-      this.player.maxHp = Math.round(this.player.maxHp * 1.25);
-      this.player.hp = this.player.maxHp;
-      setTimeout(() => {
-        if (this.player) this.spawnFloatingText(this.player.x, this.player.y - 36, "🎒 戰術補給生效：45秒攻速強化 ＆ HP+25%！", "#FACC15", 14);
-      }, 400);
-    } else if (this.selectedLoadout === "held_box" && (this.saveData.coins || 0) >= 220) {
-      this.saveData.coins -= 220;
-      this.saveToStorage();
-      const mainSkMeta = SKILLS_CATALOG[firstSkillId];
-      const reqId = (mainSkMeta && mainSkMeta.reqItem) ? mainSkMeta.reqItem : "silk_scarf";
-      const hiMeta = HELD_ITEMS[reqId] || Object.values(HELD_ITEMS)[0];
-      if (hiMeta) {
-        this.player.heldItems[hiMeta.id] = true;
-        this.player.dmgMult *= 1.12;
-        setTimeout(() => {
-          if (this.player) this.spawnFloatingText(this.player.x, this.player.y - 36, `🎁 本命盲盒開啟：獲得【${hiMeta.name}】！`, "#C084FC", 14);
-        }, 400);
+    // 初始化本局模式 ("standard" 8分鐘標準通關 | "endless" 無盡深淵試煉)
+    this.isEndlessMode = (this.selectedGameMode === "endless");
+    this.endlessNextBossTime = 480;
+    this.endlessCycleIdx = 0;
+    this.endlessNextKillMilestone = 150;
+    this.activeLoadoutBuffs = {};
+
+    // 兌現 STEP 3 多選勾選的所有「開局戰術特訓補給」
+    const chosenLoadouts = Array.isArray(this.selectedLoadouts)
+      ? [...this.selectedLoadouts]
+      : (this.selectedLoadout && this.selectedLoadout !== "none" ? [this.selectedLoadout] : []);
+    const loadoutCatalog = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
+    const appliedNames = [];
+
+    chosenLoadouts.forEach(ldId => {
+      const ldMeta = loadoutCatalog.find(x => x.id === ldId);
+      const cost = ldMeta ? ldMeta.cost : 0;
+      if ((this.saveData.coins || 0) < cost) return;
+      this.saveData.coins -= cost;
+      this.activeLoadoutBuffs[ldId] = true;
+      if (ldMeta) appliedNames.push(ldMeta.name);
+
+      if (ldId === "combat_pack") {
+        this.player.xAttackTimer = 45.0;
+        this.player.xSpeedTimer = 45.0;
+        this.player.maxHp = Math.round(this.player.maxHp * 1.25);
+        this.player.hp = this.player.maxHp;
+      } else if (ldId === "held_box") {
+        const mainSkMeta = SKILLS_CATALOG[firstSkillId];
+        const reqId = (mainSkMeta && mainSkMeta.reqItem) ? mainSkMeta.reqItem : "silk_scarf";
+        const hiMeta = HELD_ITEMS[reqId] || Object.values(HELD_ITEMS)[0];
+        if (hiMeta) {
+          this.player.heldItems[hiMeta.id] = true;
+          this.player.dmgMult *= 1.12;
+        }
+      } else if (ldId === "skill_manual") {
+        const mainSkObj = this.player.skills[firstSkillId];
+        if (mainSkObj) {
+          mainSkObj.level = Math.min(10, Math.max(3, mainSkObj.level + 2));
+        }
+      } else if (ldId === "extra_partner") {
+        this.summonOrUpgradePartner();
+      } else if (ldId === "magnet_badge") {
+        this.player.magnetRadius = Math.round(this.player.magnetRadius * 1.40);
+        this.player.loadoutMagnetPulseTimer = 25.0;
+      } else if (ldId === "shiny_charm_pass") {
+        this.player.loadoutShinyMult = 3.0;
+        this.player.loadoutCoinMult = 1.25;
       }
+    });
+
+    if (appliedNames.length > 0) {
+      this.saveToStorage();
+      setTimeout(() => {
+        if (this.player) {
+          this.spawnFloatingText(this.player.x, this.player.y - 36, `🎒 戰術補給啟動 (${appliedNames.length}項)：${appliedNames.join("、")}！`, "#FACC15", 13);
+        }
+      }, 450);
     }
+    this.selectedLoadouts = [];
     this.selectedLoadout = "none";
 
     this.runTime = 0;
@@ -1386,6 +1421,18 @@ window.GameApp = {
       });
     }
 
+    // 【開局戰術補給：黃金聚寶磁力徽章】每 25 秒自動釋放一次全場水晶牽引
+    if (p.loadoutMagnetPulseTimer !== undefined) {
+      p.loadoutMagnetPulseTimer -= dt;
+      if (p.loadoutMagnetPulseTimer <= 0) {
+        p.loadoutMagnetPulseTimer = 25.0;
+        if (this.gems.some(g => !g.magnetized)) {
+          this.gems.forEach(g => { g.magnetized = true; });
+          this.spawnFloatingText(p.x, p.y - 26, "🧲 磁力徽章：全場水晶回收！", "#38BDF8", 13);
+        }
+      }
+    }
+
     // 【攜帶物：磁鐵】每 12 秒釋放電磁脈衝，自動吸取全場散落的經驗水晶 (最多 8 顆遠處水晶，無水晶時不空轉)
     if (p.heldItems && p.heldItems["magnet"]) {
       p.heldMagnetTimer = (p.heldMagnetTimer === undefined ? 4.0 : p.heldMagnetTimer - dt);
@@ -1727,8 +1774,10 @@ window.GameApp = {
             }
           } else if (skSlot.id === "Thunderbolt") {
             triggerRange = 168 * p.areaMult;
-          } else if (skSlot.id === "Ember" || skSlot.id === "WaterGun" || skSlot.id === "Flamethrower") {
-            triggerRange = 235 * p.areaMult;
+          } else if (skSlot.id === "Ember") {
+            triggerRange = 185 * p.areaMult;
+          } else if (skSlot.id === "WaterGun" || skSlot.id === "Flamethrower") {
+            triggerRange = 245 * p.areaMult;
           }
           const hasTargetInRange = this.findNearestEnemyInViewport(p.x, p.y, triggerRange);
           if (!hasTargetInRange) {
@@ -1990,6 +2039,21 @@ window.GameApp = {
       this.spawnBoss(150, true);
     }
 
+    // 【♾️ 無盡深淵試煉模式】8:00 (480s) 後每 120 秒輪迴降臨強化神獸 Boss 並切換極端天象！
+    if (this.isEndlessMode && this.runTime >= (this.endlessNextBossTime || 480) && !this.activeBoss) {
+      this.endlessNextBossTime = Math.floor(this.runTime) + 120;
+      const cycleList = [144, 145, 146, 150, 151];
+      const nextBossId = cycleList[(this.endlessCycleIdx || 0) % cycleList.length];
+      this.endlessCycleIdx = (this.endlessCycleIdx || 0) + 1;
+      const cycleWave = Math.floor((this.runTime - 480) / 120) + 1;
+      this.showCutsceneBanner(
+        `【♾️ 無盡深淵・第 ${cycleWave} 輪天災】`,
+        `深淵裂隙擴張！神獸【${POKEMON_MAP.get(nextBossId)?.name_zh || '傳說神獸'}】降臨，賞金倍率持續飆升！`,
+        3400
+      );
+      this.spawnBoss(nextBossId, nextBossId === 150);
+    }
+
     this.magnetSpawnTimer -= dt;
     if (this.magnetSpawnTimer <= 0) {
       this.magnetSpawnTimer = 35;
@@ -2074,7 +2138,8 @@ window.GameApp = {
     }
 
     const pick = candidates[Math.floor(Math.random() * candidates.length)] || REGULAR_MOB_POOL[0];
-    const shinyChance = 0.0025 * (1 + (this.saveData.upgrades.shiny || 0) * 0.35) * (this.selectedTrainer.mods.shinyBoost || 1) * (diff.shinyBonus || 1.0);
+    const loadoutShinyMod = (this.player && this.player.loadoutShinyMult) ? this.player.loadoutShinyMult : 1.0;
+    const shinyChance = 0.0025 * (1 + (this.saveData.upgrades.shiny || 0) * 0.35) * (this.selectedTrainer.mods.shinyBoost || 1) * (diff.shinyBonus || 1.0) * loadoutShinyMod;
     const isShiny = Math.random() < shinyChance;
 
     const timeHpScale = 1 + (minutes * 0.80) + Math.pow(minutes / 2.3, 2.0) * 0.90;
@@ -3424,6 +3489,12 @@ window.GameApp = {
     this.enemies.pop();
     this.kills += 1;
     this.saveData.stats.totalKills += 1;
+    if (this.isEndlessMode && this.kills >= (this.endlessNextKillMilestone || 150)) {
+      this.endlessNextKillMilestone = this.kills + 150;
+      const dropLoot = (this.kills % 300 === 0) ? "evo_chest" : "rare_candy";
+      this.spawnMapLoot(dropLoot, e.x, e.y);
+      this.spawnFloatingText(e.x, e.y - 24, `♾️ 連斬 ${this.kills} 里程碑掉落！`, "#FACC15", 14);
+    }
     this.saveData.pokedexCaught[e.id] = true;
 
     // 【攜帶物：詛咒之符】擊敗敵人時 15% 機率將其靈魂轉化為騰空追蹤自爆鬼火 (帶 0.18 秒升空展示期，不被身邊屍群秒吃)
@@ -3456,7 +3527,9 @@ window.GameApp = {
       this.spawnFloatingText(e.x, e.y - 28, "👻 詛咒鬼火！", "#C084FC", 13);
     }
 
-    const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15);
+    const loadoutCoinMod = (this.player && this.player.loadoutCoinMult) ? this.player.loadoutCoinMult : 1.0;
+    const endlessCoinMod = this.isEndlessMode ? 1.25 : 1.0;
+    const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15) * loadoutCoinMod * endlessCoinMod;
 
     if (e.isShiny) {
       this.saveData.shinyUnlocked[e.id] = true;
@@ -3537,8 +3610,22 @@ window.GameApp = {
       } else if (e.id === 151) {
         this.saveData.stats.mewDefeated += 1;
         this.saveToStorage();
-        this.triggerGameOver(true);
-        return;
+        if (this.isEndlessMode) {
+          const bonusCoins = Math.round(350 * diffCoinMult);
+          this.runCoins += bonusCoins;
+          this.saveData.coins += bonusCoins;
+          if (this.player) {
+            this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.round(this.player.maxHp * 0.50));
+          }
+          this.showCutsceneBanner(
+            "【♾️ 始祖夢幻討伐成功・無盡深淵繼續！】",
+            `獲得深淵賞金 +${bonusCoins} 代幣 ＆ 回復 50% HP！下一波深淵首領將於 2 分鐘後降臨！`,
+            3800
+          );
+        } else {
+          this.triggerGameOver(true);
+          return;
+        }
       }
     }
 
@@ -4356,10 +4443,10 @@ window.GameApp = {
             <img src="${c.sprite}" class="w-9 h-9 pixel-sprite object-contain" alt="${c.title}" />
           </div>
           <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="font-black text-sm sm:text-base text-slate-800 truncate">${c.title}</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-black text-sm sm:text-base text-slate-800 leading-tight whitespace-nowrap">${c.title}</span>
               ${c.typeBadge || ''}
-              <span class="px-2 py-0.2 rounded-full text-[9px] ${c.badgeBg} truncate">${c.badge}</span>
+              <span class="px-2 py-0.5 rounded-full text-[9px] ${c.badgeBg} whitespace-nowrap">${c.badge}</span>
             </div>
             <p class="text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
           </div>
@@ -6015,6 +6102,10 @@ window.GameApp = {
   triggerGameOver(isVictory) {
     this.state = "GAMEOVER";
     SoundFX.startBgm("lobby");
+    if (this.isEndlessMode && this.saveData && this.saveData.stats) {
+      this.saveData.stats.bestEndlessTime = Math.max(this.saveData.stats.bestEndlessTime || 0, Math.floor(this.runTime));
+      this.saveData.stats.bestEndlessKills = Math.max(this.saveData.stats.bestEndlessKills || 0, this.kills);
+    }
     if (this.saveToStorage) this.saveToStorage();
     document.getElementById("endModalTitle").textContent = isVictory ? "VICTORY! 關都冠軍!" : "BATTLE FINISHED";
     document.getElementById("endModalSubtitle").textContent = isVictory

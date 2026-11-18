@@ -270,17 +270,31 @@ const SkillsEngine = {
       return;
     }
 
-    // 1B. 種子機關槍 (Bullet Seed)：0.24 秒內如衝鋒槍般高速連射 4～6 顆精巧黃金流光種子彈
+    // 1B. 種子機關槍 (Bullet Seed)：鎖定同一目標連續高頻連射 4～6 顆黃金流光種子彈（目標中途陣亡才自動轉火）
     if (cleanSkillId === "BulletSeed" || meta.vfx === "bullet_seed") {
       const burstCount = 4 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const areaBonus = 1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
+      let lockedTarget = (!useManualAim) ? (target || GameApp.findNearestEnemyInViewport(caster.x, caster.y, 370)) : null;
+
       for (let b = 0; b < burstCount; b++) {
         setTimeout(() => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const jitter = (Math.random() - 0.5) * 0.11;
-          const liveTarget = (!useManualAim) ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360) : null;
-          const shotAng = (liveTarget ? Math.atan2(liveTarget.y - caster.y, liveTarget.x - caster.x) : baseAngle) + jitter;
-          const spd = 430;
+          if (!useManualAim) {
+            const stillAlive = lockedTarget && lockedTarget.hp > 0 && GameApp.enemies.includes(lockedTarget) &&
+              Math.hypot(lockedTarget.x - caster.x, lockedTarget.y - caster.y) <= 410;
+            if (!stillAlive) {
+              lockedTarget = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 370);
+            }
+          }
+          const jitter = (Math.random() - 0.5) * 0.06;
+          const liveMoveAng = (caster.vx || caster.vy)
+            ? Math.atan2(caster.vy, caster.vx)
+            : baseAngle;
+          const shotAng = (!useManualAim && lockedTarget)
+            ? Math.atan2(lockedTarget.y - caster.y, lockedTarget.x - caster.x) + jitter
+            : (useManualAim ? liveMoveAng : baseAngle) + jitter;
+
+          const spd = 445;
           const mx = caster.x + Math.cos(shotAng) * 24;
           const my = caster.y + Math.sin(shotAng) * 24;
           this.spawnSubParticle(mx, my, Math.cos(shotAng + 0.4) * 45, Math.sin(shotAng + 0.4) * 45, "#BEF264", 2.4, 0.16, "leaf");
@@ -301,14 +315,14 @@ const SkillsEngine = {
             color: "#84CC16",
             pierce: level >= 6 ? 2 : 1,
             knockback: 3,
-            life: 0.68,
-            maxLife: 0.68,
+            life: 0.72,
+            maxLife: 0.72,
             statusBonus: level >= 5 ? 0.20 : 0.10,
             hitSet: new Set(),
             trailTimer: 0
           });
           if (b % 2 === 0) SoundFX.play("hit", "Grass");
-        }, b * 48);
+        }, b * 38);
       }
       return;
     }
@@ -453,6 +467,44 @@ const SkillsEngine = {
         });
       }
       SoundFX.play("hit", "Psychic");
+      return;
+    }
+
+    // 2E-0. 火花 (Ember)：廣角扇形（±26°）、短射程（~180px）高頻噴吐 2～4 團搖曳火苗，專職貼身扇形撒網與高頻灼傷
+    if (cleanSkillId === "Ember") {
+      const sparkCount = Math.min(5, count + 1); // Lv.1: 2團, Lv.4: 3團, Lv.8: 4團
+      const fanArc = 0.56 + (level >= 6 ? 0.14 : 0); // 約 32°~40° 廣角扇形
+      const areaBonus = 1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
+      for (let i = 0; i < sparkCount; i++) {
+        const frac = sparkCount > 1 ? (i / (sparkCount - 1) - 0.5) : 0;
+        const ang = baseAngle + frac * fanArc + (Math.random() - 0.5) * 0.08;
+        const spd = 365 + (i % 2) * 20;
+        const muzzle = 22;
+        this.projectiles.push({
+          x: caster.x + Math.cos(ang) * muzzle,
+          y: caster.y + Math.sin(ang) * muzzle,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd,
+          initSpeed: spd,
+          angle: ang,
+          casterRef: caster,
+          radius: 15.5 * GameApp.player.areaMult * (level >= 8 ? 1.22 : 1.0) * areaBonus,
+          dmg: rawDmg * 0.68,
+          type: "Fire",
+          skillId: "Ember",
+          vfx: "ember_spark",
+          homing: false,
+          color: "#F97316",
+          pierce: level >= 6 ? 3 : 2,
+          knockback: 0,
+          life: 0.48,
+          maxLife: 0.48,
+          statusBonus: level >= 5 ? 0.40 : 0.22,
+          hitSet: new Set(),
+          trailTimer: 0
+        });
+      }
+      SoundFX.play("hit", "Fire");
       return;
     }
 

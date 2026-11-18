@@ -643,6 +643,10 @@
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
       <div id="wizardStep3" class="hidden space-y-4">
         <div>
+          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式</h3>
+          <div id="gameModeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
+        <div>
           <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
           <div id="difficultyGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
@@ -651,7 +655,10 @@
           <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
         <div>
-          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-Briefcase-medical text-amber-600"></i> 開局戰術特訓補給（單局入場強化 ‧ 選填）</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="font-black text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術特訓補給（可多選複選 ‧ 選填）</h3>
+            <span id="loadoutTotalCostBadge" class="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">已選 0 項 (0 金)</span>
+          </div>
           <div id="tacticalLoadoutGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
       </div>
@@ -988,10 +995,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=5.8"></script>
-  <script src="map_v11_engine.js?v=5.8"></script>
-  <script src="skills_engine.js?v=5.8"></script>
-  <script src="battle_core_2.js?v=5.8"></script>
-  <script src="game_ui.js?v=5.8"></script>
+  <script src="pokedex_data.js?v=5.9"></script>
+  <script src="map_v11_engine.js?v=5.9"></script>
+  <script src="skills_engine.js?v=5.9"></script>
+  <script src="battle_core_2.js?v=5.9"></script>
+  <script src="game_ui.js?v=5.9"></script>
 </body>
 </html>

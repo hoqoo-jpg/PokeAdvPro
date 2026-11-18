@@ -20,9 +20,11 @@ Object.assign(window.GameApp, {
   pendingUnlockCost: 0,
   useShinyStarter: {},
   pokedexShowBack: {},
+  selectedGameMode: "standard",
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
   selectedLoadout: "none",
+  selectedLoadouts: [],
 
   // 封面漫步展示動畫配置
   titleDemo: {
@@ -405,7 +407,7 @@ Object.assign(window.GameApp, {
     document.getElementById("wizardStepTitle").textContent = titles[step][0];
     document.getElementById("wizardStepDesc").textContent = titles[step][1];
     document.getElementById("btnWizardPrev").textContent = step === 1 ? "← 返回大廳" : "← 上一步";
-    document.getElementById("btnWizardNext").textContent = step === 3 ? "立即出發冒險 →" : "下一步 →";
+    this.updateWizardNextButtonText();
 
     this.renderWizardContent();
     this.updateTitleUI();
@@ -673,35 +675,81 @@ Object.assign(window.GameApp, {
       `;
     }).join("");
 
+    const modeGridEl = document.getElementById("gameModeGrid");
+    if (modeGridEl) {
+      const bestTimeSec = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessTime) || 0;
+      const bestM = String(Math.floor(bestTimeSec / 60)).padStart(2, "0");
+      const bestS = String(bestTimeSec % 60).padStart(2, "0");
+      const bestKills = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessKills) || 0;
+      const modes = [
+        {
+          id: "standard",
+          name: "⏱️ 8 分鐘極速通關（標準模式）",
+          badge: "經典劇情",
+          badgeCls: "bg-blue-100 text-blue-800",
+          desc: "5:00 迎戰傳說三聖鳥、7:30 決戰王者超夢與隱藏始祖夢幻 #151，擊破即榮登關都冠軍！"
+        },
+        {
+          id: "endless",
+          name: "♾️ 無盡深淵試煉（Endless）",
+          badge: "賞金 1.25x",
+          badgeCls: "bg-purple-100 text-purple-800",
+          desc: `8:00 後無限波次循環！每 2 分鐘輪迴降臨強化神獸，每 150 斬掉落寶箱糖果！（最高紀錄：${bestM}:${bestS} / ${bestKills}斬）`
+        }
+      ];
+      modeGridEl.innerHTML = modes.map(m => {
+        const sel = (this.selectedGameMode || "standard") === m.id;
+        return `
+          <div onclick="GameApp.selectGameMode('${m.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
+            <div>
+              <div class="flex items-center justify-between gap-1 mb-1">
+                <span class="font-black text-xs text-slate-800">${m.name}</span>
+                <span class="px-2 py-0.5 ${m.badgeCls} font-black text-[10px] rounded-full shrink-0">${m.badge}</span>
+              </div>
+              <p class="text-xs font-bold text-slate-600 leading-relaxed">${m.desc}</p>
+            </div>
+            <div class="mt-2 text-right">
+              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 目前選用' : '點擊切換模式'}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     const loadoutEl = document.getElementById("tacticalLoadoutGrid");
     if (loadoutEl) {
-      const loadouts = [
-        { id: "combat_pack", name: "戰鬥強化補給包", cost: 150, badge: "150 代幣", sprite: ITEM_SPRITES.protein, desc: "開局自帶 45 秒【力量強化(全傷+35%)】＆【速度強化(移速+30%)】與 +25% 額外最大護盾 HP！" },
-        { id: "held_box", name: "本命超武攜帶物盲盒", cost: 220, badge: "220 代幣", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/exp-share.png", desc: "開局直接獲贈 1 件對應出戰精靈主招式的【超武核心攜帶物】（全傷+12% 且滿級直通超武）！" }
-      ];
+      if (!Array.isArray(this.selectedLoadouts)) this.selectedLoadouts = [];
+      const loadouts = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
+      const totalCost = this.getSelectedLoadoutsTotalCost();
+      const badgeEl = document.getElementById("loadoutTotalCostBadge");
+      if (badgeEl) {
+        badgeEl.textContent = `已選 ${this.selectedLoadouts.length} 項 (共 ${totalCost} 金)`;
+      }
+
       loadoutEl.innerHTML = loadouts.map(ld => {
-        const sel = this.selectedLoadout === ld.id;
+        const sel = this.selectedLoadouts.includes(ld.id);
         return `
           <div onclick="GameApp.toggleTacticalLoadout('${ld.id}', ${ld.cost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
             <div>
               <div class="flex items-center justify-between gap-1 mb-1">
-                <div class="flex items-center gap-1.5">
-                  <img src="${ld.sprite}" class="w-5 h-5 pixel-sprite object-contain"/>
-                  <span class="font-black text-xs text-slate-800">${ld.name}</span>
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <img src="${ld.sprite}" class="w-5 h-5 pixel-sprite object-contain shrink-0"/>
+                  <span class="font-black text-xs text-slate-800 leading-tight">${ld.name}</span>
                 </div>
-                <span class="px-2 py-0.5 ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} font-black text-[10px] rounded-full flex items-center gap-0.5">
+                <span class="px-2 py-0.5 ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} font-black text-[10px] rounded-full flex items-center gap-0.5 shrink-0">
                   <img src="${ITEM_SPRITES.coin}" class="w-3 h-3 pixel-sprite"/>${ld.badge}
                 </span>
               </div>
               <p class="text-xs font-bold text-slate-600 leading-relaxed">${ld.desc}</p>
             </div>
             <div class="mt-2 text-right">
-              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已勾選（出戰時扣除代幣）' : '點擊勾選入場攜帶'}</span>
+              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已勾選（可再複選其他補給）' : '點擊勾選加入攜帶'}</span>
             </div>
           </div>
         `;
       }).join("");
     }
+    this.updateWizardNextButtonText();
 
     // 恢復外層滾動容器的垂直捲動位置，防止點選下方精靈或升星時跳回頂部
     if (scrollArea) {
@@ -829,15 +877,46 @@ Object.assign(window.GameApp, {
     }
   },
 
+  selectGameMode(modeId) {
+    this.selectedGameMode = modeId;
+    SoundFX.play("hit");
+    this.renderWizardContent();
+  },
+
+  getSelectedLoadoutsTotalCost() {
+    if (!Array.isArray(this.selectedLoadouts)) return 0;
+    const loadouts = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
+    return this.selectedLoadouts.reduce((sum, id) => {
+      const found = loadouts.find(x => x.id === id);
+      return sum + (found ? found.cost : 0);
+    }, 0);
+  },
+
+  updateWizardNextButtonText() {
+    const btn = document.getElementById("btnWizardNext");
+    if (!btn) return;
+    if (this.wizardStep < 3) {
+      btn.textContent = "下一步 →";
+      return;
+    }
+    const totalCost = this.getSelectedLoadoutsTotalCost();
+    btn.textContent = totalCost > 0
+      ? `立即出發冒險 (扣 ${totalCost} 金) →`
+      : "立即出發冒險 →";
+  },
+
   toggleTacticalLoadout(id, cost) {
-    if (this.selectedLoadout === id) {
-      this.selectedLoadout = "none";
+    if (!Array.isArray(this.selectedLoadouts)) this.selectedLoadouts = [];
+    const idx = this.selectedLoadouts.indexOf(id);
+    if (idx !== -1) {
+      this.selectedLoadouts.splice(idx, 1);
     } else {
-      if ((this.saveData.coins || 0) < cost) {
-        alert(`代幣不足！勾選此開局補給需要 ${cost} 代幣！`);
+      const newTotal = this.getSelectedLoadoutsTotalCost() + cost;
+      if ((this.saveData.coins || 0) < newTotal) {
+        alert(`代幣不足！目前已勾選補給加上此項共需 ${newTotal} 代幣（目前持有 ${this.saveData.coins || 0} 金）！`);
         return;
       }
-      this.selectedLoadout = id;
+      this.selectedLoadouts.push(id);
     }
     SoundFX.play("hit");
     this.renderWizardContent();
@@ -1558,7 +1637,8 @@ Object.assign(window.GameApp, {
       fpsEl.className = `font-pixel text-[10px] ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
     }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
-    document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})`;
+    const modeTag = this.isEndlessMode ? " [♾️無盡試煉]" : "";
+    document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})${modeTag}`;
     document.getElementById("endStatKills").textContent = this.kills;
     document.getElementById("endStatCoins").textContent = `+${this.runCoins}`;
 
@@ -1578,7 +1658,7 @@ Object.assign(window.GameApp, {
           <div class="flex items-center justify-between bg-slate-900/90 px-2 py-1 rounded-lg border ${sk.evolved ? 'border-amber-400' : 'border-slate-700'} text-[10px]">
             <div class="flex items-center gap-1.5 min-w-0">
               <img src="${meta.sprite}" class="w-4 h-4 pixel-sprite shrink-0"/>
-              <span class="text-white font-black truncate">${sk.evolved ? meta.evolvedName : meta.name}</span>
+              <span class="text-white font-black whitespace-nowrap">${sk.evolved ? meta.evolvedName : meta.name}</span>
               <span class="text-amber-300 font-pixel text-[8px]">Lv.${sk.level}</span>
             </div>
             <div class="flex items-center gap-1 shrink-0">
