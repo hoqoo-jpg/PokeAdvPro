@@ -170,9 +170,11 @@ Object.assign(window.GameApp, {
     const loadNext = () => {
       if (cursor >= allList.length) return;
       const url = allList[cursor++];
-      const rec = SpriteCache.get(url);
 
+      let settled = false;
       const onAssetSettled = () => {
+        if (settled) return;
+        settled = true;
         done += 1;
         if (!finished) {
           const pct = Math.min(100, Math.round((done / total) * 100));
@@ -184,26 +186,7 @@ Object.assign(window.GameApp, {
         loadNext();
       };
 
-      if (!rec || rec.loaded || rec.error) {
-        onAssetSettled();
-      } else {
-        const prevLoad = rec.img.onload;
-        const prevErr = rec.img.onerror;
-        let settled = false;
-        const settleOnce = () => {
-          if (settled) return;
-          settled = true;
-          onAssetSettled();
-        };
-        rec.img.onload = () => {
-          if (prevLoad) prevLoad();
-          settleOnce();
-        };
-        rec.img.onerror = () => {
-          if (prevErr) prevErr();
-          settleOnce();
-        };
-      }
+      SpriteCache.onFinish(url, onAssetSettled);
     };
 
     // 兜底安全計時器：若網路較慢，最多等待 5.5 秒即放行進入封面，同時背景佇列繼續把剩餘圖片載完
@@ -299,7 +282,7 @@ Object.assign(window.GameApp, {
       if (tNameEl) tNameEl.textContent = t.name;
     }
     if (lPkImg && p) {
-      lPkImg.src = p.forward_sprite;
+      lPkImg.src = SpriteCache.resolveUrl(p.forward_sprite);
       lPkImg.className = `w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}`;
       const pNameEl = document.getElementById("lobbyPokemonName");
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
@@ -1052,7 +1035,7 @@ Object.assign(window.GameApp, {
       const shiny = !!this.saveData.shinyUnlocked[p.id];
       const claimed = !!this.saveData.pokedexRewardClaimed[p.id];
       const showBack = !!this.pokedexShowBack[p.id];
-      const imgUrl = showBack ? p.back_sprite : p.forward_sprite;
+      const imgUrl = SpriteCache.resolveUrl(showBack ? p.back_sprite : p.forward_sprite);
 
       return `
         <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${caught ? 'border-blue-500' : 'opacity-80'}">

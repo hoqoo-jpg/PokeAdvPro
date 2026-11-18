@@ -454,6 +454,32 @@ const MapEngine = {
     dot(cpl, 12, 64, 14, 6, "#6B21A8");
     dot(cpl, 14, 62, 10, 4, "#A855F7");
     this.spritePropCache.set("broken_pillar_pixel", canPil);
+
+    // 7. 【GPU 降溫關鍵優化】離線預烘焙 5 朵動態雲層柔邊陰影貼圖（徹底消除每幀 28 次 createRadialGradient 即時運算！）
+    ["land", "bay"].forEach(mode => {
+      const shadowColor = mode === "bay" ? "rgba(2, 28, 62, " : "rgba(8, 30, 14, ";
+      this.clouds.forEach((c, idx) => {
+        const pad = 210;
+        const cw = pad * 2, ch = pad * 2;
+        const canCloud = document.createElement("canvas");
+        canCloud.width = cw; canCloud.height = ch;
+        const cctx = canCloud.getContext("2d");
+        c.puffs.forEach(p => {
+          const px = pad + p.ox * c.scale * 2.0;
+          const py = pad + p.oy * c.scale * 2.0;
+          const pr = p.r * c.scale * 2.5;
+          const grad = cctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
+          grad.addColorStop(0, `${shadowColor}0.30)`);
+          grad.addColorStop(0.5, `${shadowColor}0.16)`);
+          grad.addColorStop(1, `${shadowColor}0)`);
+          cctx.fillStyle = grad;
+          cctx.beginPath();
+          cctx.arc(px, py, pr, 0, Math.PI * 2);
+          cctx.fill();
+        });
+        this.spritePropCache.set(`cloud_shadow_${mode}_${idx}`, canCloud);
+      });
+    });
   },
 
   setStage(stageId) {
@@ -1148,30 +1174,18 @@ const MapEngine = {
     const plx = 0.45;
     const areaW = 1600;
     const areaH = 1400;
-    const isBay = stage.id === "cerulean_bay";
-    const shadowColor = isBay ? "rgba(2, 28, 62, " : "rgba(8, 30, 14, ";
+    const cloudMode = stage.id === "cerulean_bay" ? "bay" : "land";
 
-    this.clouds.forEach(c => {
+    this.clouds.forEach((c, idx) => {
       const moveX = c.x + (this.cloudTime || 0) * c.speed - camX * plx;
       const moveY = c.y + (this.cloudTime || 0) * (c.speed * 0.3) - camY * plx;
-      const sx = ((moveX % areaW) + areaW) % areaW - (areaW * 0.25);
-      const sy = ((moveY % areaH) + areaH) % areaH - (areaH * 0.25);
-
-      c.puffs.forEach(p => {
-        const px = sx + p.ox * c.scale * 2.0;
-        const py = sy + p.oy * c.scale * 2.0;
-        const pr = p.r * c.scale * 2.5;
-
-        const grad = ctx.createRadialGradient(px, py, pr * 0.15, px, py, pr);
-        grad.addColorStop(0, `${shadowColor}0.32)`);
-        grad.addColorStop(0.5, `${shadowColor}0.18)`);
-        grad.addColorStop(1, `${shadowColor}0)`);
-
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(px, py, pr, 0, Math.PI * 2);
-        ctx.fill();
-      });
+      const sx = Math.round(((moveX % areaW) + areaW) % areaW - (areaW * 0.25));
+      const sy = Math.round(((moveY % areaH) + areaH) % areaH - (areaH * 0.25));
+      if (sx < -220 || sx > width + 220 || sy < -220 || sy > height + 220) return;
+      const cCan = this.spritePropCache.get(`cloud_shadow_${cloudMode}_${idx}`);
+      if (cCan) {
+        ctx.drawImage(cCan, sx - 210, sy - 210);
+      }
     });
     ctx.restore();
     ctx.restore();

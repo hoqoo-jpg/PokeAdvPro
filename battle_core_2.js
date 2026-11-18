@@ -113,8 +113,10 @@ window.GameApp = {
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    const maxDpr = this.isMobileDevice() ? 1.5 : 2.0;
+    const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.dpr = dpr;
+    this._pauseFrameRendered = false;
     this.canvas.width = Math.round(this.width * dpr);
     this.canvas.height = Math.round(this.height * dpr);
     this.canvas.style.width = `${this.width}px`;
@@ -1140,12 +1142,21 @@ window.GameApp = {
     this.lastFrameTime = timestamp;
 
     if (this.state === "SPLASH" || this.state === "TITLE" || this.state === "LOADING") {
-      this.updateTitleDemo(rawDt);
-      this.renderTitleDemo();
+      // 若大廳已開啟全屏選角、151圖鑑、研究所或成就彈窗，自動休眠背景漫步渲染以大幅降低手機發熱
+      const fullModalOpen = ["setupModal", "pokedexModal", "skillTreeModal", "achievementModal", "settingsModal"].some(id => {
+        const el = document.getElementById(id);
+        return el && !el.classList.contains("hidden");
+      });
+      if (!fullModalOpen) {
+        this.updateTitleDemo(rawDt);
+        this.renderTitleDemo();
+      }
     } else if (this.state === "EVOLVING") {
+      this._pauseFrameRendered = false;
       this.updateEvolutionMoment(rawDt);
       this.renderCombat();
     } else if (this.state === "PLAYING") {
+      this._pauseFrameRendered = false;
       if (this.hitStopTimer > 0) {
         this.hitStopTimer -= rawDt;
       } else {
@@ -1159,7 +1170,11 @@ window.GameApp = {
       }
       this.renderCombat();
     } else {
-      this.renderCombat();
+      // PAUSED / GAMEOVER 狀態（升級三選一、友好商店、暫停結算）：僅渲染凍結的最後一幀，避免背景 60FPS 重繪觸發毛玻璃 backdrop-filter 高溫發燙！
+      if (!this._pauseFrameRendered) {
+        this._pauseFrameRendered = true;
+        this.renderCombat();
+      }
     }
 
     requestAnimationFrame((t) => this.loop(t));
@@ -4471,25 +4486,16 @@ window.GameApp = {
     this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
   },
 
-  // 零 ctx.filter 離線剪影閃白渲染器 (100% 貼合精靈像素輪廓，iOS Safari 滿幀)
+  // 零 ctx.filter ＆ 零管線阻塞剪影閃白渲染器：直接讀取 SpriteCache 預烘焙剪影，百怪同屏受創 0 clearRect 開銷！
   drawSilhouetteFlash(ctx, img, x, y, w, h, color = "#FFFFFF", alpha = 0.72) {
-    if (!this._flashCan) {
-      this._flashCan = document.createElement("canvas");
-      this._flashCan.width = 128;
-      this._flashCan.height = 128;
-      this._flashCtx = this._flashCan.getContext("2d");
-    }
-    const fc = this._flashCtx;
-    fc.clearRect(0, 0, w, h);
-    fc.globalCompositeOperation = "source-over";
-    fc.drawImage(img, 0, 0, w, h);
-    fc.globalCompositeOperation = "source-in";
-    fc.fillStyle = color;
-    fc.fillRect(0, 0, w, h);
-
+    if (!img) return;
+    const silCan = (typeof SpriteCache !== "undefined" && SpriteCache.getSilhouette)
+      ? SpriteCache.getSilhouette(img, color)
+      : null;
+    if (!silCan) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.drawImage(this._flashCan, 0, 0, w, h, x, y, w, h);
+    ctx.drawImage(silCan, 0, 0, silCan.width, silCan.height, x, y, w, h);
     ctx.restore();
   },
 
@@ -5805,14 +5811,14 @@ window.GameApp = {
     const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${tr.id}`;
     if (this._lastHudIdentityKey !== identityKey) {
       this._lastHudIdentityKey = identityKey;
-      document.getElementById("hudAvatar").src = p.data.forward_sprite;
+      document.getElementById("hudAvatar").src = SpriteCache.resolveUrl(p.data.forward_sprite);
       document.getElementById("hudPartnerName").textContent = p.data.name_zh;
       const tb = document.getElementById("hudTypeBadges");
       if (tb && typeof renderTypeBadgeHTML === "function") {
         tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
       }
       document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
-      document.getElementById("hudActiveTrainerImg").src = tr.sprite;
+      document.getElementById("hudActiveTrainerImg").src = SpriteCache.resolveUrl(tr.sprite);
       document.getElementById("hudActiveSkillName").textContent = tr.skillName;
     }
 

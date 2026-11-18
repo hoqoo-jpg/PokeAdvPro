@@ -761,6 +761,7 @@ const ITEM_SPRITES = {
 const SpriteCache = {
   cache: new Map(),
   shinyCache: new Map(),
+  silhouetteCache: new Map(),
   getShiny(url) {
     const baseRec = this.get(url);
     if (!baseRec || !baseRec.loaded) return baseRec;
@@ -786,9 +787,35 @@ const SpriteCache = {
     c.fillRect(0, 0, w, h);
     c.globalCompositeOperation = "source-over";
 
-    const shinyRec = { img: can, loaded: true, error: false };
+    const shinyRec = { img: can, loaded: true, error: false, activeUrl: baseRec.activeUrl || url };
     this.shinyCache.set(url, shinyRec);
     return shinyRec;
+  },
+  getSilhouette(imgOrUrl, color = "#FFFFFF") {
+    const key = typeof imgOrUrl === "string" ? `${imgOrUrl}|${color}` : `${imgOrUrl.src || "img"}|${color}`;
+    if (this.silhouetteCache.has(key)) return this.silhouetteCache.get(key);
+
+    const srcImg = typeof imgOrUrl === "string" ? (this.get(imgOrUrl)?.img) : imgOrUrl;
+    if (!srcImg || !(srcImg.complete || srcImg.naturalWidth > 0 || srcImg.width > 0)) return null;
+
+    const w = Math.min(128, srcImg.naturalWidth || srcImg.width || 64);
+    const h = Math.min(128, srcImg.naturalHeight || srcImg.height || 64);
+    const can = document.createElement("canvas");
+    can.width = w;
+    can.height = h;
+    const c = can.getContext("2d");
+    c.drawImage(srcImg, 0, 0, w, h);
+    c.globalCompositeOperation = "source-in";
+    c.fillStyle = color;
+    c.fillRect(0, 0, w, h);
+    c.globalCompositeOperation = "source-over";
+
+    if (this.silhouetteCache.size > 360) {
+      const oldest = this.silhouetteCache.keys().next().value;
+      if (oldest) this.silhouetteCache.delete(oldest);
+    }
+    this.silhouetteCache.set(key, can);
+    return can;
   },
   toBackupCdnUrl(url) {
     if (!url || typeof url !== "string") return url;
@@ -804,6 +831,20 @@ const SpriteCache = {
     }
     return url;
   },
+  resolveUrl(url) {
+    if (!url) return url;
+    const rec = this.cache.get(url);
+    if (rec && rec.loaded && rec.activeUrl) return rec.activeUrl;
+    return url;
+  },
+  onFinish(url, callback) {
+    const rec = this.get(url);
+    if (!rec || rec.loaded || rec.error) {
+      callback();
+      return;
+    }
+    rec.listeners.push(callback);
+  },
   get(url) {
     if (!url) return null;
     if (this.cache.has(url)) {
@@ -815,17 +856,24 @@ const SpriteCache = {
         setTimeout(() => {
           existing.error = false;
           existing.retrying = false;
+          existing.activeUrl = nextUrl;
           existing.img.src = nextUrl;
         }, 300 * existing.retries);
       }
       return existing;
     }
     const img = new Image();
-    const rec = { img, loaded: false, error: false, retries: 0, retrying: false };
+    const rec = { img, loaded: false, error: false, retries: 0, retrying: false, activeUrl: url, listeners: [] };
+    const notifyListeners = () => {
+      while (rec.listeners.length > 0) {
+        try { rec.listeners.shift()(); } catch (e) {}
+      }
+    };
     img.onload = () => {
       rec.loaded = true;
       rec.error = false;
       rec.retrying = false;
+      notifyListeners();
     };
     img.onerror = () => {
       if (rec.retries < 3) {
@@ -834,10 +882,13 @@ const SpriteCache = {
         const fallbackUrl = (rec.retries % 2 === 1) ? this.toBackupCdnUrl(url) : url;
         setTimeout(() => {
           rec.retrying = false;
+          rec.activeUrl = fallbackUrl;
           img.src = fallbackUrl;
         }, 250 * rec.retries);
       } else {
         rec.error = true;
+        rec.retrying = false;
+        notifyListeners();
       }
     };
     img.src = url;
@@ -845,6 +896,22 @@ const SpriteCache = {
     return rec;
   }
 };
+
+// 全局 DOM <img> 自動 CDN 備援監聽器：任何介面圖片若從 GitHub Raw 載入失敗，自動無縫切換至 jsDelivr CDN 或精靈球兜底圖
+window.addEventListener("error", (ev) => {
+  const el = ev.target;
+  if (el && el.tagName === "IMG" && el.src) {
+    const curSrc = el.getAttribute("src") || el.src;
+    const retryStep = parseInt(el.dataset.cdnRetry || "0", 10);
+    if (retryStep === 0 && curSrc.includes("raw.githubusercontent.com")) {
+      el.dataset.cdnRetry = "1";
+      el.src = SpriteCache.toBackupCdnUrl(curSrc);
+    } else if (retryStep <= 1 && !curSrc.includes("poke-ball.png")) {
+      el.dataset.cdnRetry = "2";
+      el.src = "https://cdn.jsdelivr.net/gh/PokeAPI/sprites@master/sprites/items/poke-ball.png";
+    }
+  }
+}, true);
 
 // 13. GBA 8-bit 原生復古音效生成器
 const SoundFX = {
