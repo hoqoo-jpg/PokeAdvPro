@@ -1680,13 +1680,40 @@ window.GameApp = {
         // 在「自動索敵模式」下，必須有敵人踏入該招式的有效射程內才發動（沒怪時保持 timer = 0 待命蓄力，絕不對空氣亂放）；
         // 若玩家主動切換為「🧭 朝向（手動突圍）」模式，則允許無條件持續開火！
         if (!this.manualAimMode) {
-          let triggerRange = 365 * p.areaMult;
+          const trait = p.innateTrait || {};
+          const lv = skSlot.level || 1;
+          const meleeAreaScale = p.areaMult * (lv >= 3 ? 1.15 : 1.0) * (lv >= 8 ? 1.25 : 1.0) * (1 + (trait.legendaryAreaBonus || 0));
+          let triggerRange = 330 * p.areaMult;
           if (skSlot.evolved) {
-            triggerRange = 285 * p.areaMult;
+            triggerRange = 245 * p.areaMult;
           } else if (meta.isMelee) {
-            triggerRange = (meta.meleeStyle === "vine_whip" ? 175 : 145) * p.areaMult;
+            // 精準對齊各近戰招式的真實有效打擊距離 (乘以 0.90 貼身裕度，確保怪獸踏入打擊圈內才出招，徹底根除打空氣！)
+            if (meta.meleeStyle === "slam_wave") {
+              // 撞擊 (Tackle)：Lv.1 第一波真實距離 ~80px，隨 Lv.4 二段 / Lv.8 三段震波延伸
+              const tackleScale = p.areaMult * (lv >= 3 ? 1.20 : 1.0) * (lv >= 8 ? 1.25 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0));
+              const waves = 1 + (lv >= 4 ? 1 : 0) + (lv >= 8 ? 1 : 0);
+              const actualReach = (28 + (waves - 1) * 24 + 50 + (waves - 1) * 10) * tackleScale;
+              triggerRange = actualReach * 0.88;
+            } else if (meta.meleeStyle === "martial_fist") {
+              // 空手劈 (Karate Chop)：真實距離 ~90px * meleeAreaScale
+              const actualReach = 90 * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
+              triggerRange = actualReach * 0.90;
+            } else if (meta.meleeStyle === "quake_wave") {
+              // 地震 (Earthquake)：真實距離 (85 + lv * 4) * meleeAreaScale
+              const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
+              triggerRange = actualReach * 0.88;
+            } else if (meta.meleeStyle === "vine_whip") {
+              // 藤鞭 (Vine Whip)：真實距離 24 + (135 + lv * 7) * meleeAreaScale
+              const actualReach = 20 + (135 + lv * 7) * meleeAreaScale * (1 + (trait.overgrowAreaBonus || 0));
+              triggerRange = actualReach * 0.88;
+            } else {
+              // 龍之俯衝 (Dragon Rush) 與其他近戰
+              triggerRange = 135 * meleeAreaScale;
+            }
           } else if (skSlot.id === "Thunderbolt") {
-            triggerRange = 195 * p.areaMult;
+            triggerRange = 168 * p.areaMult;
+          } else if (skSlot.id === "Ember" || skSlot.id === "WaterGun" || skSlot.id === "Flamethrower") {
+            triggerRange = 235 * p.areaMult;
           }
           const hasTargetInRange = this.findNearestEnemyInViewport(p.x, p.y, triggerRange);
           if (!hasTargetInRange) {
@@ -2323,12 +2350,14 @@ window.GameApp = {
           e.statusTick = 0.55;
           if (e.status === "Burn") {
             const heatwaveMod = (MapEngine.weather === "HEATWAVE" ? 1.5 : 1.0);
-            const bDmg = Math.max(6, Math.round(e.maxHp * 0.018 * heatwaveMod));
+            const rawBurn = Math.max(6, Math.round(e.maxHp * 0.018 * heatwaveMod));
+            const bDmg = e.isBoss ? Math.min(rawBurn, Math.round(160 * heatwaveMod)) : rawBurn;
             e.hp -= bDmg;
             this.spawnFloatingText(e.x, e.y - 14, `灼傷 -${bDmg}`, "#F97316", 11);
           } else if (e.status === "Poison") {
             const swampMult = inToxicSwamp ? 2.0 : 1.0;
-            const pDmg = Math.max(8, Math.round(e.maxHp * 0.022 * swampMult));
+            const rawPsn = Math.max(8, Math.round(e.maxHp * 0.022 * swampMult));
+            const pDmg = e.isBoss ? Math.min(rawPsn, Math.round(145 * swampMult)) : rawPsn;
             e.hp -= pDmg;
             this.spawnFloatingText(e.x, e.y - 14, `${inToxicSwamp ? '劇毒腐蝕' : '中毒'} -${pDmg}`, "#A855F7", 11);
           }
@@ -2355,7 +2384,7 @@ window.GameApp = {
       const dist = Math.hypot(dx, dy) || 1;
 
       const paraMult = e.status === "Paralysis" ? 0.35 : 1.0;
-      const confDir = e.status === "Confusion" ? -0.75 : 1.0;
+      const confDir = e.status === "Confusion" ? -0.22 : 1.0;
       let eTerrMult = 1.0;
 
       // 效能加速 #1：僅對視野內 (nearView) 怪獸每 4 幀採樣一次地形緩速並快取，畫面外百怪直接略過地形查詢
@@ -2403,6 +2432,13 @@ window.GameApp = {
 
       let vx = (dx / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
       let vy = (dy / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
+      if (e.status === "Confusion" && !e.treasureType) {
+        const wobbleAng = Math.sin(performance.now() * 0.008 + e.id * 1.7) * 1.35;
+        const cSpd = Math.hypot(vx, vy);
+        const baseA = Math.atan2(vy, vx) + wobbleAng;
+        vx = Math.cos(baseA) * cSpd;
+        vy = Math.sin(baseA) * cSpd;
+      }
 
       // 寶藏精靈防卡牆/障礙物滑動引導
       if (e.treasureType) {
@@ -2451,9 +2487,10 @@ window.GameApp = {
         MapEngine.resolveObstacleCollision(e, e.radius * 0.8, false);
       }
 
+      const cdDt = e.status === "Paralysis" ? dt * 0.5 : dt;
       // 1. 神獸 Boss 彈幕與地毯技能
       if (inView && e.isBoss && !e.treasureType) {
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 1.5) - dt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 1.5) - cdDt;
         if (e.rangedCd <= 0) {
           const isEnraged = (e.hp / e.maxHp) <= 0.5; // 血量低於 50% 觸發狂暴強化
           e.rangedCd = isEnraged ? (1.8 + Math.random() * 0.7) : (2.4 + Math.random() * 0.9);
@@ -2600,7 +2637,7 @@ window.GameApp = {
 
       // 2. 精英怪地面預警招式 (獨立執行，不再阻斷遠程射擊)
       if (inView && e.isElite && !e.treasureType && !e.isBoss) {
-        e.eliteTelegraphCd = (e.eliteTelegraphCd !== undefined ? e.eliteTelegraphCd : 3.0) - dt;
+        e.eliteTelegraphCd = (e.eliteTelegraphCd !== undefined ? e.eliteTelegraphCd : 3.0) - cdDt;
         if (e.eliteTelegraphCd <= 0) {
           e.eliteTelegraphCd = 3.5;
           this.spawnEnemyTelegraphAttack(e);
@@ -2610,7 +2647,7 @@ window.GameApp = {
       // 3. 所有具備遠程習性的怪獸 (無論是普通怪、火箭隊精英阿柏怪 24 或雙彈瓦斯 110，均正常發射子彈！)
       const rangedIds = [23, 24, 35, 41, 42, 48, 60, 69, 70, 81, 109, 110, 116, 117, 120];
       if (inView && !e.treasureType && !e.isBoss && rangedIds.includes(e.id)) {
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.05) - dt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.05) - cdDt;
         if (e.rangedCd <= 0) {
           e.rangedCd = 2.4 + Math.random() * 1.3;
           const sAng = Math.atan2(p.y - e.y, p.x - e.x);
@@ -3261,54 +3298,83 @@ window.GameApp = {
       if (checkStatusImmunity(enemy, st)) {
         if (Math.random() < 0.25) this.spawnFloatingText(enemy.x, enemy.y - 20, "屬性免疫!", "#94A3B8", 11);
       } else if (!(isHardCC && (enemy.status === st || ["Freeze", "Paralysis", "Confusion"].includes(enemy.status)))) {
-        // 計算階級與體重抗性折減 (Light: 1.0, Medium: 0.80, Heavy: 0.55; Elite: x0.65, Boss: x0.40)
         const weightMod = enemy.weightTier === "heavy" ? 0.55 : (enemy.weightTier === "medium" ? 0.80 : 1.0);
         const tierMod = enemy.isBoss ? 0.40 : (enemy.isElite ? 0.65 : 1.0);
-        // 超能系對混亂具備 50% 天然抗性
         const psyConfResist = (st === "Confusion" && enemy.data && (enemy.data.type1 === "Psychic" || enemy.data.type2 === "Psychic")) ? 0.50 : 1.0;
-        // 將招式等級加成改為溫和權重 (+35% 係數)，避免多發彈幕疊加到 100% 必中
-        const rawChance = tMeta.statusRate + (bonusStatusChance || 0) * 0.32;
-        const finalChance = Math.min(isHardCC ? 0.28 : 0.42, rawChance * weightMod * tierMod * psyConfResist);
+        const spoonBonus = (st === "Confusion" && this.player && this.player.heldItems && this.player.heldItems["twisted_spoon"]) ? 0.04 : 0;
+        const frostAuraBonus = (st === "Freeze" && enemy.inFrostAura) ? 0.05 : 0;
+        const rawChance = Math.max(0.03, tMeta.statusRate + spoonBonus + frostAuraBonus + (bonusStatusChance || 0) * 0.28);
+        const finalChance = Math.min(isHardCC ? 0.30 : 0.44, rawChance * weightMod * tierMod * psyConfResist);
 
         if (Math.random() < finalChance) {
           if (isHardCC && enemy.ccImmunityTimer > 0) {
             if (enemy.isBoss || enemy.isElite) {
               this.spawnFloatingText(enemy.x, enemy.y - 20, "韌性抵抗!", "#CBD5E1", 11);
             }
-          } else {
+          } else if (isHardCC) {
             enemy.status = st;
             const durWeightMod = enemy.weightTier === "heavy" ? 0.72 : 1.0;
-            if (isHardCC) {
-              const baseDur = (st === "Freeze") ? 2.2 : 2.8;
-              enemy.statusTimer = (enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : baseDur)) * durWeightMod;
-              enemy.ccImmunityTimer = enemy.isBoss ? 4.2 : (enemy.isElite ? 3.0 : 2.0);
+            const baseDur = (st === "Freeze") ? 2.2 : 2.8;
+            enemy.statusTimer = (enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : baseDur)) * durWeightMod;
+            enemy.ccImmunityTimer = enemy.isBoss ? 4.2 : (enemy.isElite ? 2.8 : (st === "Freeze" ? 1.4 : 1.8));
+          } else {
+            // 軟狀態（灼傷 Burn / 中毒 Poison）：
+            // 1. 狀態優先級保護：絕不覆蓋正在生效的硬控（冰凍/麻痺/混亂）
+            const inActiveHardCC = ["Freeze", "Paralysis", "Confusion"].includes(enemy.status) && enemy.statusTimer > 0;
+            const alreadyInDot = (enemy.status === "Burn" || enemy.status === "Poison") && enemy.statusTimer > 0;
+            const nowMs = performance.now();
+
+            if (inActiveHardCC || alreadyInDot) {
+              // 若已在灼傷/中毒中，僅刷新延長持續時間，絕不重置 statusTick 倒數！
+              if (alreadyInDot && enemy.status === st) {
+                enemy.statusTimer = Math.max(enemy.statusTimer, enemy.isBoss ? 2.8 : 4.2);
+              }
+              // 疊加觸發「烈焰爆燃 / 毒液迸發」瞬發補償直傷 (每隻怪 0.48s 內置冷卻)
+              if (!enemy._lastDotBurstMs || nowMs - enemy._lastDotBurstMs > 480) {
+                enemy._lastDotBurstMs = nowMs;
+                const burstDmg = Math.max(4, Math.round(finalDmg * 0.32));
+                enemy.hp -= burstDmg;
+                this.skillDamageStats[moveType] = (this.skillDamageStats[moveType] || 0) + burstDmg;
+                this.spawnFloatingText(
+                  enemy.x + (Math.random() - 0.5) * 16,
+                  enemy.y - 22,
+                  st === "Burn" ? `🔥爆燃 -${burstDmg}` : `☠️毒爆 -${burstDmg}`,
+                  st === "Burn" ? "#FB923C" : "#C084FC",
+                  11
+                );
+              }
             } else {
-              // 灼傷與中毒持續傷害
-              enemy.statusTimer = enemy.isBoss ? 2.6 : 4.0;
+              // 首次掛上灼傷或中毒，設定初始跳傷計時器
+              enemy.status = st;
+              enemy.statusTimer = enemy.isBoss ? 2.8 : 4.2;
+              enemy.statusTick = 0.38;
             }
-            enemy.statusTick = 0.35;
           }
         }
       }
     }
 
-    // 【攜帶物：彎曲湯匙】攻擊有 10% 基礎機率（受怪獸體重與韌性抗性影響）引發念力震盪與混亂
-    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && !["Freeze", "Paralysis", "Confusion"].includes(enemy.status)) {
-      const spoonChance = 0.10 * (enemy.isBoss ? 0.45 : (enemy.isElite ? 0.70 : 1.0));
+    // 【攜帶物：彎曲湯匙】非超能系招式攻擊時提供 6% 念力混亂支援，並附帶 0.6s 全局特效冷卻防洗頻
+    if (this.player.heldItems && this.player.heldItems["twisted_spoon"] && moveType !== "Psychic" && moveType !== "Ghost" && !["Freeze", "Paralysis", "Confusion"].includes(enemy.status)) {
+      const spoonChance = 0.06 * (enemy.isBoss ? 0.35 : (enemy.isElite ? 0.60 : 0.85));
       if (Math.random() < spoonChance && !(enemy.ccImmunityTimer > 0)) {
         enemy.status = "Confusion";
-        enemy.statusTimer = enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : 2.6);
-        enemy.ccImmunityTimer = enemy.isBoss ? 4.0 : 2.5;
-        SkillsEngine.meleeEffects.push({
-          style: "slam_wave",
-          x: enemy.x,
-          y: enemy.y,
-          radius: 42,
-          timer: 0.22,
-          maxTime: 0.22,
-          color: "#EC4899"
-        });
-        this.spawnFloatingText(enemy.x, enemy.y - 24, "🌀 念力混亂!", "#F472B6", 12);
+        enemy.statusTimer = enemy.isBoss ? 1.1 : (enemy.isElite ? 1.6 : 2.2);
+        enemy.ccImmunityTimer = enemy.isBoss ? 4.2 : 2.8;
+        const nowMs = performance.now();
+        if (!this._lastSpoonWaveMs || nowMs - this._lastSpoonWaveMs > 600) {
+          this._lastSpoonWaveMs = nowMs;
+          SkillsEngine.meleeEffects.push({
+            style: "slam_wave",
+            x: enemy.x,
+            y: enemy.y,
+            radius: 34,
+            timer: 0.20,
+            maxTime: 0.20,
+            color: "#EC4899"
+          });
+          this.spawnFloatingText(enemy.x, enemy.y - 24, "🌀 念力混亂!", "#F472B6", 11);
+        }
       }
     }
 
@@ -4675,7 +4741,14 @@ window.GameApp = {
         ctx.beginPath();
         ctx.arc(sx, sy + yOffset, 16, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
-        if (rec && rec.loaded) ctx.drawImage(rec.img, sx - 12, sy + yOffset - 12, 24, 24);
+        if (rec && rec.loaded) {
+          ctx.drawImage(rec.img, sx - 12, sy + yOffset - 12, 24, 24);
+        } else {
+          ctx.fillStyle = it.meta.color || "#FACC15";
+          ctx.beginPath();
+          ctx.arc(sx, sy + yOffset, 7, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       }
     });
@@ -5168,7 +5241,19 @@ window.GameApp = {
       ctx.translate(esx, esy);
       if (e.facingX > 0) ctx.scale(-1, 1);
 
-      if (eRec && eRec.loaded) ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
+      if (eRec && eRec.loaded) {
+        ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
+      } else {
+        // 圖片重試載入期間的像素精靈球兜底繪製，徹底杜絕隱形怪
+        const pr = sz * 0.26;
+        ctx.fillStyle = "#EF4444";
+        ctx.beginPath(); ctx.arc(0, 0, pr, Math.PI, 0); ctx.fill();
+        ctx.fillStyle = "#F8FAFC";
+        ctx.beginPath(); ctx.arc(0, 0, pr, 0, Math.PI); ctx.fill();
+        ctx.strokeStyle = "#0F172A"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, pr, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-pr, 0); ctx.lineTo(pr, 0); ctx.stroke();
+      }
 
       if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);

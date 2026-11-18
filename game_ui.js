@@ -165,7 +165,7 @@ Object.assign(window.GameApp, {
 
     // 分批併發佇列 (每批最大 24 條連線)：徹底防止 350 張圖同時請求塞爆瀏覽器與 GitHub CDN 導致掉圖
     let cursor = 0;
-    const maxConcurrency = 24;
+    const maxConcurrency = 10;
 
     const loadNext = () => {
       if (cursor >= allList.length) return;

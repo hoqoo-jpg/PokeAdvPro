@@ -98,7 +98,15 @@ const SKILLS_CATALOG = {
     knockback: 6, isMelee: false, vfx: "leaf_blade", reqItem: "miracle_seed",
     evolvedName: "瘋狂植物", color: "#22C55E",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
-    desc: "射出高速自轉的雙色立體鋒利葉片，穿透敵群並附帶高暴擊率！",
+    desc: "射出高速自轉的修長柳葉刀片，穿透敵群並附帶高暴擊率！",
+    evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
+  },
+  BulletSeed: {
+    id: "Bullet Seed", name: "種子機關槍", type: "Grass", baseDmg: 16, baseCd: 0.92, ultMinCd: 3.6, ultPowerBonus: 1.08,
+    knockback: 3, isMelee: false, vfx: "bullet_seed", reqItem: "miracle_seed",
+    evolvedName: "瘋狂植物", color: "#84CC16",
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/miracle-seed.png",
+    desc: "如衝鋒槍般高速連射 4～6 顆黃金流光種子彈，密集壓制並爆出嫩芽！",
     evoDesc: "【終極超武】全場破土生長嗜血荊棘藤蔓，命中回覆自身 8% 生命！"
   },
 Ember: {
@@ -423,7 +431,7 @@ const POKEMON_DB = [
   { id: 43, name_zh: "走路草", type1: "Grass", type2: "Poison", hp: 110, atk: 50, speed: 30, skill: "Razor Leaf", weightTier: "light", kbResist: 0.10, evo_level: 12, evo_to: 44 },
   { id: 44, name_zh: "臭臭花", type1: "Grass", type2: "Poison", hp: 150, atk: 65, speed: 40, skill: "Razor Leaf", weightTier: "medium", kbResist: 0.35, evo_level: 24, evo_to: 45 },
   { id: 45, name_zh: "霸王花", type1: "Grass", type2: "Poison", hp: 195, atk: 80, speed: 50, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.65, evo_level: "None", evo_to: null },
-  { id: 46, name_zh: "派拉斯", type1: "Bug", type2: "Grass", hp: 105, atk: 70, speed: 25, skill: "Seed Bomb", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 47 },
+  { id: 46, name_zh: "派拉斯", type1: "Bug", type2: "Grass", hp: 105, atk: 70, speed: 25, skill: "Bullet Seed", weightTier: "light", kbResist: 0.15, evo_level: 16, evo_to: 47 },
   { id: 47, name_zh: "派拉斯特", type1: "Bug", type2: "Grass", hp: 160, atk: 95, speed: 30, skill: "Seed Bomb", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
   { id: 48, name_zh: "毛球", type1: "Bug", type2: "Poison", hp: 120, atk: 55, speed: 45, skill: "Sludge Bomb", weightTier: "light", kbResist: 0.15, evo_level: 18, evo_to: 49 },
   { id: 49, name_zh: "摩魯蛾", type1: "Bug", type2: "Poison", hp: 170, atk: 65, speed: 90, skill: "Sludge Bomb", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
@@ -479,7 +487,7 @@ const POKEMON_DB = [
   { id: 99, name_zh: "巨鉗蟹", type1: "Water", type2: "None", hp: 165, atk: 130, speed: 75, skill: "Hydro Pump", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
   { id: 100, name_zh: "霹靂電球", type1: "Electric", type2: "None", hp: 100, atk: 30, speed: 100, skill: "Thunderbolt", weightTier: "light", kbResist: 0.05, evo_level: 18, evo_to: 101 },
   { id: 101, name_zh: "頑皮雷彈", type1: "Electric", type2: "None", hp: 160, atk: 50, speed: 150, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
-  { id: 102, name_zh: "蛋蛋", type1: "Grass", type2: "Psychic", hp: 120, atk: 40, speed: 40, skill: "Seed Bomb", weightTier: "light", kbResist: 0.15, evo_level: 18, evo_to: 103 },
+  { id: 102, name_zh: "蛋蛋", type1: "Grass", type2: "Psychic", hp: 120, atk: 40, speed: 40, skill: "Bullet Seed", weightTier: "light", kbResist: 0.15, evo_level: 18, evo_to: 103 },
   { id: 103, name_zh: "椰蛋樹", type1: "Grass", type2: "Psychic", hp: 205, atk: 95, speed: 55, skill: "Seed Bomb", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
   { id: 104, name_zh: "卡拉卡拉", type1: "Ground", type2: "None", hp: 110, atk: 50, speed: 35, skill: "Earthquake", weightTier: "light", kbResist: 0.20, evo_level: 18, evo_to: 105 },
   { id: 105, name_zh: "嘎啦嘎啦", type1: "Ground", type2: "None", hp: 170, atk: 80, speed: 45, skill: "Earthquake", weightTier: "medium", kbResist: 0.60, evo_level: "None", evo_to: null },
@@ -491,7 +499,7 @@ const POKEMON_DB = [
   { id: 111, name_zh: "獨角犀牛", type1: "Ground", type2: "Rock", hp: 145, atk: 85, speed: 25, skill: "Earthquake", weightTier: "heavy", kbResist: 0.75, evo_level: 20, evo_to: 112 },
   { id: 112, name_zh: "鑽角犀獸", type1: "Ground", type2: "Rock", hp: 215, atk: 130, speed: 40, skill: "Earthquake", weightTier: "heavy", kbResist: 0.95, evo_level: "None", evo_to: null },
   { id: 113, name_zh: "吉利蛋", type1: "Normal", type2: "None", hp: 450, atk: 15, speed: 50, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
-  { id: 114, name_zh: "蔓藤怪", type1: "Grass", type2: "None", hp: 145, atk: 55, speed: 60, skill: "Razor Leaf", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
+  { id: 114, name_zh: "蔓藤怪", type1: "Grass", type2: "None", hp: 145, atk: 55, speed: 60, skill: "Bullet Seed", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
   { id: 115, name_zh: "袋獸", type1: "Normal", type2: "None", hp: 215, atk: 95, speed: 90, skill: "Tackle", weightTier: "heavy", kbResist: 0.85, evo_level: "None", evo_to: null },
   { id: 116, name_zh: "墨海馬", type1: "Water", type2: "None", hp: 90, atk: 40, speed: 60, skill: "Hydro Pump", weightTier: "light", kbResist: 0.05, evo_level: 18, evo_to: 117 },
   { id: 117, name_zh: "海刺龍", type1: "Water", type2: "None", hp: 155, atk: 65, speed: 85, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
@@ -782,19 +790,33 @@ const SpriteCache = {
     this.shinyCache.set(url, shinyRec);
     return shinyRec;
   },
+  toBackupCdnUrl(url) {
+    if (!url || typeof url !== "string") return url;
+    // 自動將 GitHub Raw 轉為全球高速 jsDelivr CDN 鏡像，徹底解決 429 限流掉圖
+    if (url.startsWith("https://raw.githubusercontent.com/")) {
+      const rest = url.replace("https://raw.githubusercontent.com/", "");
+      const parts = rest.split("/");
+      if (parts.length >= 4) {
+        const user = parts[0], repo = parts[1], branch = parts[2];
+        const filePath = parts.slice(3).join("/");
+        return `https://cdn.jsdelivr.net/gh/${user}/${repo}@${branch}/${filePath}`;
+      }
+    }
+    return url;
+  },
   get(url) {
     if (!url) return null;
     if (this.cache.has(url)) {
       const existing = this.cache.get(url);
-      // 若先前因併發限流失敗且重試次數未滿 3 次，再次觸發重試
-      if (existing.error && (existing.retries || 0) < 3 && !existing.retrying) {
+      if (existing.error && (existing.retries || 0) < 4 && !existing.retrying) {
         existing.retrying = true;
         existing.retries = (existing.retries || 0) + 1;
+        const nextUrl = (existing.retries % 2 === 1) ? this.toBackupCdnUrl(url) : url;
         setTimeout(() => {
           existing.error = false;
           existing.retrying = false;
-          existing.img.src = url + (url.includes('?') ? '&' : '?') + 'retry=' + existing.retries;
-        }, 400 * existing.retries);
+          existing.img.src = nextUrl;
+        }, 300 * existing.retries);
       }
       return existing;
     }
@@ -806,13 +828,14 @@ const SpriteCache = {
       rec.retrying = false;
     };
     img.onerror = () => {
-      if (rec.retries < 2) {
+      if (rec.retries < 3) {
         rec.retries += 1;
         rec.retrying = true;
+        const fallbackUrl = (rec.retries % 2 === 1) ? this.toBackupCdnUrl(url) : url;
         setTimeout(() => {
           rec.retrying = false;
-          img.src = url;
-        }, 350 * rec.retries);
+          img.src = fallbackUrl;
+        }, 250 * rec.retries);
       } else {
         rec.error = true;
       }
@@ -1306,6 +1329,7 @@ const TM_CATALOG = {
   Thunderbolt:  { id: "Thunderbolt",  tmNo: "TM24", name: "十萬伏特", type: "Electric", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-electric.png", desc: "向身周射出折射電弧鏈，牽制並麻痺分散的敵群。" },
   RazorLeaf:    { id: "RazorLeaf",    tmNo: "TM75", name: "飛葉快刀", type: "Grass", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-grass.png", desc: "射出高速自轉的雙色立體鋒利葉片，直線穿透敵群。" },
   SeedBomb:     { id: "SeedBomb",     tmNo: "TM86", name: "種子炸彈", type: "Grass", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-grass.png", desc: "向目標區域投擲炸彈，爆裂造成大範圍草系重擊。" },
+  BulletSeed:   { id: "BulletSeed",   tmNo: "TM09", name: "種子機關槍", type: "Grass", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-grass.png", desc: "高速連射黃金流光種子彈，密集單點連擊壓制。" },
   DragonRush:   { id: "DragonRush",   tmNo: "TM59", name: "龍之俯衝", type: "Dragon", cost: 280, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-dragon.png", desc: "釋放威猛蒼藍龍首氣旋衝擊，滿級配龍之鱗片突破【天龍流星雨】！" },
   IceBeam:      { id: "IceBeam",      tmNo: "TM13", name: "冷凍光線", type: "Ice", cost: 260, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ice.png", desc: "發射直線極寒光束，具有極高機率完全凍結怪物。" },
   Earthquake:   { id: "Earthquake",   tmNo: "TM26", name: "地震",     type: "Ground", cost: 280, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ground.png", desc: "猛力震裂地面，全屏地面目標浮空打擊（對飛行系無效）。" },
@@ -1328,9 +1352,9 @@ const POKEMON_NATURAL_SKILLS = {
   13:  { name: "獨角蟲",   skills: ["Tackle", "SludgeBomb", "SeedBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
-  43:  { name: "走路草",   skills: ["RazorLeaf", "SeedBomb", "SludgeBomb"] },
+  43:  { name: "走路草",   skills: ["RazorLeaf", "BulletSeed", "SludgeBomb"] },
   69:  { name: "喇叭芽",   skills: ["RazorLeaf", "VineWhip", "SludgeBomb"] },
-  114: { name: "蔓藤怪",   skills: ["RazorLeaf", "VineWhip", "SeedBomb"] },
+  114: { name: "蔓藤怪",   skills: ["BulletSeed", "VineWhip", "SeedBomb"] },
   116: { name: "墨海馬",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   117: { name: "海刺龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   129: { name: "鯉魚王",   skills: ["Tackle", "HydroPump", "DragonRush"] },
@@ -1346,7 +1370,7 @@ const POKEMON_NATURAL_SKILLS = {
 
 // 根據屬性對應的代表招式池（供全 151 圖鑑動態推導天生三招）
 const TYPE_SKILL_POOLS = {
-  Grass:    ["RazorLeaf", "VineWhip", "SeedBomb"],
+  Grass:    ["RazorLeaf", "BulletSeed", "SeedBomb"],
   Fire:     ["Ember", "Flamethrower", "DragonRush"],
   Water:    ["WaterGun", "HydroPump", "IceBeam"],
   Electric: ["Thunderbolt", "AirSlash", "Tackle"],
@@ -1356,7 +1380,7 @@ const TYPE_SKILL_POOLS = {
   Ground:   ["Earthquake", "KarateChop", "Tackle"],
   Flying:   ["AirSlash", "DragonRush", "Tackle"],
   Psychic:  ["Psystrike", "Moonblast", "ShadowBall"],
-  Bug:      ["SeedBomb", "SludgeBomb", "AirSlash"],
+  Bug:      ["BulletSeed", "SludgeBomb", "AirSlash"],
   Rock:     ["Earthquake", "KarateChop", "Tackle"],
   Ghost:    ["ShadowBall", "SludgeBomb", "Psystrike"],
   Dragon:   ["DragonRush", "Flamethrower", "Thunderbolt"],
