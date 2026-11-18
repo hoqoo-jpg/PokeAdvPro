@@ -333,7 +333,8 @@ window.GameApp = {
           }
           return;
         } else if (this.player.data.evo_to) {
-          this.evolvePlayerPokemon(this.player.data.evo_to);
+          this.startEvolutionMoment(this.player.data.evo_to, true);
+          return;
         }
       }
     }
@@ -442,8 +443,7 @@ window.GameApp = {
     }
     if (p.data.evo_to) {
       if (p.data.evo_level && p.level < p.data.evo_level) p.level = p.data.evo_level;
-      this.evolvePlayerPokemon(p.data.evo_to);
-      this.refreshHUD();
+      this.startEvolutionMoment(p.data.evo_to, false);
     } else {
       this.spawnFloatingText(p.x, p.y - 28, "目前已是最終完全體形态！", "#FACC15", 13);
     }
@@ -1142,6 +1142,9 @@ window.GameApp = {
     if (this.state === "SPLASH" || this.state === "TITLE" || this.state === "LOADING") {
       this.updateTitleDemo(rawDt);
       this.renderTitleDemo();
+    } else if (this.state === "EVOLVING") {
+      this.updateEvolutionMoment(rawDt);
+      this.renderCombat();
     } else if (this.state === "PLAYING") {
       if (this.hitStopTimer > 0) {
         this.hitStopTimer -= rawDt;
@@ -3632,7 +3635,8 @@ window.GameApp = {
           }
           return;
         } else if (p.data.evo_to) {
-          this.evolvePlayerPokemon(p.data.evo_to);
+          this.startEvolutionMoment(p.data.evo_to, true);
+          return;
         }
       } else if (p.id >= 144 && (p.level === 12 || p.level === 24)) {
         // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒
@@ -3671,37 +3675,292 @@ window.GameApp = {
     const savedLevels = oldSkills.slice(0, 3).map(s => s.level);
     const tmSkill = oldSkills[3] || null;
 
-    this.evolvePlayerPokemon(targetId);
+    this.startEvolutionMoment(targetId, true, () => {
+      const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
+        134: ["Hydro Pump", "Ice Beam", "Tackle"],
+        135: ["Thunderbolt", "Air Slash", "Tackle"],
+        136: ["Flamethrower", "Dragon Rush", "Tackle"]
+      };
 
-    const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
-      134: ["Hydro Pump", "Ice Beam", "Tackle"],
-      135: ["Thunderbolt", "Air Slash", "Tackle"],
-      136: ["Flamethrower", "Dragon Rush", "Tackle"]
-    };
+      const rawSkillIds = evoSkillMap[targetId] || ["Hydro Pump", "Ice Beam", "Tackle"];
+      const newSkillIds = rawSkillIds.map(sId => {
+        if (SKILLS_CATALOG[sId]) return sId;
+        const found = Object.keys(SKILLS_CATALOG).find(k => k.replace(/\s+/g, '') === sId.replace(/\s+/g, ''));
+        return found || sId;
+      });
 
-    const rawSkillIds = evoSkillMap[targetId] || ["Hydro Pump", "Ice Beam", "Tackle"];
-    const newSkillIds = rawSkillIds.map(sId => {
-      if (SKILLS_CATALOG[sId]) return sId;
-      const found = Object.keys(SKILLS_CATALOG).find(k => k.replace(/\s+/g, '') === sId.replace(/\s+/g, ''));
-      return found || sId;
+      const unlockedSlotCount = Math.max(1, Math.min(3, oldSkills.length));
+      p.skills = {};
+      newSkillIds.slice(0, unlockedSlotCount).forEach((sId, idx) => {
+        const minLv = (idx === 0) ? 3 : 1;
+        p.skills[sId] = { id: sId, level: Math.max(minLv, savedLevels[idx] || 1), evolved: false, timer: 0.2 + idx * 0.15 };
+      });
+
+      p.naturalSkills = [...newSkillIds];
+      if (tmSkill) {
+        p.skills[tmSkill.id] = tmSkill;
+      }
+      this.refreshHUD();
     });
+  },
 
-    const unlockedSlotCount = Math.max(1, Math.min(3, oldSkills.length));
-    p.skills = {};
-    newSkillIds.slice(0, unlockedSlotCount).forEach((sId, idx) => {
-      const minLv = (idx === 0) ? 3 : 1;
-      p.skills[sId] = { id: sId, level: Math.max(minLv, savedLevels[idx] || 1), evolved: false, timer: 0.2 + idx * 0.15 };
-    });
-
-    p.naturalSkills = [...newSkillIds];
-	
-    if (tmSkill) {
-      p.skills[tmSkill.id] = tmSkill;
+  // ==========================================================================
+  // 方案 A：【1.85 秒戰場時空凍結・掌機白光剪影交替進化演出】
+  // ==========================================================================
+  startEvolutionMoment(targetId, openLevelUpAfter = true, onEvolvedCallback = null) {
+    const p = this.player;
+    const nextData = POKEMON_MAP.get(targetId);
+    if (!p || !nextData) {
+      if (openLevelUpAfter) this.openLevelUpModal();
+      return;
     }
 
-    this.refreshHUD();
-    // 進化完成後順暢銜接 20 級的三選一能力強化視窗
-    this.openLevelUpModal();
+    // 預載新形態立繪確保變身瞬間 0 閃爍
+    SpriteCache.get(nextData.forward_sprite);
+    SpriteCache.get(nextData.back_sprite);
+
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
+
+    this.evoSequence = {
+      active: true,
+      timer: 0,
+      duration: 1.85,
+      oldData: p.data,
+      nextData: nextData,
+      targetId: targetId,
+      evolvedApplied: false,
+      openLevelUpAfter: openLevelUpAfter,
+      onEvolvedCallback: onEvolvedCallback
+    };
+
+    this.state = "EVOLVING";
+    SoundFX.play("evolution");
+  },
+
+  updateEvolutionMoment(dt) {
+    const seq = this.evoSequence;
+    if (!seq || !seq.active) {
+      this.state = "PLAYING";
+      return;
+    }
+    seq.timer += dt;
+
+    // 在 1.35s 破殼瞬間正式套用新形態數值並炸開漫天金星與震退波
+    if (seq.timer >= 1.35 && !seq.evolvedApplied) {
+      seq.evolvedApplied = true;
+      this.evolvePlayerPokemon(seq.targetId);
+      if (typeof seq.onEvolvedCallback === "function") {
+        seq.onEvolvedCallback();
+      }
+      this.camera.shakeTime = 0.35;
+      this.camera.shakeMagnitude = 10;
+
+      // 釋放 165px 進化覺醒保護震波，將周圍怪群震退 120px 防止時空恢復瞬間被貼臉圍毆
+      const p = this.player;
+      if (p) {
+        const evoCol = TYPE_COLORS[seq.nextData.type1] || "#FACC15";
+        SkillsEngine.meleeEffects.push({
+          style: "slam_wave",
+          x: p.x, y: p.y,
+          radius: 175, timer: 0.42, maxTime: 0.42,
+          color: evoCol
+        });
+        this.enemies.forEach(e => {
+          if (e && e.hp > 0 && !e.isBoss && Math.hypot(e.x - p.x, e.y - p.y) < 185) {
+            const ang = Math.atan2(e.y - p.y, e.x - p.x);
+            e.x += Math.cos(ang) * 120;
+            e.y += Math.sin(ang) * 120;
+          }
+        });
+      }
+    }
+
+    if (seq.timer >= seq.duration) {
+      seq.active = false;
+      const shouldOpenLvl = seq.openLevelUpAfter;
+      this.evoSequence = null;
+      this.refreshHUD();
+      if (shouldOpenLvl) {
+        this.openLevelUpModal();
+      } else {
+        this.state = "PLAYING";
+      }
+    }
+  },
+
+  renderEvolutionOverlay(ctx, toSx, toSy) {
+    const seq = this.evoSequence;
+    if (!seq || !seq.active || !this.player) return;
+
+    const p = this.player;
+    const px = toSx(p.x);
+    const py = toSy(p.y);
+    const t = seq.timer;
+    const dur = seq.duration;
+
+    ctx.save();
+
+    // 1. 戰場聚光燈暗角遮罩 (以主角為圓心，周圍戰場壓暗 74%)
+    const spotR = t < 1.35 ? Math.max(68, 125 - t * 28) : 95 + (t - 1.35) * 420;
+    const darkAlpha = t > 1.55 ? Math.max(0, (1 - (t - 1.55) / 0.30) * 0.74) : 0.74;
+    const bgGrad = ctx.createRadialGradient(px, py, spotR * 0.25, px, py, spotR);
+    bgGrad.addColorStop(0, "rgba(15, 23, 42, 0.0)");
+    bgGrad.addColorStop(0.55, `rgba(15, 23, 42, ${darkAlpha * 0.45})`);
+    bgGrad.addColorStop(1, `rgba(2, 6, 23, ${darkAlpha})`);
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    // 2. 腳底雙層旋轉進化星陣與螺旋上升光球
+    ctx.save();
+    ctx.translate(px, py + 15);
+    ctx.globalCompositeOperation = "lighter";
+    const ringCol = TYPE_COLORS[seq.nextData.type1] || "#38BDF8";
+    ctx.strokeStyle = "#FACC15";
+    ctx.lineWidth = 3.0;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 42 + Math.sin(t * 14) * 5, 16, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = ringCol;
+    ctx.lineWidth = 2.2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 56, 22, t * 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 螺旋上升的 10 顆進化光珠
+    for (let k = 0; k < 10; k++) {
+      const orbProg = ((t * 1.6 + k * 0.1) % 1.0);
+      const orbAng = t * 6.5 + (k * Math.PI * 2) / 10;
+      const orbR = (1 - orbProg * 0.55) * 44;
+      const ox = Math.cos(orbAng) * orbR;
+      const oy = Math.sin(orbAng) * (orbR * 0.38) - orbProg * 78;
+      ctx.fillStyle = k % 2 === 0 ? "#FEF08A" : "#38BDF8";
+      ctx.beginPath();
+      ctx.arc(ox, oy, 3.2 * (1 - orbProg * 0.4), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // 3. 中央主角「雙重白光剪影加速交替變身」演出
+    const oldRec = p.isShiny ? SpriteCache.getShiny(seq.oldData.forward_sprite) : SpriteCache.get(seq.oldData.forward_sprite);
+    const nextRec = p.isShiny ? SpriteCache.getShiny(seq.nextData.forward_sprite) : SpriteCache.get(seq.nextData.forward_sprite);
+
+    ctx.save();
+    ctx.translate(px, py);
+
+    if (t < 1.35) {
+      // Phase 1 & 2 (0.0s ~ 1.35s)：由慢到快在舊形態與新形態純白剪影間交替縮放閃爍
+      const normT = Math.max(0, (t - 0.18) / 1.17);
+      // 頻率隨 normT 平方加速，從慢速交替到高速切換
+      const wave = Math.sin(normT * normT * Math.PI * 13.5);
+      const showNext = t >= 0.25 && wave > 0;
+      const activeRec = showNext ? nextRec : oldRec;
+      const pulseScale = 1.0 + Math.sin(t * 22) * 0.14 + normT * 0.22;
+      const silhouetteAlpha = Math.min(1.0, 0.35 + normT * 0.65);
+
+      // 中心凝聚白熾進化光球
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      const orbGlow = ctx.createRadialGradient(0, -2, 4, 0, -2, 42 * pulseScale);
+      orbGlow.addColorStop(0, `rgba(255, 255, 255, ${0.55 + normT * 0.4})`);
+      orbGlow.addColorStop(0.55, "rgba(250, 204, 21, 0.45)");
+      orbGlow.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = orbGlow;
+      ctx.beginPath();
+      ctx.arc(0, -2, 42 * pulseScale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
+      if (activeRec && activeRec.loaded) {
+        const isHiRes = (activeRec.img.naturalWidth || activeRec.img.width || 0) > 160;
+        ctx.imageSmoothingEnabled = isHiRes;
+        ctx.scale(pulseScale, pulseScale);
+        ctx.drawImage(activeRec.img, -28, -24, 56, 56);
+        this.drawSilhouetteFlash(ctx, activeRec.img, -28, -24, 56, 56, "#FFFFFF", silhouetteAlpha);
+      }
+    } else {
+      // Phase 3 (1.35s ~ 1.85s)：破殼金芒炸裂 + 新形態彈性登場跳躍
+      const burstProg = (t - 1.35) / 0.50;
+      const hopY = -Math.sin(burstProg * Math.PI) * 16;
+      const scalePop = 1.28 - burstProg * 0.28;
+
+      // 破殼瞬間放射狀八芒金白光束
+      if (burstProg < 0.75) {
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const rayAlpha = (1 - burstProg / 0.75) * 0.85;
+        ctx.strokeStyle = `rgba(254, 240, 138, ${rayAlpha})`;
+        ctx.lineWidth = 4.5;
+        for (let rIdx = 0; rIdx < 8; rIdx++) {
+          const rAng = (rIdx * Math.PI) / 4 + burstProg * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(rAng) * 18, Math.sin(rAng) * 18);
+          ctx.lineTo(Math.cos(rAng) * (55 + burstProg * 65), Math.sin(rAng) * (55 + burstProg * 65));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      if (nextRec && nextRec.loaded) {
+        const isHiRes = (nextRec.img.naturalWidth || nextRec.img.width || 0) > 160;
+        ctx.imageSmoothingEnabled = isHiRes;
+        ctx.translate(0, hopY);
+        ctx.scale(scalePop, scalePop);
+        ctx.drawImage(nextRec.img, -28, -24, 56, 56);
+        if (burstProg < 0.35) {
+          this.drawSilhouetteFlash(ctx, nextRec.img, -28, -24, 56, 56, "#FEF08A", (1 - burstProg / 0.35) * 0.85);
+        }
+      }
+    }
+    ctx.restore();
+
+    // 4. 畫面下方 GBA 經典雙層邊框進化對話框
+    const boxW = Math.min(this.width - 28, 420);
+    const boxH = 64;
+    const boxX = (this.width - boxW) / 2;
+    const boxY = Math.min(this.height - 118, py + 54);
+
+    ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+    ctx.strokeStyle = t >= 1.35 ? "#FACC15" : "#38BDF8";
+    ctx.lineWidth = 3.0;
+    ctx.beginPath();
+    ctx.roundRect(boxX, boxY, boxW, boxH, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.roundRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8, 10);
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    if (t < 1.35) {
+      ctx.font = "900 13px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#BAE6FD";
+      ctx.fillText(`咦……！？ 你的 【${seq.oldData.name_zh}】 的樣子……！`, this.width / 2, boxY + 27);
+      ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#FDE047";
+      ctx.fillText("✨ 正在凝聚進化之光，時空凍結中 ✨", this.width / 2, boxY + 47);
+    } else {
+      ctx.font = "900 14px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#FACC15";
+      ctx.fillText(`🎉 恭喜！ 進化成了 【${seq.nextData.name_zh}】！`, this.width / 2, boxY + 26);
+      ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#34D399";
+      const traitText = p.innateTrait ? ` ‧ 特性【${p.innateTrait.name}】進階！` : "！";
+      ctx.fillText(`HP上限突破至 ${p.maxHp} ‧ 全傷害大幅提升${traitText}`, this.width / 2, boxY + 47);
+    }
+
+    ctx.restore();
   },
 
   evolvePlayerPokemon(targetId) {
@@ -5336,6 +5595,9 @@ window.GameApp = {
     ctx.restore();
 
     MapEngine.renderWeatherOverlays(ctx, this.width, this.height);
+    if (this.state === "EVOLVING") {
+      this.renderEvolutionOverlay(ctx, toSx, toSy);
+    }
 
     this.floatingTexts.forEach(ft => {
       const sx = toSx(ft.x), sy = toSy(ft.y);

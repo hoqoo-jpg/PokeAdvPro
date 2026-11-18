@@ -1235,6 +1235,23 @@ const SoundFX = {
           osc.start(now);
           osc.stop(now + 0.08);
         }
+      } else if (type === "evolution") {
+        // GBA 經典進化旋律 (哒-哒-哒-哒 加速交替音階 + 1.35s 破殼大三和弦勝利樊音)
+        osc.type = "square";
+        const notes = [
+          [0.00, 392.00], [0.16, 349.23], [0.32, 392.00], [0.46, 349.23],
+          [0.60, 440.00], [0.72, 392.00], [0.84, 440.00], [0.94, 392.00],
+          [1.04, 493.88], [1.12, 440.00], [1.20, 493.88], [1.28, 523.25],
+          [1.35, 587.33], [1.46, 659.25], [1.58, 783.99]
+        ];
+        notes.forEach(([tOff, freq]) => {
+          osc.frequency.setValueAtTime(freq, now + tOff);
+        });
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.setValueAtTime(0.24, now + 1.35);
+        gain.gain.linearRampToValueAtTime(0.01, now + 1.85);
+        osc.start(now);
+        osc.stop(now + 1.85);
       } else if (type === "levelup") {
         osc.type = "square";
         osc.frequency.setValueAtTime(330, now);
