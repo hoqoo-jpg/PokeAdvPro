@@ -151,17 +151,20 @@ const SkillsEngine = {
         else if (mType === "Grass" || mType === "Bug") { mShape = "leaf"; mCol1 = "#4ADE80"; mCol2 = "#BEF264"; }
         else if (mType === "Psychic" || mType === "Ghost" || mType === "Poison") { mShape = "diamond"; mCol1 = mType === "Poison" ? "#A855F7" : "#F472B6"; mCol2 = "#E9D5FF"; }
 
-        const sparkNum = mobDense ? 2 : 3;
+        // 側向炸開的發射火花 (±35°~65° 高速斜向噴散，清晰展現屬性且絕不遮擋主角與子彈)
+        const sparkNum = mobDense ? 2 : 4;
         for (let ms = 0; ms < sparkNum; ms++) {
-          const sAng = baseAngle + (ms - (sparkNum - 1) / 2) * 0.48 + (Math.random() - 0.5) * 0.25;
-          const sSpd = 38 + Math.random() * 34;
-          const upDrift = (mType === "Fire" || mType === "Dragon") ? -24 : 0;
+          const side = (ms % 2 === 0) ? 1 : -1;
+          const sideAngleOffset = side * (0.62 + Math.random() * 0.50); // ±35° ~ ±65°
+          const sAng = baseAngle + sideAngleOffset;
+          const sSpd = 85 + Math.random() * 50;
+          const upDrift = (mType === "Fire" || mType === "Dragon") ? -28 : 0;
           this.spawnSubParticle(
             mx, my,
             Math.cos(sAng) * sSpd, Math.sin(sAng) * sSpd + upDrift,
             ms % 2 === 0 ? mCol1 : mCol2,
-            1.8 + Math.random() * 0.7,
-            0.18,
+            3.2 + Math.random() * 1.3,
+            0.28,
             mShape
           );
         }
@@ -763,7 +766,8 @@ const SkillsEngine = {
 
       const totalWaves = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0);
       const effectiveKb = (kb || 20) * (level >= 6 ? 1.35 : 1.0) * (1 + (trait.tackleQuakeKbBonus || 0));
-      const drainPct = level >= 6 ? 0.015 : 0.008;
+      const drainPct = level >= 6 ? 0.010 : 0.008;
+      let healedThisCast = false;
 
       const fireTackleWave = (waveIdx) => {
         if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
@@ -792,7 +796,6 @@ const SkillsEngine = {
           color: waveIdx === 0 ? "#F8FAFC" : (waveIdx === 1 ? "#BAE6FD" : "#FEF08A")
         });
 
-        let healedThisWave = false;
         const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
         hitCandidates.forEach(e => {
           if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
@@ -806,9 +809,11 @@ const SkillsEngine = {
               maxTime: 0.16,
               color: waveIdx >= 2 ? "#FEF08A" : "#FFFFFF"
             });
-            if (!healedThisWave && caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
-              healedThisWave = true;
-              GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + Math.round(GameApp.player.maxHp * drainPct));
+            if (!healedThisCast && caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
+              healedThisCast = true;
+              const bossHealMod = (GameApp.activeBoss && GameApp.activeBoss.hp > 0) ? 0.5 : 1.0;
+              const healVal = Math.max(1, Math.round(GameApp.player.maxHp * drainPct * bossHealMod));
+              GameApp.player.hp = Math.min(GameApp.player.maxHp, GameApp.player.hp + healVal);
             }
           }
         });
@@ -1327,7 +1332,8 @@ const SkillsEngine = {
 
     if (meta.type === "Grass") {
       const healMult = (p.innateTrait && p.innateTrait.overgrowHealMult) ? p.innateTrait.overgrowHealMult : 1.0;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.08 * healMult));
+      const bossHealMod = (GameApp.activeBoss && GameApp.activeBoss.hp > 0) ? 0.5 : 1.0;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.08 * healMult * bossHealMod));
     }
   },
 

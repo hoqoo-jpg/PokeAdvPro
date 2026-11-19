@@ -1323,7 +1323,17 @@ window.GameApp = {
     this.runTime += dt;
     const p = this.player;
 
-    if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt);
+    const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
+    if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
+    if (p.singleStageAwakened) {
+      p._awakenSparkTick = (p._awakenSparkTick || 0) - dt;
+      if (p._awakenSparkTick <= 0) {
+        p._awakenSparkTick = 0.40;
+        const ax = p.x + (Math.random() - 0.5) * 34;
+        const ay = p.y + 8 - Math.random() * 20;
+        SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 14, -36 - Math.random() * 20, Math.random() < 0.5 ? "#FEF08A" : "#38BDF8", 2.4, 0.42, "star");
+      }
+    }
     if (p.invulnTimer > 0) p.invulnTimer -= dt;
     if (p.whiteFlashTimer > 0) p.whiteFlashTimer -= dt;
 
@@ -1438,14 +1448,14 @@ window.GameApp = {
       }
     }
     if (terrain.inWater && MapEngine.currentStage.id === "cerulean_bay" && p.hp < p.maxHp) {
-      p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt);
+      p.hp = Math.min(p.maxHp, p.hp + 2.0 * dt * bossHealMod);
     }
 
     // 【攜帶物：奇蹟種子】常駐光合作用回血 (0.8%/s)，處於草叢/淺灘/超能陣等特殊地形時提升至 1.8%/s，並每 1.2 秒跳出綠字與嫩葉粒子
     if (p.heldItems && p.heldItems["miracle_seed"] && p.hp < p.maxHp) {
       const inSpecialZone = !!(terrain.inWater || (terrain.label && (terrain.label.includes("草叢") || terrain.label.includes("重力陣"))));
       const overgrowMult = (p.innateTrait && p.innateTrait.overgrowHealMult) ? p.innateTrait.overgrowHealMult : 1.0;
-      const healRate = (inSpecialZone ? 0.018 : 0.008) * overgrowMult;
+      const healRate = (inSpecialZone ? 0.018 : 0.008) * overgrowMult * bossHealMod;
       p.hp = Math.min(p.maxHp, p.hp + p.maxHp * healRate * dt);
       p.miracleSeedTick = (p.miracleSeedTick || 0) - dt;
       if (p.miracleSeedTick <= 0) {
@@ -3890,28 +3900,11 @@ window.GameApp = {
           this._pendingEvolutionTarget = p.data.evo_to;
         }
       } else if (p.id >= 144 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
-        // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒（旗標保護防跳級漏觸發）
-        if (p.level >= 12 && !p.legendaryAwaken12) p.legendaryAwaken12 = true;
-        else if (p.level >= 24 && !p.legendaryAwaken24) p.legendaryAwaken24 = true;
-        p.maxHp = Math.round(p.maxHp * 1.22);
-        p.hp = p.maxHp;
-        p.dmgMult *= 1.14;
-        p.finalEvoArmor = 0.12;
-        this.spawnParticleCluster(p.x, p.y, "#FACC15", "#EC4899", 36, "star", 1.4);
-        this.showCutsceneBanner(`[傳說王權共鳴] ${p.data.name_zh} 釋放神聖威壓！`, "生命上限 +22% 並完全回滿，全招式傷害提升 +14%！", 3000);
+        // 排入三選一之後播放 1.35 秒傳說共鳴特寫（不再被升級彈窗遮蔽）
+        this._pendingEvolutionTarget = "awaken_legendary";
       } else if (p.isPureSingleStage && p.level >= 18 && !p.singleStageAwakened) {
-        // 單一階無進化精靈（卡比獸、拉普拉斯、飛天螳螂等）Lv.18 潛能突破覺醒
-        p.singleStageAwakened = true;
-        if (typeof getPokemonInnateTrait === "function") {
-          p.innateTrait = getPokemonInnateTrait(p.data, p.level);
-        }
-        p.maxHp = Math.round(p.maxHp * 1.35);
-        p.hp = p.maxHp;
-        p.dmgMult *= 1.15;
-        p.areaMult *= 1.08;
-        p.finalEvoArmor = 0.12;
-        this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FACC15", 38, "star", 1.4);
-        this.showCutsceneBanner(`[潛能極限突破] ${p.data.name_zh} 覺醒完全體潛力！`, "最大生命 +35% 回滿、全傷害 +15%，並獲得 12% 霸體減傷！", 3200);
+        // 排入三選一之後播放 1.35 秒單階潛能突破特寫（體型放大 1.12x + 金白流光 + ★覺醒徽章）
+        this._pendingEvolutionTarget = "awaken_single";
       }
       this.openLevelUpModal();
     }
@@ -3972,6 +3965,35 @@ window.GameApp = {
   // ==========================================================================
   // 方案 A：【1.85 秒戰場時空凍結・掌機白光剪影交替進化演出】
   // ==========================================================================
+  startAwakeningMoment(kind = "single") {
+    const p = this.player;
+    if (!p) return;
+
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
+
+    this.evoSequence = {
+      active: true,
+      isAwakening: true,
+      awakenKind: kind,
+      timer: 0,
+      duration: 1.35,
+      burstAt: 0.72,
+      oldData: p.data,
+      nextData: p.data,
+      evolvedApplied: false,
+      openLevelUpAfter: false
+    };
+
+    this.state = "EVOLVING";
+    SoundFX.play("super");
+  },
+
   startEvolutionMoment(targetId, openLevelUpAfter = true, onEvolvedCallback = null) {
     const p = this.player;
     const nextData = POKEMON_MAP.get(targetId);
@@ -4016,20 +4038,49 @@ window.GameApp = {
     }
     seq.timer += dt;
 
-    // 在 1.35s 破殼瞬間正式套用新形態數值並炸開漫天金星與震退波
-    if (seq.timer >= 1.35 && !seq.evolvedApplied) {
+    const burstTime = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
+    // 在破殼／覺醒爆發瞬間正式套用數值並炸開漫天金星與震退波
+    if (seq.timer >= burstTime && !seq.evolvedApplied) {
       seq.evolvedApplied = true;
-      this.evolvePlayerPokemon(seq.targetId);
-      if (typeof seq.onEvolvedCallback === "function") {
-        seq.onEvolvedCallback();
-      }
-      this.camera.shakeTime = 0.35;
-      this.camera.shakeMagnitude = 10;
-
-      // 釋放 165px 進化覺醒保護震波，將周圍怪群震退 120px 防止時空恢復瞬間被貼臉圍毆
       const p = this.player;
+      if (seq.isAwakening && p) {
+        if (seq.awakenKind === "legendary") {
+          if (p.level >= 12 && !p.legendaryAwaken12) p.legendaryAwaken12 = true;
+          else if (p.level >= 24 && !p.legendaryAwaken24) p.legendaryAwaken24 = true;
+          p.maxHp = Math.round(p.maxHp * 1.22);
+          p.hp = p.maxHp;
+          p.dmgMult *= 1.14;
+          p.finalEvoArmor = 0.12;
+          p.invulnTimer = Math.max(p.invulnTimer || 0, 1.4);
+          this.spawnParticleCluster(p.x, p.y, "#FACC15", "#EC4899", 36, "star", 1.4);
+        } else {
+          p.singleStageAwakened = true;
+          if (typeof getPokemonInnateTrait === "function") {
+            p.innateTrait = getPokemonInnateTrait(p.data, p.level);
+          }
+          p.maxHp = Math.round(p.maxHp * 1.35);
+          p.hp = p.maxHp;
+          p.dmgMult *= 1.15;
+          p.areaMult *= 1.08;
+          p.finalEvoArmor = 0.12;
+          p.invulnTimer = Math.max(p.invulnTimer || 0, 1.4);
+          this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FACC15", 38, "star", 1.4);
+        }
+        SoundFX.play("levelup");
+      } else {
+        this.evolvePlayerPokemon(seq.targetId);
+        if (typeof seq.onEvolvedCallback === "function") {
+          seq.onEvolvedCallback();
+        }
+      }
+      this.camera.shakeTime = 0.32;
+      this.camera.shakeMagnitude = 9;
+
+      // 釋放 175px 覺醒保護震波，將周圍怪群震退 120px 防止時空恢復瞬間被貼臉圍毆
       if (p) {
-        const evoCol = TYPE_COLORS[seq.nextData.type1] || "#FACC15";
+        const evoCol = seq.isAwakening
+          ? (seq.awakenKind === "legendary" ? "#EC4899" : "#38BDF8")
+          : (TYPE_COLORS[seq.nextData.type1] || "#FACC15");
         SkillsEngine.meleeEffects.push({
           style: "slam_wave",
           x: p.x, y: p.y,
@@ -4071,9 +4122,11 @@ window.GameApp = {
 
     ctx.save();
 
+    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
+    const fadeStartT = dur - 0.30;
     // 1. 戰場聚光燈暗角遮罩 (以主角為圓心，周圍戰場壓暗 74%)
-    const spotR = t < 1.35 ? Math.max(68, 125 - t * 28) : 95 + (t - 1.35) * 420;
-    const darkAlpha = t > 1.55 ? Math.max(0, (1 - (t - 1.55) / 0.30) * 0.74) : 0.74;
+    const spotR = t < burstT ? Math.max(68, 125 - t * 28) : 95 + (t - burstT) * 420;
+    const darkAlpha = t > fadeStartT ? Math.max(0, (1 - (t - fadeStartT) / 0.30) * 0.74) : 0.74;
     const bgGrad = ctx.createRadialGradient(px, py, spotR * 0.25, px, py, spotR);
     bgGrad.addColorStop(0, "rgba(15, 23, 42, 0.0)");
     bgGrad.addColorStop(0.55, `rgba(15, 23, 42, ${darkAlpha * 0.45})`);
@@ -4121,26 +4174,24 @@ window.GameApp = {
     ctx.save();
     ctx.translate(px, py);
 
-    if (t < 1.35) {
-      // Phase 1 & 2 (0.0s ~ 1.35s)：由慢到快在舊形態與新形態純白剪影間交替縮放閃爍
-      const normT = Math.max(0, (t - 0.18) / 1.17);
-      // 頻率隨 normT 平方加速，從慢速交替到高速切換
+    if (t < burstT) {
+      // Phase 1 & 2：進化交替閃爍 / 單階覺醒金青蓄氣脈衝
+      const normT = Math.max(0, (t - 0.12) / Math.max(0.1, burstT - 0.12));
       const wave = Math.sin(normT * normT * Math.PI * 13.5);
-      const showNext = t >= 0.25 && wave > 0;
+      const showNext = !seq.isAwakening && t >= 0.25 && wave > 0;
       const activeRec = showNext ? nextRec : oldRec;
-      const pulseScale = 1.0 + Math.sin(t * 22) * 0.14 + normT * 0.22;
-      const silhouetteAlpha = Math.min(1.0, 0.35 + normT * 0.65);
+      const pulseScale = 1.0 + Math.sin(t * 22) * 0.12 + normT * (seq.isAwakening ? 0.18 : 0.22);
+      const silhouetteAlpha = seq.isAwakening ? (0.20 + normT * 0.55) : Math.min(1.0, 0.35 + normT * 0.65);
 
-      // 中心凝聚白熾進化光球
       ctx.save();
       ctx.globalCompositeOperation = "lighter";
-      const orbGlow = ctx.createRadialGradient(0, -2, 4, 0, -2, 42 * pulseScale);
+      const orbGlow = ctx.createRadialGradient(0, -2, 4, 0, -2, 44 * pulseScale);
       orbGlow.addColorStop(0, `rgba(255, 255, 255, ${0.55 + normT * 0.4})`);
-      orbGlow.addColorStop(0.55, "rgba(250, 204, 21, 0.45)");
+      orbGlow.addColorStop(0.55, seq.awakenKind === "legendary" ? "rgba(236, 72, 153, 0.45)" : "rgba(250, 204, 21, 0.48)");
       orbGlow.addColorStop(1, "rgba(56, 189, 248, 0)");
       ctx.fillStyle = orbGlow;
       ctx.beginPath();
-      ctx.arc(0, -2, 42 * pulseScale, 0, Math.PI * 2);
+      ctx.arc(0, -2, 44 * pulseScale, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
@@ -4149,13 +4200,14 @@ window.GameApp = {
         ctx.imageSmoothingEnabled = isHiRes;
         ctx.scale(pulseScale, pulseScale);
         ctx.drawImage(activeRec.img, -28, -24, 56, 56);
-        this.drawSilhouetteFlash(ctx, activeRec.img, -28, -24, 56, 56, "#FFFFFF", silhouetteAlpha);
+        this.drawSilhouetteFlash(ctx, activeRec.img, -28, -24, 56, 56, seq.isAwakening ? "#FEF08A" : "#FFFFFF", silhouetteAlpha);
       }
     } else {
-      // Phase 3 (1.35s ~ 1.85s)：破殼金芒炸裂 + 新形態彈性登場跳躍
-      const burstProg = (t - 1.35) / 0.50;
+      // Phase 3：破殼／覺醒金芒炸裂 + 霸氣登場跳躍
+      const burstProg = Math.min(1, (t - burstT) / Math.max(0.1, dur - burstT));
       const hopY = -Math.sin(burstProg * Math.PI) * 16;
-      const scalePop = 1.28 - burstProg * 0.28;
+      const endScale = seq.isAwakening && seq.awakenKind === "single" ? 1.12 : 1.0;
+      const scalePop = (endScale + 0.26) - burstProg * 0.26;
 
       // 破殼瞬間放射狀八芒金白光束
       if (burstProg < 0.75) {
@@ -4216,8 +4268,26 @@ window.GameApp = {
     ctx.roundRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8, 10);
     ctx.stroke();
 
+    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
     ctx.textAlign = "center";
-    if (t < 1.35) {
+    if (seq.isAwakening) {
+      const isLeg = seq.awakenKind === "legendary";
+      if (t < burstT) {
+        ctx.font = "900 13px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = isLeg ? "#FBCFE8" : "#BAE6FD";
+        ctx.fillText(isLeg ? `👑 【${p.data.name_zh}】 體內的傳說王權正在共鳴……！` : `⚡ 【${p.data.name_zh}】 正在突破種族極限……！`, this.width / 2, boxY + 27);
+        ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#FDE047";
+        ctx.fillText("✨ 潛能覺醒中，時空凍結 ✨", this.width / 2, boxY + 47);
+      } else {
+        ctx.font = "900 14px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#FACC15";
+        ctx.fillText(isLeg ? `👑 傳說王權共鳴！【${p.data.name_zh}】解放神聖威壓！` : `⚡ 潛能極限突破！【${p.data.name_zh}】覺醒完全體霸氣！`, this.width / 2, boxY + 26);
+        ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#34D399";
+        ctx.fillText(isLeg ? `HP上限 +22% 回滿 ‧ 全傷害 +14% ‧ 12%霸體` : `體型與氣場進化 ‧ HP+35%回滿 ‧ 全傷+15% ‧ 12%霸體`, this.width / 2, boxY + 47);
+      }
+    } else if (t < burstT) {
       ctx.font = "900 13px 'Noto Sans TC', sans-serif";
       ctx.fillStyle = "#BAE6FD";
       ctx.fillText(`咦……！？ 你的 【${seq.oldData.name_zh}】 的樣子……！`, this.width / 2, boxY + 27);
@@ -4646,6 +4716,12 @@ window.GameApp = {
         eeModal.style.display = "flex";
       }
       return;
+    } else if (pendingEvo === "awaken_single") {
+      this.startAwakeningMoment("single");
+      return;
+    } else if (pendingEvo === "awaken_legendary") {
+      this.startAwakeningMoment("legendary");
+      return;
     } else if (pendingEvo) {
       this.startEvolutionMoment(pendingEvo, false);
       return;
@@ -4732,17 +4808,21 @@ window.GameApp = {
     const toSx = (wx) => wx - camX + this.width / 2;
     const toSy = (wy) => wy - camY + this.height / 2;
 
-    // 進化演出平滑鏡頭 Zoom-in 特寫 (0~0.35s 拉近至 1.45x，1.35~1.85s 彈性拉回 1.0x)
+    // 進化／單階覺醒演出平滑鏡頭 Zoom-in 特寫 (拉近至 1.45x 並彈性拉回 1.0x)
     let evoZoom = 1.0;
     if (this.state === "EVOLVING" && this.evoSequence && this.evoSequence.active) {
-      const et = this.evoSequence.timer;
-      if (et < 0.35) {
-        const k = et / 0.35;
+      const seq = this.evoSequence;
+      const et = seq.timer;
+      const zoomInEnd = seq.isAwakening ? 0.28 : 0.35;
+      const zoomOutStart = seq.isAwakening ? 0.90 : 1.35;
+      const zoomOutDur = Math.max(0.1, seq.duration - zoomOutStart);
+      if (et < zoomInEnd) {
+        const k = et / zoomInEnd;
         evoZoom = 1.0 + 0.45 * (1 - Math.pow(1 - k, 3));
-      } else if (et < 1.35) {
+      } else if (et < zoomOutStart) {
         evoZoom = 1.45;
       } else {
-        const k = Math.min(1, (et - 1.35) / 0.50);
+        const k = Math.min(1, (et - zoomOutStart) / zoomOutDur);
         evoZoom = 1.45 - 0.45 * (1 - Math.pow(1 - k, 3));
       }
     }
@@ -5474,8 +5554,9 @@ window.GameApp = {
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
+        const awakenScale = p.singleStageAwakened ? 1.12 : 1.0;
         ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
-        ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX, squashY);
+        ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
         if (submergeWater) {
           ctx.save();
@@ -6104,10 +6185,11 @@ window.GameApp = {
               ? `<span class="text-emerald-300 ml-0.5">[🛡️就緒]</span>`
               : `<span class="text-slate-400 ml-0.5">[${Math.ceil(p.multiscaleTimer || 0)}s]</span>`)
           : '';
-        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
+        const awakenTagHtml = p.singleStageAwakened ? `<span class="text-sky-300 font-black ml-0.5">★覺醒</span>` : '';
+        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${p.singleStageAwakened ? 1 : 0}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
         if (this._lastTraitBadgeKey !== nextBadgeKey) {
           this._lastTraitBadgeKey = nextBadgeKey;
-          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${shieldHtml}`;
+          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${awakenTagHtml}${shieldHtml}`;
           traitBadgeEl.classList.remove("hidden");
         }
       } else {
