@@ -523,7 +523,9 @@ const SkillsEngine = {
 
     // 2E. 噴射火焰 (Flamethrower)：主角前方 30px 淨空噴出扇形翻湧四色漸層火浪
     if (cleanSkillId === "Flamethrower") {
-      const waveStreams = Math.min(4, count);
+      const isMoltres = !!(caster && caster.id === 146);
+      const waveStreams = isMoltres ? Math.min(5, count + 1) : Math.min(4, count);
+      const moltresWidthMult = isMoltres ? 1.20 : 1.0;
       for (let w = 0; w < 2; w++) {
         for (let i = 0; i < waveStreams; i++) {
           const spread = (waveStreams > 1 ? (i - (waveStreams - 1) / 2) * 0.18 : 0) + (w === 1 ? (Math.random() - 0.5) * 0.12 : 0);
@@ -536,7 +538,7 @@ const SkillsEngine = {
             vx: Math.cos(ang) * spd,
             vy: Math.sin(ang) * spd,
             angle: ang,
-            radius: (15 + w * 4.5) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
+            radius: (15 + w * 4.5) * GameApp.player.areaMult * moltresWidthMult * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
             dmg: rawDmg * 0.62,
             type: "Fire",
             skillId,
@@ -882,8 +884,8 @@ const SkillsEngine = {
           radius: (isDragonite ? 58 : 42) * areaScale * (1 + (trait.dragonMawAreaBonus || 0)),
           dmg: rawDmg * (isDragonite ? 0.72 : 0.60),
           type: "Dragon",
-          timer: 0.68,
-          maxTime: 0.68,
+          timer: 0.78,
+          maxTime: 0.78,
           tickTimer: 0.01,
           tickInterval: 0.15,
           color: isDragonite ? "#F59E0B" : "#4338CA"
@@ -1812,6 +1814,25 @@ const SkillsEngine = {
           const rx = hz.x + (Math.random() - 0.5) * hz.radius * 1.4;
           const ry = hz.y + (Math.random() - 0.5) * hz.radius * 0.8;
           this.spawnSubParticle(rx, ry - 40, (Math.random() - 0.5) * 20, 35 + Math.random() * 25, Math.random() < 0.5 ? "#FEF08A" : "#F472B6", 3.2, 0.55, "star");
+        }
+      } else if (hz.kind === "dragon_wave") {
+        hz.x += (hz.vx || 0) * dt;
+        hz.y += (hz.vy || 0) * dt;
+        if (Math.random() < 0.55) {
+          const backAng = (hz.angle || 0) + Math.PI + (Math.random() - 0.5) * 0.7;
+          const spd = 45 + Math.random() * 45;
+          const c1 = hz.isDragoniteKing ? "#FACC15" : "#38BDF8";
+          const c2 = hz.isDragoniteKing ? "#F97316" : "#818CF8";
+          this.spawnSubParticle(
+            hz.x + Math.cos(backAng) * 14,
+            hz.y + Math.sin(backAng) * 14,
+            Math.cos(backAng) * spd,
+            Math.sin(backAng) * spd,
+            Math.random() < 0.5 ? c1 : c2,
+            3.0 + Math.random() * 1.2,
+            0.28,
+            "star"
+          );
         }
       } else if (hz.vx || hz.vy) {
         hz.x += (hz.vx || 0) * dt;

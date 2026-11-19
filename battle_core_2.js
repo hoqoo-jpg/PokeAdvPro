@@ -812,7 +812,7 @@ window.GameApp = {
       speedMult: tr.mods.speedMult,
       areaMult: tr.mods.areaMult,
       critRate: 0.10 + tr.mods.critBonus,
-      regen: tr.mods.regen + upg.hp * 0.4,
+      regen: Math.min(2.2, (tr.mods.regen || 0.3) + (upg.hp || 0) * 0.4),
       magnetRadius: 92,
       projBonus: tr.mods.projBonus || 0,
       maxSkillSlots,
@@ -1325,13 +1325,14 @@ window.GameApp = {
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
-    if (p.singleStageAwakened) {
+    if (p.singleStageAwakened || p.legendaryAwaken24) {
       p._awakenSparkTick = (p._awakenSparkTick || 0) - dt;
       if (p._awakenSparkTick <= 0) {
-        p._awakenSparkTick = 0.40;
-        const ax = p.x + (Math.random() - 0.5) * 34;
-        const ay = p.y + 8 - Math.random() * 20;
-        SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 14, -36 - Math.random() * 20, Math.random() < 0.5 ? "#FEF08A" : "#38BDF8", 2.4, 0.42, "star");
+        p._awakenSparkTick = p.legendaryAwaken24 ? 0.34 : 0.40;
+        const ax = p.x + (Math.random() - 0.5) * 36;
+        const ay = p.y + 8 - Math.random() * 22;
+        const typeCol = p.legendaryAwaken24 ? (TYPE_COLORS[p.data.type1] || "#EC4899") : "#38BDF8";
+        SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 14, -38 - Math.random() * 20, Math.random() < 0.5 ? "#FEF08A" : typeCol, 2.5, 0.44, "star");
       }
     }
     if (p.invulnTimer > 0) p.invulnTimer -= dt;
@@ -1849,8 +1850,10 @@ window.GameApp = {
               // 藤鞭 (Vine Whip)：真實距離 24 + (135 + lv * 7) * meleeAreaScale
               const actualReach = 20 + (135 + lv * 7) * meleeAreaScale * (1 + (trait.overgrowAreaBonus || 0));
               triggerRange = actualReach * 0.88;
+            } else if (meta.type === "Dragon") {
+              // 龍之俯衝 (Dragon Rush)：對齊中距離龍首破陣射程 (195px)
+              triggerRange = 195 * meleeAreaScale;
             } else {
-              // 龍之俯衝 (Dragon Rush) 與其他近戰
               triggerRange = 135 * meleeAreaScale;
             }
           } else if (skSlot.id === "Thunderbolt") {
@@ -4206,7 +4209,9 @@ window.GameApp = {
       // Phase 3：破殼／覺醒金芒炸裂 + 霸氣登場跳躍
       const burstProg = Math.min(1, (t - burstT) / Math.max(0.1, dur - burstT));
       const hopY = -Math.sin(burstProg * Math.PI) * 16;
-      const endScale = seq.isAwakening && seq.awakenKind === "single" ? 1.12 : 1.0;
+      const endScale = seq.isAwakening
+        ? (seq.awakenKind === "single" ? 1.12 : (p.legendaryAwaken24 ? 1.16 : 1.08))
+        : 1.0;
       const scalePop = (endScale + 0.26) - burstProg * 0.26;
 
       // 破殼瞬間放射狀八芒金白光束
@@ -5554,7 +5559,7 @@ window.GameApp = {
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
-        const awakenScale = p.singleStageAwakened ? 1.12 : 1.0;
+        const awakenScale = p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0));
         ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
@@ -6185,8 +6190,13 @@ window.GameApp = {
               ? `<span class="text-emerald-300 ml-0.5">[🛡️就緒]</span>`
               : `<span class="text-slate-400 ml-0.5">[${Math.ceil(p.multiscaleTimer || 0)}s]</span>`)
           : '';
-        const awakenTagHtml = p.singleStageAwakened ? `<span class="text-sky-300 font-black ml-0.5">★覺醒</span>` : '';
-        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${p.singleStageAwakened ? 1 : 0}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
+        const awakenTagHtml = p.legendaryAwaken24
+          ? `<span class="text-pink-300 font-black ml-0.5">★★共鳴II</span>`
+          : (p.legendaryAwaken12
+              ? `<span class="text-amber-300 font-black ml-0.5">★共鳴I</span>`
+              : (p.singleStageAwakened ? `<span class="text-sky-300 font-black ml-0.5">★覺醒</span>` : ''));
+        const awakenKey = p.legendaryAwaken24 ? 'L2' : (p.legendaryAwaken12 ? 'L1' : (p.singleStageAwakened ? 'S1' : '0'));
+        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${awakenKey}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
         if (this._lastTraitBadgeKey !== nextBadgeKey) {
           this._lastTraitBadgeKey = nextBadgeKey;
           traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${awakenTagHtml}${shieldHtml}`;

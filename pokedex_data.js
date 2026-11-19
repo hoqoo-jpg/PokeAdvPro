@@ -230,7 +230,7 @@ Ember: {
     evoDesc: "【終極超武】神聖極光洗禮全屏，超大幅度降低敵人攻擊力！"
   },
   DragonRush: {
-    id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.80, ultMinCd: 3.6, ultPowerBonus: 1.15,
+    id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.55, ultMinCd: 3.6, ultPowerBonus: 1.15,
     knockback: 24, isMelee: true, meleeStyle: "claw_slash", reqItem: "dragon_scale",
     evolvedName: "天龍流星雨", color: "#4338CA",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dragon-scale.png",
@@ -583,7 +583,7 @@ const TRAINERS = [
     bondColor: "#F59E0B",
     bondPokemonIds: [25, 1, 4, 7],
     bondPreviewIds: [25, 1, 4, 7],
-    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0, expMult: 1.10 }
+    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0.3, expMult: 1.10 }
   },
   {
     id: "misty",
@@ -629,7 +629,7 @@ const TRAINERS = [
     bondColor: "#D97706",
     bondPokemonIds: [74, 95, 111],
     bondPreviewIds: [74, 95, 111],
-    mods: { dmgMult: 0.95, cdMult: 1.05, hpMult: 1.30, speedMult: 0.95, areaMult: 1.0, critBonus: 0.0, regen: 1.5, expMult: 1.0 }
+    mods: { dmgMult: 0.95, cdMult: 1.05, hpMult: 1.30, speedMult: 0.95, areaMult: 1.0, critBonus: 0.0, regen: 0.8, expMult: 1.0 }
   },
   {
     id: "serena",
@@ -652,7 +652,7 @@ const TRAINERS = [
     bondColor: "#F472B6",
     bondPokemonIds: [133, 4, 39],
     bondPreviewIds: [133, 4, 39],
-    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0, expMult: 1.05, startPartner: true }
+    mods: { dmgMult: 1.0, cdMult: 1.0, hpMult: 1.0, speedMult: 1.05, areaMult: 1.0, critBonus: 0.05, regen: 0.3, expMult: 1.05, startPartner: true }
   },
   {
     id: "lillie",
@@ -675,7 +675,7 @@ const TRAINERS = [
     bondColor: "#34D399",
     bondPokemonIds: [35, 133, 147],
     bondPreviewIds: [35, 133, 147],
-    mods: { dmgMult: 0.95, cdMult: 0.95, hpMult: 1.15, speedMult: 1.0, areaMult: 1.0, critBonus: 0.0, regen: 2.0, expMult: 1.15 }
+    mods: { dmgMult: 0.95, cdMult: 0.95, hpMult: 1.15, speedMult: 1.0, areaMult: 1.0, critBonus: 0.0, regen: 1.0, expMult: 1.15 }
   },
   {
     id: "red",
@@ -699,7 +699,7 @@ const TRAINERS = [
     bondColor: "#EF4444",
     bondPokemonIds: [1, 4, 7, 25, 131, 143],
     bondPreviewIds: [1, 4, 7, 25, 131, 143],
-    mods: { dmgMult: 1.25, cdMult: 0.88, hpMult: 1.15, speedMult: 1.10, areaMult: 1.20, critBonus: 0.15, regen: 1.0, expMult: 1.20 }
+    mods: { dmgMult: 1.25, cdMult: 0.88, hpMult: 1.15, speedMult: 1.10, areaMult: 1.20, critBonus: 0.15, regen: 0.6, expMult: 1.20 }
   }
 ];
 
