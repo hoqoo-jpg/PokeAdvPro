@@ -133,6 +133,41 @@ const SkillsEngine = {
       ? Math.atan2(target.y - caster.y, target.x - caster.x)
       : moveAngle;
 
+    // 槍口極細微粒子 (Muzzle Spark)：於發射口前方 22px 瞬間迸發 2～3 顆屬性微粒，不擋角色與腳下光環
+    if (caster === GameApp.player && (!caster._lastMuzzleSparkMs || performance.now() - caster._lastMuzzleSparkMs > 160)) {
+      const mobDense = GameApp.enemies && GameApp.enemies.length > 140;
+      if (!mobDense || Math.random() < 0.45) {
+        caster._lastMuzzleSparkMs = performance.now();
+        const mx = caster.x + Math.cos(baseAngle) * 22;
+        const my = caster.y + Math.sin(baseAngle) * 22;
+        const mType = meta.type || "Normal";
+        let mShape = "circle";
+        let mCol1 = TYPE_COLORS[mType] || "#F8FAFC";
+        let mCol2 = "#FFFFFF";
+        if (mType === "Fire" || mType === "Dragon") { mShape = "star"; mCol1 = "#F97316"; mCol2 = "#FEF08A"; }
+        else if (mType === "Electric") { mShape = "star"; mCol1 = "#FACC15"; mCol2 = "#FFFFFF"; }
+        else if (mType === "Ice") { mShape = "diamond"; mCol1 = "#67E8F9"; mCol2 = "#E0F2FE"; }
+        else if (mType === "Water") { mShape = "circle"; mCol1 = "#38BDF8"; mCol2 = "#E0F2FE"; }
+        else if (mType === "Grass" || mType === "Bug") { mShape = "leaf"; mCol1 = "#4ADE80"; mCol2 = "#BEF264"; }
+        else if (mType === "Psychic" || mType === "Ghost" || mType === "Poison") { mShape = "diamond"; mCol1 = mType === "Poison" ? "#A855F7" : "#F472B6"; mCol2 = "#E9D5FF"; }
+
+        const sparkNum = mobDense ? 2 : 3;
+        for (let ms = 0; ms < sparkNum; ms++) {
+          const sAng = baseAngle + (ms - (sparkNum - 1) / 2) * 0.48 + (Math.random() - 0.5) * 0.25;
+          const sSpd = 38 + Math.random() * 34;
+          const upDrift = (mType === "Fire" || mType === "Dragon") ? -24 : 0;
+          this.spawnSubParticle(
+            mx, my,
+            Math.cos(sAng) * sSpd, Math.sin(sAng) * sSpd + upDrift,
+            ms % 2 === 0 ? mCol1 : mCol2,
+            1.8 + Math.random() * 0.7,
+            0.18,
+            mShape
+          );
+        }
+      }
+    }
+
     const countBonus = (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? GameApp.player.projBonus : 0);
     const count = Math.min(4, 1 + countBonus);
 

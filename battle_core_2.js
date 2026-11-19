@@ -774,8 +774,14 @@ window.GameApp = {
     const maxHp = Math.round(basePoke.hp * tr.mods.hpMult * (1 + upg.hp * 0.12) * shinyMult);
     const maxSkillSlots = 3 + (upg.fourthSlot >= 1 ? 1 : 0);
     const trainerSkillMaxCd = Math.round(tr.skillCd * (1 - (upg.trainerCd || 0) * 0.04));
+    const isPureSingleStage = !basePoke.evo_to && basePoke.id < 144 &&
+      !POKEMON_DB.some(parent => parent.evo_to === basePoke.id || ([134, 135, 136].includes(basePoke.id) && parent.id === 133));
 
     this.player = {
+      isPureSingleStage: isPureSingleStage,
+      singleStageAwakened: false,
+      legendaryAwaken12: false,
+      legendaryAwaken24: false,
       id: basePoke.id,
       data: basePoke,
       x: 0,
@@ -3883,15 +3889,17 @@ window.GameApp = {
         } else if (p.data.evo_to) {
           this._pendingEvolutionTarget = p.data.evo_to;
         }
-      } else if (p.id >= 144 && (p.level === 12 || p.level === 24)) {
-        // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒
+      } else if (p.id >= 144 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
+        // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒（旗標保護防跳級漏觸發）
+        if (p.level >= 12 && !p.legendaryAwaken12) p.legendaryAwaken12 = true;
+        else if (p.level >= 24 && !p.legendaryAwaken24) p.legendaryAwaken24 = true;
         p.maxHp = Math.round(p.maxHp * 1.22);
         p.hp = p.maxHp;
         p.dmgMult *= 1.14;
         p.finalEvoArmor = 0.12;
         this.spawnParticleCluster(p.x, p.y, "#FACC15", "#EC4899", 36, "star", 1.4);
         this.showCutsceneBanner(`[傳說王權共鳴] ${p.data.name_zh} 釋放神聖威壓！`, "生命上限 +22% 並完全回滿，全招式傷害提升 +14%！", 3000);
-      } else if (!p.data.evo_to && p.id < 144 && p.level === 18 && !p.singleStageAwakened) {
+      } else if (p.isPureSingleStage && p.level >= 18 && !p.singleStageAwakened) {
         // 單一階無進化精靈（卡比獸、拉普拉斯、飛天螳螂等）Lv.18 潛能突破覺醒
         p.singleStageAwakened = true;
         if (typeof getPokemonInnateTrait === "function") {
@@ -3918,9 +3926,11 @@ window.GameApp = {
     const p = this.player;
     const oldSkills = Object.values(p.skills);
     const savedLevels = oldSkills.slice(0, 3).map(s => s.level);
+    const savedEvolved = oldSkills.slice(0, 3).map(s => !!s.evolved);
     const tmSkill = oldSkills[3] || null;
 
-    this.startEvolutionMoment(targetId, true, () => {
+    // 三選一已於進化前完成，此處 openLevelUpAfter 設為 false 避免重複彈窗
+    this.startEvolutionMoment(targetId, false, () => {
       const evoSkillMap = typeof EEVEE_EVO_SKILLS !== "undefined" ? EEVEE_EVO_SKILLS : {
         134: ["Hydro Pump", "Ice Beam", "Tackle"],
         135: ["Thunderbolt", "Air Slash", "Tackle"],
@@ -3938,7 +3948,17 @@ window.GameApp = {
       p.skills = {};
       newSkillIds.slice(0, unlockedSlotCount).forEach((sId, idx) => {
         const minLv = (idx === 0) ? 3 : 1;
-        p.skills[sId] = { id: sId, level: Math.max(minLv, savedLevels[idx] || 1), evolved: false, timer: 0.2 + idx * 0.15 };
+        const wasEvolved = !!savedEvolved[idx];
+        const newMeta = SKILLS_CATALOG[sId];
+        if (wasEvolved && newMeta && newMeta.reqItem && !p.heldItems[newMeta.reqItem]) {
+          p.heldItems[newMeta.reqItem] = true;
+        }
+        p.skills[sId] = {
+          id: sId,
+          level: Math.max(minLv, savedLevels[idx] || 1),
+          evolved: wasEvolved,
+          timer: 0.2 + idx * 0.15
+        };
       });
 
       p.naturalSkills = [...newSkillIds];
