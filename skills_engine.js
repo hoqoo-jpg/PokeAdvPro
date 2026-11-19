@@ -3941,46 +3941,47 @@ const SkillsEngine = {
         ctx.fill();
 
       } else if (pr.vfx === "fire_stream") {
-        // 【噴火龍・噴射火焰】：四色漸層翻湧火浪（亮白芯 ➔ 明黃 ➔ 橘紅 ➔ 尾端黑煙微粒）
+        // 【噴火龍／火焰鳥・噴射火焰（視覺精悍修長版）】：保留完整大範圍傷害判定 r，視覺半徑收斂於 vr (上限 17px)，呈現俐落修長噴射火舌
         ctx.rotate(pr.angle || 0);
-        const flicker = Math.sin(now * 9 + pr.x * 0.05) * (r * 0.16);
+        const vr = Math.min(17, r * 0.72);
+        const flicker = Math.sin(now * 9 + pr.x * 0.05) * (vr * 0.16);
 
-        // 尾端暗煙霧團
-        ctx.fillStyle = "rgba(30, 41, 59, 0.45)";
+        // 尾端微縮淡煙霧團
+        ctx.fillStyle = "rgba(30, 41, 59, 0.32)";
         ctx.beginPath();
-        ctx.arc(-r * 0.95, flicker * 0.6, r * 0.52, 0, Math.PI * 2);
+        ctx.arc(-vr * 1.10, flicker * 0.5, vr * 0.34, 0, Math.PI * 2);
         ctx.fill();
 
-        // 深紅外廓火舌
+        // 深紅外廓修長火舌（略微壓扁寬度、拉長尾焰，呈現高速噴射流線感）
         ctx.fillStyle = "#991B1B";
         ctx.beginPath();
-        ctx.arc(r * 0.25, 0, r * 0.82, -Math.PI / 2, Math.PI / 2);
-        ctx.lineTo(-r * 1.18, r * 0.58 + flicker);
-        ctx.lineTo(-r * 0.65, 0);
-        ctx.lineTo(-r * 1.18, -r * 0.58 + flicker);
+        ctx.arc(vr * 0.28, 0, vr * 0.72, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(-vr * 1.32, vr * 0.46 + flicker);
+        ctx.lineTo(-vr * 0.72, 0);
+        ctx.lineTo(-vr * 1.32, -vr * 0.46 + flicker);
         ctx.closePath();
         ctx.fill();
 
         // 橘紅翻湧主火身
         ctx.fillStyle = "#F97316";
         ctx.beginPath();
-        ctx.arc(r * 0.25, 0, r * 0.64, -Math.PI / 2, Math.PI / 2);
-        ctx.lineTo(-r * 0.92, r * 0.40 + flicker);
-        ctx.lineTo(-r * 0.45, 0);
-        ctx.lineTo(-r * 0.92, -r * 0.40 + flicker);
+        ctx.arc(vr * 0.28, 0, vr * 0.56, -Math.PI / 2, Math.PI / 2);
+        ctx.lineTo(-vr * 1.05, vr * 0.32 + flicker);
+        ctx.lineTo(-vr * 0.50, 0);
+        ctx.lineTo(-vr * 1.05, -vr * 0.32 + flicker);
         ctx.closePath();
         ctx.fill();
 
         // 明黃高溫內焰
         ctx.fillStyle = "#FACC15";
         ctx.beginPath();
-        ctx.ellipse(r * 0.16, 0, r * 0.48, r * 0.34, 0, 0, Math.PI * 2);
+        ctx.ellipse(vr * 0.18, 0, vr * 0.46, vr * 0.28, 0, 0, Math.PI * 2);
         ctx.fill();
 
         // 純白熾熱火芯
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.ellipse(r * 0.30, 0, r * 0.26, r * 0.18, 0, 0, Math.PI * 2);
+        ctx.ellipse(vr * 0.32, 0, vr * 0.24, vr * 0.14, 0, 0, Math.PI * 2);
         ctx.fill();
 
       } else if (pr.vfx === "water_gun") {
