@@ -495,7 +495,7 @@ window.GameApp = {
         id: pId, data: pData, x: ex, y: ey,
         hp: 420 * this.selectedDifficulty.hpMult,
         maxHp: 420 * this.selectedDifficulty.hpMult,
-        atk: 24, speed: 75, radius: 26, isElite: true, isBoss: false, isShiny: false,
+        atk: 24, speed: 75, radius: 26, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
         facingX: -1, facingY: 1, status: "Poison", statusTimer: 99, statusTick: 99,
         ccImmunityTimer: 1.5, rangedCd: 3.5, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.7
       });
@@ -514,7 +514,7 @@ window.GameApp = {
         id: 128, data: tData, x: startX - Math.abs(row) * 35, y: ey,
         hp: 600 * this.selectedDifficulty.hpMult,
         maxHp: 600 * this.selectedDifficulty.hpMult,
-        atk: 32, speed: 130, radius: 28, isElite: true, isBoss: false, isShiny: false,
+        atk: 32, speed: 130, radius: 28, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
         facingX: 1, facingY: 0, status: null, statusTimer: 0, statusTick: 0,
         ccImmunityTimer: 999, rangedCd: 999, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.95
       });
@@ -569,7 +569,7 @@ window.GameApp = {
         hp, maxHp: hp,
         atk: Math.round(34 * this.selectedDifficulty.atkMult),
         speed: 112 * this.selectedDifficulty.spdMult,
-        radius: 30, isElite: true, isBoss: false, isShiny: false,
+        radius: 30, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
         facingX: -1, facingY: 1, status: null, statusTimer: 0, statusTick: 0,
         ccImmunityTimer: 1.5, rangedCd: 1.8, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.85
       });
@@ -658,7 +658,9 @@ window.GameApp = {
   spawnBossAt(bossId, bx, by, isFinalMewtwo = false) {
     const bData = POKEMON_MAP.get(bossId);
     const diff = this.selectedDifficulty;
-    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult);
+    const endlessWave = (this.isEndlessMode && this.runTime >= 480) ? Math.max(1, Math.floor((this.runTime - 480) / 120) + 1) : 0;
+    const endlessHpScale = 1 + endlessWave * 0.45;
+    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult * endlessHpScale);
 
     SoundFX.startBgm("boss");
     this.camera.shakeTime = 0.65;
@@ -685,7 +687,8 @@ window.GameApp = {
       hp,
       maxHp: hp,
       atk: Math.round((isFinalMewtwo ? 42 : 30) * diff.atkMult),
-      speed: (isFinalMewtwo ? 132 : 118) * diff.spdMult,
+      speed: Math.min(132, (isFinalMewtwo ? 106 : 94) * diff.spdMult),
+      endlessRewardMult: 1 + endlessWave * 0.35,
       radius: 44,
       isElite: true,
       isBoss: true,
@@ -1611,9 +1614,9 @@ window.GameApp = {
       ? 1.0
       : ((p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult);
     const quickStepMod = (p.quickStepTimer > 0) ? 1.15 : 1.0;
-    const rawMoveSpd = (85 + p.baseSpeed * 1.15) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod;
-    // 主角速度軟上限 180 px/s，確保微操靈敏但避免中後期無腦風箏
-    const moveSpd = Math.min(180, rawMoveSpd);
+    const rawMoveSpd = (112 + p.baseSpeed * 0.72) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod;
+    // 主角速度軟上限 185 px/s，拉高坦型精靈底盤同時保留快慢手感差異
+    const moveSpd = Math.min(185, rawMoveSpd);
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
@@ -1684,6 +1687,16 @@ window.GameApp = {
     tc.facingY = p.facingY;
     tc.walkBob = p.walkBob;
     if (tc.whiteFlashTimer > 0) tc.whiteFlashTimer -= dt;
+    if (tc.walkBob > 0.01 && !tc.isJumpingLedge) {
+      tc.dustTimer = (tc.dustTimer || 0) - dt;
+      if (tc.dustTimer <= 0) {
+        tc.dustTimer = 0.26;
+        const tcTerr = MapEngine.getTerrainModifierAt(tc.x, tc.y);
+        if (!tcTerr.inWater && (!tcTerr.label || !tcTerr.label.includes("草叢"))) {
+          this.spawnParticleCluster(tc.x, tc.y + 18, "#E2E8F0", "#CBD5E1", 2, "circle", 0.22);
+        }
+      }
+    }
 
     // 主角起跳跨越木頭/懸崖時，訓練家無縫同步跟進起跳
     if (p.isJumpingLedge && !tc.isJumpingLedge) {
@@ -2049,7 +2062,7 @@ window.GameApp = {
           id: pId, data: pData, x: ex, y: ey,
           hp: 420 * this.selectedDifficulty.hpMult,
           maxHp: 420 * this.selectedDifficulty.hpMult,
-          atk: 24, speed: 75, radius: 26, isElite: true, isBoss: false, isShiny: false,
+          atk: 24, speed: 75, radius: 26, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
           facingX: -1, facingY: 1, status: "Poison", statusTimer: 99, statusTick: 99,
           ccImmunityTimer: 1.5, rangedCd: 3.5, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.7
         });
@@ -2068,7 +2081,7 @@ window.GameApp = {
           id: 128, data: tData, x: startX - Math.abs(row) * 35, y: ey,
           hp: 600 * this.selectedDifficulty.hpMult,
           maxHp: 600 * this.selectedDifficulty.hpMult,
-          atk: 32, speed: 130, radius: 28, isElite: true, isBoss: false, isShiny: false,
+          atk: 32, speed: 130, radius: 28, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
           facingX: 1, facingY: 0, status: null, statusTimer: 0, statusTick: 0,
           ccImmunityTimer: 999, rangedCd: 999, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.95
         });
@@ -2557,14 +2570,18 @@ window.GameApp = {
       }
 
       if (inToxicSwamp && !e.isBoss) eTerrMult *= 0.70;
-      const bossEnrageSpd = (e.isBoss && (e.hp / e.maxHp) <= 0.5) ? 1.18 : 1.0;
+      const bossEnrageSpd = (e.isBoss && (e.hp / e.maxHp) <= 0.5) ? 1.10 : 1.0;
+      const bossKeepDistMod = (e.isBoss && dist < 90) ? 0.68 : 1.0;
+      const effectiveSpd = e.isBoss
+        ? Math.min(132, e.speed * bossEnrageSpd) * bossKeepDistMod
+        : e.speed * bossEnrageSpd;
 
       let moveDir = confDir;
       if (e.treasureType === "meowth") moveDir = -1.0;
       else if (e.treasureType === "chansey") moveDir = -0.85;
 
-      let vx = (dx / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
-      let vy = (dy / dist) * e.speed * bossEnrageSpd * paraMult * eTerrMult * moveDir;
+      let vx = (dx / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
+      let vy = (dy / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
       if (e.status === "Confusion" && !e.treasureType) {
         const wobbleAng = Math.sin(performance.now() * 0.008 + e.id * 1.7) * 1.35;
         const cSpd = Math.hypot(vx, vy);
@@ -3175,10 +3192,12 @@ window.GameApp = {
             this.telegraphs.splice(i, 1);
             continue;
           }
-          const armorMult = 1 - (p.finalEvoArmor || 0);
+          const starLvCur = (this.saveData && this.saveData.pokemonStars && this.saveData.pokemonStars[this.selectedStarterId]) || 0;
+          const starDrMult = Math.max(0.76, 1 - starLvCur * 0.06);
+          const armorMult = (1 - (p.finalEvoArmor || 0)) * starDrMult;
           const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
           const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
-          const dmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult));
+          const dmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult));
           p.hp -= dmg;
           p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
@@ -3257,10 +3276,12 @@ window.GameApp = {
           this.enemyProjectiles.splice(i, 1);
           continue;
         }
-        const armorMult = 1 - (p.finalEvoArmor || 0);
+        const starLvCur = (this.saveData && this.saveData.pokemonStars && this.saveData.pokemonStars[this.selectedStarterId]) || 0;
+        const starDrMult = Math.max(0.76, 1 - starLvCur * 0.06);
+        const armorMult = (1 - (p.finalEvoArmor || 0)) * starDrMult;
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
-        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
+        const shieldMult = (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult;
         const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
         p.hp -= dmg;
         p.invulnTimer = 0.55 + scarfBonus; // 賦予無敵硬直時間（含絲綢圍巾加成）
@@ -3612,8 +3633,10 @@ window.GameApp = {
       // P3 精英小王擊破微頓幀 (斬肉頓幀感 Hit-Stop)
       this.hitStopTimer = Math.max(this.hitStopTimer || 0, 0.035);
       this.spawnParticleCluster(e.x, e.y, "#FACC15", "#EF4444", 18, "star", 1.15);
-      const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
-      this.spawnMapLoot(dropId, e.x, e.y);
+      if (!e.noEliteDrop) {
+        const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
+        this.spawnMapLoot(dropId, e.x, e.y);
+      }
     }
 
     if (e.isBoss) {
@@ -3720,7 +3743,8 @@ window.GameApp = {
       }
     }
 
-    const coinGain = Math.max(1, Math.round((e.isElite ? 22 : 2) * diffCoinMult));
+    const bossWaveBonus = (e.isBoss && e.endlessRewardMult) ? e.endlessRewardMult : 1.0;
+    const coinGain = Math.max(1, Math.round((e.isBoss ? 120 : (e.isElite ? 22 : 2)) * diffCoinMult * bossWaveBonus));
     this.runCoins += coinGain;
     this.saveData.coins += coinGain;
   },
@@ -4143,11 +4167,20 @@ window.GameApp = {
     }
     ctx.restore();
 
-    // 4. 畫面下方 GBA 經典雙層邊框進化對話框
+    ctx.restore();
+  },
+
+  renderEvolutionDialogBox(ctx) {
+    const seq = this.evoSequence;
+    if (!seq || !seq.active || !this.player) return;
+    const p = this.player;
+    const t = seq.timer;
+
+    ctx.save();
     const boxW = Math.min(this.width - 28, 420);
     const boxH = 64;
     const boxX = (this.width - boxW) / 2;
-    const boxY = Math.min(this.height - 118, py + 54);
+    const boxY = Math.min(this.height - 118, this.height / 2 + 72);
 
     ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
     ctx.strokeStyle = t >= 1.35 ? "#FACC15" : "#38BDF8";
@@ -4180,7 +4213,6 @@ window.GameApp = {
       const traitText = p.innateTrait ? ` ‧ 特性【${p.innateTrait.name}】進階！` : "！";
       ctx.fillText(`HP上限突破至 ${p.maxHp} ‧ 全傷害大幅提升${traitText}`, this.width / 2, boxY + 47);
     }
-
     ctx.restore();
   },
 
@@ -4680,6 +4712,28 @@ window.GameApp = {
     const toSx = (wx) => wx - camX + this.width / 2;
     const toSy = (wy) => wy - camY + this.height / 2;
 
+    // 進化演出平滑鏡頭 Zoom-in 特寫 (0~0.35s 拉近至 1.45x，1.35~1.85s 彈性拉回 1.0x)
+    let evoZoom = 1.0;
+    if (this.state === "EVOLVING" && this.evoSequence && this.evoSequence.active) {
+      const et = this.evoSequence.timer;
+      if (et < 0.35) {
+        const k = et / 0.35;
+        evoZoom = 1.0 + 0.45 * (1 - Math.pow(1 - k, 3));
+      } else if (et < 1.35) {
+        evoZoom = 1.45;
+      } else {
+        const k = Math.min(1, (et - 1.35) / 0.50);
+        evoZoom = 1.45 - 0.45 * (1 - Math.pow(1 - k, 3));
+      }
+    }
+
+    ctx.save();
+    if (evoZoom > 1.001) {
+      ctx.translate(this.width / 2, this.height / 2);
+      ctx.scale(evoZoom, evoZoom);
+      ctx.translate(-this.width / 2, -this.height / 2);
+    }
+
     MapEngine.renderBiomeWorld(ctx, camX, camY, this.width, this.height);
 
     this.telegraphs.forEach(tg => {
@@ -4941,9 +4995,11 @@ window.GameApp = {
         ctx.ellipse(tsx, tsy + 16, 15 + waveCycle * 7, 6 + waveCycle * 3, 0, 0, Math.PI * 2);
         ctx.stroke();
       } else {
-        ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
+        const tcLift = tc.walkBob > 0.01 ? Math.abs(Math.sin(tc.walkBob)) : 0;
+        const shScale = 1 - tcLift * 0.16;
+        ctx.fillStyle = `rgba(15, 23, 42, ${(0.32 - tcLift * 0.07).toFixed(2)})`;
         ctx.beginPath();
-        ctx.ellipse(tsx, tsy + 18, 14, 5.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(tsx, tsy + 18, 14 * shScale, 5.5 * shScale, 0, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.strokeStyle = tc.whiteFlashTimer > 0 ? "rgba(239, 68, 68, 0.95)" : "rgba(56, 189, 248, 0.45)";
@@ -5159,19 +5215,22 @@ window.GameApp = {
       ctx.fillRect(-halfWidth + 5, cutY + 1, halfWidth * 2 - 10, 2);
     };
 
-    // 定義各類實體的精確繪製函數
+    // 定義各類實體的精確繪製函數（訓練員單張 PNG 程序化步態：腳底支點擺動 + 腰部分層下肢錯切 + 落地微塵）
     const drawTrainerEntity = () => {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
       const isMoving = tc.walkBob > 0.01;
-      const bob = isMoving ? Math.abs(Math.sin(tc.walkBob)) * (tc.isJumpingLedge ? 1.5 : 3.2) : 0;
-      // 針對雙腳並攏的立正像素圖 (Ash_01, brock_01 等)，加入步伐左右微傾角與輕微彈性縮放，消除立正跳躍感
-      const strideTilt = isMoving ? Math.sin(tc.walkBob) * (tInWater => tInWater ? 0.035 : 0.068)(MapEngine.getTerrainModifierAt(tc.x, tc.y).inWater) : 0;
-      const strideSquashY = isMoving ? (1 - Math.abs(Math.cos(tc.walkBob)) * 0.035) : 1.0;
-
       const tTerrain = MapEngine.getTerrainModifierAt(tc.x, tc.y);
       const tInWater = tTerrain.inWater && !tc.isJumpingLedge;
       const tInGrass = tTerrain.label.includes("草叢") && !tc.isJumpingLedge;
+
+      const phase = tc.walkBob;
+      const stepSin = isMoving ? Math.sin(phase) : 0;
+      const stepAbs = isMoving ? Math.abs(stepSin) : 0;
+      const bob = isMoving ? stepAbs * (tc.isJumpingLedge ? 1.5 : (tInWater ? 1.4 : 2.8)) : 0;
+      const footTilt = isMoving ? stepSin * (tInWater ? 0.032 : 0.062) : 0;
+      const squashY = isMoving ? (1 - Math.abs(Math.cos(phase)) * 0.04) : 1.0;
+      const squashX = isMoving ? (1 + Math.abs(Math.cos(phase)) * 0.025) : 1.0;
 
       let activeUrl = tc.sprite;
       let needFlip = false;
@@ -5186,39 +5245,67 @@ window.GameApp = {
       const tRec = SpriteCache.get(activeUrl);
 
       ctx.save();
-      // 智慧解析度分流：高解析訓練員原圖 (如 512x512 / 1024x1024 PNG) 開啟高階平滑縮放至 Retina 畫布，避免五官黑線被抽樣切碎；低解析點陣圖則維持像素銳利
       const isHiResTrainer = !!(tRec && tRec.loaded && (tRec.img.naturalWidth || tRec.img.width || 0) > 160);
       ctx.imageSmoothingEnabled = isHiResTrainer;
       if (isHiResTrainer) ctx.imageSmoothingQuality = "high";
 
-      // 對齊腳底陰影中心 (tsy + 18) 並套用海中涉水下沉 14px
-      ctx.translate(tsx, tsy - (tInWater ? bob * 0.45 : bob) + (tc.jumpY || 0) + (tInWater ? 14 : 0));
-      if (strideTilt !== 0) ctx.rotate(strideTilt);
-      ctx.scale(needFlip ? -1 : 1, strideSquashY);
-
       if (tRec && tRec.loaded) {
+        const img = tRec.img;
+        const srcW = img.naturalWidth || img.width || 56;
+        const srcH = img.naturalHeight || img.height || 56;
+
         if (tInWater) {
+          ctx.translate(tsx, tsy - bob + (tc.jumpY || 0) + 14);
+          if (footTilt !== 0) ctx.rotate(footTilt);
+          ctx.scale((needFlip ? -1 : 1) * squashX, squashY);
           ctx.save();
           ctx.beginPath();
-          ctx.rect(-28, -32, 56, 37); // 裁切至腰部 (y: -32 ~ +5)，讓雙腿完全浸入海中
+          ctx.rect(-28, -32, 56, 37);
           ctx.clip();
-          ctx.drawImage(tRec.img, -28, -32, 56, 56);
+          ctx.drawImage(img, -28, -32, 56, 56);
           if (tc.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, tRec.img, -28, -32, 56, 56, "#FF6B4A", 0.70);
+            this.drawSilhouetteFlash(ctx, img, -28, -32, 56, 56, "#FF6B4A", 0.70);
           }
           ctx.restore();
           drawPixelWaterlineFoam(5, 17, 1.2);
         } else {
-          ctx.drawImage(tRec.img, -28, -32, 56, 56);
-          if (tc.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, tRec.img, -28, -32, 56, 56, "#FF6B4A", 0.70);
-          }
-        }
-        if (tInGrass) {
+          // 1. 支點移至腳底 (tsy + 20)，讓雙腳貼地、上半身隨步伐自然左右擺動
+          ctx.translate(tsx, tsy + 20 - bob + (tc.jumpY || 0));
+          ctx.scale(needFlip ? -1 : 1, 1);
+
+          const drawW = 56, drawH = 56;
+          const splitRatio = 0.68; // 腰部切分點 (上 68% 軀幹與頭，下 32% 雙腿)
+          const srcTopH = Math.round(srcH * splitRatio);
+          const srcBotH = srcH - srcTopH;
+          const dstTopH = drawH * splitRatio;
+          const dstBotH = drawH - dstTopH;
+          const topY = -drawH; // 腳底為 y=0，頭頂為 y=-56
+
+          // 2. 下半身（雙腿）：以腰部為界做輕微水平步態錯切 (Leg Shear)，營造真實跨步感
+          const legSkew = isMoving ? stepSin * 0.14 : 0;
+          const legLift = isMoving ? -stepAbs * 1.1 : 0;
           ctx.save();
-          if (needFlip) ctx.scale(-1, 1); // 保持草葉搖曳方向與世界一致
-          drawPixelGrassOverlay(tc.x, tc.y, 22, [-12, 0, 12]);
+          ctx.translate(0, -dstBotH + legLift);
+          ctx.transform(1, 0, legSkew, squashY, 0, 0);
+          ctx.drawImage(img, 0, srcTopH, srcW, srcBotH, -drawW / 2, 0, drawW, dstBotH);
           ctx.restore();
+
+          // 3. 上半身（軀幹與頭部）：以腳底為支點微幅左右搖擺與輕微呼吸起伏
+          ctx.save();
+          if (footTilt !== 0) ctx.rotate(footTilt);
+          ctx.scale(squashX, squashY);
+          ctx.drawImage(img, 0, 0, srcW, srcTopH, -drawW / 2, topY, drawW, dstTopH + 0.8);
+          if (tc.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, img, -drawW / 2, topY, drawW, drawH, "#FF6B4A", 0.70);
+          }
+          ctx.restore();
+
+          if (tInGrass) {
+            ctx.save();
+            if (needFlip) ctx.scale(-1, 1);
+            drawPixelGrassOverlay(tc.x, tc.y, 2, [-12, 0, 12]);
+            ctx.restore();
+          }
         }
       }
       ctx.restore();
@@ -5848,7 +5935,11 @@ window.GameApp = {
 
     MapEngine.renderWeatherOverlays(ctx, this.width, this.height);
     if (this.state === "EVOLVING") {
-      this.renderEvolutionOverlay(ctx, toSx, toSy);
+      this.renderEvolutionOverlay(ctx, toSx, toSy, false);
+    }
+    ctx.restore(); // 結束鏡頭 Zoom-in 變換，下方對話框與螢幕邊緣指標維持 1:1 銳利清晰
+    if (this.state === "EVOLVING") {
+      this.renderEvolutionDialogBox(ctx);
     }
 
     this.floatingTexts.forEach(ft => {

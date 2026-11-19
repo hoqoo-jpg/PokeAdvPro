@@ -110,19 +110,6 @@ const SkillsEngine = {
     }
 
     const meta = SKILLS_CATALOG[skillId] || SKILLS_CATALOG["Tackle"];
-    if (caster === GameApp.player && (!caster._lastCastPulseTime || performance.now() - caster._lastCastPulseTime > 260)) {
-      caster._lastCastPulseTime = performance.now();
-      this.meleeEffects.push({
-        style: "electric_cheek_aura",
-        casterRef: caster,
-        x: caster.x,
-        y: caster.y,
-        radius: 26,
-        timer: 0.20,
-        maxTime: 0.20,
-        color: TYPE_COLORS[meta.type] || meta.color || "#38BDF8"
-      });
-    }
     const cleanSkillId = skillId.replace(/\s+/g, '');
 
     // 1. 貼身自衛最高優先級 + 差異化智能索敵：
@@ -212,18 +199,6 @@ const SkillsEngine = {
       const nearby = GameApp.enemies
         .filter(e => Math.hypot(e.x - caster.x, e.y - caster.y) <= maxStrikeRange)
         .sort((a, b) => Math.hypot(a.x - caster.x, a.y - caster.y) - Math.hypot(b.x - caster.x, b.y - caster.y));
-
-      // 主角外圍 28px 電氣蓄電環（淨空中心，不擋皮卡丘臉部）
-      this.meleeEffects.push({
-        style: "electric_cheek_aura",
-        casterRef: caster,
-        x: caster.x,
-        y: caster.y,
-        radius: 30,
-        timer: 0.22,
-        maxTime: 0.22,
-        color: "#FACC15"
-      });
 
       const thunderBonus = (MapEngine.weather === "THUNDER" ? 1 : 0) + (caster && caster.id === 145 ? 2 : 0);
       const boltCount = Math.max(3, count + 1 + thunderBonus);
