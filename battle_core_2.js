@@ -1073,22 +1073,74 @@ window.GameApp = {
       this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 28, "star");
       this.spawnFloatingText(p.x, p.y - 35, "就決定是你了! 全攻速暴擊UP!", "#F59E0B", 15);
     } else if (tr.id === "misty") {
-      healPct = 0.22;
-      SkillsEngine.meleeEffects.push({ style: "slam_wave", x: p.x, y: p.y, radius: 180, timer: 0.45, maxTime: 0.45, color: "#38BDF8" });
-      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 32, "circle");
+      healPct = 0.24;
+      const waveDmg = (48 + p.baseAtk * 1.1) * p.dmgMult;
+      // 借用原生【潮旋激流】深海大漩渦 + 【絕對零度】極光冰晶環演繹小霞暴風海嘯！
+      SkillsEngine.groundHazards.push({
+        kind: "blastoise_maelstrom",
+        x: p.x, y: p.y,
+        followPlayer: true,
+        rotAngle: 0,
+        radius: 245 * p.areaMult,
+        innerSafeRadius: 38,
+        dmg: waveDmg * 0.35,
+        type: "Water",
+        timer: 1.55, maxTime: 1.55,
+        tickTimer: 0.08, tickInterval: 0.30,
+        color: "#38BDF8"
+      });
+      SkillsEngine.groundHazards.push({
+        kind: "ice_shatter_domain",
+        x: p.x, y: p.y,
+        radius: 235 * p.areaMult,
+        dmg: waveDmg * 0.65,
+        type: "Ice",
+        timer: 0.85, maxTime: 0.85,
+        tickTimer: 0.80, tickInterval: 99,
+        color: "#67E8F9"
+      });
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 36, "diamond", 1.3);
       this.enemies.forEach(e => {
-        if (Math.hypot(e.x - p.x, e.y - p.y) < 220) {
-          const ang = Math.atan2(e.y - p.y, e.x - p.x);
-          e.x += Math.cos(ang) * 95; e.y += Math.sin(ang) * 95;
-          e.status = "Freeze"; e.statusTimer = 3.0;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < 250) {
+          if (!e.isBoss) {
+            const ang = Math.atan2(e.y - p.y, e.x - p.x);
+            e.x += Math.cos(ang) * 115; e.y += Math.sin(ang) * 115;
+          }
+          e.status = "Freeze"; e.statusTimer = e.isBoss ? 1.4 : 3.5;
         }
       });
+      this.spawnFloatingText(p.x, p.y - 35, "🌊 暴風海嘯！潮旋冰封席捲！", "#38BDF8", 15);
     } else if (tr.id === "brock") {
-      healPct = 0.25;
-      p.shieldTimer = 5.0;
-      p.maxShieldTimer = 5.0;
-      this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE047", 26, "rock");
-      this.spawnFloatingText(p.x, p.y - 35, "岩石壁壘 5秒減傷50%!", "#F59E0B", 15);
+      healPct = 0.26;
+      p.shieldTimer = 5.5;
+      p.maxShieldTimer = 5.5;
+      const rockDmg = (52 + p.baseAtk * 1.15) * p.dmgMult;
+      // 借用原生【地震】環形地裂波 + 【地裂斷層破】熔岩岩柱演繹小剛岩石壁壘！
+      SkillsEngine.meleeEffects.push({
+        style: "quake_wave",
+        casterRef: p,
+        x: p.x, y: p.y,
+        radius: 195 * p.areaMult,
+        dmg: rockDmg * 0.85,
+        type: "Ground",
+        kb: 32,
+        hitSet: new Set(),
+        timer: 0.55, maxTime: 0.55,
+        color: "#D97706"
+      });
+      SkillsEngine.groundHazards.push({
+        kind: "quake_fissure",
+        x: p.x, y: p.y,
+        followPlayer: true,
+        radius: 185 * p.areaMult,
+        dmg: rockDmg * 0.32,
+        type: "Ground",
+        timer: 1.8, maxTime: 1.8,
+        tickTimer: 0.12, tickInterval: 0.45,
+        color: "#D97706"
+      });
+      this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE047", 32, "star", 1.2);
+      this.spawnFloatingText(p.x, p.y - 35, "🪨 岩石壁壘！地裂震退 ＆ 減傷55%！", "#F59E0B", 15);
     } else if (tr.id === "serena") {
       healPct = 0.22;
       this.partners.forEach(pt => { pt.cdTimer = 0; });
@@ -2150,9 +2202,10 @@ window.GameApp = {
       rawHp = Math.max(110 * timeHpScale * diff.hpMult, rawHp * 1.35);
     }
     let hp = Math.round(rawHp);
-    if (isElite && minutes >= 4.0) hp = Math.round(hp * 1.25);
+    if (isElite && minutes >= 4.0) hp = Math.round(hp * 1.12);
 
-    const atk = Math.round((8 + pick.atk * 0.35) * (1 + minutes * 0.15) * diff.atkMult * (isElite ? 1.45 : 1.0));
+    const lateAtkCurve = minutes <= 4.5 ? (1 + minutes * 0.14) : (1.63 + (minutes - 4.5) * 0.08);
+    const atk = Math.round((7 + pick.atk * 0.30) * lateAtkCurve * diff.atkMult * (isElite ? 1.38 : 1.0));
 
     this.saveData.pokedexSeen[pick.id] = true;
 
@@ -2568,141 +2621,144 @@ window.GameApp = {
       }
 
       const cdDt = e.status === "Paralysis" ? dt * 0.5 : dt;
-      // 1. 神獸 Boss 彈幕與地毯技能
+      // 1. 神獸 Boss 彈幕與地毯技能（加快出招節奏 1.35s~1.85s、擴充扇形與環形彈幕數量，視覺華麗且走位可躲）
       if (inView && e.isBoss && !e.treasureType) {
-        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 1.5) - cdDt;
+        e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.9) - cdDt;
         if (e.rangedCd <= 0) {
-          const isEnraged = (e.hp / e.maxHp) <= 0.5; // 血量低於 50% 觸發狂暴強化
-          e.rangedCd = isEnraged ? (1.8 + Math.random() * 0.7) : (2.4 + Math.random() * 0.9);
+          const isEnraged = (e.hp / e.maxHp) <= 0.5;
+          e.rangedCd = isEnraged ? (1.15 + Math.random() * 0.35) : (1.45 + Math.random() * 0.40);
+          e.bossVolleyCount = (e.bossVolleyCount || 0) + 1;
 
           const baseAng = Math.atan2(p.y - e.y, p.x - e.x);
 
-          // 1. 急凍鳥 (#144) —— 扇形三叉冰錐 (速度 220px/s，快於玩家跑速，附帶 40% 減速)
+          // 1. 急凍鳥 (#144) —— 扇形 5 叉極寒冰錐 + 隔輪 8 向暴風雪冰環
           if (e.id === 144) {
-            const spreadAngles = [-0.26, 0, 0.26];
+            const spreadAngles = [-0.42, -0.21, 0, 0.21, 0.42];
             spreadAngles.forEach(angOffset => {
               const ang = baseAng + angOffset;
               this.enemyProjectiles.push({
                 x: e.x + Math.cos(ang) * (e.radius + 10),
                 y: e.y + Math.sin(ang) * (e.radius + 10),
-                vx: Math.cos(ang) * 220,
-                vy: Math.sin(ang) * 220,
+                vx: Math.cos(ang) * 235,
+                vy: Math.sin(ang) * 235,
                 angle: ang, radius: 10,
-                dmg: Math.round(e.atk * 0.85),
+                dmg: Math.round(e.atk * 0.72),
                 color: "#38BDF8", vfx: "frost_lance",
-                statusEffect: "Freeze", statusChance: 0.45,
-                life: 3.5, rot: 0
+                statusEffect: "Freeze", statusChance: 0.32,
+                life: 3.4, rot: 0
               });
             });
 
-            // 狂暴強化 (<50% HP)：原地爆發 8 向環形暴風雪冰晶
-            if (isEnraged) {
-              for (let k = 0; k < 8; k++) {
-                const ringAng = (k * Math.PI * 2) / 8 + Math.random() * 0.2;
+            if (isEnraged || e.bossVolleyCount % 2 === 0) {
+              const ringCount = isEnraged ? 10 : 6;
+              for (let k = 0; k < ringCount; k++) {
+                const ringAng = (k * Math.PI * 2) / ringCount + e.bossVolleyCount * 0.25;
                 this.enemyProjectiles.push({
                   x: e.x, y: e.y,
-                  vx: Math.cos(ringAng) * 175,
-                  vy: Math.sin(ringAng) * 175,
+                  vx: Math.cos(ringAng) * 185,
+                  vy: Math.sin(ringAng) * 185,
                   angle: ringAng, radius: 9,
-                  dmg: Math.round(e.atk * 0.75),
+                  dmg: Math.round(e.atk * 0.65),
                   color: "#BAE6FD", vfx: "frost_lance",
-                  statusEffect: "Freeze", statusChance: 0.35,
+                  statusEffect: "Freeze", statusChance: 0.25,
                   life: 3.0, rot: 0
                 });
               }
-              this.spawnParticleCluster(e.x, e.y, "#BAE6FD", "#38BDF8", 16, "star", 1.2);
+              this.spawnParticleCluster(e.x, e.y, "#BAE6FD", "#38BDF8", 14, "star", 1.1);
             }
           }
 
-          // 2. 閃電鳥 (#145) —— 預判高速雙聯金羽 (255px/s) + 慢速引力追蹤雷球
+          // 2. 閃電鳥 (#145) —— 4 連扇形高速雷羽 (265px/s) + 雙發追蹤電磁球
           else if (e.id === 145) {
-            [-0.12, 0.12].forEach(angOffset => {
+            [-0.28, -0.09, 0.09, 0.28].forEach(angOffset => {
               const ang = baseAng + angOffset;
               this.enemyProjectiles.push({
                 x: e.x, y: e.y,
-                vx: Math.cos(ang) * 255, vy: Math.sin(ang) * 255,
+                vx: Math.cos(ang) * 265, vy: Math.sin(ang) * 265,
                 angle: ang, radius: 9,
-                dmg: Math.round(e.atk * 0.80),
+                dmg: Math.round(e.atk * 0.68),
                 color: "#FACC15", vfx: "swift_star",
-                statusEffect: "Paralysis", statusChance: 0.35,
+                statusEffect: "Paralysis", statusChance: 0.28,
                 life: 3.0, rot: 0
               });
             });
 
-            const homingCount = isEnraged ? 2 : 1;
+            const homingCount = isEnraged ? 3 : 2;
             for (let h = 0; h < homingCount; h++) {
-              const hAng = baseAng + (h === 0 ? 0 : 0.4);
+              const hAng = baseAng + (h - (homingCount - 1) / 2) * 0.55;
               this.enemyProjectiles.push({
                 x: e.x, y: e.y,
-                vx: Math.cos(hAng) * 105, vy: Math.sin(hAng) * 105,
-                angle: hAng, radius: 14,
-                dmg: Math.round(e.atk * 0.95),
+                vx: Math.cos(hAng) * 125, vy: Math.sin(hAng) * 125,
+                angle: hAng, radius: 13,
+                dmg: Math.round(e.atk * 0.78),
                 color: "#FDE047", vfx: "storm_orb",
-                homing: true, statusEffect: "Paralysis", statusChance: 0.60,
-                life: 4.5, rot: 0
+                homing: true, statusEffect: "Paralysis", statusChance: 0.42,
+                life: 4.2, rot: 0
               });
             }
           }
 
-          // 3. 火焰鳥 (#146) —— 大字巨炎彈 (半徑 15px，命中灼傷)，撞擊後十字二次分裂
+          // 3. 火焰鳥 (#146) —— 三向扇形大字爆裂炎彈 (撞擊分裂火星) + 周身火環
           else if (e.id === 146) {
-            const count = isEnraged ? 2 : 1;
-            for (let f = 0; f < count; f++) {
-              const fAng = baseAng + (count > 1 ? (f === 0 ? -0.2 : 0.2) : 0);
+            const fireAngles = isEnraged ? [-0.34, -0.11, 0.11, 0.34] : [-0.24, 0, 0.24];
+            fireAngles.forEach(off => {
+              const fAng = baseAng + off;
               this.enemyProjectiles.push({
                 x: e.x, y: e.y,
-                vx: Math.cos(fAng) * 195, vy: Math.sin(fAng) * 195,
-                angle: fAng, radius: 15,
-                dmg: Math.round(e.atk * 1.10),
+                vx: Math.cos(fAng) * 210, vy: Math.sin(fAng) * 210,
+                angle: fAng, radius: 14,
+                dmg: Math.round(e.atk * 0.85),
                 color: "#EF4444", vfx: "fire_blast_orb",
-                statusEffect: "Burn", statusChance: 0.50,
+                statusEffect: "Burn", statusChance: 0.40,
                 canSplit: true, isEnragedSplit: isEnraged,
-                life: 2.5, rot: 0
+                life: 2.6, rot: 0
               });
-            }
+            });
           }
 
-          // 4. 超夢 (#150) —— 巨型引力黑核 (直徑 36px，微牽引走位) + 8向暗影波
+          // 4. 超夢 (#150) —— 雙發引力黑核 + 8向（狂暴12向）暗影精神波
           else if (e.id === 150) {
-            this.enemyProjectiles.push({
-              x: e.x, y: e.y,
-              vx: Math.cos(baseAng) * 155, vy: Math.sin(baseAng) * 155,
-              angle: baseAng, radius: 18,
-              dmg: Math.round(e.atk * 1.30),
-              color: "#A855F7", vfx: "psychic_core",
-              isSuction: true, statusEffect: "Confusion", statusChance: 0.40,
-              life: 4.0, rot: 0
+            [-0.22, 0.22].forEach(off => {
+              const cAng = baseAng + off;
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(cAng) * 170, vy: Math.sin(cAng) * 170,
+                angle: cAng, radius: 17,
+                dmg: Math.round(e.atk * 0.95),
+                color: "#A855F7", vfx: "psychic_core",
+                isSuction: true, statusEffect: "Confusion", statusChance: 0.32,
+                life: 3.8, rot: 0
+              });
             });
 
-            if (isEnraged) {
-              for (let p = 0; p < 8; p++) {
-                const pAng = (p * Math.PI * 2) / 8 + baseAng;
-                this.enemyProjectiles.push({
-                  x: e.x, y: e.y,
-                  vx: Math.cos(pAng) * 210, vy: Math.sin(pAng) * 210,
-                  angle: pAng, radius: 10,
-                  dmg: Math.round(e.atk * 0.80),
-                  color: "#C084FC", vfx: "psy_wave",
-                  statusEffect: "Confusion", statusChance: 0.25,
-                  life: 3.0, rot: 0
-                });
-              }
+            const waveCount = isEnraged ? 12 : 8;
+            for (let pIdx = 0; pIdx < waveCount; pIdx++) {
+              const pAng = (pIdx * Math.PI * 2) / waveCount + baseAng + e.bossVolleyCount * 0.2;
+              this.enemyProjectiles.push({
+                x: e.x, y: e.y,
+                vx: Math.cos(pAng) * 220, vy: Math.sin(pAng) * 220,
+                angle: pAng, radius: 10,
+                dmg: Math.round(e.atk * 0.68),
+                color: "#C084FC", vfx: "psy_wave",
+                statusEffect: "Confusion", statusChance: 0.22,
+                life: 3.0, rot: 0
+              });
             }
           }
 
-          // 5. 夢幻 (#151) —— 5 連發（狂暴 10 連發）彩虹混色速射彈
+          // 5. 夢幻 (#151) —— 7 連發（狂暴 12 連發）彩虹混色高速星彈陣
           else if (e.id === 151) {
-            const mCount = isEnraged ? 10 : 5;
+            const mCount = isEnraged ? 12 : 7;
             for (let m = 0; m < mCount; m++) {
-              const spread = (Math.random() - 0.5) * 0.75;
+              const spread = ((m / (mCount - 1)) - 0.5) * 0.95 + (Math.random() - 0.5) * 0.12;
               const mAng = baseAng + spread;
               const rainbowColors = ["#EF4444", "#38BDF8", "#FACC15", "#22C55E", "#EC4899"];
               const pickColor = rainbowColors[m % rainbowColors.length];
               this.enemyProjectiles.push({
                 x: e.x, y: e.y,
-                vx: Math.cos(mAng) * 230, vy: Math.sin(mAng) * 230,
-                angle: mAng, radius: 9,
-                dmg: Math.round(e.atk * 0.70),
+                vx: Math.cos(mAng) * 245, vy: Math.sin(mAng) * 245,
+                angle: mAng, radius: 9.5,
+                dmg: Math.round(e.atk * 0.62),
                 color: pickColor, vfx: "rainbow_star",
                 statusEffect: m % 2 === 0 ? "Paralysis" : "Burn", statusChance: 0.20,
                 life: 3.0, rot: 0
@@ -2778,11 +2834,13 @@ window.GameApp = {
           continue;
         }
 
+        const starLvCur = (this.saveData && this.saveData.pokemonStars && this.saveData.pokemonStars[this.selectedStarterId]) || 0;
+        const starDrMult = Math.max(0.76, 1 - starLvCur * 0.06);
         const traitMeleeRed = (p.innateTrait && p.innateTrait.meleeDmgReduction) ? (1 - p.innateTrait.meleeDmgReduction) : 1.0;
         const martialGodRed = (p.martialGodTimer > 0) ? 0.70 : 1.0;
-        const armorMult = (1 - (p.finalEvoArmor || 0)) * traitMeleeRed * martialGodRed;
+        const armorMult = (1 - (p.finalEvoArmor || 0)) * traitMeleeRed * martialGodRed * starDrMult;
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
-        const shieldMult = (p.shieldTimer > 0 ? 0.5 : 1.0) * armorMult * dragonScaleMult;
+        const shieldMult = (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult;
         const burnMod = (e.status === "Burn" ? 0.72 : 1.0) * (e.weakenTimer > 0 ? 0.65 : 1.0);
         const dmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
         p.hp -= dmg;
@@ -3783,28 +3841,23 @@ window.GameApp = {
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
       p.level += 1;
-      p.nextExp = Math.round(p.nextExp * 1.17 + 10);
+      p.nextExp = Math.round(p.nextExp * 1.22 + 14);
       SoundFX.play("levelup");
 
+      // 每次升級附帶輕量生命回復 (+10% 最大 HP)，提升續航手感與正回饋
+      if (p.hp < p.maxHp) {
+        const lvlHeal = Math.max(4, Math.round(p.maxHp * 0.10));
+        p.hp = Math.min(p.maxHp, p.hp + lvlHeal);
+        this.spawnFloatingText(p.x, p.y - 24, `升級回復 +${lvlHeal} HP`, "#34D399", 12);
+      }
+
+      // 若達到進化等級，先記錄待執行的進化目標，優先彈出「升級三選一」，選完後緊接著播放進化光影演出！
+      this._pendingEvolutionTarget = null;
       if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
         if (p.id === 133) {
-          this.state = "PAUSED";
-          this.touchJoy.active = false;
-          this.touchJoy.dx = 0;
-          this.touchJoy.dy = 0;
-          const joyBase = document.getElementById("touchJoyBase");
-          const joyStick = document.getElementById("touchJoyStick");
-          if (joyBase) joyBase.style.display = "none";
-          if (joyStick) joyStick.style.display = "none";
-          const eeModal = document.getElementById("eevee-evo-modal");
-          if (eeModal) {
-            eeModal.classList.remove("hidden");
-            eeModal.style.display = "flex";
-          }
-          return;
+          this._pendingEvolutionTarget = "eevee";
         } else if (p.data.evo_to) {
-          this.startEvolutionMoment(p.data.evo_to, true);
-          return;
+          this._pendingEvolutionTarget = p.data.evo_to;
         }
       } else if (p.id >= 144 && (p.level === 12 || p.level === 24)) {
         // 傳說五神獸出戰專屬：Lv.12 與 Lv.24 觸發傳說神聖共鳴覺醒
@@ -4523,9 +4576,30 @@ window.GameApp = {
   selectUpgradeChoice(idx) {
     const c = this._currentUpgradeChoices && this._currentUpgradeChoices[idx];
     if (c && c.apply) c.apply();
-    document.getElementById("levelUpModal").classList.add("hidden");
-    this.state = "PLAYING";
+    const lvlModal = document.getElementById("levelUpModal");
+    if (lvlModal) {
+      lvlModal.classList.add("hidden");
+      lvlModal.style.display = "none";
+    }
     this.refreshHUD();
+
+    // 若本次升級同時達成進化門檻，三選一選完後立即銜接進化演出！
+    const pendingEvo = this._pendingEvolutionTarget;
+    this._pendingEvolutionTarget = null;
+    if (pendingEvo === "eevee") {
+      this.state = "PAUSED";
+      const eeModal = document.getElementById("eevee-evo-modal");
+      if (eeModal) {
+        eeModal.classList.remove("hidden");
+        eeModal.style.display = "flex";
+      }
+      return;
+    } else if (pendingEvo) {
+      this.startEvolutionMoment(pendingEvo, false);
+      return;
+    }
+
+    this.state = "PLAYING";
   },
 
   updateParticlesAndTexts(dt) {
