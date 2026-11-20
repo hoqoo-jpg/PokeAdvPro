@@ -117,12 +117,20 @@ window.GameApp = {
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.dpr = dpr;
     this._pauseFrameRendered = false;
-    this.canvas.width = Math.round(this.width * dpr);
-    this.canvas.height = Math.round(this.height * dpr);
-    this.canvas.style.width = `${this.width}px`;
-    this.canvas.style.height = `${this.height}px`;
+    const targetW = Math.max(1, Math.round(this.width * dpr));
+    const targetH = Math.max(1, Math.round(this.height * dpr));
+    // 僅在實際像素尺寸變更時才重配 Canvas 顯存，徹底避免第二局 iOS Safari 黑屏
+    if (this.canvas.width !== targetW || this.canvas.height !== targetH) {
+      this.canvas.width = targetW;
+      this.canvas.height = targetH;
+      this.canvas.style.width = `${this.width}px`;
+      this.canvas.style.height = `${this.height}px`;
+    }
     if (this.ctx) {
       this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.ctx.globalAlpha = 1.0;
+      this.ctx.globalCompositeOperation = "source-over";
+      this.ctx.filter = "none";
       this.ctx.imageSmoothingEnabled = false;
       this.ctx.webkitImageSmoothingEnabled = false;
     }
@@ -738,6 +746,16 @@ window.GameApp = {
       this.ctx.filter = "none";
     }
 
+    // 徹底清除上一局殘留的進化演出、過場計時器與離線剪影顯存，根除第二局黑屏
+    this.evoSequence = null;
+    this._pendingEvolutionTarget = null;
+    this._pauseFrameRendered = false;
+    clearTimeout(this._cutInHideTimer);
+    clearTimeout(this._bannerTimeout);
+    if (typeof SpriteCache !== "undefined" && SpriteCache.clearVolatileCaches) {
+      SpriteCache.clearVolatileCaches();
+    }
+
     // 重置幀時間戳與打擊停頓，防止首幀時間差爆炸造成瞬移或物理崩潰
     this.lastFrameTime = performance.now();
     this.hitStopTimer = 0;
@@ -1233,49 +1251,54 @@ window.GameApp = {
   },
 
   loop(timestamp) {
-    const actualDeltaMs = Math.max(1, timestamp - (this.lastFrameTime || timestamp));
-    const instFps = Math.min(120, 1000 / actualDeltaMs);
-    this.currentFps = Math.round((this.currentFps || 60) * 0.88 + instFps * 0.12);
-    const rawDt = Math.min(0.05, actualDeltaMs / 1000 || 0.016);
-    this.lastFrameTime = timestamp;
-
-    if (this.state === "SPLASH" || this.state === "TITLE" || this.state === "LOADING") {
-      // 若大廳已開啟全屏選角、151圖鑑、研究所或成就彈窗，自動休眠背景漫步渲染以大幅降低手機發熱
-      const fullModalOpen = ["setupModal", "pokedexModal", "skillTreeModal", "achievementModal", "settingsModal"].some(id => {
-        const el = document.getElementById(id);
-        return el && !el.classList.contains("hidden");
-      });
-      if (!fullModalOpen) {
-        this.updateTitleDemo(rawDt);
-        this.renderTitleDemo();
-      }
-    } else if (this.state === "EVOLVING") {
-      this._pauseFrameRendered = false;
-      this.updateEvolutionMoment(rawDt);
-      this.renderCombat();
-    } else if (this.state === "PLAYING") {
-      this._pauseFrameRendered = false;
-      if (this.hitStopTimer > 0) {
-        this.hitStopTimer -= rawDt;
-      } else {
-        let slowMult = 1.0;
-        if (this.killSlowmoTimer > 0) {
-          this.killSlowmoTimer = Math.max(0, this.killSlowmoTimer - rawDt);
-          slowMult = 0.22;
-        }
-        const dt = rawDt * this.timeScale * slowMult;
-        this.updateCombat(dt);
-      }
-      this.renderCombat();
-    } else {
-      // PAUSED / GAMEOVER 狀態（升級三選一、友好商店、暫停結算）：僅渲染凍結的最後一幀，避免背景 60FPS 重繪觸發毛玻璃 backdrop-filter 高溫發燙！
-      if (!this._pauseFrameRendered) {
-        this._pauseFrameRendered = true;
-        this.renderCombat();
-      }
-    }
-
+    // 永遠先預約下一幀，並以 try/catch 保護主循環，確保任何單幀異常絕不會導致畫面永久死鎖黑屏
     requestAnimationFrame((t) => this.loop(t));
+
+    try {
+      const actualDeltaMs = Math.max(1, timestamp - (this.lastFrameTime || timestamp));
+      const instFps = Math.min(120, 1000 / actualDeltaMs);
+      this.currentFps = Math.round((this.currentFps || 60) * 0.88 + instFps * 0.12);
+      const rawDt = Math.min(0.05, actualDeltaMs / 1000 || 0.016);
+      this.lastFrameTime = timestamp;
+
+      if (this.state === "SPLASH" || this.state === "TITLE" || this.state === "LOADING") {
+        // 若大廳已開啟全屏選角、151圖鑑、研究所或成就彈窗，自動休眠背景漫步渲染以大幅降低手機發熱
+        const fullModalOpen = ["setupModal", "pokedexModal", "skillTreeModal", "achievementModal", "settingsModal"].some(id => {
+          const el = document.getElementById(id);
+          return el && !el.classList.contains("hidden");
+        });
+        if (!fullModalOpen) {
+          this.updateTitleDemo(rawDt);
+          this.renderTitleDemo();
+        }
+      } else if (this.state === "EVOLVING") {
+        this._pauseFrameRendered = false;
+        this.updateEvolutionMoment(rawDt);
+        this.renderCombat();
+      } else if (this.state === "PLAYING") {
+        this._pauseFrameRendered = false;
+        if (this.hitStopTimer > 0) {
+          this.hitStopTimer -= rawDt;
+        } else {
+          let slowMult = 1.0;
+          if (this.killSlowmoTimer > 0) {
+            this.killSlowmoTimer = Math.max(0, this.killSlowmoTimer - rawDt);
+            slowMult = 0.22;
+          }
+          const dt = rawDt * this.timeScale * slowMult;
+          this.updateCombat(dt);
+        }
+        this.renderCombat();
+      } else {
+        // PAUSED / GAMEOVER 狀態（升級三選一、友好商店、暫停結算）：僅渲染凍結的最後一幀，避免背景 60FPS 重繪觸發毛玻璃 backdrop-filter 高溫發燙！
+        if (!this._pauseFrameRendered) {
+          this._pauseFrameRendered = true;
+          this.renderCombat();
+        }
+      }
+    } catch (err) {
+      console.error("GameApp loop recovered from error:", err);
+    }
   },
 
   updateTitleDemo(dt) {
@@ -1893,9 +1916,9 @@ window.GameApp = {
               const actualReach = (28 + (waves - 1) * 24 + 50 + (waves - 1) * 10) * tackleScale;
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "martial_fist") {
-              // 空手劈 (Karate Chop)：真實距離 ~90px * meleeAreaScale
-              const actualReach = 90 * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
-              triggerRange = actualReach * 0.90;
+              // 空手劈 (Karate Chop)：連環拳每級成長距離 (92 + lv * 6) * meleeAreaScale
+              const actualReach = (92 + lv * 6) * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
+              triggerRange = actualReach * 0.95;
             } else if (meta.meleeStyle === "quake_wave") {
               // 地震 (Earthquake)：真實距離 (85 + lv * 4) * meleeAreaScale
               const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
@@ -3445,7 +3468,7 @@ window.GameApp = {
     }
   },
 
-  dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0) {
+  dealDamageToEnemy(enemy, rawDmg, moveType, bonusStatusChance = 0, knockback = 0, extraCritBonus = 0) {
     const eff = calcTypeMultiplier(moveType, enemy.data.type1, enemy.data.type2);
     const psychicCritBonus = (MapEngine.weather === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) ? 0.15 : 0;
     // 【攜帶物：毒針】對處於中毒狀態的敵人額外暴擊率 +25%
@@ -3455,7 +3478,7 @@ window.GameApp = {
     const martialGodCrit = (this.player.martialGodTimer > 0) ? 0.20 : 0;
     const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
     const dualSuperCritBonus = Object.values(this.player.skills || {}).filter(s => s.evolved).length >= 2 ? 0.08 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit);
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit + (extraCritBonus || 0));
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
     const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
 
@@ -5089,52 +5112,22 @@ window.GameApp = {
       const sx = toSx(it.x);
       const sy = toSy(it.y);
 
-      // 專屬繪製：GBA 經典友好商店 (藍頂白牆建築風格 + 亮金色 SHOP 招牌)
+      // 專屬繪製：GBA 火紅／葉綠預烘焙友好商店 (MapEngine.spritePropCache['poke_mart_pixel'] + 浮動 SHOP 標籤)
       if (it.id === "poke_mart") {
         ctx.save();
-        // 1. 地面投影
-        ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
-        ctx.beginPath();
-        ctx.ellipse(sx, sy + 18, 30, 11, 0, 0, Math.PI * 2);
-        ctx.fill();
+        const martCan = (typeof MapEngine !== "undefined" && MapEngine.spritePropCache)
+          ? MapEngine.spritePropCache.get("poke_mart_pixel")
+          : null;
+        if (martCan) {
+          ctx.drawImage(martCan, Math.round(sx - 38), Math.round(sy - 46));
+        } else {
+          ctx.fillStyle = "#0284C7";
+          ctx.fillRect(sx - 20, sy - 16, 40, 32);
+        }
 
-        // 2. 建築物主體白牆 (38 x 26)
-        ctx.fillStyle = "#F8FAFC";
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 2.2;
-        ctx.fillRect(sx - 19, sy - 6, 38, 24);
-        ctx.strokeRect(sx - 19, sy - 6, 38, 24);
-
-        // 3. 經典深藍色斜屋頂 (雙層立體像素屋頂)
-        ctx.fillStyle = "#0284C7";
-        ctx.beginPath();
-        ctx.moveTo(sx - 24, sy - 6);
-        ctx.lineTo(sx, sy - 22);
-        ctx.lineTo(sx + 24, sy - 6);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#38BDF8";
-        ctx.beginPath();
-        ctx.moveTo(sx - 20, sy - 7);
-        ctx.lineTo(sx, sy - 20);
-        ctx.lineTo(sx + 20, sy - 7);
-        ctx.closePath();
-        ctx.fill();
-
-        // 4. 玻璃櫥窗與紅色大門
-        ctx.fillStyle = "#BAE6FD";
-        ctx.fillRect(sx - 14, sy + 2, 9, 8);
-        ctx.strokeRect(sx - 14, sy + 2, 9, 8);
-
-        ctx.fillStyle = "#EF4444";
-        ctx.fillRect(sx + 2, sy + 1, 10, 17);
-        ctx.strokeRect(sx + 2, sy + 1, 10, 17);
-
-        // 5. 屋頂上方常駐霓虹招牌：【SHOP】亮金標籤
+        // 屋頂上方常駐浮動提示：【SHOP】亮金像素標籤
         const bounce = Math.sin(performance.now() * 0.005) * 3;
-        const signY = sy - 30 + bounce;
+        const signY = sy - 42 + bounce;
         ctx.fillStyle = "#FDE047";
         ctx.strokeStyle = "#78350F";
         ctx.lineWidth = 1.8;

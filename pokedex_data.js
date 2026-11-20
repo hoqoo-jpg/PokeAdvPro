@@ -202,7 +202,7 @@ Ember: {
     knockback: 14, isMelee: true, meleeStyle: "martial_fist", reqItem: "black_belt",
     evolvedName: "爆裂十字劈", color: "#B91C1C",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/black-belt.png",
-    desc: "高頻連續金色拳印，貼身壓制連打，升級增加揮拳數。",
+    desc: "單軸高速連環拳單點突破！前段快拳釘住目標，尾拳放大重擊貫穿，每級提升出拳距離！",
     evoDesc: "【終極超武】身周爆發阿修羅百裂拳網，並鎖定敵陣降下巨型白熾「X 十字天譴破甲斬」與 1.8s 武神霸體陣！"
   },
   AirSlash: {
@@ -762,6 +762,13 @@ const SpriteCache = {
   cache: new Map(),
   shinyCache: new Map(),
   silhouetteCache: new Map(),
+  // 釋放暫態離線剪影畫布，主動回收 iOS Safari GPU 顯存以防止第二局黑屏
+  clearVolatileCaches() {
+    this.silhouetteCache.forEach(can => {
+      try { can.width = 0; can.height = 0; } catch (e) {}
+    });
+    this.silhouetteCache.clear();
+  },
   getShiny(url) {
     const baseRec = this.get(url);
     if (!baseRec || !baseRec.loaded) return baseRec;

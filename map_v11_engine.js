@@ -480,6 +480,75 @@ const MapEngine = {
         this.spritePropCache.set(`cloud_shadow_${mode}_${idx}`, canCloud);
       });
     });
+
+    // 8. 【友好商店 GBA 像素預烘焙建築 (poke_mart_pixel 76x74)】火紅／葉綠藍頂白牆像素造型
+    const mw = 76, mh = 74;
+    const canMart = document.createElement("canvas");
+    canMart.width = mw; canMart.height = mh;
+    const cm = canMart.getContext("2d");
+
+    // 地面像素橢圓投影
+    fillPixelBlob(cm, 38, 62, 32, 9, "rgba(15, 23, 42, 0.42)");
+    // 建築物深色像素外廓與石磚基座
+    dot(cm, 8, 30, 60, 34, "#0F172A");
+    dot(cm, 10, 58, 56, 4, "#64748B");
+    dot(cm, 10, 60, 56, 2, "#475569");
+    // 米白像素外牆與橫向牆面紋理
+    dot(cm, 10, 32, 56, 26, "#F8FAFC");
+    dot(cm, 10, 38, 56, 2, "#E2E8F0");
+    dot(cm, 10, 44, 56, 2, "#E2E8F0");
+    // 屋簷投影陰影條
+    dot(cm, 10, 32, 56, 4, "#CBD5E1");
+
+    // 左側透明玻璃櫥窗（內含紅白精靈球與藥水貨架像素）
+    dot(cm, 14, 38, 22, 16, "#0F172A");
+    dot(cm, 16, 40, 18, 12, "#0284C7");
+    dot(cm, 16, 40, 18, 6, "#38BDF8");
+    // 櫥窗斜向反光與貨架彩色瓶罐
+    dot(cm, 18, 40, 4, 4, "#E0F2FE");
+    dot(cm, 22, 42, 2, 4, "#BAE6FD");
+    dot(cm, 18, 48, 4, 4, "#EF4444"); // 傷藥/精靈球紅
+    dot(cm, 24, 48, 4, 4, "#FACC15"); // 道具黃
+    dot(cm, 30, 48, 2, 4, "#4ADE80"); // 藥水綠
+
+    // 右側自動感應玻璃大門（雙扇藍白玻璃門＋門框）
+    dot(cm, 42, 38, 20, 22, "#0F172A");
+    dot(cm, 44, 40, 16, 20, "#0369A1");
+    dot(cm, 46, 42, 5, 16, "#7DD3FC");
+    dot(cm, 53, 42, 5, 16, "#38BDF8");
+    dot(cm, 46, 42, 2, 6, "#FFFFFF");
+    dot(cm, 53, 42, 2, 6, "#E0F2FE");
+    dot(cm, 51, 40, 2, 20, "#0F172A"); // 中央門縫
+
+    // GBA 經典寶藍階梯斜屋頂（深藍描邊 ＋ 藍瓦層次 ＋ 受光亮藍瓦脊）
+    for (let ry = 10; ry <= 32; ry += P) {
+      const prog = (ry - 10) / 22;
+      const halfSpan = Math.round((20 + prog * 16) / P) * P;
+      dot(cm, 38 - halfSpan - 2, ry, halfSpan * 2 + 4, P, "#0F172A");
+      dot(cm, 38 - halfSpan, ry, halfSpan * 2, P, (ry % 6 === 0) ? "#0369A1" : "#0284C7");
+      if (ry % 6 === 2) {
+        dot(cm, 38 - halfSpan + 4, ry, halfSpan * 2 - 8, P, "#38BDF8");
+      }
+    }
+    // 屋頂頂部亮青高光脊與深藍屋簷底邊
+    dot(cm, 20, 10, 36, 4, "#7DD3FC");
+    dot(cm, 4, 30, 68, 4, "#075985");
+
+    // 屋頂中央經典【MART】藍底白邊像素招牌
+    dot(cm, 20, 14, 36, 14, "#0F172A");
+    dot(cm, 22, 16, 32, 10, "#1D4ED8");
+    dot(cm, 22, 16, 32, 2, "#93C5FD");
+    // 像素字樣 "MART" (極簡 2px 點陣筆畫)
+    // M
+    dot(cm, 24, 18, 2, 6, "#FFFFFF"); dot(cm, 26, 20, 2, 2, "#FFFFFF"); dot(cm, 28, 18, 2, 6, "#FFFFFF");
+    // A
+    dot(cm, 32, 18, 6, 2, "#FFFFFF"); dot(cm, 32, 20, 2, 4, "#FFFFFF"); dot(cm, 36, 20, 2, 4, "#FFFFFF"); dot(cm, 34, 22, 2, 2, "#FFFFFF");
+    // R
+    dot(cm, 40, 18, 4, 2, "#FFFFFF"); dot(cm, 40, 20, 2, 4, "#FFFFFF"); dot(cm, 44, 20, 2, 2, "#FFFFFF"); dot(cm, 44, 22, 2, 2, "#FFFFFF");
+    // T
+    dot(cm, 48, 18, 6, 2, "#FFFFFF"); dot(cm, 50, 20, 2, 4, "#FFFFFF");
+
+    this.spritePropCache.set("poke_mart_pixel", canMart);
   },
 
   setStage(stageId) {

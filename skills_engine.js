@@ -764,48 +764,103 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 空手劈：方案 C 零物理位移 ＋ 鐵拳宗師特性加成 (範圍擴大 + 滿階額外多揮 1 道氣勁拳印)
-      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 12, 0);
-      const reach = 90 * areaScale * (1 + (trait.ironFistAreaBonus || 0));
-      const strikes = Math.min(4, 1 + Math.floor(level / 4) + (trait.ironFistExtraStrike || 0));
-      for (let s = 0; s < strikes; s++) {
-        const fAng = baseAngle + (s - (strikes - 1) / 2) * 0.28;
-        const fx = caster.x + Math.cos(fAng) * (24 + reach * 0.42);
-        const fy = caster.y + Math.sin(fAng) * (24 + reach * 0.42);
+      // 【空手劈・單點突破連環拳】：每級提升射程 ＋ 單軸高速交替快拳釘住目標 ＋ 終結重拳放大貫穿重擊
+      const reach = (92 + level * 6) * areaScale * (1 + (trait.ironFistAreaBonus || 0));
+      const baseHits = level >= 8 ? 4 : (level >= 4 ? 3 : 2);
+      const totalHits = Math.min(5, baseHits + (trait.ironFistExtraStrike || 0));
+      const dmgTable = {
+        2: [0.55, 1.05],
+        3: [0.45, 0.50, 1.00],
+        4: [0.42, 0.42, 0.48, 0.95],
+        5: [0.38, 0.38, 0.42, 0.46, 0.95]
+      };
+      const dmgMults = dmgTable[totalHits] || dmgTable[4];
+      const useManual = (caster === GameApp.player && GameApp.manualAimMode);
+      let curAng = baseAngle;
+
+      const firePunch = (hitIdx) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const isFinisher = (hitIdx === totalHits - 1);
+
+        // 自動瞄準模式下若原目標已陣亡，後續拳微調角度自動轉火鎖定射程內下一隻怪
+        if (!useManual && hitIdx > 0) {
+          const nextT = GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.15);
+          if (nextT) {
+            curAng = Math.atan2(nextT.y - caster.y, nextT.x - caster.x);
+          }
+        }
+
+        // 沿同一進攻軸線由近到遠梯次推進（第 1 拳貼身 0.45x ➔ 中段 ➔ 終結重拳 1.02x），左右僅 ±7px 交替直拳
+        const stepFrac = totalHits > 1 ? (hitIdx / (totalHits - 1)) : 1;
+        const distReach = 22 + reach * (0.42 + stepFrac * 0.58);
+        const perpAng = curAng + Math.PI / 2;
+        const sideOffset = isFinisher ? 0 : ((hitIdx % 2 === 0 ? -1 : 1) * 7);
+
+        const ox = caster.x + Math.cos(curAng) * 20 + Math.cos(perpAng) * (sideOffset * 0.6);
+        const oy = caster.y + Math.sin(curAng) * 20 + Math.sin(perpAng) * (sideOffset * 0.6);
+        const fx = caster.x + Math.cos(curAng) * distReach + Math.cos(perpAng) * sideOffset;
+        const fy = caster.y + Math.sin(curAng) * distReach + Math.sin(perpAng) * sideOffset;
+        const hitRad = Math.min(72, Math.max(36, reach * (isFinisher ? 0.48 : 0.36)));
+
+        this.triggerSmartMeleeLunge(caster, curAng, 0, 0, isFinisher ? 15 : 8, 0);
+        if (isFinisher && caster === GameApp.player) {
+          GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.06);
+          GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.4);
+        }
+
         this.meleeEffects.push({
           style: "karate_cross",
+          ox, oy,
           x: fx,
           y: fy,
-          angle: fAng,
-          radius: reach * 0.58,
-          timer: 0.28,
-          maxTime: 0.28,
-          color: "#EF4444"
+          angle: curAng,
+          radius: hitRad,
+          isFinisher,
+          timer: isFinisher ? 0.30 : 0.21,
+          maxTime: isFinisher ? 0.30 : 0.21,
+          color: isFinisher ? "#FACC15" : "#EF4444"
         });
-        // 拳風命中點放射狀飛濺赤金火星
-        for (let sp = 0; sp < 5; sp++) {
-          const spAng = fAng + (sp / 5) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-          const spSpd = 65 + Math.random() * 70;
+
+        const sparkNum = isFinisher ? 8 : 4;
+        for (let sp = 0; sp < sparkNum; sp++) {
+          const spAng = curAng + (Math.random() - 0.5) * (isFinisher ? 1.8 : 1.1);
+          const spSpd = (isFinisher ? 95 : 65) + Math.random() * 65;
           this.spawnSubParticle(
-            fx + Math.cos(spAng) * 10,
-            fy + Math.sin(spAng) * 10,
+            fx + Math.cos(spAng) * 6,
+            fy + Math.sin(spAng) * 6,
             Math.cos(spAng) * spSpd,
             Math.sin(spAng) * spSpd,
-            sp % 2 === 0 ? "#F97316" : "#FEF08A",
-            2.8 + Math.random() * 1.4,
-            0.26,
-            sp % 3 === 0 ? "star" : "diamond"
+            sp % 2 === 0 ? (isFinisher ? "#FEF08A" : "#F97316") : "#FFFFFF",
+            (isFinisher ? 3.4 : 2.6) + Math.random() * 1.2,
+            isFinisher ? 0.30 : 0.22,
+            sp % 2 === 0 ? "star" : "diamond"
           );
         }
-        const hitCandidates = this.getEnemiesInRadius(fx, fy, reach * 0.62);
+
+        // 前段快拳採極輕擊退把目標釘在拳程內吃滿連招，終結重拳才轟出強擊退＋額外 +20% 暴擊率
+        const punchKb = isFinisher ? (kb * 1.55) : Math.min(4, kb * 0.25);
+        const punchDmg = rawDmg * (dmgMults[hitIdx] || 0.50);
+        const extraCrit = isFinisher ? 0.20 : 0;
+        const hitCandidates = this.getEnemiesInRadius(fx, fy, hitRad * 1.08);
         hitCandidates.forEach(e => {
-          if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.62 + e.radius) {
-            GameApp.dealDamageToEnemy(e, rawDmg * 1.25, meta.type, 0.30, kb * 1.35);
+          if (Math.hypot(e.x - fx, e.y - fy) <= hitRad * 1.08 + e.radius) {
+            GameApp.dealDamageToEnemy(e, punchDmg, meta.type, isFinisher ? 0.35 : 0.15, punchKb, extraCrit);
           }
         });
+
+        if (isFinisher) {
+          GameApp.spawnParticleCluster(fx, fy, "#FFFFFF", "#FACC15", 8, "star", 1.05);
+        }
+        SoundFX.play("hit", "Fighting");
+      };
+
+      firePunch(0);
+      let accDelay = 0;
+      for (let h = 1; h < totalHits; h++) {
+        const isLast = (h === totalHits - 1);
+        accDelay += isLast ? 90 : 65;
+        setTimeout(() => firePunch(h), accDelay);
       }
-      GameApp.spawnParticleCluster(caster.x + Math.cos(baseAngle) * 26, caster.y + Math.sin(baseAngle) * 26, "#FFFFFF", "#FACC15", 8, "star", 0.9);
-      SoundFX.play("hit", "Fighting");
       return;
     }
 
@@ -4029,19 +4084,44 @@ const SkillsEngine = {
 
         ctx.restore();
       } else if (m.style === "karate_cross") {
-        // 【空手劈（方案 B：武道拳風印 ＋ 雙層爆裂衝擊環）】：厚重赤金烈焰拳印剪影 ＋ 急劇擴散雙層白熾氣浪環
-        const msx = toSx(m.x), msy = toSy(m.y);
-        const baseR = Math.min(46, Math.max(28, m.radius * 0.76));
+        // 【空手劈・單點突破連環拳】：拳氣前衝推進動畫 ＋ 放寬視覺上限 (64px) ＋ 終結重拳雙層純白音爆環
+        const burstT = Math.min(1, prog / 0.38);
+        const thrustEase = 1 - Math.pow(1 - burstT, 3);
+        const curWx = m.ox !== undefined ? (m.ox + (m.x - m.ox) * thrustEase) : m.x;
+        const curWy = m.oy !== undefined ? (m.oy + (m.y - m.oy) * thrustEase) : m.y;
+        const msx = toSx(curWx), msy = toSy(curWy);
+        const isFin = !!m.isFinisher;
+        const baseR = Math.min(isFin ? 64 : 52, Math.max(isFin ? 34 : 26, m.radius * (isFin ? 0.92 : 0.78)));
         const fade = Math.max(0, 1 - prog * 0.85);
-        const popScale = 0.76 + Math.sin(Math.min(1, prog * 2.2) * Math.PI * 0.5) * 0.30;
+        const popScale = (isFin ? 0.86 : 0.76) + Math.sin(Math.min(1, prog * 2.4) * Math.PI * 0.5) * (isFin ? 0.36 : 0.26);
 
         ctx.save();
+        // 推進氣勁殘影拖尾線（從出拳起點連至拳印中心）
+        if (m.ox !== undefined && prog < 0.75) {
+          const osx = toSx(m.ox), osy = toSy(m.oy);
+          ctx.globalAlpha = fade * (isFin ? 0.78 : 0.55);
+          ctx.strokeStyle = isFin ? "#FEF08A" : "#F97316";
+          ctx.lineWidth = isFin ? 7.5 * (1 - prog * 0.6) : 4.5 * (1 - prog * 0.6);
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(osx, osy);
+          ctx.lineTo(msx, msy);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = isFin ? 3.2 * (1 - prog * 0.6) : 1.8 * (1 - prog * 0.6);
+          ctx.beginPath();
+          ctx.moveTo(osx, osy);
+          ctx.lineTo(msx, msy);
+          ctx.stroke();
+        }
+
         ctx.translate(msx, msy);
         ctx.globalAlpha = fade;
 
-        // 1. 雙層急劇擴散的白金衝擊波環（零 shadowBlur，採雙層疊描營造氣浪厚度）
-        const outerR = baseR * (0.58 + prog * 0.54);
-        const innerR = baseR * (0.36 + prog * 0.40);
+        // 1. 急劇擴散的白金衝擊波環（終結重拳額外擴大 1.18x 強化貫穿音爆感）
+        const outerR = baseR * (isFin ? (0.64 + prog * 0.68) : (0.52 + prog * 0.48));
+        const innerR = baseR * (isFin ? (0.40 + prog * 0.50) : (0.34 + prog * 0.36));
 
         ctx.strokeStyle = "rgba(254, 240, 138, 0.72)";
         ctx.lineWidth = Math.max(1.5, 5.2 * (1 - prog * 0.55));

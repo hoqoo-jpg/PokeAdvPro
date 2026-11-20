@@ -1891,6 +1891,14 @@ Object.assign(window.GameApp, {
 
   quitToTitle() {
     this.saveToStorage();
+    this.evoSequence = null;
+    this._pendingEvolutionTarget = null;
+    this._pauseFrameRendered = false;
+    clearTimeout(this._cutInHideTimer);
+    clearTimeout(this._bannerTimeout);
+    if (typeof SpriteCache !== "undefined" && SpriteCache.clearVolatileCaches) {
+      SpriteCache.clearVolatileCaches();
+    }
     SoundFX.startBgm("lobby");
     ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "cutInLayer", "setupModal"].forEach(mId => {
       const el = document.getElementById(mId);
