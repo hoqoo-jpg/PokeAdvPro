@@ -705,10 +705,25 @@ const SkillsEngine = {
           y: fy,
           angle: fAng,
           radius: reach * 0.58,
-          timer: 0.24,
-          maxTime: 0.24,
+          timer: 0.28,
+          maxTime: 0.28,
           color: "#EF4444"
         });
+        // 拳風命中點放射狀飛濺赤金火星
+        for (let sp = 0; sp < 5; sp++) {
+          const spAng = fAng + (sp / 5) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+          const spSpd = 65 + Math.random() * 70;
+          this.spawnSubParticle(
+            fx + Math.cos(spAng) * 10,
+            fy + Math.sin(spAng) * 10,
+            Math.cos(spAng) * spSpd,
+            Math.sin(spAng) * spSpd,
+            sp % 2 === 0 ? "#F97316" : "#FEF08A",
+            2.8 + Math.random() * 1.4,
+            0.26,
+            sp % 3 === 0 ? "star" : "diamond"
+          );
+        }
         const hitCandidates = this.getEnemiesInRadius(fx, fy, reach * 0.62);
         hitCandidates.forEach(e => {
           if (Math.hypot(e.x - fx, e.y - fy) <= reach * 0.62 + e.radius) {
@@ -3874,52 +3889,114 @@ const SkillsEngine = {
 
         ctx.restore();
       } else if (m.style === "karate_cross") {
-        // 【空手劈】：底層金紅手刀／拳風弧形衝擊輪廓 ＋ 剛猛 X 型白熾十字氣勁斬痕
+        // 【空手劈（方案 B：武道拳風印 ＋ 雙層爆裂衝擊環）】：厚重赤金烈焰拳印剪影 ＋ 急劇擴散雙層白熾氣浪環
         const msx = toSx(m.x), msy = toSy(m.y);
-        const r = m.radius * (0.55 + prog * 0.55);
+        const baseR = Math.min(46, Math.max(28, m.radius * 0.76));
+        const fade = Math.max(0, 1 - prog * 0.85);
+        const popScale = 0.76 + Math.sin(Math.min(1, prog * 2.2) * Math.PI * 0.5) * 0.30;
+
         ctx.save();
         ctx.translate(msx, msy);
-        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = fade;
 
-        // 底層武道手刀／拳風弧形衝擊波（建立格鬥系肉搏厚重感）
-        const fistArcR = r * 1.08;
-        ctx.fillStyle = "rgba(185, 28, 28, 0.48)";
-        ctx.strokeStyle = "rgba(250, 204, 21, 0.85)";
-        ctx.lineWidth = 2.4;
+        // 1. 雙層急劇擴散的白金衝擊波環（零 shadowBlur，採雙層疊描營造氣浪厚度）
+        const outerR = baseR * (0.58 + prog * 0.54);
+        const innerR = baseR * (0.36 + prog * 0.40);
+
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.72)";
+        ctx.lineWidth = Math.max(1.5, 5.2 * (1 - prog * 0.55));
         ctx.beginPath();
-        ctx.arc(-r * 0.22, 0, fistArcR, -0.95, 0.95);
-        ctx.arc(-r * 0.48, 0, fistArcR * 0.72, 0.95, -0.95, true);
+        ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+        ctx.lineWidth = Math.max(1.0, 2.4 * (1 - prog * 0.55));
+        ctx.beginPath();
+        ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.84)";
+        ctx.lineWidth = Math.max(1.0, 3.0 * (1 - prog * 0.50));
+        ctx.beginPath();
+        ctx.arc(0, 0, innerR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 2. 沿出拳方向旋轉並彈出「赤金烈焰武道拳印」
+        ctx.save();
+        ctx.rotate((m.angle || 0) + Math.PI * 0.5);
+        ctx.scale(popScale, popScale);
+        const f = baseR * 0.42;
+
+        // 拳印後方拖曳的烈焰氣焰與 3 道殘影尾舌
+        ctx.fillStyle = "rgba(234, 88, 12, 0.88)";
+        ctx.beginPath();
+        ctx.moveTo(-f * 0.95, f * 0.25);
+        ctx.quadraticCurveTo(-f * 1.15, -f * 0.65, -f * 0.42, -f * 1.18);
+        ctx.quadraticCurveTo(0, -f * 1.52, f * 0.45, -f * 1.15);
+        ctx.quadraticCurveTo(f * 1.15, -f * 0.60, f * 0.92, f * 0.30);
+        ctx.lineTo(f * 0.55, f * 1.38);
+        ctx.lineTo(f * 0.15, f * 0.92);
+        ctx.lineTo(-f * 0.12, f * 1.52);
+        ctx.lineTo(-f * 0.45, f * 0.96);
+        ctx.lineTo(-f * 0.82, f * 1.25);
         ctx.closePath();
+        ctx.fill();
+
+        // 內層耀金烈焰光暈邊緣
+        ctx.fillStyle = "#FACC15";
+        ctx.beginPath();
+        ctx.moveTo(-f * 0.78, f * 0.18);
+        ctx.quadraticCurveTo(-f * 0.92, -f * 0.52, -f * 0.32, -f * 0.96);
+        ctx.quadraticCurveTo(0, -f * 1.22, f * 0.35, -f * 0.94);
+        ctx.quadraticCurveTo(f * 0.92, -f * 0.48, f * 0.75, f * 0.20);
+        ctx.lineTo(f * 0.32, f * 0.88);
+        ctx.lineTo(-f * 0.32, f * 0.88);
+        ctx.closePath();
+        ctx.fill();
+
+        // 3. 立體緊握武道重拳剪影（深褐像素描邊 ＋ 赤紅拳體 ＋ 四指節凸起 ＋ 橫握拇指）
+        ctx.fillStyle = "#991B1B";
+        ctx.strokeStyle = "#450A0A";
+        ctx.lineWidth = 2.0;
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.roundRect(-f * 0.64, -f * 0.68, f * 1.28, f * 1.22, f * 0.28);
         ctx.fill();
         ctx.stroke();
 
-        // 拳風前緣白熾衝擊弧線
-        ctx.strokeStyle = "rgba(254, 240, 138, 0.90)";
-        ctx.lineWidth = 2.0 * (1 - prog * 0.4);
+        // 拳背受光亮面
+        ctx.fillStyle = "#DC2626";
         ctx.beginPath();
-        ctx.arc(-r * 0.16, 0, fistArcR * 0.94, -0.78, 0.78);
+        ctx.roundRect(-f * 0.52, -f * 0.54, f * 1.04, f * 0.76, f * 0.20);
+        ctx.fill();
+
+        // 四顆凸起指節與指縫陰影
+        ctx.fillStyle = "#EF4444";
+        ctx.strokeStyle = "#450A0A";
+        ctx.lineWidth = 1.4;
+        for (let k = 0; k < 4; k++) {
+          const kx = -f * 0.56 + k * (f * 0.29);
+          const ky = -f * 0.72 + (k === 0 || k === 3 ? f * 0.08 : 0);
+          ctx.beginPath();
+          ctx.roundRect(kx, ky, f * 0.27, f * 0.44, f * 0.10);
+          ctx.fill();
+          ctx.stroke();
+        }
+
+        // 橫扣於前方的拇指與金白高光點
+        ctx.fillStyle = "#B91C1C";
+        ctx.beginPath();
+        ctx.roundRect(-f * 0.72, -f * 0.14, f * 0.74, f * 0.36, f * 0.14);
+        ctx.fill();
         ctx.stroke();
 
-        // 兩道交錯的 X 型氣勁斬痕
-        [-0.75, 0.75].forEach(rot => {
-          ctx.save();
-          ctx.rotate(rot);
-          ctx.fillStyle = "#7F1D1D";
-          ctx.beginPath();
-          ctx.ellipse(0, 0, r * 1.15, 6.5 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
-          ctx.fill();
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath();
+        ctx.arc(-f * 0.12, -f * 0.56, f * 0.10, 0, Math.PI * 2);
+        ctx.arc(f * 0.18, -f * 0.56, f * 0.10, 0, Math.PI * 2);
+        ctx.fill();
 
-          ctx.fillStyle = "#FACC15";
-          ctx.beginPath();
-          ctx.ellipse(0, 0, r * 1.05, 4.2 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.ellipse(0, 0, r * 0.85, 2.0 * (1 - prog * 0.5), 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        });
+        ctx.restore();
         ctx.restore();
       } else if (m.style === "sonic_cone") {
         // 【撞擊（Tackle）・一體化貼身破空衝鋒風罩】：動態鎖定精靈前撲本體，緊貼鼻尖包覆身體兩側，徹底消除空殼分離感！

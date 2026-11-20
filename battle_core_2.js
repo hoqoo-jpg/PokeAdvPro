@@ -4872,8 +4872,15 @@ window.GameApp = {
     if (this.enemies && this.enemies.length > 100 && color === "#FFFFFF" && size <= 12 && Math.random() < 0.70) {
       return; // 百怪同屏高壓節流：過濾部分普通白字微傷，大幅減少 iOS Canvas strokeText 開銷
     }
+    // 簡易垂直防重疊偏移：避免訓練家受創與傷害數字疊在同一行
+    let adjY = y;
+    for (let pass = 0; pass < 3; pass++) {
+      const clash = this.floatingTexts.some(ft => Math.abs(ft.x - x) < 58 && Math.abs(ft.y - adjY) < 16);
+      if (!clash) break;
+      adjY -= 16;
+    }
     if (this.floatingTexts.length > 32) this.floatingTexts.shift();
-    this.floatingTexts.push({ x, y, text, color, size, life: 0.72 });
+    this.floatingTexts.push({ x, y: adjY, text, color, size, life: 0.72 });
   },
 
   showCutsceneBanner(title, subtitle, duration = 2600) {
