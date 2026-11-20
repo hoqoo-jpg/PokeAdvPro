@@ -896,6 +896,7 @@ window.GameApp = {
       facingY: 1,
       walkBob: 0,
       sprite: tr.sprite,
+      walkSheet: tr.walkSheet || null,
       sprites: tr.sprites || null,
       name: tr.name,
       pixelColors: tr.pixelColors,
@@ -4915,8 +4916,8 @@ window.GameApp = {
     this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
   },
 
-  // 零 ctx.filter ＆ 零管線阻塞剪影閃白渲染器：直接讀取 SpriteCache 預烘焙剪影，百怪同屏受創 0 clearRect 開銷！
-  drawSilhouetteFlash(ctx, img, x, y, w, h, color = "#FFFFFF", alpha = 0.72) {
+  // 零 ctx.filter ＆ 零管線阻塞剪影閃白渲染器：直接讀取 SpriteCache 預烘焙剪影，支援整張圖或精靈圖集單格裁切
+  drawSilhouetteFlash(ctx, img, x, y, w, h, color = "#FFFFFF", alpha = 0.72, sx = 0, sy = 0, sw = 0, sh = 0) {
     if (!img) return;
     const silCan = (typeof SpriteCache !== "undefined" && SpriteCache.getSilhouette)
       ? SpriteCache.getSilhouette(img, color)
@@ -4924,7 +4925,15 @@ window.GameApp = {
     if (!silCan) return;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.drawImage(silCan, 0, 0, silCan.width, silCan.height, x, y, w, h);
+    if (sw > 0 && sh > 0) {
+      const iw = img.naturalWidth || img.width || silCan.width;
+      const ih = img.naturalHeight || img.height || silCan.height;
+      const scaleX = silCan.width / iw;
+      const scaleY = silCan.height / ih;
+      ctx.drawImage(silCan, sx * scaleX, sy * scaleY, sw * scaleX, sh * scaleY, x, y, w, h);
+    } else {
+      ctx.drawImage(silCan, 0, 0, silCan.width, silCan.height, x, y, w, h);
+    }
     ctx.restore();
   },
 
@@ -5425,7 +5434,7 @@ window.GameApp = {
       ctx.fillRect(-halfWidth + 5, cutY + 1, halfWidth * 2 - 10, 2);
     };
 
-    // 定義各類實體的精確繪製函數（訓練員單張 PNG 程序化步態：腳底支點擺動 + 腰部分層下肢錯切 + 落地微塵）
+    // 定義各類實體的精確繪製函數（優先使用 GBA 3x4 行走精靈圖集 walkSheet，無圖集時自動降級至單張圖程序化步態）
     const drawTrainerEntity = () => {
       const tc = this.trainerCompanion;
       const tsx = toSx(tc.x), tsy = toSy(tc.y);
@@ -5434,6 +5443,56 @@ window.GameApp = {
       const tInWater = tTerrain.inWater && !tc.isJumpingLedge;
       const tInGrass = tTerrain.label.includes("草叢") && !tc.isJumpingLedge;
 
+      const sheetRec = tc.walkSheet ? SpriteCache.get(tc.walkSheet) : null;
+      if (sheetRec && sheetRec.loaded) {
+        const img = sheetRec.img;
+        const cellW = (img.naturalWidth || img.width || 384) / 3;
+        const cellH = (img.naturalHeight || img.height || 512) / 4;
+
+        // 3x4 格排列：Row 0=下(DOWN), 1=左(LEFT), 2=右(RIGHT), 3=上(UP)
+        let row = 0;
+        if (tc.facingY < 0) row = 3;
+        else if (tc.facingY > 0) row = 0;
+        else if (tc.facingX < 0) row = 1;
+        else if (tc.facingX > 0) row = 2;
+
+        // GBA 經典 4 拍 3 幀步態循環：站立(1) -> 左步(0) -> 站立(1) -> 右步(2)
+        const col = isMoving ? [1, 0, 1, 2][Math.floor(tc.walkBob * 0.52) % 4] : 1;
+        const sx = col * cellW;
+        const sy = row * cellH;
+        const drawW = 56, drawH = 56;
+
+        ctx.save();
+        ctx.imageSmoothingEnabled = false;
+
+        if (tInWater) {
+          const waterBob = isMoving ? Math.abs(Math.sin(tc.walkBob)) * 1.2 : 0;
+          ctx.translate(tsx, tsy - waterBob + (tc.jumpY || 0) + 14);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(-28, -32, 56, 37);
+          ctx.clip();
+          ctx.drawImage(img, sx, sy, cellW, cellH, -28, -32, drawW, drawH);
+          if (tc.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, img, -28, -32, drawW, drawH, "#FF6B4A", 0.70, sx, sy, cellW, cellH);
+          }
+          ctx.restore();
+          drawPixelWaterlineFoam(5, 17, 1.2);
+        } else {
+          ctx.translate(tsx, tsy + 20 + (tc.jumpY || 0));
+          ctx.drawImage(img, sx, sy, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
+          if (tc.whiteFlashTimer > 0) {
+            this.drawSilhouetteFlash(ctx, img, -drawW / 2, -drawH, drawW, drawH, "#FF6B4A", 0.70, sx, sy, cellW, cellH);
+          }
+          if (tInGrass) {
+            drawPixelGrassOverlay(tc.x, tc.y, 2, [-12, 0, 12]);
+          }
+        }
+        ctx.restore();
+        return;
+      }
+
+      // 降級備援：單張 PNG 程序化步態
       const phase = tc.walkBob;
       const stepSin = isMoving ? Math.sin(phase) : 0;
       const stepAbs = isMoving ? Math.abs(stepSin) : 0;
@@ -5479,19 +5538,17 @@ window.GameApp = {
           ctx.restore();
           drawPixelWaterlineFoam(5, 17, 1.2);
         } else {
-          // 1. 支點移至腳底 (tsy + 20)，讓雙腳貼地、上半身隨步伐自然左右擺動
           ctx.translate(tsx, tsy + 20 - bob + (tc.jumpY || 0));
           ctx.scale(needFlip ? -1 : 1, 1);
 
           const drawW = 56, drawH = 56;
-          const splitRatio = 0.68; // 腰部切分點 (上 68% 軀幹與頭，下 32% 雙腿)
+          const splitRatio = 0.68;
           const srcTopH = Math.round(srcH * splitRatio);
           const srcBotH = srcH - srcTopH;
           const dstTopH = drawH * splitRatio;
           const dstBotH = drawH - dstTopH;
-          const topY = -drawH; // 腳底為 y=0，頭頂為 y=-56
+          const topY = -drawH;
 
-          // 2. 下半身（雙腿）：以腰部為界做輕微水平步態錯切 (Leg Shear)，營造真實跨步感
           const legSkew = isMoving ? stepSin * 0.14 : 0;
           const legLift = isMoving ? -stepAbs * 1.1 : 0;
           ctx.save();
@@ -5500,7 +5557,6 @@ window.GameApp = {
           ctx.drawImage(img, 0, srcTopH, srcW, srcBotH, -drawW / 2, 0, drawW, dstBotH);
           ctx.restore();
 
-          // 3. 上半身（軀幹與頭部）：以腳底為支點微幅左右搖擺與輕微呼吸起伏
           ctx.save();
           if (footTilt !== 0) ctx.rotate(footTilt);
           ctx.scale(squashX, squashY);

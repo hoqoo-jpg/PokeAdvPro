@@ -114,6 +114,7 @@ Object.assign(window.GameApp, {
     if (typeof TRAINERS !== "undefined") {
       TRAINERS.forEach(t => {
         if (t.sprite) priorityUrls.add(t.sprite);
+        if (t.walkSheet) priorityUrls.add(t.walkSheet);
         if (t.sprites) Object.values(t.sprites).forEach(u => { if (u) priorityUrls.add(u); });
         if (t.cutin) priorityUrls.add(t.cutin);
       });
