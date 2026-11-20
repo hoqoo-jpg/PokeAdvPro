@@ -5981,52 +5981,36 @@ window.GameApp = {
     ctx.save();
     SkillsEngine.renderAerialLayer(ctx, toSx, toSy);
 
-    // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形 + v6.6 零開銷高對比危險描邊 Danger Rim)
-    const rimPulseNow = performance.now() * 0.012;
+    // 繪製敵方動態飛行道具 (方案 A：全彈種貼合幾何輪廓高對比暗紅／洋紅厚描邊，零 shadowBlur 開銷)
     this.enemyProjectiles.forEach(ep => {
       const esx = toSx(ep.x), esy = toSy(ep.y);
       if (esx < -28 || esx > this.width + 28 || esy < -28 || esy > this.height + 28) return;
 
       ctx.save();
       ctx.translate(esx, esy);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
       const r = ep.radius;
 
-      // 威脅等級分流：精英與 Boss 致命彈幕附帶動態呼吸洋紅／赤紅警戒圈，一般遠程怪附帶穩定暗紅外框
+      // 威脅等級分流：精英／Boss 致命彈幕採用加粗洋紅警戒輪廓，一般遠程怪採用俐落暗紅輪廓
       const isHighThreat = ep.isHighThreat || ep.homing || ep.isSuction || ep.canSplit ||
         ["frost_lance", "storm_orb", "fire_blast_orb", "psychic_core", "rainbow_star", "fire_spark"].includes(ep.vfx);
-      if (isHighThreat) {
-        const pulse = Math.sin(rimPulseNow + ep.x * 0.05) * 1.4;
-        ctx.strokeStyle = "#F43F5E";
-        ctx.lineWidth = 2.8;
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 3.5 + pulse, 0, Math.PI * 2);
-        ctx.stroke();
+      const dangerColor = isHighThreat ? "#F43F5E" : "#DC2626";
+      const outerRimW = isHighThreat ? 6.0 : 4.6;
+      const innerIsoW = isHighThreat ? 2.6 : 2.0;
 
+      const strokeFittedRim = () => {
+        ctx.strokeStyle = dangerColor;
+        ctx.lineWidth = outerRimW;
+        ctx.stroke();
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 1.3, 0, Math.PI * 2);
+        ctx.lineWidth = innerIsoW;
         ctx.stroke();
-      } else {
-        ctx.strokeStyle = "#DC2626";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 2.0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.90)";
-        ctx.lineWidth = 1.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, r + 0.6, 0, Math.PI * 2);
-        ctx.stroke();
-      }
+      };
 
       if (ep.vfx === "swift_star") {
-        // 旋轉金黃星芒
+        // 旋轉金黃星芒（貼合五芒星輪廓）
         ctx.rotate(ep.rot * 2);
-        ctx.fillStyle = ep.color;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 1.6;
         ctx.beginPath();
         for (let s = 0; s < 5; s++) {
           const a1 = (s * Math.PI * 2) / 5 - Math.PI / 2;
@@ -6036,124 +6020,133 @@ window.GameApp = {
           ctx.lineTo(Math.cos(a2) * (r * 0.55), Math.sin(a2) * (r * 0.55));
         }
         ctx.closePath();
+        strokeFittedRim();
+        ctx.fillStyle = ep.color;
         ctx.fill();
-        ctx.stroke();
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
         ctx.fill();
       } else if (ep.vfx === "leaf_bullet") {
-        // 旋轉翠綠飛葉
+        // 旋轉翠綠飛葉（貼合葉片輪廓）
         ctx.rotate(ep.angle || ep.rot);
-        ctx.fillStyle = ep.color;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.ellipse(0, 0, r * 1.4, r * 0.65, 0, 0, Math.PI * 2);
+        strokeFittedRim();
+        ctx.fillStyle = ep.color;
         ctx.fill();
-        ctx.stroke();
         ctx.strokeStyle = "#86EFAC";
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.moveTo(-r * 1.1, 0); ctx.lineTo(r * 1.1, 0);
         ctx.stroke();
       } else if (ep.vfx === "wind_bullet") {
-        // 月牙風刃
+        // 月牙風刃（貼合月牙輪廓）
         ctx.rotate(ep.angle || ep.rot);
-        ctx.fillStyle = ep.color;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.arc(0, 0, r * 1.2, -1.2, 1.2);
         ctx.arc(r * 0.5, 0, r * 0.9, 1.2, -1.2, true);
         ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-      } else if (ep.vfx === "water_drop") {
-        // 水滴彈頭
-        ctx.rotate(ep.angle || ep.rot);
+        strokeFittedRim();
         ctx.fillStyle = ep.color;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 1.6;
+        ctx.fill();
+      } else if (ep.vfx === "water_drop") {
+        // 水滴彈頭（貼合箭鏃水滴輪廓）
+        ctx.rotate(ep.angle || ep.rot);
         ctx.beginPath();
         ctx.moveTo(r * 1.3, 0);
         ctx.lineTo(-r * 0.8, -r * 0.7);
         ctx.lineTo(-r * 0.4, 0);
         ctx.lineTo(-r * 0.8, r * 0.7);
         ctx.closePath();
+        strokeFittedRim();
+        ctx.fillStyle = ep.color;
         ctx.fill();
-        ctx.stroke();
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2);
         ctx.fill();
       } else if (ep.vfx === "frost_lance") {
-        // 急凍鳥：高速三叉尖銳冰錐
+        // 急凍鳥：高速三叉尖銳冰錐（貼合尖錐輪廓）
         ctx.rotate(ep.angle);
-        ctx.fillStyle = "#38BDF8";
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 1.6;
         ctx.beginPath();
         ctx.moveTo(r * 1.6, 0); ctx.lineTo(-r * 0.8, -r * 0.6); ctx.lineTo(-r * 0.3, 0); ctx.lineTo(-r * 0.8, r * 0.6);
         ctx.closePath();
-        ctx.fill(); ctx.stroke();
+        strokeFittedRim();
+        ctx.fillStyle = "#38BDF8";
+        ctx.fill();
+        ctx.fillStyle = "#E0F2FE";
+        ctx.beginPath();
+        ctx.moveTo(r * 1.2, 0); ctx.lineTo(-r * 0.35, -r * 0.25); ctx.lineTo(-r * 0.35, r * 0.25);
+        ctx.closePath();
+        ctx.fill();
       } else if (ep.vfx === "storm_orb") {
         // 閃電鳥：旋轉追蹤電磁核
         ctx.rotate(ep.rot * 3);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+        strokeFittedRim();
         ctx.fillStyle = "#FACC15";
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2.2; ctx.stroke();
-        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.stroke();
+        ctx.fill();
+        ctx.strokeStyle = "#FEF08A"; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(0, 0, r * 0.58, 0, Math.PI * 2); ctx.stroke();
       } else if (ep.vfx === "fire_blast_orb") {
         // 火焰鳥：大字炎巨彈
         ctx.rotate(ep.rot * 2);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+        strokeFittedRim();
         ctx.fillStyle = "#EF4444";
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fill();
         ctx.fillStyle = "#FDE047";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.6, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#7F1D1D"; ctx.lineWidth = 1.8; ctx.stroke();
       } else if (ep.vfx === "fire_spark") {
-        // 大字炎分裂小火星
+        // 大字炎分裂小火星（貼合旋轉方塊輪廓）
         ctx.rotate(ep.rot * 4);
+        ctx.beginPath();
+        ctx.rect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        strokeFittedRim();
         ctx.fillStyle = "#F97316";
-        ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        ctx.fill();
         ctx.fillStyle = "#FEF08A";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
       } else if (ep.vfx === "psychic_core") {
         // 超夢：暗影引力黑核
         ctx.rotate(-ep.rot);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+        strokeFittedRim();
         ctx.fillStyle = "#581C87";
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#C084FC"; ctx.lineWidth = 3.0; ctx.stroke();
+        ctx.fill();
+        ctx.strokeStyle = "#C084FC"; ctx.lineWidth = 2.0; ctx.stroke();
         ctx.fillStyle = "#F3E8FF";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.35, 0, Math.PI * 2); ctx.fill();
       } else if (ep.vfx === "rainbow_star") {
-        // 夢幻：五色彩虹星芒
+        // 夢幻：五色彩虹星芒（貼合旋轉方塊輪廓）
         ctx.rotate(ep.rot * 4);
+        ctx.beginPath();
+        ctx.rect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        strokeFittedRim();
         ctx.fillStyle = ep.color || "#EC4899";
-        ctx.fillRect(-r * 0.6, -r * 0.6, r * 1.2, r * 1.2);
+        ctx.fill();
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2); ctx.fill();
       } else if (ep.vfx === "psy_wave") {
         // 超能精神衝擊波：旋轉雙層同心光環
         ctx.rotate(ep.rot * 3);
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+        strokeFittedRim();
         ctx.strokeStyle = ep.color || "#C084FC";
         ctx.lineWidth = 2.2;
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.stroke();
+        ctx.stroke();
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.arc(0, 0, r * 0.5, 0, Math.PI * 2); ctx.stroke();
       } else {
         // 毒氣/能量球：外溢光環與白色高光核心
         ctx.rotate(ep.rot);
-        ctx.fillStyle = ep.color;
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
+        strokeFittedRim();
+        ctx.fillStyle = ep.color;
         ctx.fill();
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 1.6;
-        ctx.stroke();
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
         ctx.arc(r * 0.2, -r * 0.2, r * 0.35, 0, Math.PI * 2);

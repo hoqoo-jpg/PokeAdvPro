@@ -887,6 +887,21 @@ const SkillsEngine = {
       // 【天命百寶袋（揮指功超武）】：隨機抽取 3 種不同屬性超武錯峰同時轟炸全場！
       const ultPool = ["Thunderbolt", "Flamethrower", "Hydro Pump", "Seed Bomb", "Ice Beam", "Dragon Rush", "Shadow Ball", "Moonblast"];
       const shuffled = [...ultPool].sort(() => Math.random() - 0.5).slice(0, 3);
+      const rolledColors = shuffled.map(id => {
+        const m = SKILLS_CATALOG[id];
+        return (m && m.color) ? m.color : "#FACC15";
+      });
+      this.meleeEffects.push({
+        style: "metronome_wheel",
+        casterRef: p,
+        x: p.x,
+        y: p.y - 36,
+        radius: 26,
+        rolledColors,
+        timer: 0.42,
+        maxTime: 0.42,
+        color: "#FACC15"
+      });
       shuffled.forEach((pickId, idx) => {
         const pickMeta = SKILLS_CATALOG[pickId];
         if (pickMeta) {
@@ -1805,7 +1820,16 @@ const SkillsEngine = {
         hz.tickTimer = hz.tickInterval || 0.4;
 
         if (hz.kind === "ice_shatter_domain") {
-          // 絕對零度二段破冰巨爆
+          // 絕對零度二段破冰巨爆 ＋ 高空折射冰稜裂紋閃光
+          this.meleeEffects.push({
+            style: "ice_shatter_flash",
+            x: hz.x,
+            y: hz.y,
+            radius: hz.radius * 0.92,
+            timer: 0.38,
+            maxTime: 0.38,
+            color: "#67E8F9"
+          });
           for (let k = 0; k < 24; k++) {
             const a = Math.random() * Math.PI * 2;
             const spd = 60 + Math.random() * 140;
@@ -1819,6 +1843,17 @@ const SkillsEngine = {
           });
           SoundFX.play("ultimate");
         } else {
+          if (hz.kind === "psy_delayed_blast") {
+            this.meleeEffects.push({
+              style: "psy_collapse_star",
+              x: hz.x,
+              y: hz.y,
+              radius: Math.min(34, hz.radius * 0.58),
+              timer: 0.24,
+              maxTime: 0.24,
+              color: "#EC4899"
+            });
+          }
           const nowMs = performance.now();
           const hzCandidates = [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)];
           hzCandidates.forEach(e => {
@@ -2507,6 +2542,21 @@ const SkillsEngine = {
           ctx.stroke();
           ctx.restore();
         }
+
+        // 4. 配合空中飛石的地面動態縮放暗影（隨拋物線高度縮小淡化，建立清晰 Z 軸景深）
+        for (let b = 0; b < 7; b++) {
+          const bAng = (b * Math.PI * 2) / 7 + 0.35;
+          const bCycle = (prog * 1.8 + b * 0.23) % 1.0;
+          const lift = Math.sin(bCycle * Math.PI);
+          const distR = curR * (0.34 + (b % 3) * 0.21) + bCycle * 18;
+          const shX = Math.cos(bAng) * distR;
+          const shY = Math.sin(bAng) * distR;
+          const shScale = Math.max(0.35, 1.0 - lift * 0.58);
+          ctx.fillStyle = `rgba(15, 23, 42, ${0.42 * shScale})`;
+          ctx.beginPath();
+          ctx.ellipse(shX, shY + 4, 13 * shScale, 6 * shScale, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (hz.kind === "ice_shatter_domain") {
         // 【絕對零度（融合 V10 急凍鳥雙向極光幔帳 ＋ 內6外8雙排立體折射冰稜矩陣）】
         ctx.translate(sx, sy);
@@ -2683,6 +2733,18 @@ const SkillsEngine = {
           ctx.stroke();
           ctx.restore();
         }
+
+        // 4. 地面暗影投影（對應高空反重力懸浮碎石與次元鏡面，拉開空間高度差）
+        for (let s = 0; s < 7; s++) {
+          const orbAng = -spin * 0.45 + (s * Math.PI * 2) / 7;
+          const orbR = Math.max(54, curR * (0.48 + (s % 3) * 0.17));
+          const shX = Math.cos(orbAng) * orbR;
+          const shY = Math.sin(orbAng) * orbR;
+          ctx.fillStyle = "rgba(15, 7, 32, 0.36)";
+          ctx.beginPath();
+          ctx.ellipse(shX, shY + 4, 9, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
       } else if (hz.kind === "psy_delayed_blast") {
         // 精神擊破終點輕量化微縮念力星環（視覺縮小 45% 並半透明化，不搶主畫面）
         ctx.translate(sx, sy);
@@ -2692,6 +2754,31 @@ const SkillsEngine = {
         ctx.lineWidth = 2.0;
         ctx.beginPath();
         ctx.arc(0, 0, hz.radius * shrink, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (hz.kind === "drifting_daimonji") {
+        // 【大字爆炎（底層 Z 軸投影）】：向下偏移 12px 的暗紅焦黑『大』字烙印，撐開空中烈焰懸浮立體感
+        ctx.translate(sx, sy + 12);
+        ctx.rotate(hz.angle || 0);
+        const alpha = Math.min(1, hz.timer * 1.3);
+        ctx.globalAlpha = alpha * 0.62;
+        const r = hz.radius * 0.88;
+
+        const scorchGrad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.05);
+        scorchGrad.addColorStop(0, "rgba(69, 10, 10, 0.72)");
+        scorchGrad.addColorStop(0.65, "rgba(154, 52, 18, 0.34)");
+        scorchGrad.addColorStop(1, "rgba(15, 23, 42, 0)");
+        ctx.fillStyle = scorchGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 1.05, r * 0.85, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(28, 10, 6, 0.75)";
+        ctx.lineWidth = 14;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.75, -r * 0.18); ctx.lineTo(r * 0.75, -r * 0.18);
+        ctx.moveTo(0, -r * 0.82); ctx.lineTo(-r * 0.12, r * 0.05); ctx.lineTo(-r * 0.74, r * 0.74);
+        ctx.moveTo(0, -r * 0.18); ctx.lineTo(r * 0.25, r * 0.25); ctx.lineTo(r * 0.74, r * 0.74);
         ctx.stroke();
       }
       ctx.restore();
@@ -3074,6 +3161,44 @@ const SkillsEngine = {
           }
           ctx.restore();
         }
+
+        // 4. 龍捲風頂端旋轉深灰風暴雲蓋（沿用雷系積雨雲三階明暗體積畫法）
+        ctx.save();
+        const capX = topSway + Math.cos(now * 3.8) * 3;
+        const capY = -92;
+        ctx.fillStyle = "#0F172A";
+        ctx.beginPath();
+        ctx.roundRect(capX - 38, capY - 2, 76, 15, 7);
+        ctx.arc(capX - 24, capY + 2, 13, 0, Math.PI * 2);
+        ctx.arc(capX + 24, capY + 2, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#1E293B";
+        ctx.beginPath();
+        ctx.arc(capX - 26, capY - 4, 14, 0, Math.PI * 2);
+        ctx.arc(capX + 25, capY - 3, 13, 0, Math.PI * 2);
+        ctx.arc(capX - 10, capY - 11, 17, 0, Math.PI * 2);
+        ctx.arc(capX + 12, capY - 9, 15, 0, Math.PI * 2);
+        ctx.arc(capX + 1, capY - 14, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = "#334155";
+        ctx.beginPath();
+        ctx.arc(capX - 10, capY - 12, 12, 0, Math.PI * 2);
+        ctx.arc(capX + 8, capY - 11, 11, 0, Math.PI * 2);
+        ctx.arc(capX, capY - 15, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 雲蓋受光銀灰弧邊與頂端氣流漩渦線
+        ctx.strokeStyle = "rgba(224, 242, 254, 0.72)";
+        ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.arc(capX - 10, capY - 12, 11.5, Math.PI * 1.1, Math.PI * 1.75);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(capX, capY - 15, 11.5, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.restore();
       } else if (hz.kind === "dragon_wave") {
         // 【龍之俯衝（普攻）・蒼藍威猛龍首氣旋 / 快龍 #149 專屬金焰雷光蒼龍王氣旋】
         ctx.translate(sx, sy);
@@ -3404,62 +3529,267 @@ const SkillsEngine = {
         ctx.closePath();
         ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
-        // 【噴火龍超武・3D 熔岩立體大字爆炎】：地面推進焦黑烙印 ＋ 雙層熔岩火舌筆畫 ＋ 加色霓虹火芯
-        ctx.translate(sx, sy);
-        ctx.rotate(hz.angle || 0);
+        // 【噴火龍超武・Z軸懸浮立體大字爆炎（空中層）】：懸空動態搖曳火舌筆畫 ＋ 交點升騰熱浪火星柱
         const alpha = Math.min(1, hz.timer * 1.3);
         ctx.globalAlpha = alpha;
         const r = hz.radius * 0.88;
+        const hoverY = sy - 10 + Math.sin(now * 6) * 2.5;
 
-        const scorchGrad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.05);
-        scorchGrad.addColorStop(0, "rgba(127, 29, 29, 0.55)");
-        scorchGrad.addColorStop(0.65, "rgba(234, 88, 12, 0.28)");
-        scorchGrad.addColorStop(1, "rgba(15, 23, 42, 0)");
-        ctx.fillStyle = scorchGrad;
-        ctx.beginPath();
-        ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.translate(sx, hoverY);
+        ctx.rotate(hz.angle || 0);
         ctx.globalCompositeOperation = "lighter";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
 
         const strokes = [
-          // 橫畫 (-0.75r, -0.18r) -> (0.75r, -0.18r)
           { x1: -r * 0.75, y1: -r * 0.18, x2: r * 0.75, y2: -r * 0.18 },
-          // 撇畫上半 (0, -0.82r) -> (-0.12r, 0.05r)
           { x1: 0, y1: -r * 0.82, x2: -r * 0.12, y2: r * 0.05 },
-          // 撇畫下半 (-0.12r, 0.05r) -> (-0.74r, 0.74r)
           { x1: -r * 0.12, y1: r * 0.05, x2: -r * 0.74, y2: r * 0.74 },
-          // 捺畫上半 (0, -0.18r) -> (0.25r, 0.25r)
           { x1: 0, y1: -r * 0.18, x2: r * 0.25, y2: r * 0.25 },
-          // 捺畫下半 (0.25r, 0.25r) -> (0.74r, 0.74r)
           { x1: r * 0.25, y1: r * 0.25, x2: r * 0.74, y2: r * 0.74 }
         ];
 
-        // 先繪製翻滾火球簇外層深紅烈焰
+        // 1. 動態流體火舌筆畫（三層深紅➔熾橘➔金白火芯＋向後拖曳的銳利火尾）
         strokes.forEach((st, sIdx) => {
-          const steps = 6;
-          for (let k = 0; k <= steps; k++) {
-            const t = k / steps;
-            const pulse = Math.sin(now * 10 + k + sIdx) * 3.5;
+          const midX = (st.x1 + st.x2) * 0.5;
+          const midY = (st.y1 + st.y2) * 0.5 + Math.sin(now * 9 + sIdx * 1.7) * 5;
+
+          // 外層赤紅火焰帶
+          ctx.strokeStyle = "#B91C1C";
+          ctx.lineWidth = 22;
+          ctx.beginPath();
+          ctx.moveTo(st.x1, st.y1);
+          ctx.quadraticCurveTo(midX, midY, st.x2, st.y2);
+          ctx.stroke();
+
+          // 中層耀橘動態火舌
+          ctx.strokeStyle = "#F97316";
+          ctx.lineWidth = 14;
+          ctx.beginPath();
+          ctx.moveTo(st.x1, st.y1);
+          ctx.quadraticCurveTo(midX, midY - 1.5, st.x2, st.y2);
+          ctx.stroke();
+
+          // 內層熾白金黃火脊
+          ctx.strokeStyle = "#FEF08A";
+          ctx.lineWidth = 5.5;
+          ctx.beginPath();
+          ctx.moveTo(st.x1, st.y1);
+          ctx.quadraticCurveTo(midX, midY - 1.5, st.x2, st.y2);
+          ctx.stroke();
+
+          // 筆畫節點前圓後尖搖曳火舌簇（模擬高速推進拉出的烈焰尾鞭）
+          for (let k = 0; k <= 3; k++) {
+            const t = k / 3;
             const fx = st.x1 + (st.x2 - st.x1) * t;
-            const fy = st.y1 + (st.y2 - st.y1) * t + pulse * 0.4;
-            const rad = (k === 0 || k === steps ? 13 : 11) + pulse * 0.5;
+            const fy = st.y1 + (st.y2 - st.y1) * t;
+            const wag = Math.sin(now * 14 + sIdx * 2.1 + k * 1.6) * 5.5;
+            const tipLen = 18 + (k % 2) * 7;
 
-            ctx.fillStyle = "#B91C1C";
+            ctx.fillStyle = "#EA580C";
             ctx.beginPath();
-            ctx.arc(fx, fy, rad + 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = "#F97316";
-            ctx.beginPath();
-            ctx.arc(fx, fy, rad, 0, Math.PI * 2);
+            ctx.arc(fx, fy, 7.5, -Math.PI * 0.5, Math.PI * 0.5);
+            ctx.quadraticCurveTo(fx - tipLen * 0.5, fy + 6, fx - tipLen, fy + wag);
+            ctx.quadraticCurveTo(fx - tipLen * 0.5, fy - 6, fx, fy - 7.5);
+            ctx.closePath();
             ctx.fill();
 
             ctx.fillStyle = "#FEF08A";
             ctx.beginPath();
-            ctx.arc(fx + 2, fy, rad * 0.48, 0, Math.PI * 2);
+            ctx.arc(fx + 1.5, fy, 3.8, 0, Math.PI * 2);
             ctx.fill();
           }
         });
+        ctx.restore();
+
+        // 2. 螢幕垂直向上竄升的 3 股立體熱浪火星柱（不受旋轉影響，強化高溫騰空感）
+        const cosA = Math.cos(hz.angle || 0), sinA = Math.sin(hz.angle || 0);
+        const hubs = [
+          { lx: 0, ly: -r * 0.18 },
+          { lx: -r * 0.45, ly: r * 0.42 },
+          { lx: r * 0.45, ly: r * 0.42 }
+        ];
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        hubs.forEach((hb, hIdx) => {
+          const hx = sx + hb.lx * cosA - hb.ly * sinA;
+          const hy = hoverY + hb.lx * sinA + hb.ly * cosA;
+          const colH = 44 + Math.sin(now * 12 + hIdx * 2.2) * 12;
+          const sway = Math.cos(now * 10 + hIdx) * 6;
+
+          const colGrad = ctx.createLinearGradient(hx, hy, hx + sway, hy - colH);
+          colGrad.addColorStop(0, "rgba(254, 240, 138, 0.85)");
+          colGrad.addColorStop(0.5, "rgba(249, 115, 22, 0.52)");
+          colGrad.addColorStop(1, "rgba(239, 68, 68, 0)");
+          ctx.fillStyle = colGrad;
+          ctx.beginPath();
+          ctx.moveTo(hx - 8, hy);
+          ctx.quadraticCurveTo(hx - 4 + sway * 0.5, hy - colH * 0.55, hx + sway, hy - colH);
+          ctx.quadraticCurveTo(hx + 4 + sway * 0.5, hy - colH * 0.55, hx + 8, hy);
+          ctx.closePath();
+          ctx.fill();
+        });
+        ctx.restore();
+      } else if (hz.kind === "quake_fissure") {
+        // 【地裂斷層破（空中層）】：7 顆破土升空、翻滾下墜的 3D 雙色切面飛石巨岩，100% 呼應「飛石對空重創飛行系」
+        const alpha = Math.min(1, hz.timer * 1.25);
+        ctx.globalAlpha = alpha;
+        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
+
+        for (let b = 0; b < 7; b++) {
+          const bAng = (b * Math.PI * 2) / 7 + 0.35;
+          const bCycle = (prog * 1.8 + b * 0.23) % 1.0;
+          const lift = Math.sin(bCycle * Math.PI);
+          const peakH = 56 + (b % 3) * 26;
+          const distR = curR * (0.34 + (b % 3) * 0.21) + bCycle * 18;
+          const bx = sx + Math.cos(bAng) * distR;
+          const by = sy + Math.sin(bAng) * distR - lift * peakH;
+          const bSize = 9.5 + (b % 3) * 2.5 + lift * 2.8;
+          const rot = now * (b % 2 === 0 ? 3.8 : -3.4) + b * 1.4;
+
+          ctx.save();
+          ctx.translate(bx, by);
+          ctx.rotate(rot);
+
+          // 3D 雙色切面巨岩塊（左受光暖棕 #D97706 ＋ 右背光深褐 #78350F）
+          ctx.fillStyle = "#78350F";
+          ctx.strokeStyle = "#1C0D06";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(0, -bSize);
+          ctx.lineTo(bSize * 0.92, -bSize * 0.15);
+          ctx.lineTo(bSize * 0.55, bSize * 0.85);
+          ctx.lineTo(-bSize * 0.20, bSize * 0.72);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = "#D97706";
+          ctx.beginPath();
+          ctx.moveTo(0, -bSize);
+          ctx.lineTo(-bSize * 0.88, -bSize * 0.22);
+          ctx.lineTo(-bSize * 0.62, bSize * 0.68);
+          ctx.lineTo(-bSize * 0.15, bSize * 0.72);
+          ctx.lineTo(bSize * 0.18, -bSize * 0.05);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 熔岩熾金裂紋高光
+          ctx.strokeStyle = "#FDE047";
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.moveTo(-bSize * 0.38, -bSize * 0.35);
+          ctx.lineTo(bSize * 0.12, 0);
+          ctx.lineTo(bSize * 0.38, bSize * 0.35);
+          ctx.stroke();
+          ctx.restore();
+        }
+      } else if (hz.kind === "toxic_swamp") {
+        // 【劇毒沼澤（空中層）】：從外圍 60%~92% 環帶緩緩蒸騰上升的半透明毒瘴煙柱與淡紫幽霧團（嚴守主角 45px 淨空區）
+        const alpha = Math.min(1, hz.timer * 1.15);
+        const rx = hz.radius;
+        const ry = hz.radius * 0.72;
+
+        for (let m = 0; m < 8; m++) {
+          const mProg = (now * 0.45 + m * 0.17) % 1.0;
+          const mAng = (m * Math.PI * 2) / 8 + Math.sin(now * 0.7 + m) * 0.12;
+          const ringFrac = 0.62 + (m % 3) * 0.13;
+          const baseX = sx + Math.cos(mAng) * (rx * ringFrac);
+          const baseY = sy + Math.sin(mAng) * (ry * ringFrac);
+          const riseH = mProg * 68;
+          const swayX = Math.sin(now * 2.4 + m * 1.9 + mProg * 4) * 9;
+          const puffAlpha = Math.sin(mProg * Math.PI) * alpha * 0.46;
+          const puffR = 11 + mProg * 14;
+
+          // 細長微扭曲上升毒氣煙帶
+          ctx.strokeStyle = m % 2 === 0
+            ? `rgba(168, 85, 247, ${puffAlpha * 0.85})`
+            : `rgba(74, 222, 128, ${puffAlpha * 0.80})`;
+          ctx.lineWidth = 4.2 * (1 - mProg * 0.4);
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(baseX, baseY);
+          ctx.quadraticCurveTo(baseX + swayX * 0.6, baseY - riseH * 0.5, baseX + swayX, baseY - riseH);
+          ctx.stroke();
+
+          // 頂端翻捲的半透明毒瘴幽霧團
+          ctx.fillStyle = m % 2 === 0
+            ? `rgba(147, 51, 234, ${puffAlpha})`
+            : `rgba(34, 197, 94, ${puffAlpha * 0.90})`;
+          ctx.beginPath();
+          ctx.arc(baseX + swayX, baseY - riseH, puffR, 0, Math.PI * 2);
+          ctx.arc(baseX + swayX - puffR * 0.55, baseY - riseH + 3, puffR * 0.68, 0, Math.PI * 2);
+          ctx.arc(baseX + swayX + puffR * 0.52, baseY - riseH + 2, puffR * 0.64, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 霧團內部螢光毒點微光
+          ctx.fillStyle = `rgba(217, 249, 157, ${puffAlpha * 1.3})`;
+          ctx.beginPath();
+          ctx.arc(baseX + swayX - 2, baseY - riseH - 2, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (hz.kind === "psychic_blackhole") {
+        // 【精神強念領域（空中層）】：被反重力念力托舉浮空的 7 塊碎石與次元鏡面菱片（外推 54px 以外公轉，視野通透且具空間扭曲威壓）
+        const alpha = Math.min(1, hz.timer * 1.25);
+        ctx.globalAlpha = alpha;
+        const curR = Math.max(36, hz.radius * Math.min(1, prog * 1.8));
+        const spin = -now * 1.6;
+
+        for (let s = 0; s < 7; s++) {
+          const orbAng = -spin * 0.45 + (s * Math.PI * 2) / 7;
+          const orbR = Math.max(54, curR * (0.48 + (s % 3) * 0.17));
+          const floatH = 30 + (s % 3) * 14 + Math.sin(now * 3.2 + s * 1.5) * 9;
+          const fx = sx + Math.cos(orbAng) * orbR;
+          const fy = sy + Math.sin(orbAng) * orbR - floatH;
+          const isMirror = (s % 2 === 1);
+
+          ctx.save();
+          ctx.translate(fx, fy);
+          ctx.rotate(now * (isMirror ? 1.8 : -1.2) + s);
+
+          if (isMirror) {
+            // 次元鏡面菱片（粉紫半透明折射面＋純白星芒高光）
+            ctx.fillStyle = "rgba(236, 72, 153, 0.45)";
+            ctx.strokeStyle = "#FBCFE8";
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(0, -13); ctx.lineTo(8, 0); ctx.lineTo(0, 13); ctx.lineTo(-8, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+            ctx.beginPath();
+            ctx.moveTo(0, -10); ctx.lineTo(4, -1); ctx.lineTo(-4, -1);
+            ctx.closePath();
+            ctx.fill();
+          } else {
+            // 被念力包裹的反重力懸浮碎石（紫晶念力外框＋雙色立體岩面）
+            ctx.fillStyle = "#3B0764";
+            ctx.strokeStyle = "#C084FC";
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.moveTo(-7, -6); ctx.lineTo(3, -9); ctx.lineTo(9, 1); ctx.lineTo(2, 8); ctx.lineTo(-8, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = "#A855F7";
+            ctx.beginPath();
+            ctx.moveTo(-6, -5); ctx.lineTo(2, -7); ctx.lineTo(2, 1); ctx.lineTo(-6, 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // 念力反重力微星光點
+            ctx.fillStyle = "#FFFFFF";
+            ctx.beginPath();
+            ctx.arc(-2, -3, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
       }
       ctx.restore();
     });
@@ -3544,12 +3874,31 @@ const SkillsEngine = {
 
         ctx.restore();
       } else if (m.style === "karate_cross") {
-        // 【空手劈】：剛猛「X 型白熾十字氣勁斬痕 + 拳風殘影」
+        // 【空手劈】：底層金紅手刀／拳風弧形衝擊輪廓 ＋ 剛猛 X 型白熾十字氣勁斬痕
         const msx = toSx(m.x), msy = toSy(m.y);
         const r = m.radius * (0.55 + prog * 0.55);
         ctx.save();
         ctx.translate(msx, msy);
         ctx.rotate(m.angle || 0);
+
+        // 底層武道手刀／拳風弧形衝擊波（建立格鬥系肉搏厚重感）
+        const fistArcR = r * 1.08;
+        ctx.fillStyle = "rgba(185, 28, 28, 0.48)";
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.85)";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(-r * 0.22, 0, fistArcR, -0.95, 0.95);
+        ctx.arc(-r * 0.48, 0, fistArcR * 0.72, 0.95, -0.95, true);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 拳風前緣白熾衝擊弧線
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.90)";
+        ctx.lineWidth = 2.0 * (1 - prog * 0.4);
+        ctx.beginPath();
+        ctx.arc(-r * 0.16, 0, fistArcR * 0.94, -0.78, 0.78);
+        ctx.stroke();
 
         // 兩道交錯的 X 型氣勁斬痕
         [-0.75, 0.75].forEach(rot => {
@@ -3775,6 +4124,135 @@ const SkillsEngine = {
         ctx.beginPath();
         ctx.arc(0, 0, m.radius + prog * 6, now * 5, now * 5 + Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "metronome_wheel") {
+        // 【揮指功超武・天命百寶袋】：主角頭頂短暫浮現旋轉黃金星輪與 3 顆隨機屬性微徽章
+        const cx = m.casterRef ? toSx(m.casterRef.x) : toSx(m.x);
+        const cy = (m.casterRef ? toSy(m.casterRef.y) : toSy(m.y)) - 38 - prog * 10;
+        const wheelR = m.radius * (0.75 + Math.sin(prog * Math.PI) * 0.35);
+        const alpha = Math.sin(prog * Math.PI);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.globalAlpha = Math.max(0, alpha);
+
+        // 外圍黃金星輪光環
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.6;
+        ctx.setLineDash([7, 4]);
+        ctx.beginPath();
+        ctx.arc(0, 0, wheelR, prog * 5, prog * 5 + Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 中央旋轉六芒金星
+        ctx.save();
+        ctx.rotate(prog * 6.5);
+        ctx.fillStyle = "#FEF08A";
+        ctx.strokeStyle = "#B45309";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a1 = (k * Math.PI) / 3;
+          const a2 = a1 + Math.PI / 6;
+          if (k === 0) ctx.moveTo(Math.cos(a1) * 11, Math.sin(a1) * 11);
+          else ctx.lineTo(Math.cos(a1) * 11, Math.sin(a1) * 11);
+          ctx.lineTo(Math.cos(a2) * 4.5, Math.sin(a2) * 4.5);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // 三顆對應本次搖出屬性的公轉微寶石徽章
+        const cols = m.rolledColors || ["#EF4444", "#38BDF8", "#FACC15"];
+        cols.forEach((col, idx) => {
+          const a = -Math.PI / 2 + prog * 4.2 + (idx * Math.PI * 2) / 3;
+          const gx = Math.cos(a) * wheelR;
+          const gy = Math.sin(a) * wheelR;
+          ctx.fillStyle = col;
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(gx, gy, 5.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        });
+        ctx.restore();
+      } else if (m.style === "ice_shatter_flash") {
+        // 【絕對零度二段破冰】：高空折射冰稜裂紋放射閃光＋六角棱鏡碎裂環
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const curR = m.radius * (0.42 + prog * 0.68);
+        const alpha = Math.max(0, 1 - prog);
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = alpha * 0.92;
+
+        // 1. 六角棱鏡碎裂外環
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 4.2 * alpha;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3 + prog * 0.25;
+          const px = Math.cos(a) * curR;
+          const py = Math.sin(a) * curR;
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // 2. 12 道高空折射冰稜放射裂紋光束（保留中央 38px 淨空）
+        for (let k = 0; k < 12; k++) {
+          const a = (k * Math.PI) / 6 + (k % 2 === 0 ? 0.08 : -0.08);
+          const r0 = 38 + prog * 28;
+          const r1 = curR * (k % 2 === 0 ? 1.06 : 0.78);
+          ctx.strokeStyle = k % 2 === 0 ? "#FFFFFF" : "#67E8F9";
+          ctx.lineWidth = (k % 2 === 0 ? 3.0 : 1.8) * alpha;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+          ctx.lineTo(Math.cos(a + 0.05) * ((r0 + r1) * 0.5), Math.sin(a + 0.05) * ((r0 + r1) * 0.5));
+          ctx.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+          ctx.stroke();
+        }
+        ctx.restore();
+      } else if (m.style === "psy_collapse_star") {
+        // 【精神擊破終點二段引爆】：銳利乾淨的粉白四芒星坍縮閃光＋細微內縮環
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const alpha = Math.max(0, 1 - prog);
+        const starR = m.radius * (0.45 + Math.sin(prog * Math.PI) * 0.65);
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = alpha;
+
+        // 細微坍縮念力環
+        ctx.strokeStyle = "#F472B6";
+        ctx.lineWidth = 2.2 * alpha;
+        ctx.beginPath();
+        ctx.arc(0, 0, m.radius * (1.05 - prog * 0.65), 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 銳利粉白四芒星閃光
+        ctx.rotate(prog * 0.9);
+        ctx.fillStyle = "#EC4899";
+        ctx.beginPath();
+        ctx.moveTo(0, -starR); ctx.lineTo(starR * 0.22, -starR * 0.22);
+        ctx.lineTo(starR, 0); ctx.lineTo(starR * 0.22, starR * 0.22);
+        ctx.lineTo(0, starR); ctx.lineTo(-starR * 0.22, starR * 0.22);
+        ctx.lineTo(-starR, 0); ctx.lineTo(-starR * 0.22, -starR * 0.22);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#FFFFFF";
+        const inR = starR * 0.58;
+        ctx.beginPath();
+        ctx.moveTo(0, -inR); ctx.lineTo(inR * 0.20, -inR * 0.20);
+        ctx.lineTo(inR, 0); ctx.lineTo(inR * 0.20, inR * 0.20);
+        ctx.lineTo(0, inR); ctx.lineTo(-inR * 0.20, inR * 0.20);
+        ctx.lineTo(-inR, 0); ctx.lineTo(-inR * 0.20, -inR * 0.20);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
       } else if (m.style === "z_spark") {
         // 【比卡超十萬伏特命中】：金白十字電火花
