@@ -60,6 +60,79 @@ const SkillsEngine = {
     });
   },
 
+  // 預先生成不規則樹狀地裂網（從震央向外隨機偏折、由粗到細收尖並自然分岔，渲染時穩定不亂跳）
+  buildQuakeCrackTree(branchCount, maxRadius, isUlt = false) {
+    const segments = [];
+    const rocks = [];
+    const baseOffset = Math.random() * Math.PI * 2;
+    const startR = isUlt ? 22 : 16;
+
+    for (let b = 0; b < branchCount; b++) {
+      // 基礎角度加上明顯隨機擾動，徹底消除等分輪輻感
+      const sector = (Math.PI * 2) / branchCount;
+      let curAng = baseOffset + b * sector + (Math.random() - 0.5) * sector * 0.62;
+      const totalLen = maxRadius * (0.84 + Math.random() * 0.22);
+      const steps = isUlt ? 5 : 4;
+      let px = Math.cos(curAng) * startR;
+      let py = Math.sin(curAng) * startR;
+
+      for (let s = 0; s < steps; s++) {
+        const t0 = s / steps;
+        const t1 = (s + 1) / steps;
+        const stepLen = (totalLen - startR) / steps * (0.82 + Math.random() * 0.36);
+        if (s > 0) {
+          curAng += (Math.random() < 0.5 ? 1 : -1) * (0.22 + Math.random() * 0.26);
+        }
+        const nx = px + Math.cos(curAng) * stepLen;
+        const ny = py + Math.sin(curAng) * stepLen;
+        const wMul = Math.max(0.22, 1.0 - t0 * 0.78);
+
+        segments.push({ x1: px, y1: py, x2: nx, y2: ny, wMul, t0, t1, isSub: false });
+
+        // 在中段轉折點（約 35% 與 68% 處）生成 1～2 條不對稱次級分岔裂紋
+        if (s === 1 || (s === 2 && (isUlt || Math.random() < 0.75))) {
+          const forkNum = (isUlt && s === 1) ? 2 : 1;
+          for (let fk = 0; fk < forkNum; fk++) {
+            const side = (fk === 0) ? (Math.random() < 0.5 ? 1 : -1) : -1;
+            let subAng = curAng + side * (0.42 + Math.random() * 0.38);
+            const subSteps = isUlt ? 2 : (Math.random() < 0.55 ? 2 : 1);
+            let sx = nx, sy = ny;
+            for (let ss = 0; ss < subSteps; ss++) {
+              const sLen = totalLen * (0.16 + Math.random() * 0.12) * (ss === 0 ? 1.0 : 0.72);
+              if (ss > 0) subAng += (Math.random() - 0.5) * 0.55;
+              const snx = sx + Math.cos(subAng) * sLen;
+              const sny = sy + Math.sin(subAng) * sLen;
+              const subT0 = Math.min(0.95, t1 + ss * 0.14);
+              const subT1 = Math.min(1.0, subT0 + 0.18);
+              segments.push({
+                x1: sx, y1: sy, x2: snx, y2: sny,
+                wMul: ss === 0 ? 0.46 : 0.22,
+                t0: subT0, t1: subT1, isSub: true
+              });
+              sx = snx; sy = sny;
+            }
+          }
+        }
+
+        // 在裂縫轉折交匯點佈置崩岩或巨岩尖柱
+        if ((isUlt && (s === 1 || (s === 2 && b % 2 === 0))) || (!isUlt && s === 1)) {
+          rocks.push({
+            x: nx + (Math.random() - 0.5) * 6,
+            y: ny + (Math.random() - 0.5) * 6,
+            h: isUlt ? (22 + Math.random() * 14) : (9 + Math.random() * 5),
+            w: isUlt ? (9 + Math.random() * 4) : (6 + Math.random() * 3),
+            hopH: isUlt ? 0 : (11 + Math.random() * 9),
+            phase: b * 0.9 + s * 1.3
+          });
+        }
+
+        px = nx;
+        py = ny;
+      }
+    }
+    return { segments, rocks };
+  },
+
   // 全屬性專屬命中材質爆破 (Elemental Impact Hit-Sparks)
   spawnElementalHitSpark(x, y, type) {
     if (GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.65) return;
@@ -805,37 +878,68 @@ const SkillsEngine = {
       return;
     }
 
-    // 2. 地震專屬：原地重踏起跳下壓感 (Slam Hop) + 大範圍環形地裂 (支援【重量級霸體】範圍與擊退強化)
+    // 2. 地震專屬：柔化微震 ＋ 支援 +1 彈幕多段餘震連發（150ms 錯峰外擴）＋ 不規則網狀瞬爆龜裂
     if (style === "quake_wave") {
-      if (caster === GameApp.player) {
-        caster.slamHopTimer = 0.24;
-        GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.14);
-        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 3.5);
-      }
-      const rad = (85 + level * 4) * areaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
+      const baseRad = (85 + level * 4) * areaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
       const quakeKb = kb * (1 + (trait.tackleQuakeKbBonus || 0));
-      this.meleeEffects.push({
-        style,
-        casterRef: caster,
-        x: caster.x,
-        y: caster.y,
-        radius: rad,
-        dmg: rawDmg,
-        type: meta.type,
-        kb: quakeKb,
-        hitSet: new Set(),
-        timer: 0.50,
-        maxTime: 0.50,
-        color: meta.color
-      });
+      const totalWaves = Math.min(3, Math.max(1, count));
+      const waveRadMults = [1.0, 1.12, 1.24];
+      const waveDmgMults = [1.0, 0.55, 0.45];
 
-      const dustCount = 18;
-      for (let d = 0; d < dustCount; d++) {
-        const dAng = Math.random() * Math.PI * 2;
-        const dSpd = 45 + Math.random() * 95;
-        this.spawnSubParticle(caster.x, caster.y, Math.cos(dAng) * dSpd, Math.sin(dAng) * dSpd, d % 2 === 0 ? "#92400E" : "#D97706", 3.2, 0.45, "circle");
+      const fireQuakeWave = (waveIdx) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const waveRad = baseRad * (waveRadMults[waveIdx] || 1.24);
+        const waveDmg = rawDmg * (waveDmgMults[waveIdx] || 0.45);
+        const branchNum = 5 + Math.floor(Math.random() * 3); // 5～7 條不規則主裂縫
+
+        if (caster === GameApp.player) {
+          if (waveIdx === 0) {
+            caster.slamHopTimer = 0.22;
+            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.06);
+            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.1);
+          } else if ((GameApp.camera.shakeTime || 0) <= 0) {
+            GameApp.camera.shakeTime = 0.04;
+            GameApp.camera.shakeMagnitude = 0.7;
+          }
+        }
+
+        this.meleeEffects.push({
+          style,
+          casterRef: caster,
+          x: caster.x,
+          y: caster.y,
+          radius: waveRad,
+          dmg: waveDmg,
+          type: meta.type,
+          kb: quakeKb * (waveIdx === 0 ? 1.0 : 0.72),
+          waveIdx,
+          cracks: this.buildQuakeCrackTree(branchNum, waveRad, false),
+          hitSet: new Set(),
+          timer: 0.45,
+          maxTime: 0.45,
+          color: meta.color
+        });
+
+        const dustCount = waveIdx === 0 ? 12 : 8;
+        for (let d = 0; d < dustCount; d++) {
+          const dAng = Math.random() * Math.PI * 2;
+          const dSpd = 55 + Math.random() * 85;
+          this.spawnSubParticle(
+            caster.x + Math.cos(dAng) * 14,
+            caster.y + Math.sin(dAng) * 14,
+            Math.cos(dAng) * dSpd,
+            Math.sin(dAng) * dSpd,
+            d % 2 === 0 ? "#92400E" : "#FDE68A",
+            2.8, 0.34, "circle"
+          );
+        }
+        SoundFX.play("hit", "Ground");
+      };
+
+      fireQuakeWave(0);
+      for (let w = 1; w < totalWaves; w++) {
+        setTimeout(() => fireQuakeWave(w), w * 150);
       }
-      SoundFX.play("ultimate");
       return;
     }
 
@@ -1237,13 +1341,17 @@ const SkillsEngine = {
         });
       }
     } else if (meta.type === "Ground") {
-      // 【地裂斷層破】：持續 2.4 秒的米字型地底熔岩斷層，連續震擊 5 波 (對空有效)
+      // 【地裂斷層破】：柔化破土震屏 (2.0 / 0.12s) ＋ 10～12 條不規則深淵網狀裂谷瞬爆撕裂 (對空有效)
+      GameApp.camera.shakeTime = 0.12;
+      GameApp.camera.shakeMagnitude = 2.0;
+      const ultRad = 220 * p.areaMult;
       this.groundHazards.push({
         kind: "quake_fissure",
         x: p.x, y: p.y,
-        radius: 220 * p.areaMult,
+        radius: ultRad,
         dmg: ultDmg * 0.36,
         type: "Ground",
+        cracks: this.buildQuakeCrackTree(11, ultRad, true),
         timer: 2.0, maxTime: 2.0,
         tickTimer: 0.1, tickInterval: 0.45,
         color: "#D97706"
@@ -1587,7 +1695,9 @@ const SkillsEngine = {
             }
           }
         } else if (m.style === "quake_wave") {
-          const curR = m.radius * (0.28 + prog * 0.72);
+          const burstT = Math.min(1, prog / 0.30);
+          const easeOut = 1 - Math.pow(1 - burstT, 3);
+          const curR = m.radius * (0.22 + easeOut * 0.78);
           const candidates = this.getEnemiesInRadius(m.x, m.y, curR);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
@@ -2460,105 +2570,117 @@ const SkillsEngine = {
           ctx.stroke();
         }
       } else if (hz.kind === "quake_fissure") {
-        // 【地裂斷層破（超武・3 層地殼熔岩崩裂）】：內圈塌陷熔岩坑 ＋ 10 道分叉樹狀深淵裂谷 ＋ 破土雙色切面巨岩尖柱
+        // 【地裂斷層破（超武・瞬爆網狀深淵龜裂）】：0.22s 指數緩出瞬間撕裂全範圍 ＋ 不規則樹狀分岔裂谷 ＋ 熔岩呼吸光 ＋ 轉折點巨岩尖柱
         ctx.translate(sx, sy);
-        const alpha = Math.min(1, hz.timer * 1.25);
+        if (!hz.cracks) hz.cracks = this.buildQuakeCrackTree(11, hz.radius, true);
+        const alpha = Math.min(1, hz.timer * 1.35);
         ctx.globalAlpha = alpha;
-        const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
+        const elapsed = (hz.maxTime || 2.0) - hz.timer;
+        const burstT = Math.min(1, elapsed / 0.22);
+        const tearProg = 1 - Math.pow(1 - burstT, 3); // 0.22s 極速瞬爆撕裂至 100%
+        const curR = Math.max(30, hz.radius * tearProg);
+        const lavaPulse = 0.72 + Math.sin(now * 5.2) * 0.28;
 
-        // 1. 內圈 55% 震央塌陷熔岩坑漸層底盤
-        const craterGrad = ctx.createRadialGradient(0, 0, 26, 0, 0, curR * 0.65);
+        // 1. 內圈震央塌陷熔岩坑漸層底盤與起手飛沙衝擊波環
+        const craterGrad = ctx.createRadialGradient(0, 0, 24, 0, 0, curR * 0.72);
         craterGrad.addColorStop(0, "rgba(69, 26, 3, 0.0)");
-        craterGrad.addColorStop(0.35, "rgba(69, 26, 3, 0.62)");
-        craterGrad.addColorStop(0.75, "rgba(217, 119, 6, 0.35)");
+        craterGrad.addColorStop(0.38, "rgba(69, 26, 3, 0.56)");
+        craterGrad.addColorStop(0.75, `rgba(217, 119, 6, ${0.32 * lavaPulse})`);
         craterGrad.addColorStop(1, "rgba(120, 53, 15, 0.0)");
         ctx.fillStyle = craterGrad;
         ctx.beginPath();
-        ctx.arc(0, 0, curR * 0.65, 0, Math.PI * 2);
+        ctx.arc(0, 0, curR * 0.72, 0, Math.PI * 2);
         ctx.fill();
+
+        if (elapsed < 0.42) {
+          const dustProg = elapsed / 0.42;
+          const dustEase = 1 - Math.pow(1 - dustProg, 2);
+          ctx.strokeStyle = `rgba(253, 230, 138, ${(1 - dustProg) * 0.65})`;
+          ctx.lineWidth = Math.max(2, 10 * (1 - dustProg));
+          ctx.beginPath();
+          ctx.arc(0, 0, hz.radius * (0.28 + dustEase * 0.78), 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
 
-        // 2. 10 道主斷層裂谷 + 左右分叉次級裂紋 (Sub-cracks)
-        const branchCount = 10;
-        for (let k = 0; k < branchCount; k++) {
-          const a = (k * Math.PI * 2) / branchCount + (k % 2 === 0 ? 0.07 : -0.07);
-          const len = curR * (0.85 + (k % 3) * 0.08);
-          const p1x = Math.cos(a) * 28, p1y = Math.sin(a) * 28;
-          const p2x = Math.cos(a + 0.13) * (len * 0.45), p2y = Math.sin(a + 0.13) * (len * 0.45);
-          const p3x = Math.cos(a - 0.08) * (len * 0.76), p3y = Math.sin(a - 0.08) * (len * 0.76);
-          const p4x = Math.cos(a) * len, p4y = Math.sin(a) * len;
+        // 2. 繪製預生成的不規則網狀龜裂（由中心向外瞬間撕裂，寬度根粗尾尖自然收窄）
+        const segs = hz.cracks.segments;
+        for (let k = 0; k < segs.length; k++) {
+          const sg = segs[k];
+          if (tearProg <= sg.t0) continue;
+          const localFrac = Math.min(1, (tearProg - sg.t0) / Math.max(0.01, sg.t1 - sg.t0));
+          const ex = sg.x1 + (sg.x2 - sg.x1) * localFrac;
+          const ey = sg.y1 + (sg.y2 - sg.y1) * localFrac;
+          const baseW = (sg.isSub ? 6.2 : 12.5) * sg.wMul;
 
-          const drawFissurePath = () => {
+          // 深淵暗溝底色
+          ctx.strokeStyle = "#231006";
+          ctx.lineWidth = Math.max(1.8, baseW);
+          ctx.beginPath();
+          ctx.moveTo(sg.x1, sg.y1);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          // 中層熔岩熾橘呼吸光
+          if (baseW > 2.6) {
+            ctx.strokeStyle = `rgba(234, 88, 12, ${0.88 * lavaPulse})`;
+            ctx.lineWidth = Math.max(1.2, baseW * 0.46);
             ctx.beginPath();
-            ctx.moveTo(p1x, p1y);
-            ctx.lineTo(p2x, p2y);
-            ctx.lineTo(p3x, p3y);
-            ctx.lineTo(p4x, p4y);
-            // 分叉支線
-            const subAng = a + (k % 2 === 0 ? 0.48 : -0.48);
-            ctx.moveTo(p2x, p2y);
-            ctx.lineTo(p2x + Math.cos(subAng) * (len * 0.28), p2y + Math.sin(subAng) * (len * 0.28));
-          };
+            ctx.moveTo(sg.x1, sg.y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+          }
 
-          // 深淵暗溝底色 (13px)
-          ctx.strokeStyle = "#291509";
-          ctx.lineWidth = 13;
-          drawFissurePath();
-          ctx.stroke();
+          // 核心地脈金白微光（僅主裂谷與粗分岔顯示，保留末端純黑尖刺感）
+          if (!sg.isSub && sg.wMul > 0.35) {
+            ctx.strokeStyle = `rgba(254, 240, 138, ${0.92 * lavaPulse})`;
+            ctx.lineWidth = Math.max(1.0, baseW * 0.18);
+            ctx.beginPath();
+            ctx.moveTo(sg.x1, sg.y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+          }
+        }
 
-          // 中層熔岩熾橘紅 (5.5px)
-          ctx.strokeStyle = "#EA580C";
-          ctx.lineWidth = 5.5;
-          drawFissurePath();
-          ctx.stroke();
-
-          // 核心地脈金白高光 (2px)
-          ctx.strokeStyle = "#FEF08A";
-          ctx.lineWidth = 2.0;
-          drawFissurePath();
-          ctx.stroke();
-
-          // 3. 沿斷層破土刺出的雙色立體斜切面巨岩尖柱 (Jagged 3D Rock Spires)
-          const spireX = (k % 2 === 0) ? p3x : p2x;
-          const spireY = (k % 2 === 0) ? p3y : p2y;
-          const spireH = (24 + (k % 3) * 7) * Math.min(1, prog * 3.0) + Math.abs(Math.sin(now * 4 + k)) * 6;
-
+        // 3. 沿裂縫轉折交匯點破土刺出的雙色立體斜切面巨岩尖柱
+        const spirePop = Math.min(1, elapsed / 0.18);
+        const spireEase = 1 - Math.pow(1 - spirePop, 3);
+        hz.cracks.rocks.forEach(rk => {
+          const spireH = rk.h * spireEase + Math.abs(Math.sin(now * 3.8 + rk.phase)) * 3.5;
+          const rw = rk.w;
           ctx.save();
-          ctx.translate(spireX, spireY);
-          // 右暗面 (#78350F)
+          ctx.translate(rk.x, rk.y);
           ctx.fillStyle = "#78350F";
           ctx.strokeStyle = "#1C0D06";
-          ctx.lineWidth = 1.6;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(0, -spireH);
-          ctx.lineTo(12, 4);
-          ctx.lineTo(0, 9);
+          ctx.lineTo(rw, 4);
+          ctx.lineTo(0, 8);
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
 
-          // 左受光亮面 (#D97706)
           ctx.fillStyle = "#D97706";
           ctx.beginPath();
           ctx.moveTo(0, -spireH);
-          ctx.lineTo(-12, 4);
-          ctx.lineTo(0, 9);
+          ctx.lineTo(-rw, 4);
+          ctx.lineTo(0, 8);
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
 
-          // 岩尖熔岩金邊
-          ctx.strokeStyle = "#FDE047";
+          ctx.strokeStyle = `rgba(253, 224, 71, ${0.85 * lavaPulse})`;
           ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.moveTo(-7, 1); ctx.lineTo(0, -spireH * 0.55); ctx.lineTo(7, 1);
+          ctx.moveTo(-rw * 0.55, 1); ctx.lineTo(0, -spireH * 0.52); ctx.lineTo(rw * 0.55, 1);
           ctx.stroke();
           ctx.restore();
-        }
+        });
 
-        // 4. 配合空中飛石的地面動態縮放暗影（隨拋物線高度縮小淡化，建立清晰 Z 軸景深）
+        // 4. 配合空中飛石的地面動態縮放暗影（建立清晰 Z 軸景深）
         for (let b = 0; b < 7; b++) {
           const bAng = (b * Math.PI * 2) / 7 + 0.35;
           const bCycle = (prog * 1.8 + b * 0.23) % 1.0;
@@ -2799,97 +2921,115 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 地面層近戰特效：地震（V10 雙圈塌陷震央 ＋ 分叉樹狀深淵裂谷 ＋ 雙色切面跳動崩岩）
+    // 地面層近戰特效：地震（前 0.13s 瞬爆撕裂 ＋ 後 0.32s 定格漸隱 ＋ 不規則樹狀龜裂 ＋ 飛沙震波環）
     this.meleeEffects.forEach(m => {
       if (m.style !== "quake_wave") return;
-      const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.3))));
+      if (!m.cracks) m.cracks = this.buildQuakeCrackTree(6, m.radius, false);
+      const maxT = m.maxTime || 0.45;
+      const elapsed = maxT - m.timer;
+      const prog = Math.max(0, Math.min(1, elapsed / maxT));
+      const burstT = Math.min(1, elapsed / 0.13);
+      const tearProg = 1 - Math.pow(1 - burstT, 3); // 前 130ms 極速撕裂至 100%
+      const fadeAlpha = prog < 0.30 ? 1.0 : Math.max(0, 1 - (prog - 0.30) / 0.70);
+
       const msx = toSx(m.x), msy = toSy(m.y);
-      const curR = m.radius * (0.28 + prog * 0.72);
+      const curR = m.radius * (0.22 + tearProg * 0.78);
       const innerR = curR * 0.56;
+
       ctx.save();
-      ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
+      ctx.translate(msx, msy);
+      ctx.globalAlpha = fadeAlpha;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
-      // 1. 內圈 56% 核心重擊陷坑陰影底盤
-      const coreGrad = ctx.createRadialGradient(msx, msy, 18, msx, msy, innerR);
+      // 1. 核心陷坑陰影底盤
+      const coreGrad = ctx.createRadialGradient(0, 0, 14, 0, 0, innerR);
       coreGrad.addColorStop(0, "rgba(69, 26, 3, 0.0)");
-      coreGrad.addColorStop(0.5, "rgba(120, 53, 15, 0.36)");
+      coreGrad.addColorStop(0.55, "rgba(120, 53, 15, 0.34)");
       coreGrad.addColorStop(1, "rgba(69, 26, 3, 0.0)");
       ctx.fillStyle = coreGrad;
       ctx.beginPath();
-      ctx.arc(msx, msy, innerR, 0, Math.PI * 2);
+      ctx.arc(0, 0, innerR, 0, Math.PI * 2);
       ctx.fill();
 
-      // 2. 外擴雙層震盪斷層環
-      ctx.strokeStyle = "rgba(217, 119, 6, 0.72)";
-      ctx.lineWidth = 4.2 * (1 - prog * 0.5);
-      ctx.beginPath();
-      ctx.arc(msx, msy, curR, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.strokeStyle = "rgba(254, 240, 138, 0.55)";
-      ctx.lineWidth = 2.0 * (1 - prog * 0.5);
-      ctx.beginPath();
-      ctx.arc(msx, msy, innerR, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // 3. 8 道分叉樹狀深坑裂隙 (11px 深底 + 4px 金光 + 1.6px 白亮核心 + 分叉支線)
-      for (let crack = 0; crack < 8; crack++) {
-        const cAng = (crack * Math.PI * 2) / 8 + (crack % 2 === 0 ? 0.09 : -0.09);
-        const startR = 24;
-        const midR = Math.max(startR + 6, curR * 0.54);
-        const mx = msx + Math.cos(cAng + 0.14) * midR;
-        const my = msy + Math.sin(cAng + 0.14) * midR;
-        const ex = msx + Math.cos(cAng) * curR;
-        const ey = msy + Math.sin(cAng) * curR;
-        const subAng = cAng + (crack % 2 === 0 ? 0.45 : -0.45);
-        const sx2 = mx + Math.cos(subAng) * (curR * 0.26);
-        const sy2 = my + Math.sin(subAng) * (curR * 0.26);
-
-        const traceCrack = () => {
-          ctx.beginPath();
-          ctx.moveTo(msx + Math.cos(cAng) * startR, msy + Math.sin(cAng) * startR);
-          ctx.lineTo(mx, my);
-          ctx.lineTo(ex, ey);
-          ctx.moveTo(mx, my);
-          ctx.lineTo(sx2, sy2);
-        };
-
-        ctx.strokeStyle = "#3E1602";
-        ctx.lineWidth = 11 * (1 - prog * 0.42);
-        traceCrack();
-        ctx.stroke();
-
-        ctx.strokeStyle = "#D97706";
-        ctx.lineWidth = 4.0 * (1 - prog * 0.42);
-        traceCrack();
-        ctx.stroke();
-
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 1.6;
-        traceCrack();
-        ctx.stroke();
-
-        // 4. 沿裂縫向上跳起的雙色立體斜切面岩石稜塊
-        const hop = Math.sin(prog * Math.PI) * 18;
-        ctx.save();
-        ctx.translate(mx, my - hop);
-        ctx.fillStyle = "#78350F";
-        ctx.strokeStyle = "#291509";
-        ctx.lineWidth = 1.4;
+      // 2. 瞬爆擴散的飛沙塵土震波環（柔和淡金＋暖沙外圈）
+      const ringAlpha = Math.max(0, (1 - prog * 1.15) * 0.75);
+      if (ringAlpha > 0.02) {
+        ctx.strokeStyle = `rgba(253, 230, 138, ${ringAlpha})`;
+        ctx.lineWidth = Math.max(1.5, 6.5 * (1 - prog * 0.75));
         ctx.beginPath();
-        ctx.moveTo(0, -10); ctx.lineTo(8, 2); ctx.lineTo(0, 6);
+        ctx.arc(0, 0, curR * 1.02, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(217, 119, 6, ${ringAlpha * 0.85})`;
+        ctx.lineWidth = Math.max(1.0, 2.5 * (1 - prog * 0.75));
+        ctx.beginPath();
+        ctx.arc(0, 0, innerR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      // 3. 5～7 條不規則樹狀龜裂（由中心向外極速撕裂，根部 8px ➔ 末端 1.5px 自然收尖）
+      const glowFade = Math.max(0.25, 1 - prog * 0.85);
+      const segs = m.cracks.segments;
+      for (let k = 0; k < segs.length; k++) {
+        const sg = segs[k];
+        if (tearProg <= sg.t0) continue;
+        const localFrac = Math.min(1, (tearProg - sg.t0) / Math.max(0.01, sg.t1 - sg.t0));
+        const ex = sg.x1 + (sg.x2 - sg.x1) * localFrac;
+        const ey = sg.y1 + (sg.y2 - sg.y1) * localFrac;
+        const baseW = (sg.isSub ? 4.4 : 8.4) * sg.wMul;
+
+        ctx.strokeStyle = "#2A1205";
+        ctx.lineWidth = Math.max(1.4, baseW);
+        ctx.beginPath();
+        ctx.moveTo(sg.x1, sg.y1);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+
+        if (baseW > 2.2) {
+          ctx.strokeStyle = `rgba(234, 88, 12, ${0.88 * glowFade})`;
+          ctx.lineWidth = Math.max(1.0, baseW * 0.44);
+          ctx.beginPath();
+          ctx.moveTo(sg.x1, sg.y1);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+        }
+
+        if (!sg.isSub && sg.wMul > 0.45) {
+          ctx.strokeStyle = `rgba(254, 240, 138, ${0.85 * glowFade})`;
+          ctx.lineWidth = Math.max(0.9, baseW * 0.18);
+          ctx.beginPath();
+          ctx.moveTo(sg.x1, sg.y1);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+        }
+      }
+
+      // 4. 轉折處彈起後回落的雙色斜切面崩岩碎石
+      const hopCurve = Math.sin(Math.min(1, prog * 1.25) * Math.PI);
+      m.cracks.rocks.forEach(rk => {
+        if (tearProg < 0.35) return;
+        const hop = hopCurve * (rk.hopH || 14);
+        const rw = rk.w || 7;
+        const rh = rk.h || 10;
+        ctx.save();
+        ctx.translate(rk.x, rk.y - hop);
+        ctx.fillStyle = "#78350F";
+        ctx.strokeStyle = "#231006";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(0, -rh); ctx.lineTo(rw, 2); ctx.lineTo(0, 5);
         ctx.closePath();
         ctx.fill(); ctx.stroke();
 
         ctx.fillStyle = "#F59E0B";
         ctx.beginPath();
-        ctx.moveTo(0, -10); ctx.lineTo(-8, 2); ctx.lineTo(0, 6);
+        ctx.moveTo(0, -rh); ctx.lineTo(-rw, 2); ctx.lineTo(0, 5);
         ctx.closePath();
         ctx.fill(); ctx.stroke();
         ctx.restore();
-      }
+      });
+
       ctx.restore();
     });
 
