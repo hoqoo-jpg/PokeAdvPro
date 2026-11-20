@@ -1916,9 +1916,9 @@ window.GameApp = {
               const actualReach = (28 + (waves - 1) * 24 + 50 + (waves - 1) * 10) * tackleScale;
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "martial_fist") {
-              // 空手劈 (Karate Chop)：連環拳每級成長距離 (92 + lv * 6) * meleeAreaScale
-              const actualReach = (92 + lv * 6) * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
-              triggerRange = actualReach * 0.95;
+              // 空手劈 (Karate Chop)：連環拳黃金距離 (76 + lv * 4.5) * meleeAreaScale
+              const actualReach = (76 + lv * 4.5) * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
+              triggerRange = actualReach * 0.92;
             } else if (meta.meleeStyle === "quake_wave") {
               // 地震 (Earthquake)：真實距離 (85 + lv * 4) * meleeAreaScale
               const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));

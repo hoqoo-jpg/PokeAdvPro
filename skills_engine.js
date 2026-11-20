@@ -764,8 +764,8 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 【空手劈・單點突破連環拳】：每級提升射程 ＋ 單軸高速交替快拳釘住目標 ＋ 終結重拳放大貫穿重擊
-      const reach = (92 + level * 6) * areaScale * (1 + (trait.ironFistAreaBonus || 0));
+      // 【空手劈・商業級單點突破連環拳】：黃金肉搏拳風射程 (76 + lv*4.5) ＋ 單軸高速交替快拳 ＋ 終結重拳貫穿
+      const reach = (76 + level * 4.5) * areaScale * (1 + (trait.ironFistAreaBonus || 0));
       const baseHits = level >= 8 ? 4 : (level >= 4 ? 3 : 2);
       const totalHits = Math.min(5, baseHits + (trait.ironFistExtraStrike || 0));
       const dmgTable = {
@@ -790,14 +790,14 @@ const SkillsEngine = {
           }
         }
 
-        // 沿同一進攻軸線由近到遠梯次推進（第 1 拳貼身 0.45x ➔ 中段 ➔ 終結重拳 1.02x），左右僅 ±7px 交替直拳
+        // 沿同一進攻軸線由近到遠梯次推進（前段快拳貼身 42~68px ➔ 終結重拳 85~95px），左右僅 ±6px 交替直拳
         const stepFrac = totalHits > 1 ? (hitIdx / (totalHits - 1)) : 1;
-        const distReach = 22 + reach * (0.42 + stepFrac * 0.58);
+        const distReach = 18 + reach * (0.34 + stepFrac * 0.56);
         const perpAng = curAng + Math.PI / 2;
-        const sideOffset = isFinisher ? 0 : ((hitIdx % 2 === 0 ? -1 : 1) * 7);
+        const sideOffset = isFinisher ? 0 : ((hitIdx % 2 === 0 ? -1 : 1) * 6);
 
-        const ox = caster.x + Math.cos(curAng) * 20 + Math.cos(perpAng) * (sideOffset * 0.6);
-        const oy = caster.y + Math.sin(curAng) * 20 + Math.sin(perpAng) * (sideOffset * 0.6);
+        const ox = caster.x + Math.cos(curAng) * 16 + Math.cos(perpAng) * (sideOffset * 0.5);
+        const oy = caster.y + Math.sin(curAng) * 16 + Math.sin(perpAng) * (sideOffset * 0.5);
         const fx = caster.x + Math.cos(curAng) * distReach + Math.cos(perpAng) * sideOffset;
         const fy = caster.y + Math.sin(curAng) * distReach + Math.sin(perpAng) * sideOffset;
         const hitRad = Math.min(72, Math.max(36, reach * (isFinisher ? 0.48 : 0.36)));
@@ -4084,81 +4084,111 @@ const SkillsEngine = {
 
         ctx.restore();
       } else if (m.style === "karate_cross") {
-        // 【空手劈・單點突破連環拳】：拳氣前衝推進動畫 ＋ 放寬視覺上限 (64px) ＋ 終結重拳雙層純白音爆環
-        const burstT = Math.min(1, prog / 0.38);
+        // 【空手劈・商業動作遊戲級連環拳風】：錐形漸層拳風帶 ＋ 錯落速度線 ＋ 半透明殘影拳 ＋ 透視壓扁橢圓音爆環 ＋ 尾拳月牙破空閃光
+        const burstT = Math.min(1, prog / 0.36);
         const thrustEase = 1 - Math.pow(1 - burstT, 3);
         const curWx = m.ox !== undefined ? (m.ox + (m.x - m.ox) * thrustEase) : m.x;
         const curWy = m.oy !== undefined ? (m.oy + (m.y - m.oy) * thrustEase) : m.y;
         const msx = toSx(curWx), msy = toSy(curWy);
         const isFin = !!m.isFinisher;
-        const baseR = Math.min(isFin ? 64 : 52, Math.max(isFin ? 34 : 26, m.radius * (isFin ? 0.92 : 0.78)));
-        const fade = Math.max(0, 1 - prog * 0.85);
-        const popScale = (isFin ? 0.86 : 0.76) + Math.sin(Math.min(1, prog * 2.4) * Math.PI * 0.5) * (isFin ? 0.36 : 0.26);
+        const baseR = Math.min(isFin ? 58 : 46, Math.max(isFin ? 32 : 24, m.radius * (isFin ? 0.90 : 0.76)));
+        const fade = Math.max(0, 1 - prog * 0.88);
+        const popScale = (isFin ? 0.88 : 0.78) + Math.sin(Math.min(1, prog * 2.5) * Math.PI * 0.5) * (isFin ? 0.32 : 0.22);
+        const f = baseR * 0.42;
 
         ctx.save();
-        // 推進氣勁殘影拖尾線（從出拳起點連至拳印中心）
-        if (m.ox !== undefined && prog < 0.75) {
-          const osx = toSx(m.ox), osy = toSy(m.oy);
-          ctx.globalAlpha = fade * (isFin ? 0.78 : 0.55);
-          ctx.strokeStyle = isFin ? "#FEF08A" : "#F97316";
-          ctx.lineWidth = isFin ? 7.5 * (1 - prog * 0.6) : 4.5 * (1 - prog * 0.6);
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(osx, osy);
-          ctx.lineTo(msx, msy);
-          ctx.stroke();
-
-          ctx.strokeStyle = "#FFFFFF";
-          ctx.lineWidth = isFin ? 3.2 * (1 - prog * 0.6) : 1.8 * (1 - prog * 0.6);
-          ctx.beginPath();
-          ctx.moveTo(osx, osy);
-          ctx.lineTo(msx, msy);
-          ctx.stroke();
-        }
-
         ctx.translate(msx, msy);
+        ctx.rotate(m.angle || 0); // +X 為出拳前進方向，-X 為拳頭後方
         ctx.globalAlpha = fade;
 
-        // 1. 急劇擴散的白金衝擊波環（終結重拳額外擴大 1.18x 強化貫穿音爆感）
-        const outerR = baseR * (isFin ? (0.64 + prog * 0.68) : (0.52 + prog * 0.48));
-        const innerR = baseR * (isFin ? (0.40 + prog * 0.50) : (0.34 + prog * 0.36));
-
-        ctx.strokeStyle = "rgba(254, 240, 138, 0.72)";
-        ctx.lineWidth = Math.max(1.5, 5.2 * (1 - prog * 0.55));
+        // 1. 半透明錐形拳風帶（前寬後尖，前端亮金➔尾端透明，完全不黏死角色身體）
+        const coneLen = Math.min(isFin ? 66 : 48, baseR * (isFin ? 1.45 : 1.20));
+        const coneHalfW = baseR * (isFin ? 0.62 : 0.50);
+        const windGrad = ctx.createLinearGradient(-coneLen, 0, f * 0.4, 0);
+        windGrad.addColorStop(0, "rgba(234, 88, 12, 0.0)");
+        windGrad.addColorStop(0.55, isFin ? "rgba(249, 115, 22, 0.38)" : "rgba(249, 115, 22, 0.28)");
+        windGrad.addColorStop(1, isFin ? "rgba(254, 240, 138, 0.62)" : "rgba(254, 240, 138, 0.44)");
+        ctx.fillStyle = windGrad;
         ctx.beginPath();
-        ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+        ctx.moveTo(f * 0.35, -coneHalfW);
+        ctx.quadraticCurveTo(-coneLen * 0.35, -coneHalfW * 0.55, -coneLen, 0);
+        ctx.quadraticCurveTo(-coneLen * 0.35, coneHalfW * 0.55, f * 0.35, coneHalfW);
+        ctx.closePath();
+        ctx.fill();
+
+        // 2. 3～4 條長短錯落的銳利破風速度線 (Speed Lines)
+        const speedLines = isFin
+          ? [[-coneLen * 0.95, -coneHalfW * 0.72, coneLen * 0.78, 2.2], [-coneLen * 0.70, -coneHalfW * 0.28, coneLen * 0.62, 1.5], [-coneLen * 0.80, coneHalfW * 0.30, coneLen * 0.65, 1.5], [-coneLen * 0.98, coneHalfW * 0.74, coneLen * 0.80, 2.2]]
+          : [[-coneLen * 0.88, -coneHalfW * 0.68, coneLen * 0.68, 1.8], [-coneLen * 0.65, 0, coneLen * 0.50, 1.3], [-coneLen * 0.90, coneHalfW * 0.66, coneLen * 0.70, 1.8]];
+        ctx.lineCap = "round";
+        speedLines.forEach(([lx, ly, llen, lw], idx) => {
+          const shiftX = prog * 10;
+          ctx.strokeStyle = idx % 2 === 0 ? "rgba(255, 255, 255, 0.82)" : "rgba(253, 186, 116, 0.72)";
+          ctx.lineWidth = lw * (1 - prog * 0.45);
+          ctx.beginPath();
+          ctx.moveTo(lx + shiftX, ly);
+          ctx.lineTo(lx + llen + shiftX, ly * 0.82);
+          ctx.stroke();
+        });
+
+        // 3. 1～2 層半透明殘影拳 (Afterimage Silhouettes)，強化高速連打殘像
+        const ghosts = isFin ? [{ dx: -22, sc: 0.68, al: 0.22 }, { dx: -11, sc: 0.84, al: 0.38 }] : [{ dx: -12, sc: 0.80, al: 0.30 }];
+        ghosts.forEach(g => {
+          ctx.save();
+          ctx.translate(g.dx, 0);
+          ctx.rotate(Math.PI * 0.5);
+          ctx.scale(popScale * g.sc, popScale * g.sc);
+          ctx.globalAlpha = fade * g.al;
+          ctx.fillStyle = isFin ? "#FACC15" : "#EA580C";
+          ctx.beginPath();
+          ctx.roundRect(-f * 0.66, -f * 0.70, f * 1.32, f * 1.24, f * 0.28);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // 4. 垂直於出拳方向的「透視壓扁橢圓音爆環」（模擬拳頭擊穿空氣膜，告別平面正圓貼紙感）
+        const outerRy = baseR * (isFin ? (0.64 + prog * 0.62) : (0.50 + prog * 0.44));
+        const outerRx = outerRy * 0.34;
+        const innerRy = baseR * (isFin ? (0.42 + prog * 0.44) : (0.32 + prog * 0.32));
+        const innerRx = innerRy * 0.32;
+
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.75)";
+        ctx.lineWidth = Math.max(1.5, (isFin ? 5.2 : 3.8) * (1 - prog * 0.55));
+        ctx.beginPath();
+        ctx.ellipse(-f * 0.25, 0, outerRx, outerRy, 0, 0, Math.PI * 2);
         ctx.stroke();
 
         ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
-        ctx.lineWidth = Math.max(1.0, 2.4 * (1 - prog * 0.55));
+        ctx.lineWidth = Math.max(1.0, (isFin ? 2.4 : 1.8) * (1 - prog * 0.55));
         ctx.beginPath();
-        ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+        ctx.ellipse(-f * 0.25, 0, outerRx, outerRy, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.84)";
-        ctx.lineWidth = Math.max(1.0, 3.0 * (1 - prog * 0.50));
-        ctx.beginPath();
-        ctx.arc(0, 0, innerR, 0, Math.PI * 2);
-        ctx.stroke();
+        if (isFin) {
+          ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+          ctx.lineWidth = Math.max(1.0, 2.8 * (1 - prog * 0.50));
+          ctx.beginPath();
+          ctx.ellipse(f * 0.35, 0, innerRx, innerRy, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
-        // 2. 沿出拳方向旋轉並彈出「赤金烈焰武道拳印」
+        // 5. 沿出拳方向旋轉並彈出「赤金烈焰武道重拳本體」
         ctx.save();
-        ctx.rotate((m.angle || 0) + Math.PI * 0.5);
+        ctx.rotate(Math.PI * 0.5);
         ctx.scale(popScale, popScale);
-        const f = baseR * 0.42;
 
-        // 拳印後方拖曳的烈焰氣焰與 3 道殘影尾舌
+        // 拳印後方拖曳的烈焰氣焰與 3 道尾舌
         ctx.fillStyle = "rgba(234, 88, 12, 0.88)";
         ctx.beginPath();
         ctx.moveTo(-f * 0.95, f * 0.25);
         ctx.quadraticCurveTo(-f * 1.15, -f * 0.65, -f * 0.42, -f * 1.18);
         ctx.quadraticCurveTo(0, -f * 1.52, f * 0.45, -f * 1.15);
         ctx.quadraticCurveTo(f * 1.15, -f * 0.60, f * 0.92, f * 0.30);
-        ctx.lineTo(f * 0.55, f * 1.38);
-        ctx.lineTo(f * 0.15, f * 0.92);
-        ctx.lineTo(-f * 0.12, f * 1.52);
-        ctx.lineTo(-f * 0.45, f * 0.96);
-        ctx.lineTo(-f * 0.82, f * 1.25);
+        ctx.lineTo(f * 0.55, f * 1.32);
+        ctx.lineTo(f * 0.15, f * 0.88);
+        ctx.lineTo(-f * 0.12, f * 1.44);
+        ctx.lineTo(-f * 0.45, f * 0.92);
+        ctx.lineTo(-f * 0.82, f * 1.20);
         ctx.closePath();
         ctx.fill();
 
@@ -4169,12 +4199,12 @@ const SkillsEngine = {
         ctx.quadraticCurveTo(-f * 0.92, -f * 0.52, -f * 0.32, -f * 0.96);
         ctx.quadraticCurveTo(0, -f * 1.22, f * 0.35, -f * 0.94);
         ctx.quadraticCurveTo(f * 0.92, -f * 0.48, f * 0.75, f * 0.20);
-        ctx.lineTo(f * 0.32, f * 0.88);
-        ctx.lineTo(-f * 0.32, f * 0.88);
+        ctx.lineTo(f * 0.32, f * 0.86);
+        ctx.lineTo(-f * 0.32, f * 0.86);
         ctx.closePath();
         ctx.fill();
 
-        // 3. 立體緊握武道重拳剪影（深褐像素描邊 ＋ 赤紅拳體 ＋ 四指節凸起 ＋ 橫握拇指）
+        // 立體緊握武道重拳剪影（深褐像素描邊 ＋ 赤紅拳體 ＋ 四指節凸起 ＋ 橫握拇指）
         ctx.fillStyle = "#991B1B";
         ctx.strokeStyle = "#450A0A";
         ctx.lineWidth = 2.0;
@@ -4215,8 +4245,28 @@ const SkillsEngine = {
         ctx.arc(-f * 0.12, -f * 0.56, f * 0.10, 0, Math.PI * 2);
         ctx.arc(f * 0.18, -f * 0.56, f * 0.10, 0, Math.PI * 2);
         ctx.fill();
-
         ctx.restore();
+
+        // 6. 終結重拳指節最前端：銳利純白月牙破空閃光 (Finisher Impact Crescent)
+        if (isFin && prog < 0.68) {
+          const cFade = 1 - prog / 0.68;
+          ctx.save();
+          ctx.globalAlpha = cFade * 0.95;
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 3.8 * cFade;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.arc(f * 0.42, 0, baseR * 0.54, -0.88, 0.88);
+          ctx.stroke();
+
+          ctx.strokeStyle = "#FEF08A";
+          ctx.lineWidth = 2.0 * cFade;
+          ctx.beginPath();
+          ctx.arc(f * 0.54, 0, baseR * 0.66, -0.68, 0.68);
+          ctx.stroke();
+          ctx.restore();
+        }
+
         ctx.restore();
       } else if (m.style === "sonic_cone") {
         // 【撞擊（Tackle）・一體化貼身破空衝鋒風罩】：動態鎖定精靈前撲本體，緊貼鼻尖包覆身體兩側，徹底消除空殼分離感！
