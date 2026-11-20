@@ -592,8 +592,10 @@ Object.assign(window.GameApp, {
               ${unlocked || seen
                 ? (() => {
                     const trMeta = typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(p, 1) : null;
+                    const underdogExp = typeof getUnderdogExpBonus === "function" ? getUnderdogExpBonus(p) : 0;
                     return `<div class="flex justify-between"><span>HP:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispHp}</strong></span><span>ATK:<strong class="${starLv > 0 ? 'text-amber-600' : ''}">${dispAtk}</strong></span><span>SPD:<strong>${p.speed}</strong></span></div>
                             <div class="text-blue-700 truncate">招式：${sk ? sk.name : p.skill}${starLv >= 3 ? ' (開局Lv.2)' : ''}</div>
+                            ${underdogExp > 0 ? `<div class="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-0.5">🌱 大器晚成：進化前 EXP +${Math.round(underdogExp * 100)}%</div>` : ''}
                             ${trMeta ? `
                               <div class="mt-1 p-1 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 leading-tight whitespace-normal break-words">
                                 <div class="text-[9px] font-black text-amber-900"><i class="fa-solid ${trMeta.icon} text-[8px] mr-0.5"></i>特性：【${trMeta.name}】</div>

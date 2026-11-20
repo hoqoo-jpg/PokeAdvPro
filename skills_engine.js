@@ -179,53 +179,14 @@ const SkillsEngine = {
 
     const lvDmgMult = 1 + (level - 1) * 0.06 + (level === 10 ? 0.12 : 0);
 
-    let stageBuffMult = 1.0;
-    const stId = MapEngine.currentStage.id;
-    if (stId === "pallet" && (meta.type === "Grass" || meta.type === "Bug")) stageBuffMult = 1.20;
-    if (stId === "cerulean_bay" && (meta.type === "Water" || meta.type === "Ice")) stageBuffMult = 1.20;
-    if (stId === "sky_pillar" && (meta.type === "Psychic" || meta.type === "Ghost")) stageBuffMult = 1.20;
-
-    const curW = MapEngine.weather;
-    let weatherBuff = 1.0;
-    if (curW === "RAIN") {
-      if (meta.type === "Water") weatherBuff = 1.25;
-      if (meta.type === "Fire") weatherBuff = 0.80;
-    } else if (curW === "HEATWAVE") {
-      if (meta.type === "Fire") weatherBuff = 1.25;
-      if (meta.type === "Water") weatherBuff = 0.80;
-    } else if (curW === "BLIZZARD") {
-      if (meta.type === "Ice") weatherBuff = 1.20;
-    } else if (curW === "THUNDER") {
-      if (meta.type === "Electric") weatherBuff = 1.20;
-    } else if (curW === "PSYCHIC") {
-      if (meta.type === "Psychic" || meta.type === "Ghost") weatherBuff = 1.20;
-    }
-
-    let heldItemMult = 1.0;
-    if (GameApp.player && GameApp.player.heldItems) {
-      if (meta.type === "Fire" && GameApp.player.heldItems["charcoal"]) heldItemMult *= 1.20;
-      if (meta.type === "Water" && GameApp.player.heldItems["mystic_water"]) heldItemMult *= 1.20;
-      if (meta.type === "Grass" && GameApp.player.heldItems["miracle_seed"]) heldItemMult *= 1.20;
-      if (meta.type === "Electric" && GameApp.player.heldItems["magnet"]) heldItemMult *= 1.20;
-      if (meta.type === "Ghost" && GameApp.player.heldItems["spell_tag"]) heldItemMult *= 1.20;
-      if (meta.type === "Psychic" && GameApp.player.heldItems["twisted_spoon"]) heldItemMult *= 1.20;
-      if (meta.type === "Ice" && GameApp.player.heldItems["never_melt_ice"]) heldItemMult *= 1.20;
-      if (meta.type === "Ground" && GameApp.player.heldItems["soft_sand"]) heldItemMult *= 1.20;
-      if (meta.type === "Fighting" && GameApp.player.heldItems["black_belt"]) heldItemMult *= 1.20;
-      if (meta.type === "Flying" && GameApp.player.heldItems["sharp_beak"]) heldItemMult *= 1.20;
-      if (meta.type === "Normal" && GameApp.player.heldItems["silk_scarf"]) heldItemMult *= 1.20;
-      if (meta.type === "Poison" && GameApp.player.heldItems["poison_barb"]) heldItemMult *= 1.20;
-      if (meta.type === "Dragon" && GameApp.player.heldItems["dragon_scale"]) heldItemMult *= 1.20;
-    }
-
     const trait = (caster === GameApp.player && GameApp.player.innateTrait)
       ? GameApp.player.innateTrait
       : (typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(caster.data, caster.level || 1) : {});
     caster._activeTrait = trait;
 
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
-    // 依據最新版，xAtkMod 在 battle_core_2 的 dealDamageToEnemy 結算，此處不重複乘算
-    const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale * stageBuffMult * weatherBuff * heldItemMult;
+    // v6.6 傷害乘區收斂：地圖、天氣、攜帶物、力量強化與灼傷增傷統一移至 battle_core_2.dealDamageToEnemy 同區加法結算
+    const rawDmg = basePower * lvDmgMult * GameApp.player.dmgMult * stabMult * dmgScale;
 
     if (meta.isMelee) {
       this.executeMeleeSkill(caster, meta, level, count, baseAngle, rawDmg);
@@ -1326,7 +1287,7 @@ const SkillsEngine = {
       if (Math.hypot(e.x - p.x, e.y - p.y) <= 115 + e.radius) {
         let adjustedDmg = ultDmg * 0.55;
         if (meta.type === "Ground" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
-          adjustedDmg *= 7.5;
+          adjustedDmg *= 3.0;
         }
         GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 28);
       }
@@ -1872,7 +1833,7 @@ const SkillsEngine = {
               }
               let dVal = hz.dmg;
               if (hz.kind === "quake_fissure" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
-                dVal *= 7.5; // 飛石對空破局
+                dVal *= 3.0; // 飛石對空破局 (對齊 0.35x 屬性底線)
               }
               if (hz.kind === "genesis_aurora" || hz.kind === "moon_pillar") {
                 const wasWeakened = (e.weakenTimer && e.weakenTimer > 0.5);

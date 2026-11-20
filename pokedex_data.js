@@ -43,18 +43,18 @@ const TYPE_CHART = {
   Fire:     { Grass: 1.5, Ice: 1.5, Bug: 1.5, Steel: 1.5, Water: 0.65, Fire: 0.65, Rock: 0.65, Dragon: 0.65 },
   Water:    { Fire: 1.5, Ground: 1.5, Rock: 1.5, Water: 0.65, Grass: 0.65, Dragon: 0.65 },
   Grass:    { Water: 1.5, Ground: 1.5, Rock: 1.5, Fire: 0.65, Grass: 0.65, Poison: 0.65, Flying: 0.65, Bug: 0.65, Dragon: 0.65 },
-  Electric: { Water: 1.5, Flying: 1.5, Electric: 0.65, Grass: 0.65, Dragon: 0.65, Ground: 0.1 },
+  Electric: { Water: 1.5, Flying: 1.5, Electric: 0.65, Grass: 0.65, Dragon: 0.65, Ground: 0.35 },
   Ice:      { Grass: 1.5, Ground: 1.5, Flying: 1.5, Dragon: 1.5, Fire: 0.65, Water: 0.65, Ice: 0.65 },
-  Fighting: { Normal: 1.5, Ice: 1.5, Rock: 1.5, Steel: 1.5, Poison: 0.65, Flying: 0.65, Psychic: 0.65, Bug: 0.65, Ghost: 0.1 },
-  Poison:   { Grass: 1.5, Poison: 0.65, Ground: 0.65, Rock: 0.65, Ghost: 0.65, Steel: 0.1 },
-  Ground:   { Fire: 1.5, Electric: 1.5, Poison: 1.5, Rock: 1.5, Steel: 1.5, Grass: 0.65, Bug: 0.65, Flying: 0.1 },
+  Fighting: { Normal: 1.5, Ice: 1.5, Rock: 1.5, Steel: 1.5, Poison: 0.65, Flying: 0.65, Psychic: 0.65, Bug: 0.65, Ghost: 0.35 },
+  Poison:   { Grass: 1.5, Poison: 0.65, Ground: 0.65, Rock: 0.65, Ghost: 0.65, Steel: 0.35 },
+  Ground:   { Fire: 1.5, Electric: 1.5, Poison: 1.5, Rock: 1.5, Steel: 1.5, Grass: 0.65, Bug: 0.65, Flying: 0.35 },
   Flying:   { Grass: 1.5, Fighting: 1.5, Bug: 1.5, Electric: 0.65, Rock: 0.65, Steel: 0.65 },
   Psychic:  { Fighting: 1.5, Poison: 1.5, Psychic: 0.65, Steel: 0.65 },
   Bug:      { Grass: 1.5, Psychic: 1.5, Fire: 0.65, Fighting: 0.65, Poison: 0.65, Flying: 0.65, Ghost: 0.65, Steel: 0.65 },
   Rock:     { Fire: 1.5, Ice: 1.5, Flying: 1.5, Bug: 1.5, Fighting: 0.65, Ground: 0.65, Steel: 0.65 },
-  Ghost:    { Psychic: 1.5, Ghost: 1.5, Normal: 0.1 },
+  Ghost:    { Psychic: 1.5, Ghost: 1.5, Normal: 0.35 },
   Dragon:   { Dragon: 1.5, Steel: 0.65 },
-  Normal:   { Rock: 0.65, Steel: 0.65, Ghost: 0.1 }
+  Normal:   { Rock: 0.65, Steel: 0.65, Ghost: 0.35 }
 };
 
 function calcTypeMultiplier(atkType, defType1, defType2) {
@@ -1761,3 +1761,14 @@ const TACTICAL_LOADOUTS = [
     desc: "本局野生閃光寶可夢遭遇率提升 3 倍，且最終結算代幣總額額外 +25%！"
   }
 ];
+
+// 15. 前期弱勢一階幼體・大器晚成經驗加速判定 (僅首次進化前生效，不疊加額外減傷)
+function getUnderdogExpBonus(pokeData) {
+  if (!pokeData || !pokeData.evo_to) return 0;
+  const hasParent = POKEMON_DB.some(parent => parent.evo_to === pokeData.id || ([134, 135, 136].includes(pokeData.id) && parent.id === 133));
+  if (hasParent) return 0;
+  const statSum = (pokeData.hp || 0) + (pokeData.atk || 0);
+  if (statSum <= 110) return 0.40;
+  if (statSum <= 145) return 0.25;
+  return 0;
+}

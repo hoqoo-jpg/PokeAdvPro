@@ -851,6 +851,8 @@ window.GameApp = {
       quickStepTimer: 0,
       martialGodTimer: 0,
       innateTrait: typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(basePoke, 1) : null,
+      underdogExpBonus: typeof getUnderdogExpBonus === "function" ? getUnderdogExpBonus(basePoke) : 0,
+      trail: [{ x: 0, y: 0 }],
       speedTrails: []
     };
 
@@ -1693,16 +1695,68 @@ window.GameApp = {
     }
 
     const tc = this.trainerCompanion;
-    const sideOffset = (p.facingX < 0 ? 24 : -24);
-    const targetTx = p.x + sideOffset;
-    const targetTy = p.y;
-    tc.vy = (targetTy - tc.y);
-    tc.vx = (targetTx - tc.x);
-    tc.x += (targetTx - tc.x) * Math.min(1, dt * 30);
-    tc.y += (targetTy - tc.y) * Math.min(1, dt * 30);
-    tc.facingX = p.facingX;
-    tc.facingY = p.facingY;
-    tc.walkBob = p.walkBob;
+    if (!p.trail) p.trail = [{ x: p.x, y: p.y }];
+    const lastTrail = p.trail[p.trail.length - 1];
+    if (!lastTrail || Math.hypot(p.x - lastTrail.x, p.y - lastTrail.y) >= 4) {
+      p.trail.push({ x: p.x, y: p.y });
+      if (p.trail.length > 32) p.trail.shift();
+    }
+
+    // 沿主角實際走過的安全路徑，定位身後 26px 的滯後跟隨點
+    let targetTx = tc.x;
+    let targetTy = tc.y;
+    let accumDist = 0;
+    let prevPt = { x: p.x, y: p.y };
+    let foundTrailPt = false;
+    for (let ti = p.trail.length - 1; ti >= 0; ti--) {
+      const pt = p.trail[ti];
+      const segD = Math.hypot(prevPt.x - pt.x, prevPt.y - pt.y);
+      if (accumDist + segD >= 26) {
+        const remain = 26 - accumDist;
+        const ratio = segD > 0.001 ? (remain / segD) : 0;
+        targetTx = prevPt.x + (pt.x - prevPt.x) * ratio;
+        targetTy = prevPt.y + (pt.y - prevPt.y) * ratio;
+        foundTrailPt = true;
+        break;
+      }
+      accumDist += segD;
+      prevPt = pt;
+    }
+    if (!foundTrailPt) {
+      const dToP = Math.hypot(tc.x - p.x, tc.y - p.y);
+      if (dToP > 28) {
+        const ang = Math.atan2(tc.y - p.y, tc.x - p.x);
+        targetTx = p.x + Math.cos(ang) * 26;
+        targetTy = p.y + Math.sin(ang) * 26;
+      }
+    }
+
+    const tcDx = targetTx - tc.x;
+    const tcDy = targetTy - tc.y;
+    const tcDist = Math.hypot(tcDx, tcDy);
+    const followSpeed = tcDist > 90 ? 22 : 13;
+    const prevTcX = tc.x, prevTcY = tc.y;
+    tc.x += tcDx * Math.min(1, dt * followSpeed);
+    tc.y += tcDy * Math.min(1, dt * followSpeed);
+    const movedX = tc.x - prevTcX;
+    const movedY = tc.y - prevTcY;
+    tc.vx = dt > 0 ? movedX / dt : 0;
+    tc.vy = dt > 0 ? movedY / dt : 0;
+
+    if (Math.hypot(movedX, movedY) > 0.35) {
+      if (Math.abs(movedX) > Math.abs(movedY)) {
+        tc.facingX = movedX >= 0 ? 1 : -1;
+        tc.facingY = 0;
+      } else {
+        tc.facingY = movedY < 0 ? -1 : 1;
+        tc.facingX = 0;
+      }
+      tc.walkBob = (tc.walkBob || 0) + dt * 12;
+    } else {
+      tc.facingX = p.facingX;
+      tc.facingY = p.facingY;
+      tc.walkBob = 0;
+    }
     if (tc.whiteFlashTimer > 0) tc.whiteFlashTimer -= dt;
     if (tc.walkBob > 0.01 && !tc.isJumpingLedge) {
       tc.dustTimer = (tc.dustTimer || 0) - dt;
@@ -2486,6 +2540,9 @@ window.GameApp = {
       const e = this.enemies[i];
       if (e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
       if (e.whiteFlashTimer > 0) e.whiteFlashTimer -= dt;
+      if (e.isBoss && e.dpsBucket > 0) {
+        e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * 0.12 * dt);
+      }
 
       if (e.treasureType) {
         e.escapeTimer -= dt;
@@ -2854,7 +2911,7 @@ window.GameApp = {
       const distToPoke = dist;
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
       const hitPoke = distToPoke < e.radius + 16;
-      const hitTrainer = tc && (distToTrainer < e.radius + 11);
+      const hitTrainer = tc && (distToTrainer < e.radius + 9);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -3279,7 +3336,7 @@ window.GameApp = {
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
-      const hitTrainer = tc && (distToTrainer < ep.radius + 11);
+      const hitTrainer = tc && (distToTrainer < ep.radius + 9);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -3401,14 +3458,61 @@ window.GameApp = {
     const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit);
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
     const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
-    const xAtkMod = this.player.xAttackTimer > 0 ? 1.35 : 1.0;
-    const dragonMawMod = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? (1 + pTrait.dragonMawBurnAmp) : 1.0;
-    let finalDmg = Math.round(rawDmg * eff * critMult * xAtkMod * dragonMawMod);
+
+    // v6.6 環境與戰術加法區（地圖 + 天氣 + 攜帶物屬性傷 + 力量強化 + 猛火龍威灼傷增傷）
+    let stageBonus = 0;
+    const stId = (typeof MapEngine !== "undefined" && MapEngine.currentStage) ? MapEngine.currentStage.id : "";
+    if (stId === "pallet" && (moveType === "Grass" || moveType === "Bug")) stageBonus = 0.20;
+    else if (stId === "cerulean_bay" && (moveType === "Water" || moveType === "Ice")) stageBonus = 0.20;
+    else if (stId === "sky_pillar" && (moveType === "Psychic" || moveType === "Ghost")) stageBonus = 0.20;
+
+    let weatherBonus = 0;
+    const curW = (typeof MapEngine !== "undefined") ? MapEngine.weather : "CLEAR";
+    if (curW === "RAIN") {
+      if (moveType === "Water") weatherBonus = 0.25;
+      else if (moveType === "Fire") weatherBonus = -0.20;
+    } else if (curW === "HEATWAVE") {
+      if (moveType === "Fire") weatherBonus = 0.25;
+      else if (moveType === "Water") weatherBonus = -0.20;
+    } else if (curW === "BLIZZARD" && moveType === "Ice") {
+      weatherBonus = 0.20;
+    } else if (curW === "THUNDER" && moveType === "Electric") {
+      weatherBonus = 0.20;
+    } else if (curW === "PSYCHIC" && (moveType === "Psychic" || moveType === "Ghost")) {
+      weatherBonus = 0.20;
+    }
+
+    let heldBonus = 0;
+    const hi = this.player && this.player.heldItems;
+    if (hi) {
+      const heldTypeMap = {
+        Fire: "charcoal", Water: "mystic_water", Grass: "miracle_seed", Electric: "magnet",
+        Ghost: "spell_tag", Psychic: "twisted_spoon", Ice: "never_melt_ice", Ground: "soft_sand",
+        Fighting: "black_belt", Flying: "sharp_beak", Normal: "silk_scarf", Poison: "poison_barb", Dragon: "dragon_scale"
+      };
+      if (heldTypeMap[moveType] && hi[heldTypeMap[moveType]]) heldBonus = 0.20;
+    }
+
+    const xAtkBonus = this.player.xAttackTimer > 0 ? 0.35 : 0;
+    const dragonMawBonus = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? pTrait.dragonMawBurnAmp : 0;
+    const envAddMult = Math.max(0.5, 1.0 + stageBonus + weatherBonus + heldBonus + xAtkBonus + dragonMawBonus);
+
+    let finalDmg = Math.round(rawDmg * envAddMult * eff * critMult);
     if (enemy.isBoss) {
-      // P2 動態傷害上限：高單發慢速重擊招式（地震、龍之俯衝、水炮、撞擊超武等）放寬單發上限至 13.5%，確保重武器打王不吃虧
-      const isHeavySingleHit = ["Ground", "Dragon", "Normal", "Fighting"].includes(moveType) || knockback >= 16;
-      const capRatio = isHeavySingleHit ? 0.135 : 0.088;
-      finalDmg = Math.min(finalDmg, Math.round(enemy.maxHp * capRatio));
+      // v6.6 Boss 滾動秒傷軟上限護盾：單發防呆上限 18%，12%/s 以內 100% 全額結算，溢出部分 30% 效率結算
+      const singleCap = Math.round(enemy.maxHp * 0.18);
+      const cappedRaw = Math.min(finalDmg, singleCap);
+      const softLimit = enemy.maxHp * 0.12;
+      const curBucket = enemy.dpsBucket || 0;
+      const fullRoom = Math.max(0, softLimit - curBucket);
+      if (cappedRaw <= fullRoom) {
+        finalDmg = cappedRaw;
+        enemy.dpsBucket = curBucket + cappedRaw;
+      } else {
+        const overflow = cappedRaw - fullRoom;
+        finalDmg = Math.max(1, Math.round(fullRoom + overflow * 0.30));
+        enemy.dpsBucket = softLimit;
+      }
     }
 
     enemy.hp -= finalDmg;
@@ -3561,7 +3665,7 @@ window.GameApp = {
     const critPrefix = isPoisonCrit ? "劇毒暴擊" : (hasBlackBelt ? "極限暴擊" : "暴擊");
     let label = `${finalDmg}`;
     let col = "#FFFFFF";
-    if (eff <= 0.15) {
+    if (eff <= 0.40) {
       label = `微弱抵抗 ${finalDmg}`;
       col = "#94A3B8";
     } else if (eff < 0.85) {
@@ -3879,7 +3983,7 @@ window.GameApp = {
       p.exp = Math.min(p.nextExp - 1, p.exp + amount);
       return;
     }
-    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12);
+    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0));
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
@@ -4321,6 +4425,7 @@ window.GameApp = {
 
     p.id = nextData.id;
     p.data = nextData;
+    p.underdogExpBonus = 0;
     p.maxHp = Math.round(p.maxHp * hpBoostMult);
     p.hp = p.maxHp;
     p.invulnTimer = Math.max(p.invulnTimer || 0, 1.5);
@@ -5876,14 +5981,45 @@ window.GameApp = {
     ctx.save();
     SkillsEngine.renderAerialLayer(ctx, toSx, toSy);
 
-    // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形)
+    // 繪製敵方動態飛行道具 (依據 pVfx 繪製專屬幾何像素圖形 + v6.6 零開銷高對比危險描邊 Danger Rim)
+    const rimPulseNow = performance.now() * 0.012;
     this.enemyProjectiles.forEach(ep => {
       const esx = toSx(ep.x), esy = toSy(ep.y);
-      if (esx < -24 || esx > this.width + 24 || esy < -24 || esy > this.height + 24) return;
+      if (esx < -28 || esx > this.width + 28 || esy < -28 || esy > this.height + 28) return;
 
       ctx.save();
       ctx.translate(esx, esy);
       const r = ep.radius;
+
+      // 威脅等級分流：精英與 Boss 致命彈幕附帶動態呼吸洋紅／赤紅警戒圈，一般遠程怪附帶穩定暗紅外框
+      const isHighThreat = ep.isHighThreat || ep.homing || ep.isSuction || ep.canSplit ||
+        ["frost_lance", "storm_orb", "fire_blast_orb", "psychic_core", "rainbow_star", "fire_spark"].includes(ep.vfx);
+      if (isHighThreat) {
+        const pulse = Math.sin(rimPulseNow + ep.x * 0.05) * 1.4;
+        ctx.strokeStyle = "#F43F5E";
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 3.5 + pulse, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 1.3, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = "#DC2626";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 2.0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.90)";
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       if (ep.vfx === "swift_star") {
         // 旋轉金黃星芒
@@ -6196,10 +6332,11 @@ window.GameApp = {
               ? `<span class="text-amber-300 font-black ml-0.5">★共鳴I</span>`
               : (p.singleStageAwakened ? `<span class="text-sky-300 font-black ml-0.5">★覺醒</span>` : ''));
         const awakenKey = p.legendaryAwaken24 ? 'L2' : (p.legendaryAwaken12 ? 'L1' : (p.singleStageAwakened ? 'S1' : '0'));
-        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${awakenKey}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
+        const underdogTagHtml = (p.underdogExpBonus > 0) ? `<span class="text-emerald-300 font-black ml-0.5">🌱+${Math.round(p.underdogExpBonus * 100)}%EXP</span>` : '';
+        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${awakenKey}_${p.underdogExpBonus || 0}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
         if (this._lastTraitBadgeKey !== nextBadgeKey) {
           this._lastTraitBadgeKey = nextBadgeKey;
-          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${awakenTagHtml}${shieldHtml}`;
+          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${awakenTagHtml}${underdogTagHtml}${shieldHtml}`;
           traitBadgeEl.classList.remove("hidden");
         }
       } else {
