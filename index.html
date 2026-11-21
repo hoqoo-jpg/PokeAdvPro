@@ -630,7 +630,23 @@
     <div class="grid grid-cols-3 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
       <button id="stepTab1" onclick="GameApp.setWizardStep(1)" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
       <button id="stepTab2" onclick="GameApp.setWizardStep(2)" class="py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
-      <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 模式與難度</button>
+      <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 關卡與模式</button>
+    </div>
+
+    <!-- 選角常駐：當前出戰陣容條（跨 STEP 1/2/3 隨時一目了然，點擊即可快切定位） -->
+    <div id="wizardCurrentLineupBar" class="bg-slate-900 text-white px-3 py-1.5 border-b border-slate-700 flex items-center justify-between gap-2 text-xs shrink-0">
+      <div class="flex items-center gap-2 min-w-0">
+        <button onclick="GameApp.setWizardStep(1)" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
+          <img id="wizardBarTrainerImg" src="images/Ash_01.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Trainer" />
+          <span id="wizardBarTrainerName" class="font-black text-[11px] text-amber-300 truncate">小智</span>
+        </button>
+        <span class="text-slate-500 font-black text-[10px]">+</span>
+        <button onclick="GameApp.setWizardStep(2)" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
+          <img id="wizardBarPokeImg" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Pokemon" />
+          <span id="wizardBarPokeName" class="font-black text-[11px] text-sky-300 truncate">皮卡丘</span>
+        </button>
+      </div>
+      <span id="wizardBarBondBadge" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shrink-0">★ 羈絆+25%</span>
     </div>
 
     <div class="bg-amber-50 px-4 py-2 border-b border-amber-200 text-xs shrink-0">
@@ -638,10 +654,14 @@
       <div id="wizardStepDesc" class="text-slate-600 font-bold text-[11px]">每位訓練家皆有專屬代表精靈羈絆（傷害+25%）！</div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 bg-slate-100">
+    <div id="setupScrollArea" class="flex-1 overflow-y-auto p-4 bg-slate-100">
       <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
       <div id="wizardStep3" class="hidden space-y-4">
+        <div>
+          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> GBA 生態地圖（選擇關卡）</h3>
+          <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
         <div>
           <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式</h3>
           <div id="gameModeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
@@ -649,10 +669,6 @@
         <div>
           <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
           <div id="difficultyGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
-        </div>
-        <div>
-          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> GBA 生態地圖</h3>
-          <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
         <div>
           <div class="flex items-center justify-between mb-2">
@@ -956,7 +972,7 @@
         <button onclick="GameApp.debugSpawnTreasureMob('meowth')" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">刷聚寶喵喵</button>
         <button onclick="GameApp.debugSpawnTreasureMob('chansey')" class="px-1.5 py-1 bg-pink-700 rounded text-[9px] font-bold">刷吉利蛋</button>
         <button onclick="GameApp.triggerMigrationSwarmEvent(true)" class="px-1.5 py-1 bg-emerald-800 rounded text-[9px] font-bold">1:30 遷徙潮</button>
-        <button onclick="GameApp.triggerPrehistoricTrialEvent(true)" class="px-1.5 py-1 bg-amber-800 rounded text-[9px] font-bold">6:15 遠古試煉</button>
+        <button onclick="GameApp.triggerPrehistoricTrialEvent(true)" class="px-1.5 py-1 bg-amber-800 rounded text-[9px] font-bold">6:30 遠古試煉</button>
         <button onclick="GameApp.debugTriggerRocketEvent()" class="px-1.5 py-1 bg-slate-800 rounded text-[9px] font-bold">火箭隊突襲</button>
         <button onclick="GameApp.debugTriggerTaurosStampede()" class="px-1.5 py-1 bg-slate-800 rounded text-[9px] font-bold">肯泰羅暴走</button>
         <button onclick="GameApp.debugSpawnLegendaryBird(144)" class="px-1.5 py-1 bg-sky-700 rounded text-[9px] font-bold">召喚急凍鳥</button>
@@ -995,10 +1011,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.7.6"></script>
-  <script src="map_v11_engine.js?v=6.7.6"></script>
-  <script src="skills_engine.js?v=6.7.6"></script>
-  <script src="battle_core_2.js?v=6.7.6"></script>
-  <script src="game_ui.js?v=6.7.6"></script>
+  <script src="pokedex_data.js?v=6.7.7"></script>
+  <script src="map_v11_engine.js?v=6.7.7"></script>
+  <script src="skills_engine.js?v=6.7.7"></script>
+  <script src="battle_core_2.js?v=6.7.7"></script>
+  <script src="game_ui.js?v=6.7.7"></script>
 </body>
 </html>

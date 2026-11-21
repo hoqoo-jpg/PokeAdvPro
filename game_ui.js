@@ -372,8 +372,6 @@ Object.assign(window.GameApp, {
       setupEl.style.display = "flex";
     }
     this.setWizardStep(startStep);
-    const scrollArea = document.querySelector("#setupModal .overflow-y-auto");
-    if (scrollArea) scrollArea.scrollTop = 0;
   },
 
   backToTitle() {
@@ -390,6 +388,58 @@ Object.assign(window.GameApp, {
     this.updateTitleUI();
   },
 
+  updateWizardLineupBar() {
+    const t = this.selectedTrainer || (typeof TRAINERS !== "undefined" ? TRAINERS[0] : null);
+    const p = (typeof POKEMON_MAP !== "undefined" && (POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25))) || null;
+    if (!t || !p) return;
+
+    const trImg = document.getElementById("wizardBarTrainerImg");
+    const trName = document.getElementById("wizardBarTrainerName");
+    const pkImg = document.getElementById("wizardBarPokeImg");
+    const pkName = document.getElementById("wizardBarPokeName");
+    const bondBadge = document.getElementById("wizardBarBondBadge");
+
+    const hasShiny = !!(this.saveData && this.saveData.shinyUnlocked && this.saveData.shinyUnlocked[p.id]);
+    const useShiny = hasShiny && !!(this.useShinyStarter && this.useShinyStarter[p.id]);
+    const starLv = (this.saveData && this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
+    const isBond = (t.bondPokemonIds || []).includes(p.id);
+
+    if (trImg) trImg.src = SpriteCache.resolveUrl(t.sprite);
+    if (trName) trName.textContent = t.name.split(" ")[0];
+    if (pkImg) {
+      pkImg.src = SpriteCache.resolveUrl(p.forward_sprite);
+      pkImg.className = `w-6 h-6 pixel-sprite object-contain shrink-0 ${useShiny ? 'shiny-sprite-filter' : ''}`;
+    }
+    if (pkName) {
+      pkName.textContent = `${p.name_zh}${starLv > 0 ? ' ' + '★'.repeat(starLv) : ''}`;
+    }
+    if (bondBadge) {
+      bondBadge.classList.toggle("hidden", !isBond);
+      if (isBond) bondBadge.textContent = `★ ${t.bondName || '羈絆'} +25%`;
+    }
+  },
+
+  focusSelectedWizardCard(step) {
+    const scrollArea = document.getElementById("setupScrollArea") || document.querySelector("#setupModal .overflow-y-auto");
+    if (!scrollArea) return;
+    if (step === 3) {
+      scrollArea.scrollTop = 0;
+      return;
+    }
+    const stepEl = document.getElementById(`wizardStep${step}`);
+    const selectedCard = stepEl ? stepEl.querySelector(".poke-card.selected") : null;
+    if (!selectedCard) {
+      scrollArea.scrollTop = 0;
+      return;
+    }
+    requestAnimationFrame(() => {
+      const areaRect = scrollArea.getBoundingClientRect();
+      const cardRect = selectedCard.getBoundingClientRect();
+      const targetTop = scrollArea.scrollTop + (cardRect.top - areaRect.top) - (areaRect.height - cardRect.height) * 0.42;
+      scrollArea.scrollTop = Math.max(0, targetTop);
+    });
+  },
+
   setWizardStep(step) {
     this.wizardStep = step;
     [1, 2, 3].forEach(s => {
@@ -403,7 +453,7 @@ Object.assign(window.GameApp, {
     const titles = {
       1: ["STEP 1/3：選擇隨行訓練家", "6 位訓練家皆有專屬代表精靈羈絆（傷害+25%）！底部為隱藏冠軍【赤紅】"],
       2: ["STEP 2/3：選擇出戰寶可夢", "與所選訓練家有羈絆的精靈已【自動置頂高亮】！全一階基礎精靈皆可挑選！"],
-      3: ["STEP 3/3：選擇模式與 GBA 自然生態", "8分鐘極速快局 ‧ 整合沙盒 V11 超細緻地表與拍岸海浪！"]
+      3: ["STEP 3/3：選擇關卡、模式與難度", "先挑選 GBA 自然生態地圖，再決定標準 8 分鐘快局或無盡深淵試煉！"]
     };
     document.getElementById("wizardStepTitle").textContent = titles[step][0];
     document.getElementById("wizardStepDesc").textContent = titles[step][1];
@@ -412,6 +462,7 @@ Object.assign(window.GameApp, {
 
     this.renderWizardContent();
     this.updateTitleUI();
+    this.focusSelectedWizardCard(step);
   },
 
   prevWizardStep() {
@@ -753,6 +804,7 @@ Object.assign(window.GameApp, {
       }).join("");
     }
     this.updateWizardNextButtonText();
+    this.updateWizardLineupBar();
 
     // 恢復外層滾動容器的垂直捲動位置，防止點選下方精靈或升星時跳回頂部
     if (scrollArea) {

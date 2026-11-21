@@ -559,27 +559,37 @@ window.GameApp = {
   triggerPrehistoricTrialEvent(isDebug = false) {
     if (!this.player) return;
     this.showCutsceneBanner(
-      isDebug ? "【遠古化石甦醒試煉 (DEBUG)】" : "【6:15 冠軍之路・遠古試煉】",
-      "遠古霸主【化石翼龍 ＆ 鐮刀盔】甦醒包夾！擊破可獲高額經驗與神奇糖果！",
-      3500
+      isDebug ? "【6:30 遠古化石試煉 (DEBUG)】" : "【6:30 冠軍之路・遠古化石試煉】",
+      "8 隻遠古霸主【化石翼龍 ＆ 鐮刀盔 ＆ 多刺菊石獸】八角包夾！擊破領頭霸主必掉神奇糖果！",
+      3800
     );
     SoundFX.play("boss");
-    const ids = [142, 141, 139, 142];
+    this.camera.shakeTime = Math.max(this.camera.shakeTime || 0, 0.35);
+    this.camera.shakeMagnitude = Math.max(this.camera.shakeMagnitude || 0, 7);
+
+    const mins = Math.max(6.5, this.runTime / 60);
+    const timeHpScale = 1 + (mins * 0.60) + Math.pow(mins / 3.0, 1.8) * 0.55;
+    const ids = [142, 141, 139, 142, 141, 139, 142, 141];
     ids.forEach((pId, idx) => {
-      const ang = (idx * Math.PI * 2) / ids.length + Math.PI / 4;
-      const ex = this.player.x + Math.cos(ang) * 340;
-      const ey = this.player.y + Math.sin(ang) * 340;
+      const ang = (idx * Math.PI * 2) / ids.length + Math.PI / 8;
+      const ex = this.player.x + Math.cos(ang) * 330;
+      const ey = this.player.y + Math.sin(ang) * 330;
       const pData = POKEMON_MAP.get(pId);
-      const hp = Math.round(1350 * this.selectedDifficulty.hpMult);
+      const isLead = (idx === 0 || idx === 4);
+      const hp = Math.round((isLead ? 920 : 680) * timeHpScale * this.selectedDifficulty.hpMult);
       this.saveData.pokedexSeen[pId] = true;
       this.enemies.push({
         id: pId, data: pData, x: ex, y: ey,
         hp, maxHp: hp,
-        atk: Math.round(34 * this.selectedDifficulty.atkMult),
-        speed: 112 * this.selectedDifficulty.spdMult,
-        radius: 30, isElite: true, noEliteDrop: true, isBoss: false, isShiny: false,
+        atk: Math.round((isLead ? 38 : 32) * this.selectedDifficulty.atkMult),
+        speed: (isLead ? 116 : 108) * this.selectedDifficulty.spdMult,
+        radius: isLead ? 32 : 28,
+        isElite: true,
+        noEliteDrop: !isLead,
+        guaranteedRareCandy: isLead,
+        isBoss: false, isShiny: false,
         facingX: -1, facingY: 1, status: null, statusTimer: 0, statusTick: 0,
-        ccImmunityTimer: 1.5, rangedCd: 1.8, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.85
+        ccImmunityTimer: 1.8, rangedCd: 1.5, whiteFlashTimer: 0, weightTier: "heavy", kbResist: 0.85
       });
     });
   },
@@ -2191,7 +2201,7 @@ window.GameApp = {
       this.spawnBoss(birdIds[Math.floor(Math.random() * birdIds.length)], false);
     }
 
-    if (!this.prehistoricEventTriggered && this.runTime >= 375) {
+    if (!this.prehistoricEventTriggered && this.runTime >= 390) {
       this.prehistoricEventTriggered = true;
       this.triggerPrehistoricTrialEvent(false);
     }
@@ -3804,7 +3814,7 @@ window.GameApp = {
       this.hitStopTimer = Math.max(this.hitStopTimer || 0, 0.035);
       this.spawnParticleCluster(e.x, e.y, "#FACC15", "#EF4444", 18, "star", 1.15);
       if (!e.noEliteDrop) {
-        const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
+        const dropId = e.guaranteedRareCandy ? "rare_candy" : (Math.random() < 0.22 ? "partner_ball" : "rare_candy");
         this.spawnMapLoot(dropId, e.x, e.y);
         if (!hasActiveMagnet && Math.random() < 0.25) {
           this.spawnMapLoot("magnet", e.x + 26, e.y);
