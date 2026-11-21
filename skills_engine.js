@@ -40,8 +40,9 @@ const SkillsEngine = {
     const maxGy = Math.floor((y + pad) / cellSize);
     const res = [];
     for (let gx = minGx; gx <= maxGx; gx++) {
+      const gxBase = (gx + 32768) * 65536;
       for (let gy = minGy; gy <= maxGy; gy++) {
-        const cell = grid.get(`${gx},${gy}`);
+        const cell = grid.get(gxBase + (gy + 32768));
         if (cell) {
           for (let i = 0; i < cell.length; i++) res.push(cell[i]);
         }
@@ -74,6 +75,18 @@ const SkillsEngine = {
     if (kind === "HydroPump") return 355;
     if (kind === "IceBeam") return 365;
     return 320;
+  },
+
+  getVineWhipReach(level, areaScale = 1.0, traitBonus = 0) {
+    const isPortraitMobile = !!(
+      typeof GameApp !== "undefined" &&
+      GameApp.isMobileDevice &&
+      GameApp.isMobileDevice() &&
+      GameApp.width < GameApp.height
+    );
+    const maxCap = isPortraitMobile ? 215 : 265;
+    const baseLen = 88 + (level || 1) * 11;
+    return Math.min(maxCap, Math.round(baseLen * Math.min(1.38, areaScale * (1 + (traitBonus || 0)))));
   },
 
   spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
@@ -436,6 +449,7 @@ const SkillsEngine = {
           type: "Grass",
           skillId: "Seed Bomb",
           vfx: "seed_nut",
+          isVenusaurSeed: !!(caster && caster.id === 3),
           color: "#65A30D",
           pierce: 99,
           knockback: meta.knockback !== undefined ? meta.knockback : 10,
@@ -593,6 +607,8 @@ const SkillsEngine = {
     // 2E. 噴射火焰 (Flamethrower) — 連續噴射式錐形烈焰流：四層翻湧火浪 ＋ 捲曲火舌 ＋ 兩段灼燒沖刷（火焰鳥 #146 專屬三向鳳凰烈焰）
     if (cleanSkillId === "Flamethrower") {
       const isMoltres = !!(caster && caster.id === 146);
+      const isCharizard = !!(caster && caster.id === 6);
+      const isMegaX = !!(caster && caster.id === 10034);
       const isInferno = (level >= 8);
       const streamCount = isMoltres ? 3 : 1;
       const traitAreaMult = 1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
@@ -620,6 +636,8 @@ const SkillsEngine = {
           endHalfW: endHalfW,
           isInferno,
           isMoltresFlame: isMoltres,
+          isCharizardFlame: isCharizard,
+          isMegaBlueFlame: isMegaX,
           dmg: rawDmg * (isInferno ? 0.66 : 0.60),
           type: "Fire",
           kb: 0,
@@ -635,7 +653,8 @@ const SkillsEngine = {
         for (let ms = 0; ms < 4; ms++) {
           const mAng = ang + (Math.random() - 0.5) * 0.9;
           const mSpd = 55 + Math.random() * 55;
-          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd - 16, ms % 2 === 0 ? "#FEF08A" : "#F97316", 3.0, 0.26, "star");
+          const mCol = isMegaX ? (ms % 2 === 0 ? "#E0F2FE" : "#38BDF8") : (isCharizard && ms === 0 ? "#38BDF8" : (ms % 2 === 0 ? "#FEF08A" : "#F97316"));
+          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd - 16, mCol, 3.0, 0.26, "star");
         }
       }
 
@@ -877,8 +896,9 @@ const SkillsEngine = {
 
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "vine_whip") {
-      const whipCount = 1 + (level >= 5 ? 1 : 0);
-      const reach = (135 + level * 7) * areaScale * (1 + (trait.overgrowAreaBonus || 0));
+      const isVenusaur = !!(caster && caster.id === 3);
+      const whipCount = isVenusaur ? 2 : (1 + (level >= 5 ? 1 : 0));
+      const reach = this.getVineWhipReach(level, areaScale, trait.overgrowAreaBonus || 0);
       const perp = baseAngle + Math.PI / 2;
       for (let w = 0; w < whipCount; w++) {
         const spread = (w - (whipCount - 1) / 2) * 0.30;
@@ -889,13 +909,14 @@ const SkillsEngine = {
         this.meleeEffects.push({
           style: "vine_whip",
           casterRef: caster,
+          isVenusaurWhip: isVenusaur,
           ox: startX,
           oy: startY,
           x: startX,
           y: startY,
           angle: ang,
           reach: reach,
-          dmg: rawDmg * 1.15,
+          dmg: rawDmg * (isVenusaur ? 1.22 : 1.15),
           type: meta.type,
           kb: kb * 1.2,
           hitSet: new Set(),
@@ -1209,25 +1230,34 @@ const SkillsEngine = {
         caster.slamHopTimer = 0.18;
       }
       const isDragonite = !!(caster && caster.id === 149);
-      const dragonWaves = 1 + (level >= 6 ? 1 : 0) + (isDragonite ? 1 : 0);
+      const isMegaX = !!(caster && caster.id === 10034);
+      const dragonWaves = 1 + (level >= 6 ? 1 : 0) + ((isDragonite || isMegaX) ? 1 : 0);
+      const dSprUrl = (caster.data && (caster.facingY < 0 ? caster.data.back_sprite : caster.data.forward_sprite)) || null;
       for (let d = 0; d < dragonWaves; d++) {
         const ang = baseAngle + (d - (dragonWaves - 1) / 2) * 0.26;
+        const speedVal = (isDragonite || isMegaX) ? 295 : 265;
         this.groundHazards.push({
           kind: "dragon_wave",
           isDragoniteKing: isDragonite,
+          isMegaCharizardX: isMegaX,
+          spriteUrl: dSprUrl,
+          isShiny: !!caster.isShiny,
+          facingX: Math.cos(ang) >= 0 ? 1 : -1,
+          afterimages: [],
+          afterimageTimer: 0.02,
           x: caster.x + Math.cos(ang) * 16,
           y: caster.y + Math.sin(ang) * 16,
-          vx: Math.cos(ang) * (isDragonite ? 290 : 260),
-          vy: Math.sin(ang) * (isDragonite ? 290 : 260),
+          vx: Math.cos(ang) * speedVal,
+          vy: Math.sin(ang) * speedVal,
           angle: ang,
-          radius: (isDragonite ? 58 : 42) * areaScale * (1 + (trait.dragonMawAreaBonus || 0)),
-          dmg: rawDmg * (isDragonite ? 0.72 : 0.60),
+          radius: ((isDragonite || isMegaX) ? 58 : 42) * areaScale * (1 + (trait.dragonMawAreaBonus || 0)),
+          dmg: rawDmg * ((isDragonite || isMegaX) ? 0.74 : 0.60),
           type: "Dragon",
           timer: 0.78,
           maxTime: 0.78,
           tickTimer: 0.01,
           tickInterval: 0.15,
-          color: isDragonite ? "#F59E0B" : "#4338CA"
+          color: isMegaX ? "#0EA5E9" : (isDragonite ? "#F59E0B" : "#4338CA")
         });
       }
       SoundFX.play("hit", "Dragon");
@@ -1365,6 +1395,7 @@ const SkillsEngine = {
         const startY = p.y + Math.sin(ang) * 42;
         this.groundHazards.push({
           kind: "drifting_daimonji",
+          isMegaBlueFlame: !!(p && p.id === 10034),
           x: startX, y: startY,
           lastSpawnX: startX, lastSpawnY: startY,
           vx: Math.cos(ang) * 235, vy: Math.sin(ang) * 235,
@@ -1839,11 +1870,14 @@ const SkillsEngine = {
             const spd = 65 + Math.random() * 45;
             this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, k % 2 === 0 ? "#78350F" : "#84CC16", 3.6, 0.36, "diamond");
           }
-          // 落地第二層：12 團翠綠與草綠色孢子毒霧擴散
-          for (let s = 0; s < 12; s++) {
+          // 落地第二層：翠綠與草綠色孢子擴散（妙蛙花 #003 專屬追加粉金霸王花瓣風暴）
+          for (let s = 0; s < (pr.isVenusaurSeed ? 16 : 12); s++) {
             const a = Math.random() * Math.PI * 2;
-            const spd = 25 + Math.random() * 55;
-            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? "#4ADE80" : "#BEF264", 5.2, 0.48, "circle");
+            const spd = 25 + Math.random() * (pr.isVenusaurSeed ? 72 : 55);
+            const col = pr.isVenusaurSeed
+              ? (s % 3 === 0 ? "#F472B6" : (s % 3 === 1 ? "#FDE047" : "#4ADE80"))
+              : (s % 2 === 0 ? "#4ADE80" : "#BEF264");
+            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, col, pr.isVenusaurSeed && s % 3 === 0 ? 4.4 : 5.2, 0.48, (pr.isVenusaurSeed && s % 3 === 0) ? "leaf" : "circle");
           }
           // 落地範圍轟炸傷害判定
           const blastRadius = 68 * GameApp.player.areaMult;
@@ -2028,7 +2062,10 @@ const SkillsEngine = {
             const spreadW = (m.startHalfW + (m.endHalfW - m.startHalfW) * sampleT) * (Math.random() - 0.5) * 1.4;
             const ex = px - sinA * spreadW;
             const ey = py + cosA * spreadW;
-            this.spawnSubParticle(ex, ey, cosA * 55 + (Math.random() - 0.5) * 35, sinA * 55 - 35 - Math.random() * 30, Math.random() < 0.5 ? "#FEF08A" : "#F97316", 3.0 + Math.random() * 1.4, 0.28, "star");
+            const embCol = m.isMegaBlueFlame
+              ? (Math.random() < 0.5 ? "#E0F2FE" : "#38BDF8")
+              : (m.isCharizardFlame && Math.random() < 0.35 ? "#67E8F9" : (Math.random() < 0.5 ? "#FEF08A" : "#F97316"));
+            this.spawnSubParticle(ex, ey, cosA * 55 + (Math.random() - 0.5) * 35, sinA * 55 - 35 - Math.random() * 30, embCol, 3.0 + Math.random() * 1.4, 0.28, "star");
           }
 
           const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + (m.endHalfW || 36) + 18);
@@ -2091,54 +2128,14 @@ const SkillsEngine = {
               this.spawnElementalHitSpark(e.x, e.y, "Ice");
             }
           }
-        } else if (m.style === "shadow_implosion") {
-        // 【暗影球命中・暗紫內爆空間漣漪】：極短促 0.18s 空間向內坍縮收縮環 ＋ 幽紫吞噬閃光
-        const msx = toSx(m.x), msy = toSy(m.y);
-        const shrink = Math.max(0.12, 1 - prog * 0.86);
-        const curR = m.radius * shrink;
-        const fade = Math.max(0, 1 - prog * 0.75);
-
-        ctx.save();
-        ctx.translate(msx, msy);
-        ctx.globalAlpha = fade;
-
-        // 外層深紫黑內縮吞噬漣漪
-        ctx.fillStyle = "rgba(59, 7, 100, 0.55)";
-        ctx.strokeStyle = "#A855F7";
-        ctx.lineWidth = 2.6 * fade + 0.8;
-        ctx.beginPath();
-        ctx.arc(0, 0, curR, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        // 4 道向圓心拉扯的蒼紫幽靈裂紋
-        ctx.strokeStyle = "#E9D5FF";
-        ctx.lineWidth = 1.6;
-        for (let k = 0; k < 4; k++) {
-          const a = (k * Math.PI) / 2 + prog * 1.4;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(a) * (curR * 1.25), Math.sin(a) * (curR * 1.25));
-          ctx.lineTo(Math.cos(a) * (curR * 0.35), Math.sin(a) * (curR * 0.35));
-          ctx.stroke();
-        }
-
-        // 中央純黑奇點與蒼白高光環
-        ctx.fillStyle = "#090514";
-        ctx.strokeStyle = "#F3E8FF";
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        ctx.arc(0, 0, Math.max(2.5, curR * 0.38), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-      } else if (m.style === "vine_whip") {
+        } else if (m.style === "vine_whip") {
           const curReach = m.reach * Math.min(1, prog * 1.7);
           const ox = m.ox !== undefined ? m.ox : m.x;
           const oy = m.oy !== undefined ? m.oy : m.y;
           const candidates = this.getEnemiesInRadius(ox, oy, curReach);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
-            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
             const dx = e.x - ox, dy = e.y - oy;
             const rSum = curReach + e.radius * 0.85;
             const dSq = dx * dx + dy * dy;
@@ -2282,6 +2279,14 @@ const SkillsEngine = {
             }
           }
         });
+      } else if (hz.kind === "dragon_wave") {
+        ctx.translate(sx, sy + 16);
+        ctx.rotate(hz.angle || 0);
+        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.42);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.60)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, hz.radius * 0.92, hz.radius * 0.38, 0, 0, Math.PI * 2);
+        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
@@ -2374,13 +2379,20 @@ const SkillsEngine = {
           this.spawnSubParticle(rx, ry - 40, (Math.random() - 0.5) * 20, 35 + Math.random() * 25, Math.random() < 0.5 ? "#FEF08A" : "#F472B6", 3.2, 0.55, "star");
         }
       } else if (hz.kind === "dragon_wave") {
+        hz.afterimageTimer = (hz.afterimageTimer || 0) - dt;
+        if (hz.afterimageTimer <= 0) {
+          hz.afterimageTimer = 0.04;
+          if (!hz.afterimages) hz.afterimages = [];
+          hz.afterimages.push({ x: hz.x, y: hz.y });
+          if (hz.afterimages.length > 3) hz.afterimages.shift();
+        }
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
         if (Math.random() < 0.55) {
           const backAng = (hz.angle || 0) + Math.PI + (Math.random() - 0.5) * 0.7;
           const spd = 45 + Math.random() * 45;
-          const c1 = hz.isDragoniteKing ? "#FACC15" : "#38BDF8";
-          const c2 = hz.isDragoniteKing ? "#F97316" : "#818CF8";
+          const c1 = hz.isMegaCharizardX ? "#67E8F9" : (hz.isDragoniteKing ? "#FACC15" : "#38BDF8");
+          const c2 = hz.isMegaCharizardX ? "#2563EB" : (hz.isDragoniteKing ? "#F97316" : "#818CF8");
           this.spawnSubParticle(
             hz.x + Math.cos(backAng) * 14,
             hz.y + Math.sin(backAng) * 14,
@@ -3897,28 +3909,65 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.restore();
       } else if (hz.kind === "dragon_wave") {
-        // 【龍之俯衝（普攻）・蒼藍威猛龍首氣旋 / 快龍 #149 專屬金焰雷光蒼龍王氣旋】
-        ctx.translate(sx, sy);
-        ctx.rotate(hz.angle || 0);
-        ctx.globalAlpha = Math.max(0, hz.timer / hz.maxTime);
+        // 【龍之俯衝（龍魂附身・三段階梯殘影）】：3 連階梯精靈殘像 ＋ 龍首內嵌前撲剪影 ＋ 快龍金焰 / Mega X 蒼藍冥炎
+        const lifeAlpha = Math.max(0, hz.timer / hz.maxTime);
         const r = hz.radius;
         const isKing = !!hz.isDragoniteKing;
+        const isMegaX = !!hz.isMegaCharizardX;
+        const sprRec = hz.spriteUrl ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
+        const trailTint = isMegaX ? "#00F0FF" : (isKing ? "#FACC15" : "#38BDF8");
 
-        // 1. 身後三道螺旋擴散的龍魂殘影
+        // 0. 3 連階梯式精靈拖尾殘影（透明度 0.14 -> 0.28 -> 0.44，零 ctx.filter 開銷）
+        if (sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
+          const alphas = [0.14, 0.28, 0.44];
+          const scales = [0.84, 0.94, 1.04];
+          const totalAI = hz.afterimages.length;
+          for (let ai = 0; ai < totalAI; ai++) {
+            const pt = hz.afterimages[ai];
+            const idxMap = Math.min(2, ai + (3 - totalAI));
+            const asx = toSx(pt.x), asy = toSy(pt.y) - 6;
+            ctx.save();
+            ctx.translate(asx, asy);
+            ctx.scale((hz.facingX > 0 ? -1 : 1) * scales[idxMap] * 1.12, scales[idxMap] * 0.92);
+            GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, trailTint, lifeAlpha * alphas[idxMap]);
+            ctx.restore();
+          }
+        }
+
+        // 主體抬升 6px 與地面暗影拉開俯衝高度差
+        ctx.save();
+        ctx.translate(sx, sy - 6);
+
+        // 1. 龍首氣旋正中央內嵌「高速拉長俯衝剪影」
+        if (sprRec && sprRec.loaded) {
+          ctx.save();
+          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.18, 0.88);
+          ctx.globalAlpha = lifeAlpha * 0.52;
+          ctx.drawImage(sprRec.img, -24, -22, 48, 48);
+          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#BAE6FD"), lifeAlpha * 0.58);
+          ctx.restore();
+        }
+
+        ctx.rotate(hz.angle || 0);
+        ctx.globalAlpha = lifeAlpha;
+
+        // 2. 身後雙道螺旋擴散龍魂尾波
         [-22, -11].forEach((tx, idx) => {
-          ctx.strokeStyle = isKing
-            ? (idx === 0 ? "rgba(234, 88, 12, 0.58)" : "rgba(250, 204, 21, 0.88)")
-            : (idx === 0 ? "rgba(67, 56, 202, 0.50)" : "rgba(56, 189, 248, 0.75)");
-          ctx.lineWidth = (isKing ? 6.0 : 5.0) - idx;
+          ctx.strokeStyle = isMegaX
+            ? (idx === 0 ? "rgba(37, 99, 235, 0.65)" : "rgba(103, 232, 249, 0.92)")
+            : (isKing
+                ? (idx === 0 ? "rgba(234, 88, 12, 0.58)" : "rgba(250, 204, 21, 0.88)")
+                : (idx === 0 ? "rgba(67, 56, 202, 0.50)" : "rgba(56, 189, 248, 0.75)"));
+          ctx.lineWidth = ((isKing || isMegaX) ? 6.0 : 5.0) - idx;
           ctx.beginPath();
           ctx.arc(tx, 0, r * (0.72 + idx * 0.14), -0.88, 0.88);
           ctx.stroke();
         });
 
-        // 2. 威猛龍首主體輪廓（前突龍吻 + 上下龍角/逆鱗翼）
-        ctx.fillStyle = isKing ? "#7C2D12" : "#1E1B4B";
-        ctx.strokeStyle = isKing ? "#FACC15" : "#38BDF8";
-        ctx.lineWidth = isKing ? 3.5 : 3.0;
+        // 3. 威猛龍首主體輪廓（半透明包裹剪影，呈現龍魂附體感）
+        ctx.fillStyle = isMegaX ? "rgba(12, 74, 110, 0.76)" : (isKing ? "rgba(124, 45, 18, 0.74)" : "rgba(30, 27, 75, 0.74)");
+        ctx.strokeStyle = isMegaX ? "#38BDF8" : (isKing ? "#FACC15" : "#38BDF8");
+        ctx.lineWidth = (isKing || isMegaX) ? 3.5 : 3.0;
         ctx.beginPath();
         ctx.moveTo(r * 1.18, 0);
         ctx.lineTo(r * 0.45, -r * 0.48);
@@ -3932,8 +3981,8 @@ const SkillsEngine = {
         ctx.fill();
         ctx.stroke();
 
-        // 3. 龍首內部能量脈絡與雙側發光龍睛
-        ctx.fillStyle = isKing ? "#EA580C" : "#4338CA";
+        // 4. 龍首內部能量脈絡與雙側發光龍睛
+        ctx.fillStyle = isMegaX ? "rgba(2, 132, 199, 0.78)" : (isKing ? "rgba(234, 88, 12, 0.75)" : "rgba(67, 56, 202, 0.72)");
         ctx.beginPath();
         ctx.moveTo(r * 0.95, 0);
         ctx.lineTo(r * 0.25, -r * 0.32);
@@ -3942,16 +3991,16 @@ const SkillsEngine = {
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = isKing ? "#38BDF8" : "#FACC15";
+        ctx.fillStyle = isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15");
         ctx.beginPath();
         ctx.ellipse(r * 0.36, -r * 0.22, 4.5, 2.2, -0.3, 0, Math.PI * 2);
         ctx.ellipse(r * 0.36, r * 0.22, 4.5, 2.2, 0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // 快龍王專屬：周身跳動的金白雷電電弧
-        if (isKing) {
-          ctx.strokeStyle = "#FEF08A";
-          ctx.lineWidth = 2.0;
+        // 快龍王／Mega 黑噴專屬：周身跳動的金白／蒼藍龍焰電弧
+        if (isKing || isMegaX) {
+          ctx.strokeStyle = isMegaX ? "#E0F2FE" : "#FEF08A";
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.moveTo(-r * 0.3, -r * 0.65);
           ctx.lineTo(r * 0.15, -r * 0.35 + Math.sin(now * 20) * 4);
@@ -3962,12 +4011,13 @@ const SkillsEngine = {
           ctx.stroke();
         }
 
-        // 4. 龍吻前端破空純白氣刃
+        // 5. 龍吻前端破空純白氣刃
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 3.2;
         ctx.beginPath();
         ctx.arc(r * 0.12, 0, r * 0.96, -0.78, 0.78);
         ctx.stroke();
+        ctx.restore();
 
       } else if (hz.kind === "meteor_strike") {
         // 【天龍流星雨・4層次垂直陰影龍星美學（致敬雷系超武多層次架構）】
@@ -4252,24 +4302,24 @@ const SkillsEngine = {
           const midX = (st.x1 + st.x2) * 0.5;
           const midY = (st.y1 + st.y2) * 0.5 + Math.sin(now * 9 + sIdx * 1.7) * 5;
 
-          // 外層赤紅火焰帶
-          ctx.strokeStyle = "#B91C1C";
+          // 外層赤紅／Mega X 蒼藍冥炎帶
+          ctx.strokeStyle = hz.isMegaBlueFlame ? "#1E3A8A" : "#B91C1C";
           ctx.lineWidth = 22;
           ctx.beginPath();
           ctx.moveTo(st.x1, st.y1);
           ctx.quadraticCurveTo(midX, midY, st.x2, st.y2);
           ctx.stroke();
 
-          // 中層耀橘動態火舌
-          ctx.strokeStyle = "#F97316";
+          // 中層耀橘／電青動態火舌
+          ctx.strokeStyle = hz.isMegaBlueFlame ? "#0EA5E9" : "#F97316";
           ctx.lineWidth = 14;
           ctx.beginPath();
           ctx.moveTo(st.x1, st.y1);
           ctx.quadraticCurveTo(midX, midY - 1.5, st.x2, st.y2);
           ctx.stroke();
 
-          // 內層熾白金黃火脊
-          ctx.strokeStyle = "#FEF08A";
+          // 內層熾白金黃／蒼白火脊
+          ctx.strokeStyle = hz.isMegaBlueFlame ? "#E0F2FE" : "#FEF08A";
           ctx.lineWidth = 5.5;
           ctx.beginPath();
           ctx.moveTo(st.x1, st.y1);
@@ -4658,11 +4708,21 @@ const SkillsEngine = {
         ctx.rotate(m.angle || 0);
         ctx.globalAlpha = alpha;
 
-        // 1. 口部灼熱噴射火花環
-        ctx.fillStyle = "#FEF08A";
+        // 1. 口部灼熱噴射火花環（噴火龍 #006 追加雙重熱浪氣爆環；Mega X 切換蒼藍冥炎）
+        const isBlue = !!m.isMegaBlueFlame;
+        const isZard = !!m.isCharizardFlame;
+        ctx.fillStyle = isBlue ? "#E0F2FE" : "#FEF08A";
         ctx.beginPath();
         ctx.ellipse(3, 0, 5.5 * wScale, sW * 1.15, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        if (isZard || isBlue) {
+          ctx.strokeStyle = isBlue ? "rgba(56, 189, 248, 0.90)" : "rgba(254, 240, 138, 0.88)";
+          ctx.lineWidth = 2.4 * wScale;
+          ctx.beginPath();
+          ctx.ellipse(8 + prog * 14, 0, 4.2, sW * (1.45 + prog * 0.55), 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
 
         const stepPx = 14;
         const buildConePath = (wMul, lenMul, phaseShift, ampMul) => {
@@ -4685,36 +4745,53 @@ const SkillsEngine = {
           ctx.closePath();
         };
 
-        // 2. 第 1 層：深紅外焰翻湧火浪
+        // 2. 第 1 層：深紅 / 蒼藍冥炎外焰翻湧火浪
         const outerGrad = ctx.createLinearGradient(0, 0, curLen, 0);
-        outerGrad.addColorStop(0, "rgba(185, 28, 28, 0.92)");
-        outerGrad.addColorStop(0.75, "rgba(220, 38, 38, 0.85)");
-        outerGrad.addColorStop(1, "rgba(153, 27, 27, 0.45)");
+        if (isBlue) {
+          outerGrad.addColorStop(0, "rgba(29, 78, 216, 0.94)");
+          outerGrad.addColorStop(0.75, "rgba(37, 99, 235, 0.86)");
+          outerGrad.addColorStop(1, "rgba(30, 58, 138, 0.45)");
+        } else {
+          outerGrad.addColorStop(0, "rgba(185, 28, 28, 0.92)");
+          outerGrad.addColorStop(0.75, "rgba(220, 38, 38, 0.85)");
+          outerGrad.addColorStop(1, "rgba(153, 27, 27, 0.45)");
+        }
         ctx.fillStyle = outerGrad;
         buildConePath(1.02, 1.0, 0, 1.0);
         ctx.fill();
 
-        // 3. 第 2 層：熾橘主體火流
+        // 3. 第 2 層：熾橘 / 電青主體火流
         const midGrad = ctx.createLinearGradient(0, 0, curLen, 0);
-        midGrad.addColorStop(0, "#FB923C");
-        midGrad.addColorStop(0.65, "#F97316");
-        midGrad.addColorStop(1, "rgba(234, 88, 12, 0.55)");
+        if (isBlue) {
+          midGrad.addColorStop(0, "#38BDF8");
+          midGrad.addColorStop(0.65, "#0EA5E9");
+          midGrad.addColorStop(1, "rgba(2, 132, 199, 0.55)");
+        } else {
+          midGrad.addColorStop(0, "#FB923C");
+          midGrad.addColorStop(0.65, "#F97316");
+          midGrad.addColorStop(1, "rgba(234, 88, 12, 0.55)");
+        }
         ctx.fillStyle = midGrad;
         buildConePath(0.76, 0.94, 1.1, 0.85);
         ctx.fill();
 
-        // 4. 第 3 層：明黃高溫內焰
-        ctx.fillStyle = m.isMoltresFlame ? "#FEF08A" : "#FACC15";
+        // 4. 第 3 層：明黃高溫內焰（噴火龍專屬帶金白龍息高溫芯，Mega X 為亮青蒼炎）
+        ctx.fillStyle = isBlue ? "#67E8F9" : (m.isMoltresFlame ? "#FEF08A" : "#FACC15");
         buildConePath(0.48, 0.82, 2.3, 0.60);
         ctx.fill();
 
-        // 5. 第 4 層：純白熾熱噴射火芯
+        // 5. 第 4 層：純白熾熱噴射火芯（噴火龍 #006 專屬在口部延伸蒼藍龍息高溫內線）
         ctx.fillStyle = "#FFFFFF";
         buildConePath(0.24, 0.58, 3.1, 0.35);
         ctx.fill();
+        if (isZard) {
+          ctx.fillStyle = "rgba(103, 232, 249, 0.72)";
+          buildConePath(0.14, 0.42, 4.2, 0.25);
+          ctx.fill();
+        }
 
         // 6. 邊緣捲曲躍動的烈焰火舌簇與前端翻滾火球團
-        const puffCount = m.isInferno ? 6 : 4;
+        const puffCount = (m.isInferno || isZard || isBlue) ? 6 : 4;
         for (let k = 0; k < puffCount; k++) {
           const frac = ((now * 3.8 + k / puffCount) % 1.0);
           const fx = frac * curLen * 0.96;
@@ -4723,12 +4800,14 @@ const SkillsEngine = {
           const fy = side * halfH * 0.72;
           const pr = (5.5 + frac * 6.5) * wScale;
 
-          ctx.fillStyle = k % 2 === 0 ? "rgba(249, 115, 22, 0.88)" : "rgba(250, 204, 21, 0.86)";
+          ctx.fillStyle = isBlue
+            ? (k % 2 === 0 ? "rgba(14, 165, 233, 0.88)" : "rgba(103, 232, 249, 0.88)")
+            : (k % 2 === 0 ? "rgba(249, 115, 22, 0.88)" : "rgba(250, 204, 21, 0.86)");
           ctx.beginPath();
           ctx.arc(fx, fy, pr, 0, Math.PI * 2);
           ctx.fill();
 
-          ctx.fillStyle = "rgba(254, 240, 138, 0.85)";
+          ctx.fillStyle = isBlue ? "rgba(224, 242, 254, 0.88)" : "rgba(254, 240, 138, 0.85)";
           ctx.beginPath();
           ctx.arc(fx + 2, fy, pr * 0.48, 0, Math.PI * 2);
           ctx.fill();
@@ -4746,7 +4825,9 @@ const SkillsEngine = {
         ];
         capPts.forEach(([cx, cy, cr], idx) => {
           const jit = Math.sin(now * 26 + idx * 1.9) * 3.0;
-          ctx.fillStyle = idx === 2 ? "rgba(250, 204, 21, 0.82)" : "rgba(249, 115, 22, 0.78)";
+          ctx.fillStyle = isBlue
+            ? (idx === 2 ? "rgba(103, 232, 249, 0.86)" : "rgba(56, 189, 248, 0.78)")
+            : (idx === 2 ? "rgba(250, 204, 21, 0.82)" : "rgba(249, 115, 22, 0.78)");
           ctx.beginPath();
           ctx.arc(cx + jit, cy, Math.max(3, cr), 0, Math.PI * 2);
           ctx.fill();
@@ -4904,16 +4985,54 @@ const SkillsEngine = {
           ctx.restore();
         });
         ctx.restore();
+      } else if (m.style === "shadow_implosion") {
+        // 【暗影球命中・暗紫內爆空間漣漪】：極短促 0.18s 空間向內坍縮收縮環 ＋ 幽紫吞噬閃光
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const shrink = Math.max(0.12, 1 - prog * 0.86);
+        const curR = m.radius * shrink;
+        const fade = Math.max(0, 1 - prog * 0.75);
+
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.globalAlpha = fade;
+
+        ctx.fillStyle = "rgba(59, 7, 100, 0.55)";
+        ctx.strokeStyle = "#A855F7";
+        ctx.lineWidth = 2.6 * fade + 0.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.strokeStyle = "#E9D5FF";
+        ctx.lineWidth = 1.6;
+        for (let k = 0; k < 4; k++) {
+          const a = (k * Math.PI) / 2 + prog * 1.4;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * (curR * 1.25), Math.sin(a) * (curR * 1.25));
+          ctx.lineTo(Math.cos(a) * (curR * 0.35), Math.sin(a) * (curR * 0.35));
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = "#090514";
+        ctx.strokeStyle = "#F3E8FF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(2.5, curR * 0.38), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
       } else if (m.style === "vine_whip") {
-        // 【奇異種子・V10 經典藤鞭】：雙層 S 彎曲藤蔓 ＋ 兩側倒刺三角與嫩芽圓點 ＋ 末端雙層氣泡音爆環（鞭打落地爆破感）
+        // 【藤鞭（漸進射程 ＋ 妙蛙花 #003 專屬霸王花瓣藤鞭）】：雙層 S 彎曲藤蔓 ＋ 倒刺花瓣 ＋ 破空月牙斬痕
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
+        const isVenu = !!m.isVenusaurWhip;
         ctx.save();
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
 
         const reach = m.reach * Math.min(1, prog * 1.8);
-        const thickness = 7.8;
+        const thickness = isVenu ? 9.4 : 7.8;
         const waveFreq = 2.5;
         const waveAmp = (1 - prog * 0.5) * 24;
 
@@ -4956,25 +5075,40 @@ const SkillsEngine = {
           ctx.closePath();
           ctx.fill();
 
-          ctx.fillStyle = "#86EFAC";
+          ctx.fillStyle = isVenu ? "#F472B6" : "#86EFAC";
           ctx.beginPath();
-          ctx.arc(step, y + side * (thickness * 0.6), 2.3, 0, Math.PI * 2);
+          ctx.arc(step, y + side * (thickness * 0.6), isVenu ? 3.2 : 2.3, 0, Math.PI * 2);
           ctx.fill();
+          if (isVenu) {
+            ctx.fillStyle = "#FDE047";
+            ctx.beginPath();
+            ctx.arc(step, y + side * (thickness * 0.6), 1.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
-        // 末端破空月牙鞭影斬痕（翠綠＋純白銳利甩鞭閃光）
-        const slashR = 14 + prog * 12;
+        // 末端破空月牙鞭影斬痕（妙蛙花專屬升級翠綠＋粉紅霸王花瓣風暴斬）
+        const slashR = (isVenu ? 18 : 14) + prog * 12;
         const slashAlpha = Math.max(0, 1 - prog * 0.78);
         ctx.save();
         ctx.translate(reach, 0);
         ctx.globalAlpha = slashAlpha;
 
-        ctx.fillStyle = "rgba(34, 197, 94, 0.72)";
+        ctx.fillStyle = isVenu ? "rgba(244, 114, 182, 0.78)" : "rgba(34, 197, 94, 0.72)";
         ctx.beginPath();
         ctx.arc(-2, 0, slashR, -1.18, 1.18);
         ctx.arc(-8, 0, slashR * 0.74, 1.18, -1.18, true);
         ctx.closePath();
         ctx.fill();
+
+        if (isVenu) {
+          ctx.fillStyle = "rgba(34, 197, 94, 0.80)";
+          ctx.beginPath();
+          ctx.arc(-4, 0, slashR * 0.82, -1.02, 1.02);
+          ctx.arc(-9, 0, slashR * 0.60, 1.02, -1.02, true);
+          ctx.closePath();
+          ctx.fill();
+        }
 
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 2.8 * slashAlpha + 0.8;

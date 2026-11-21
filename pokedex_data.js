@@ -252,16 +252,104 @@ Object.values(SKILLS_CATALOG).forEach(sk => {
   SKILLS_CATALOG[sk.id.replace(/\s+/g, '')] = sk;
 });
 
-function getSkillNextLevelBonusDesc(nextLv) {
+function getSkillNextLevelBonusDesc(skillId, nextLv) {
+  // 相容舊呼叫格式 getSkillNextLevelBonusDesc(nextLv)
+  if (typeof skillId === "number") {
+    nextLv = skillId;
+    skillId = "";
+  }
+  const cleanId = (skillId || "").replace(/\s+/g, "");
+  const meta = SKILLS_CATALOG[skillId] || SKILLS_CATALOG[cleanId] || null;
   const dmgMultStr = (1 + (nextLv - 1) * 0.06 + (nextLv === 10 ? 0.12 : 0)).toFixed(2);
-  if (nextLv === 10) return `★ 滿級覺醒！傷害倍率躍升至 ${dmgMultStr}x，解鎖超武進化前置！`;
-  if (nextLv === 4) return `彈幕/打擊數 +1！冷卻時間縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
-  if (nextLv === 8) return `彈幕/打擊數 +1！攻擊範圍擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
-  if (nextLv === 9) return `極限連發！冷卻時間大幅縮短 -25%！基礎傷害提升至 ${dmgMultStr}x！`;
-  if (nextLv === 6) return `穿透力/近戰波次強化！基礎傷害提升至 ${dmgMultStr}x！`;
-  if (nextLv === 5) return `異常狀態觸發率提升 +30%！基礎傷害提升至 ${dmgMultStr}x！`;
-  if (nextLv === 3) return `近戰/打擊範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
-  return `基礎傷害提升至 ${dmgMultStr}x！打擊威力強化！`;
+  const hasStatus = !!(meta && TYPE_META[meta.type] && TYPE_META[meta.type].status);
+  const isMelee = !!(meta && meta.isMelee);
+
+  if (nextLv === 10) {
+    return `★ 滿級覺醒！傷害倍率躍升至 ${dmgMultStr}x，解鎖究極超武進化前置！`;
+  }
+  if (nextLv === 9) {
+    return `極限連發！冷卻時間大幅縮短 -25%！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+
+  // 光束三大招式專屬精準說明
+  if (cleanId === "HydroPump") {
+    if (nextLv === 4) return `雙柱高壓齊射（最多2柱）！冷卻縮短 -12%！射程與威力提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 超壓水柱！水柱寬度 +28%、長度 +18%、升級三股螺旋絞線與單段增傷（${dmgMultStr}x）！`;
+    return `水柱射程與寬度同步提升！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "Flamethrower") {
+    if (nextLv === 4) return `烈焰扇面拓寬 +18%、射程 +12%！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 5) return `灼傷觸發機率大幅提升！烈焰寬度與射程強化，傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 煉獄烈焰！扇面寬度 +34%、射程 +22%、翻湧火舌強化與增傷（${dmgMultStr}x）！`;
+    return `烈焰射程與寬度同步成長！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "IceBeam") {
+    if (nextLv === 4) return `極寒雷射加粗 +14%！冷卻縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 5) return `冰凍觸發機率大幅提升！雷射威力提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 零度重光！雷射寬度 +28%、射程 +16%、解鎖雙重交錯冰折線（${dmgMultStr}x）！`;
+    return `極寒雷射射程與寬度同步提升！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+
+  // 藤鞭專屬漸進射程與雙鞭說明
+  if (cleanId === "VineWhip") {
+    if (nextLv === 3) return `藤鞭抽打射程明顯延長 ＆ 範圍 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `冷卻時間縮短 -12%！藤鞭射程繼續延長，基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 5) return `★ 雙藤齊發！同時甩出 2 條藤鞭並延長射程，傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 鞭影覺醒！藤鞭範圍大幅擴大 +25% ＆ 射程再延長，傷害提升至 ${dmgMultStr}x！`;
+    return `藤鞭射程延長（越抽越長）！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+
+  // 空手劈、撞擊、地震、龍之俯衝、月亮之力專屬說明
+  if (cleanId === "KarateChop") {
+    if (nextLv === 3) return `拳風打擊範圍 +15% ＆ 出拳距離延長！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `★ 升級 3 連環拳！冷卻縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 升級 4 連環拳！拳風範圍擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
+    return `出拳距離延伸 ＆ 連打威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "Tackle") {
+    if (nextLv === 3) return `撞擊範圍擴大 +14%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `★ 解鎖二段殘影接力撞擊！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `撞擊擊退力 +35% ＆ 命中吸血提升！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 解鎖三段金焰殘影連環撞擊！範圍再擴張，傷害提升至 ${dmgMultStr}x！`;
+    return `撞擊衝鋒威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "Earthquake") {
+    if (nextLv === 3) return `地震龜裂範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `★ 餘震波次 +1！冷卻縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 三重連環餘震！震裂範圍擴大 +25%！傷害提升至 ${dmgMultStr}x！`;
+    return `地震半徑擴大 ＆ 震波威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "DragonRush") {
+    if (nextLv === 3) return `龍首氣旋範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `冷卻縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `★ 龍首氣旋數量 +1！穿透壓制大幅強化，傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `龍首氣旋範圍擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
+    return `龍威衝擊威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "Moonblast") {
+    if (nextLv === 4) return `冷卻縮短 -12%！月光聖柱半徑擴大，傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 5) return `念力混亂機率提升！月光聖柱傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `★ 月光聖柱數量 +1（雙柱同步索敵）！傷害提升至 ${dmgMultStr}x！`;
+    return `月光聖柱半徑擴大 ＆ 傷害提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "BulletSeed") {
+    if (nextLv === 4) return `★ 機關槍連射數 +1！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `種子彈穿透數提升至 2！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 機關槍連射數再 +1！基礎傷害提升至 ${dmgMultStr}x！`;
+    return `種子連射威力提升至 ${dmgMultStr}x！`;
+  }
+
+  // 通用遠程彈幕（火花、水槍、飛葉快刀、種子炸彈、十萬伏特、暗影球、精神擊破、空氣斬、污泥炸彈等）
+  if (nextLv === 4) return `彈幕數量 +1！冷卻時間縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 8) return `彈幕數量 +1！彈體尺寸擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 6) return `穿透次數強化！基礎傷害提升至 ${dmgMultStr}x！`;
+  if (nextLv === 5) {
+    return hasStatus
+      ? `異常狀態觸發機率大幅提升！基礎傷害提升至 ${dmgMultStr}x！`
+      : `招式爆發威力穩步成長！基礎傷害提升至 ${dmgMultStr}x！`;
+  }
+  if (nextLv === 3 && isMelee) return `近戰打擊範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+  return `基礎傷害提升至 ${dmgMultStr}x！招式威力全面強化！`;
 }
 
 // 3. 攜帶道具資料庫 (Phase 2.1 全詞綴與視覺反饋強化版)
@@ -544,7 +632,29 @@ POKEMON_DB.forEach(p => {
   p.back_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${p.id}.png`;
 });
 
+const MEGA_FORMS = {
+  6: {
+    id: 10034,
+    baseId: 6,
+    name_zh: "超級噴火龍X",
+    type1: "Fire",
+    type2: "Dragon",
+    hp: 260,
+    atk: 130,
+    speed: 105,
+    skill: "Flamethrower",
+    weightTier: "heavy",
+    kbResist: 0.95,
+    evo_level: "None",
+    evo_to: null,
+    isMega: true,
+    forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png",
+    back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10034.png"
+  }
+};
+
 const POKEMON_MAP = new Map(POKEMON_DB.map(p => [p.id, p]));
+Object.values(MEGA_FORMS).forEach(mf => POKEMON_MAP.set(mf.id, mf));
 const REGULAR_MOB_POOL = POKEMON_DB.filter(p => p.id <= 143 && p.id !== 52 && p.id !== 113);
 const PARTNER_SUMMON_POOL = [1, 4, 7, 25, 39, 54, 58, 60, 133, 147];
 
@@ -1634,6 +1744,9 @@ const INNATE_TRAITS = {
 
 function getPokemonEvolutionTierScale(pokeData, currentLevel = 1) {
   if (!pokeData) return { tier: 1, scale: 1.0, label: "一階" };
+  if (pokeData.isMega || pokeData.id >= 10000) {
+    return { tier: 4, scale: 2.25, label: "MEGA 覺醒" };
+  }
   if (pokeData.id >= 144 && pokeData.id !== 147 && pokeData.id !== 148 && pokeData.id !== 149) {
     return { tier: 3, scale: 2.0, label: "傳說王權" };
   }
@@ -1657,8 +1770,12 @@ function getPokemonInnateTrait(pokeData, currentLevel = 1) {
   const t = tierInfo.scale;
 
   let traitKey = "quick_attack";
+  // 0. Mega 超級進化（超級噴火龍X：極致猛火龍威）
+  if (id === 10034) {
+    traitKey = "dragon_maw";
+  }
   // 1. 傳說五神獸
-  if ([144, 145, 146, 150, 151].includes(id)) {
+  else if ([144, 145, 146, 150, 151].includes(id)) {
     traitKey = "legendary_pressure";
   }
   // 2. 重量級霸體代表 (卡比獸、小拳石家族、獨角犀牛家族、大岩蛇、袋獸、肯泰羅、大舌頭、吉利蛋、穿山鼠家族、卡拉卡拉家族、尼多王/后)

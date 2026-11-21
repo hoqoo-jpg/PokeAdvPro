@@ -113,7 +113,7 @@ window.GameApp = {
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    const maxDpr = this.isMobileDevice() ? 1.5 : 2.0;
+    const maxDpr = this.isMobileDevice() ? 1.35 : 2.0;
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.dpr = dpr;
     this._pauseFrameRendered = false;
@@ -475,9 +475,28 @@ window.GameApp = {
     if (p.data.evo_to) {
       if (p.data.evo_level && p.level < p.data.evo_level) p.level = p.data.evo_level;
       this.startEvolutionMoment(p.data.evo_to, false);
+    } else if (p.id === 6 && !p.megaEvolved) {
+      this.startEvolutionMoment(10034, false, null, true);
     } else {
-      this.spawnFloatingText(p.x, p.y - 28, "目前已是最終完全體形态！", "#FACC15", 13);
+      this.spawnFloatingText(p.x, p.y - 28, "目前已是最終完全體形態！", "#FACC15", 13);
     }
+  },
+
+  debugTriggerMegaCharizardX() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10034) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級噴火龍X】蒼藍冥炎形態！", "#38BDF8", 14);
+      return;
+    }
+    // 確保配備噴射火焰與龍之俯衝以便即刻體驗蒼藍冥炎與龍魂殘影
+    if (!p.skills["Flamethrower"]) {
+      p.skills["Flamethrower"] = { id: "Flamethrower", level: 8, evolved: false, timer: 0.15 };
+    }
+    if (!p.skills["Dragon Rush"] && !p.skills["DragonRush"]) {
+      p.skills["Dragon Rush"] = { id: "Dragon Rush", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10034, false, null, true);
   },
 
   debugSpawnTreasureMob(kind) {
@@ -953,6 +972,10 @@ window.GameApp = {
     this._lastHudPartnerKey = null;
     this._lastHudHeldKey = null;
     this._lastHudSkillKey = null;
+    this._lastHudBtnStateKey = null;
+    this._lastTerrainBadgeKey = null;
+    this._lastStatusBadgeKey = null;
+    this._hudRefreshTimer = 0;
 
     SkillsEngine.reset();
 
@@ -1382,6 +1405,15 @@ window.GameApp = {
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
+    if (p.id === 10034) {
+      p._megaSparkTick = (p._megaSparkTick || 0) - dt;
+      if (p._megaSparkTick <= 0) {
+        p._megaSparkTick = 0.24;
+        const ax = p.x + (Math.random() - 0.5) * 32;
+        const ay = p.y + 6 - Math.random() * 18;
+        SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 18, -42 - Math.random() * 22, Math.random() < 0.5 ? "#38BDF8" : "#E0F2FE", 2.8, 0.36, "star");
+      }
+    }
     if (p.singleStageAwakened || p.legendaryAwaken24) {
       p._awakenSparkTick = (p._awakenSparkTick || 0) - dt;
       if (p._awakenSparkTick <= 0) {
@@ -1651,33 +1683,52 @@ window.GameApp = {
       }
     }
 
-    const tBadge = document.getElementById("hudTerrainBadge");
-    if (terrain.label) {
-      if (p.heldItems && p.heldItems["sharp_beak"] && terrain.speedMult < 1.0) {
-        tBadge.textContent = `${terrain.label.split(' ')[0]} [銳利之喙：免疫減速]`;
-      } else {
-        tBadge.textContent = terrain.label;
+    const nextTerrainText = terrain.label
+      ? ((p.heldItems && p.heldItems["sharp_beak"] && terrain.speedMult < 1.0)
+          ? `${terrain.label.split(' ')[0]} [銳利之喙：免疫減速]`
+          : terrain.label)
+      : "";
+    if (this._lastTerrainBadgeKey !== nextTerrainText) {
+      this._lastTerrainBadgeKey = nextTerrainText;
+      const tBadge = document.getElementById("hudTerrainBadge");
+      if (tBadge) {
+        if (nextTerrainText) {
+          tBadge.textContent = nextTerrainText;
+          tBadge.classList.remove("hidden");
+        } else {
+          tBadge.classList.add("hidden");
+        }
       }
-      tBadge.classList.remove("hidden");
-    } else {
-      tBadge.classList.add("hidden");
     }
 
-    const pStatusEl = document.getElementById("hudPlayerStatusBadge");
+    let nextStatusText = "";
+    let nextStatusKind = "";
     if (p.status) {
       const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
-      pStatusEl.textContent = `[異常] ${stNames[p.status] || p.status}`;
-      pStatusEl.className = "px-2 py-0.5 bg-rose-950/80 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]";
-      pStatusEl.classList.remove("hidden");
+      nextStatusText = `[異常] ${stNames[p.status] || p.status}`;
+      nextStatusKind = "debuff";
     } else if (p.xAttackTimer > 0 || p.xSpeedTimer > 0) {
       const buffLabels = [];
       if (p.xAttackTimer > 0) buffLabels.push(`力量強化(${Math.ceil(p.xAttackTimer)}s)`);
       if (p.xSpeedTimer > 0) buffLabels.push(`速度強化(${Math.ceil(p.xSpeedTimer)}s)`);
-      pStatusEl.textContent = `[增益] ${buffLabels.join(" ")}`;
-      pStatusEl.className = "px-2 py-0.5 bg-amber-950/80 text-amber-300 border border-amber-500 rounded-full font-black text-[10px]";
-      pStatusEl.classList.remove("hidden");
-    } else {
-      pStatusEl.classList.add("hidden");
+      nextStatusText = `[增益] ${buffLabels.join(" ")}`;
+      nextStatusKind = "buff";
+    }
+    const statusKey = `${nextStatusKind}|${nextStatusText}`;
+    if (this._lastStatusBadgeKey !== statusKey) {
+      this._lastStatusBadgeKey = statusKey;
+      const pStatusEl = document.getElementById("hudPlayerStatusBadge");
+      if (pStatusEl) {
+        if (nextStatusText) {
+          pStatusEl.textContent = nextStatusText;
+          pStatusEl.className = nextStatusKind === "debuff"
+            ? "px-2 py-0.5 bg-rose-950/90 text-rose-300 border border-rose-500 rounded-full font-black text-[10px]"
+            : "px-2 py-0.5 bg-amber-950/90 text-amber-300 border border-amber-500 rounded-full font-black text-[10px]";
+          pStatusEl.classList.remove("hidden");
+        } else {
+          pStatusEl.classList.add("hidden");
+        }
+      }
     }
 
     const statusSpdMod = p.status === "Freeze" ? 0.45 : (p.status === "Paralysis" ? 0.65 : 1.0);
@@ -1961,9 +2012,10 @@ window.GameApp = {
               const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "vine_whip") {
-              // 藤鞭 (Vine Whip)：真實距離 24 + (135 + lv * 7) * meleeAreaScale
-              const actualReach = 20 + (135 + lv * 7) * meleeAreaScale * (1 + (trait.overgrowAreaBonus || 0));
-              triggerRange = actualReach * 0.88;
+              const whipReach = (typeof SkillsEngine !== "undefined" && SkillsEngine.getVineWhipReach)
+                ? SkillsEngine.getVineWhipReach(lv, meleeAreaScale, trait.overgrowAreaBonus || 0)
+                : (88 + lv * 11);
+              triggerRange = (20 + whipReach) * 0.90;
             } else if (meta.type === "Dragon") {
               // 龍之俯衝 (Dragon Rush)：對齊中距離龍首破陣射程 (195px)
               triggerRange = 195 * meleeAreaScale;
@@ -2066,7 +2118,11 @@ window.GameApp = {
     this.updateLootAndGems(dt);
     this.updateMartInteraction(dt);
     this.updateParticlesAndTexts(dt);
-    this.refreshHUD();
+    this._hudRefreshTimer = (this._hudRefreshTimer || 0) - dt;
+    if (this._hudRefreshTimer <= 0) {
+      this._hudRefreshTimer = 0.10;
+      this.refreshHUD();
+    }
   },
 
   findNearestEnemyInViewport(ox, oy, maxRange = 420) {
@@ -2604,7 +2660,7 @@ window.GameApp = {
       const ent = this.enemies[idx];
       const gx = Math.floor(ent.x / gridCellSize);
       const gy = Math.floor(ent.y / gridCellSize);
-      const key = `${gx},${gy}`;
+      const key = (gx + 32768) * 65536 + (gy + 32768);
       let cell = spatialGrid.get(key);
       if (!cell) {
         cell = [];
@@ -2771,8 +2827,9 @@ window.GameApp = {
         const gx = Math.floor(e.x / gridCellSize);
         const gy = Math.floor(e.y / gridCellSize);
         for (let ox = -1; ox <= 1; ox++) {
+          const gxBase = (gx + ox + 32768) * 65536;
           for (let oy = -1; oy <= 1; oy++) {
-            const cell = spatialGrid.get(`${gx + ox},${gy + oy}`);
+            const cell = spatialGrid.get(gxBase + (gy + oy + 32768));
             if (!cell) continue;
             for (let c = 0; c < cell.length; c++) {
               const other = cell[c];
@@ -4109,7 +4166,14 @@ window.GameApp = {
         } else if (p.data.evo_to) {
           this._pendingEvolutionTarget = p.data.evo_to;
         }
-      } else if (p.id >= 144 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
+      } else if (p.id === 6 && !p.megaEvolved && (
+        p.level >= 24 ||
+        (p.skills["Flamethrower"] && p.skills["Flamethrower"].level >= 10) ||
+        (p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level >= 10) ||
+        (p.skills["DragonRush"] && p.skills["DragonRush"].level >= 10)
+      )) {
+        this._pendingEvolutionTarget = "mega_6";
+      } else if (p.id >= 144 && p.id < 10000 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
         // 排入三選一之後播放 1.35 秒傳說共鳴特寫（不再被升級彈窗遮蔽）
         this._pendingEvolutionTarget = "awaken_legendary";
       } else if (p.isPureSingleStage && p.level >= 18 && !p.singleStageAwakened) {
@@ -4204,7 +4268,7 @@ window.GameApp = {
     SoundFX.play("super");
   },
 
-  startEvolutionMoment(targetId, openLevelUpAfter = true, onEvolvedCallback = null) {
+  startEvolutionMoment(targetId, openLevelUpAfter = true, onEvolvedCallback = null, isMega = false) {
     const p = this.player;
     const nextData = POKEMON_MAP.get(targetId);
     if (!p || !nextData) {
@@ -4226,6 +4290,7 @@ window.GameApp = {
 
     this.evoSequence = {
       active: true,
+      isMega: !!isMega || !!(nextData && nextData.isMega),
       timer: 0,
       duration: 1.85,
       oldData: p.data,
@@ -4499,6 +4564,22 @@ window.GameApp = {
         ctx.fillStyle = "#34D399";
         ctx.fillText(isLeg ? `HP上限 +22% 回滿 ‧ 全傷害 +14% ‧ 12%霸體` : `體型與氣場進化 ‧ HP+35%回滿 ‧ 全傷+15% ‧ 12%霸體`, this.width / 2, boxY + 47);
       }
+    } else if (seq.isMega) {
+      if (t < burstT) {
+        ctx.font = "900 13px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#67E8F9";
+        ctx.fillText(`💎 MEGA 鑰石強烈共鳴！【${seq.oldData.name_zh}】正在超越進化界限……！`, this.width / 2, boxY + 27);
+        ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#E879F9";
+        ctx.fillText("🔥 蒼藍龍焰正在覺醒，時空凍結中 🔥", this.width / 2, boxY + 47);
+      } else {
+        ctx.font = "900 14px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#38BDF8";
+        ctx.fillText(`🔥 MEGA 超級進化！【${seq.nextData.name_zh}】黑龍降臨！`, this.width / 2, boxY + 26);
+        ctx.font = "700 11px 'Noto Sans TC', sans-serif";
+        ctx.fillStyle = "#FEF08A";
+        ctx.fillText(`屬性進化【火＋龍】‧ 蒼藍冥炎全面解放 ‧ HP上限 ${p.maxHp}`, this.width / 2, boxY + 47);
+      }
     } else if (t < burstT) {
       ctx.font = "900 13px 'Noto Sans TC', sans-serif";
       ctx.fillStyle = "#BAE6FD";
@@ -4523,17 +4604,22 @@ window.GameApp = {
     const nextData = POKEMON_MAP.get(targetId);
     if (!nextData) return;
     const oldName = p.data.name_zh;
-    const isFinalForm = (nextData.evo_level === "None" || !nextData.evo_to);
-    const hpBoostMult = isFinalForm ? 1.42 : 1.28;
+    const isMegaForm = !!(nextData.isMega || nextData.id >= 10000);
+    const isFinalForm = !isMegaForm && (nextData.evo_level === "None" || !nextData.evo_to);
+    const hpBoostMult = isMegaForm ? 1.25 : (isFinalForm ? 1.42 : 1.28);
 
     p.id = nextData.id;
     p.data = nextData;
     p.underdogExpBonus = 0;
     p.maxHp = Math.round(p.maxHp * hpBoostMult);
     p.hp = p.maxHp;
-    p.invulnTimer = Math.max(p.invulnTimer || 0, 1.5);
-    p.dmgMult *= isFinalForm ? 1.18 : 1.12;
-    if (isFinalForm) {
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 1.8);
+    p.dmgMult *= isMegaForm ? 1.18 : (isFinalForm ? 1.18 : 1.12);
+    if (isMegaForm) {
+      p.megaEvolved = true;
+      p.finalEvoArmor = 0.16;
+      p.areaMult *= 1.08;
+    } else if (isFinalForm) {
       p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷與範圍擴張
       p.areaMult *= 1.10;
       if (nextData.id === 149) {
@@ -4559,9 +4645,11 @@ window.GameApp = {
     }
 
     this.saveData.stats.evolutions += 1;
-    this.saveData.pokedexSeen[nextData.id] = true;
-    this.saveData.pokedexCaught[nextData.id] = true;
-    this.saveData.unlockedPokemon[nextData.id] = true;
+    if (nextData.id <= 151) {
+      this.saveData.pokedexSeen[nextData.id] = true;
+      this.saveData.pokedexCaught[nextData.id] = true;
+      this.saveData.unlockedPokemon[nextData.id] = true;
+    }
     this.saveToStorage();
 
     SoundFX.play("levelup");
@@ -4638,7 +4726,7 @@ window.GameApp = {
               subTitle: `Lv.${sk.level} ➔ Lv.${nextLv}`,
               typeBadge: renderTypeBadgeHTML(meta.type),
               sprite: meta.sprite,
-              desc: getSkillNextLevelBonusDesc(nextLv),
+              desc: getSkillNextLevelBonusDesc(sk.id, nextLv),
               isNew: false,
               apply: () => { sk.level = nextLv; }
             });
@@ -4932,6 +5020,9 @@ window.GameApp = {
     } else if (pendingEvo === "awaken_single") {
       this.startAwakeningMoment("single");
       return;
+    } else if (pendingEvo === "mega_6") {
+      this.startEvolutionMoment(10034, false, null, true);
+      return;
     } else if (pendingEvo === "awaken_legendary") {
       this.startAwakeningMoment("legendary");
       return;
@@ -4982,7 +5073,8 @@ window.GameApp = {
       if (!clash) break;
       adjY -= 16;
     }
-    if (this.floatingTexts.length > 32) this.floatingTexts.shift();
+    const ftMax = this.isMobileDevice() ? 18 : 32;
+    if (this.floatingTexts.length > ftMax) this.floatingTexts.shift();
     this.floatingTexts.push({ x, y: adjY, text, color, size, life: 0.72 });
   },
 
@@ -6559,36 +6651,38 @@ window.GameApp = {
         const meta = SKILLS_CATALOG[sk.id];
         if (!meta) return "";
         if (sk.evolved) {
-          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
+          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
         }
         const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
-        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md backdrop-blur-sm"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
+        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
       }).join("");
     }
 
-    const btnEl = document.getElementById("btnTrainerActiveSkill");
-    const cdOverlay = document.getElementById("trainerSkillCdOverlay");
-    const cdText = document.getElementById("trainerSkillCdText");
-    const cdSub = document.getElementById("trainerSkillStatusSub");
-
-    if (p.buffTimer > 0 || p.shieldTimer > 0) {
-      btnEl.className = "tactical-btn-active relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-emerald-500 border-3 border-emerald-400 flex flex-col items-center justify-center overflow-hidden shadow-xl";
-      cdOverlay.classList.remove("hidden");
-      cdOverlay.className = "absolute inset-0 bg-emerald-950/70 flex flex-col items-center justify-center text-white";
-      const remain = Math.ceil(p.buffTimer || p.shieldTimer);
-      cdText.textContent = `${remain}s`;
-      cdText.className = "font-pixel text-xs text-emerald-300";
-      cdSub.textContent = "生效中";
-    } else if (p.trainerSkillCd > 0) {
-      btnEl.className = "relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-slate-800 border-3 border-slate-700 flex flex-col items-center justify-center overflow-hidden opacity-90 shadow-xl";
-      cdOverlay.classList.remove("hidden");
-      cdOverlay.className = "absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center text-white";
-      cdText.textContent = `${Math.ceil(p.trainerSkillCd)}s`;
-      cdText.className = "font-pixel text-xs text-amber-300";
-      cdSub.textContent = "冷卻中";
-    } else {
-      btnEl.className = "tactical-btn-ready relative w-18 h-18 sm:w-20 sm:h-20 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex flex-col items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
-      cdOverlay.classList.add("hidden");
+    const btnMode = (p.buffTimer > 0 || p.shieldTimer > 0) ? "active" : (p.trainerSkillCd > 0 ? "cd" : "ready");
+    const btnRemain = btnMode === "active" ? Math.ceil(p.buffTimer || p.shieldTimer) : (btnMode === "cd" ? Math.ceil(p.trainerSkillCd) : 0);
+    const btnStateKey = `${btnMode}_${btnRemain}`;
+    if (this._lastHudBtnStateKey !== btnStateKey) {
+      this._lastHudBtnStateKey = btnStateKey;
+      const btnEl = document.getElementById("btnTrainerActiveSkill");
+      const cdOverlay = document.getElementById("trainerSkillCdOverlay");
+      const cdText = document.getElementById("trainerSkillCdText");
+      const cdSub = document.getElementById("trainerSkillStatusSub");
+      if (btnMode === "active") {
+        btnEl.className = "tactical-btn-active relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-emerald-500 border-3 border-emerald-400 flex items-center justify-center overflow-hidden shadow-xl";
+        cdOverlay.className = "absolute inset-0 bg-emerald-950/70 flex flex-col items-center justify-center text-white";
+        cdText.textContent = `${btnRemain}s`;
+        cdText.className = "font-pixel text-xs text-emerald-300";
+        cdSub.textContent = "生效中";
+      } else if (btnMode === "cd") {
+        btnEl.className = "relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-slate-800 border-3 border-slate-700 flex items-center justify-center overflow-hidden opacity-90 shadow-xl";
+        cdOverlay.className = "absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center text-white";
+        cdText.textContent = `${btnRemain}s`;
+        cdText.className = "font-pixel text-xs text-amber-300";
+        cdSub.textContent = "冷卻中";
+      } else {
+        btnEl.className = "tactical-btn-ready relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
+        cdOverlay.className = "hidden absolute inset-0";
+      }
     }
 
     if (this.activeBoss && this.activeBoss.hp > 0) {

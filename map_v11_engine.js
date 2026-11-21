@@ -880,6 +880,7 @@ const MapEngine = {
         chunk.sandIslets.forEach(isl => {
           const ix = Math.round(isl.x - camX + width / 2);
           const iy = Math.round(isl.y - camY + height / 2);
+          if (ix + isl.w < -24 || ix > width + 24 || iy + isl.h < -24 || iy > height + 24) return;
           // 像素拍岸淺灘水環 + 濕沙外框 + 暖金沙洲
           const wavePhase = (now * 1.6 + isl.x * 0.02) % Math.PI;
           const waveExpand = Math.round(Math.sin(wavePhase) * 5);
@@ -907,6 +908,7 @@ const MapEngine = {
         (chunk.roads || []).concat(chunk.piers || []).forEach(r => {
           const rx = Math.round(r.x - camX + width / 2);
           const ry = Math.round(r.y - camY + height / 2);
+          if (rx + r.w < -20 || rx > width + 20 || ry + r.h < -20 || ry > height + 20) return;
 
           if (r.isMarble) {
             // GBA 石英高原像素大理石金邊大道（綁定世界座標石板接縫與金磚雕花）
@@ -1025,6 +1027,7 @@ const MapEngine = {
         chunk.grassTiles.forEach(g => {
           const gx = Math.round(g.x - camX + width / 2);
           const gy = Math.round(g.y - camY + height / 2);
+          if (gx + g.w < -30 || gx > width + 30 || gy + g.h < -30 || gy > height + 160) return;
 
           if (g.isPsychicWell) {
             ctx.save();
@@ -1183,6 +1186,7 @@ const MapEngine = {
         chunk.obstacles.forEach(ob => {
           const ox = Math.round(ob.x - camX + width / 2);
           const oy = Math.round(ob.y - camY + height / 2);
+          if (ox + ob.w < -30 || ox > width + 30 || oy + ob.h < -30 || oy > height + 30) return;
 
           if (ob.kind === "house") {
             const hCan = this.spritePropCache.get("house_full");
