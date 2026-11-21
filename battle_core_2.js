@@ -1953,6 +1953,9 @@ window.GameApp = {
             triggerRange = 168 * p.areaMult;
           } else if (skSlot.id === "Ember") {
             triggerRange = 185 * p.areaMult;
+          } else if (skSlot.id === "HydroPump" || skSlot.id === "Hydro Pump") {
+            const beamLen = Math.min(340, (220 + lv * 8) * Math.min(1.45, p.areaMult * (lv >= 8 ? 1.15 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+            triggerRange = beamLen * 0.92;
           } else if (skSlot.id === "WaterGun" || skSlot.id === "Flamethrower") {
             triggerRange = 245 * p.areaMult;
           }

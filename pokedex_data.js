@@ -146,7 +146,7 @@ Ember: {
     knockback: 16, isMelee: false, vfx: "water_beam", reqItem: "mystic_water",
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
-    desc: "噴發粗大高壓水柱，產生適度擊退，防禦怪潮貼身。",
+    desc: "從炮口射出貫穿式高壓螺旋水柱，持續兩段沖刷並強力擊退整排敵群，升級解鎖雙肩雙炮與三向齊射！",
     evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
   },
   SeedBomb: {

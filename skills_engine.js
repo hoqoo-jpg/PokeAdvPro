@@ -137,10 +137,19 @@ const SkillsEngine = {
   spawnElementalHitSpark(x, y, type) {
     if (GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.65) return;
     if (type === "Water") {
-      this.meleeEffects.push({ style: "slam_wave", x, y, radius: 22, timer: 0.16, maxTime: 0.16, color: "#38BDF8" });
-      for (let i = 0; i < 3; i++) {
+      this.meleeEffects.push({
+        style: "water_splash_burst",
+        x, y,
+        angle: Math.random() * Math.PI * 2,
+        radius: 22,
+        timer: 0.22,
+        maxTime: 0.22,
+        color: "#38BDF8"
+      });
+      for (let i = 0; i < 4; i++) {
         const a = Math.random() * Math.PI * 2;
-        this.spawnSubParticle(x, y, Math.cos(a) * 55, Math.sin(a) * 55, "#E0FFFF", 2.6, 0.20, "circle");
+        const spd = 48 + Math.random() * 58;
+        this.spawnSubParticle(x, y, Math.cos(a) * spd, Math.sin(a) * spd - 14, i % 2 === 0 ? "#E0FFFF" : "#38BDF8", 2.6 + Math.random() * 1.1, 0.24, "circle");
       }
     } else if (type === "Ice") {
       for (let i = 0; i < 4; i++) {
@@ -589,6 +598,74 @@ const SkillsEngine = {
         }
       }
       SoundFX.play("hit", "Fire");
+      return;
+    }
+
+    // 2F. 水炮 (Hydro Pump) — 方案 A【貫穿式高壓水柱】：炮口聚焦水霧環 ➔ 雙股純白高壓螺旋絞線 ➔ 末端扇形翻捲白沫與水花飛濺
+    if (cleanSkillId === "HydroPump") {
+      const beamCount = Math.min(3, count);
+      const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
+      const traitKbMult = 1 + (trait.megaLauncherKbBonus || 0);
+      const beamLength = Math.min(340, (220 + level * 8) * Math.min(1.45, GameApp.player.areaMult * (level >= 8 ? 1.15 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+      const beamWidth = Math.min(38, (18 + level * 0.8) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
+      const perp = baseAngle + Math.PI / 2;
+
+      for (let b = 0; b < beamCount; b++) {
+        let angOffset = 0;
+        let latOffset = 0;
+        if (beamCount === 2) {
+          // 經典水箭龜雙肩雙炮齊射（微張角 + 左右肩部 10px 平行位移）
+          angOffset = (b === 0 ? -0.10 : 0.10);
+          latOffset = (b === 0 ? -10 : 10);
+        } else if (beamCount >= 3) {
+          // 滿級三向扇形高壓水炮齊射
+          angOffset = (b - 1) * 0.22;
+          latOffset = (b - 1) * 8;
+        }
+        const ang = baseAngle + angOffset;
+        const startX = caster.x + Math.cos(perp) * latOffset + Math.cos(ang) * 22;
+        const startY = caster.y + Math.sin(perp) * latOffset + Math.sin(ang) * 22;
+
+        this.meleeEffects.push({
+          style: "hydro_pump_beam",
+          casterRef: caster,
+          latOffset,
+          perpAngle: perp,
+          ox: startX,
+          oy: startY,
+          x: startX,
+          y: startY,
+          angle: ang,
+          length: beamLength,
+          width: beamWidth,
+          dmg: rawDmg * 0.60, // 0.36s 持續水柱共觸發 2 段高壓沖刷（總計 1.20x）
+          type: "Water",
+          kb: (meta.knockback !== undefined ? meta.knockback : 16) * traitKbMult,
+          statusBonus: level >= 5 ? 0.30 : 0.12,
+          hitSet: new Set(),
+          secondTickDone: false,
+          splashEmitTimer: 0.04,
+          timer: 0.36,
+          maxTime: 0.36,
+          color: "#38BDF8"
+        });
+
+        // 炮口瞬間噴散的霧化水珠
+        for (let ms = 0; ms < 4; ms++) {
+          const mAng = ang + (ms % 2 === 0 ? 1 : -1) * (0.45 + Math.random() * 0.45);
+          const mSpd = 60 + Math.random() * 50;
+          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd, ms % 2 === 0 ? "#E0FFFF" : "#38BDF8", 2.8, 0.24, "circle");
+        }
+      }
+
+      if (caster === GameApp.player) {
+        caster.recoilX = -Math.cos(baseAngle) * 5.5;
+        caster.recoilY = -Math.sin(baseAngle) * 5.5;
+        caster.recoilTimer = 0.13;
+        GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.06);
+        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.5);
+      }
+      SoundFX.play("hit", "Water");
       return;
     }
 
@@ -1775,7 +1852,65 @@ const SkillsEngine = {
 
       // 所見即所得波前推進判定 (Wavefront Active Hitframes + Spatial Grid + 平方距離加速)
       if (m.hitSet && m.dmg) {
-        if (m.style === "vine_whip") {
+        if (m.style === "hydro_pump_beam") {
+          // 動態錨定施法者位置，讓水柱在 0.36s 噴射期間跟隨角色微移
+          if (m.casterRef) {
+            m.ox = m.casterRef.x + Math.cos(m.perpAngle || 0) * (m.latOffset || 0) + Math.cos(m.angle) * 22;
+            m.oy = m.casterRef.y + Math.sin(m.perpAngle || 0) * (m.latOffset || 0) + Math.sin(m.angle) * 22;
+            m.x = m.ox;
+            m.y = m.oy;
+          }
+          // 0.18s 時重置命中集，執行第 2 段高壓持續沖刷判定
+          if (!m.secondTickDone && prog >= 0.50) {
+            m.secondTickDone = true;
+            m.hitSet.clear();
+          }
+          const extendFrac = Math.min(1, prog / 0.22);
+          const curLen = m.length * extendFrac;
+          const halfW = (m.width || 22) * 0.58;
+          const cosA = Math.cos(m.angle), sinA = Math.sin(m.angle);
+          const midX = m.ox + cosA * (curLen * 0.5);
+          const midY = m.oy + sinA * (curLen * 0.5);
+
+          // 末端持續噴湧扇形水花飛沫粒子
+          m.splashEmitTimer = (m.splashEmitTimer || 0) - dt;
+          if (m.splashEmitTimer <= 0 && prog < 0.82) {
+            m.splashEmitTimer = 0.055;
+            const tipX = m.ox + cosA * curLen;
+            const tipY = m.oy + sinA * curLen;
+            for (let sp = 0; sp < 2; sp++) {
+              const spAng = m.angle + (Math.random() - 0.5) * 1.45;
+              const spSpd = 65 + Math.random() * 75;
+              this.spawnSubParticle(tipX, tipY, Math.cos(spAng) * spSpd, Math.sin(spAng) * spSpd, sp % 2 === 0 ? "#E0FFFF" : "#38BDF8", 2.8 + Math.random() * 1.2, 0.24, "circle");
+            }
+          }
+
+          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const rx = e.x - m.ox, ry = e.y - m.oy;
+            const along = rx * cosA + ry * sinA;
+            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            const perpDist = Math.abs(-rx * sinA + ry * cosA);
+            if (perpDist <= halfW + e.radius * 0.85) {
+              m.hitSet.add(e);
+              GameApp.dealDamageToEnemy(e, m.dmg, m.type, m.statusBonus || 0.15, (m.kb || 16) * (m.secondTickDone ? 0.65 : 1.0));
+              if (!(GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.6)) {
+                this.meleeEffects.push({
+                  style: "water_splash_burst",
+                  x: e.x,
+                  y: e.y,
+                  angle: m.angle,
+                  radius: 26,
+                  timer: 0.24,
+                  maxTime: 0.24,
+                  color: "#38BDF8"
+                });
+              }
+            }
+          }
+        } else if (m.style === "vine_whip") {
           const curReach = m.reach * Math.min(1, prog * 1.7);
           const ox = m.ox !== undefined ? m.ox : m.x;
           const oy = m.oy !== undefined ? m.oy : m.y;
@@ -3137,7 +3272,30 @@ const SkillsEngine = {
 
     // 地面底層：終極衝擊 (giga_impact_lance) 與撞擊 (sonic_cone) 的地面犁地焦黑溝槽與 Z 軸投影暗影
     this.meleeEffects.forEach(m => {
-      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle") return;
+      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle" && m.style !== "hydro_pump_beam") return;
+      if (m.style === "hydro_pump_beam") {
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.36))));
+        const extendFrac = Math.min(1, prog / 0.22);
+        const curLen = m.length * extendFrac;
+        const wScale = prog < 0.72 ? 1.0 : Math.max(0.1, (1 - prog) / 0.28);
+        const halfW = (m.width || 22) * 0.55 * wScale;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        ctx.save();
+        ctx.translate(osx, osy + 12);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = Math.max(0, (1 - prog * 0.75) * 0.38);
+        ctx.fillStyle = "rgba(3, 105, 161, 0.52)";
+        ctx.beginPath();
+        ctx.ellipse(curLen * 0.5, 0, curLen * 0.52, halfW * 1.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(186, 230, 253, 0.65)";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.ellipse(curLen, 0, halfW * 0.9 + prog * 14, halfW * 1.45 + prog * 16, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+        return;
+      }
       if (m.style === "phantom_tackle") {
         const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.24))));
         const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.45), 3);
@@ -4074,7 +4232,194 @@ const SkillsEngine = {
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
 
-      if (m.style === "vine_whip") {
+      if (m.style === "hydro_pump_beam") {
+        // 【水炮（Hydro Pump）・方案 A 貫穿式高壓水柱】：炮口聚焦水霧環 ➔ 雙股純白高壓螺旋絞線 ➔ 末端扇形翻捲白沫與飛濺水珠
+        const extendFrac = Math.min(1, prog / 0.22);
+        const curLen = Math.max(18, m.length * extendFrac);
+        const wScale = prog < 0.72 ? (0.90 + Math.sin(prog * 30) * 0.10) : Math.max(0.08, (1 - prog) / 0.28);
+        const halfW = (m.width || 22) * 0.5 * wScale;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        const alpha = prog < 0.75 ? 0.96 : Math.max(0, (1 - prog) / 0.25);
+
+        ctx.save();
+        ctx.translate(osx, osy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = alpha;
+
+        // 1. 炮口聚焦水霧環（兩道傾斜橢圓高壓氣圈）
+        ctx.strokeStyle = "rgba(224, 242, 254, 0.88)";
+        ctx.lineWidth = 2.6 * wScale;
+        ctx.beginPath();
+        ctx.ellipse(2, 0, 4.5, halfW * 1.38, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.72)";
+        ctx.lineWidth = 1.8 * wScale;
+        ctx.beginPath();
+        ctx.ellipse(10 + prog * 14, 0, 3.8, halfW * (1.15 + prog * 0.45), 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 2. 外層深海藍高壓水柱（上下邊緣帶高速推進的正弦浪紋，無方塊切邊）
+        const stepPx = 14;
+        ctx.fillStyle = "rgba(2, 132, 199, 0.86)";
+        ctx.beginPath();
+        ctx.moveTo(0, -halfW * 0.75);
+        for (let x = 0; x <= curLen; x += stepPx) {
+          const taper = 0.82 + (x / Math.max(1, curLen)) * 0.26;
+          const wave = Math.sin(now * 26 - x * 0.085) * 2.4 * wScale;
+          ctx.lineTo(x, -halfW * taper + wave);
+        }
+        ctx.lineTo(curLen + 6, 0);
+        for (let x = curLen; x >= 0; x -= stepPx) {
+          const taper = 0.82 + (x / Math.max(1, curLen)) * 0.26;
+          const wave = Math.sin(now * 26 - x * 0.085 + 1.4) * 2.4 * wScale;
+          ctx.lineTo(x, halfW * taper + wave);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // 3. 中層亮青色高壓湍流帶 (#00D2FF)
+        const midGrad = ctx.createLinearGradient(0, -halfW, 0, halfW);
+        midGrad.addColorStop(0, "rgba(56, 189, 248, 0.45)");
+        midGrad.addColorStop(0.5, "rgba(186, 230, 253, 0.94)");
+        midGrad.addColorStop(1, "rgba(56, 189, 248, 0.45)");
+        ctx.fillStyle = midGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, -halfW * 0.56);
+        ctx.lineTo(curLen, -halfW * 0.68);
+        ctx.lineTo(curLen + 4, 0);
+        ctx.lineTo(curLen, halfW * 0.68);
+        ctx.lineTo(0, halfW * 0.56);
+        ctx.closePath();
+        ctx.fill();
+
+        // 4. 雙股純白高壓螺旋絞線 (Dual Helical Intertwined Streams) ＋ 中央白熾水壓軸線
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
+        ctx.lineWidth = Math.max(1.5, halfW * 0.28);
+        ctx.beginPath();
+        ctx.moveTo(4, 0);
+        ctx.lineTo(curLen - 4, 0);
+        ctx.stroke();
+
+        for (let strand = 0; strand < 2; strand++) {
+          ctx.strokeStyle = strand === 0 ? "#FFFFFF" : "#BAE6FD";
+          ctx.lineWidth = Math.max(1.3, 2.5 * wScale);
+          ctx.beginPath();
+          for (let x = 2; x <= curLen; x += 10) {
+            const amp = halfW * 0.62 * (0.75 + (x / Math.max(1, curLen)) * 0.28);
+            const y = Math.sin(x * 0.095 - now * 30 + strand * Math.PI) * amp;
+            if (x === 2) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+
+        // 5. 水柱內部高速推進的細長氣泡拉絲
+        ctx.strokeStyle = "rgba(224, 255, 255, 0.85)";
+        ctx.lineWidth = 1.6;
+        for (let k = 0; k < 5; k++) {
+          const fx = ((now * 460 + k * (curLen / 5)) % Math.max(20, curLen - 14)) + 8;
+          const fy = ((k % 3) - 1) * halfW * 0.55;
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(Math.max(4, fx - 16), fy);
+          ctx.stroke();
+        }
+
+        // 6. 末端扇形炸開的翻捲白沫與飛濺水花（徹底取代實心白半圓！）
+        ctx.save();
+        ctx.translate(curLen, 0);
+        const sprayR = Math.max(12, halfW * 1.65 + prog * 10);
+
+        // 兩層半透明 V 形翻捲破浪弧
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.82)";
+        ctx.lineWidth = 3.2 * wScale;
+        ctx.beginPath();
+        ctx.arc(-4, 0, sprayR * 0.88, -1.18, 1.18);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2.4 * wScale;
+        ctx.beginPath();
+        ctx.arc(-2, 0, sprayR * 0.65, -1.05, 1.05);
+        ctx.stroke();
+
+        // 5 朵錯落翻捲白沫花簇 + 外濺水滴
+        const foamPts = [
+          [2, -sprayR * 0.58, 4.6], [7, -sprayR * 0.25, 5.4],
+          [9, 0, 5.8], [7, sprayR * 0.25, 5.4], [2, sprayR * 0.58, 4.6]
+        ];
+        ctx.fillStyle = "rgba(255, 255, 255, 0.90)";
+        foamPts.forEach(([fx, fy, fr], idx) => {
+          const jitter = Math.sin(now * 24 + idx * 1.7) * 2.5;
+          ctx.beginPath();
+          ctx.arc(fx + jitter, fy, fr * wScale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // 4 顆斜向飛濺的銳利水滴
+        [-0.85, -0.35, 0.35, 0.85].forEach((da, idx) => {
+          const dist = sprayR * 0.92 + prog * 16 + (idx % 2) * 5;
+          const dx = Math.cos(da) * dist;
+          const dy = Math.sin(da) * dist;
+          ctx.save();
+          ctx.translate(dx, dy);
+          ctx.rotate(da);
+          ctx.fillStyle = idx % 2 === 0 ? "#E0FFFF" : "#38BDF8";
+          ctx.beginPath();
+          ctx.moveTo(5.5 * wScale, 0);
+          ctx.lineTo(-3.5 * wScale, -2.4 * wScale);
+          ctx.lineTo(-3.5 * wScale, 2.4 * wScale);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        });
+        ctx.restore();
+
+        ctx.restore();
+      } else if (m.style === "water_splash_burst") {
+        // 【全水系通用・優化水花爆濺特效】：水冠飛濺弧 ＋ 5 顆放射淚滴水珠 ＋ 細膩白沫環
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const fade = Math.max(0, 1 - prog);
+        const curR = m.radius * (0.45 + prog * 0.82);
+
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = fade * 0.92;
+
+        // 1. 雙層輕盈水花擴散弧（半透明亮青＋純白碎浪邊）
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 2.6 * fade;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, -1.25, 1.25);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#E0FFFF";
+        ctx.lineWidth = 1.6 * fade;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 0.72, -1.5, 1.5);
+        ctx.stroke();
+
+        // 2. 5 顆沿衝擊方向放射飛濺的淚滴水珠（前圓後尖）
+        [-1.05, -0.52, 0, 0.52, 1.05].forEach((da, idx) => {
+          const d = curR * (0.85 + (idx % 2) * 0.25);
+          const wx = Math.cos(da) * d;
+          const wy = Math.sin(da) * d;
+          ctx.save();
+          ctx.translate(wx, wy);
+          ctx.rotate(da);
+          ctx.fillStyle = idx % 2 === 0 ? "#FFFFFF" : "#7DD3FC";
+          ctx.beginPath();
+          ctx.arc(2.2, 0, 2.4 * fade + 0.8, -Math.PI * 0.5, Math.PI * 0.5);
+          ctx.lineTo(-4.5 * fade - 1.5, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        });
+        ctx.restore();
+      } else if (m.style === "vine_whip") {
         // 【奇異種子・V10 經典藤鞭】：雙層 S 彎曲藤蔓 ＋ 兩側倒刺三角與嫩芽圓點 ＋ 末端雙層氣泡音爆環（鞭打落地爆破感）
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
