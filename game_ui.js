@@ -515,7 +515,37 @@ Object.assign(window.GameApp, {
 
   nextWizardStep() {
     if (this.wizardStep < 3) this.setWizardStep(this.wizardStep + 1);
-    else this.startGameRun();
+    else this.startGameRunWithTransition();
+  },
+
+  startGameRunWithTransition() {
+    if (this._startingBattle) return;
+    this._startingBattle = true;
+    try {
+      if (typeof SoundFX !== "undefined") {
+        SoundFX.init();
+        SoundFX.play("super");
+      }
+    } catch (e) {}
+
+    const shutterEl = document.getElementById("pokeballTransitionOverlay");
+    if (shutterEl) {
+      shutterEl.classList.remove("hidden", "pokeball-shutter-active");
+      void shutterEl.offsetWidth;
+      shutterEl.classList.add("pokeball-shutter-active");
+
+      setTimeout(() => {
+        this.startGameRun();
+      }, 260);
+      setTimeout(() => {
+        shutterEl.classList.add("hidden");
+        shutterEl.classList.remove("pokeball-shutter-active");
+        this._startingBattle = false;
+      }, 660);
+    } else {
+      this.startGameRun();
+      this._startingBattle = false;
+    }
   },
 
   renderWizardContent() {
@@ -1075,13 +1105,13 @@ Object.assign(window.GameApp, {
           <div class="flex items-start gap-2 ${isUnlocked ? 'text-emerald-300' : 'text-slate-200'}">
             <span class="shrink-0 mt-0.5">${isUnlocked ? '✅' : '⬜'}</span>
             <div class="leading-snug">
-              <div class="font-black">條件 2：局內進化覺醒</div>
-              <div class="text-[10px] text-slate-400">使用【${starterPoke ? starterPoke.name_zh : '小火龍'}】出戰進化至【${basePoke ? basePoke.name_zh : '噴火龍'}】，等級達 <strong class="text-amber-300">Lv.${mf.reqLevel || 24}</strong>（或 ${mf.reqSkillsText}）即自動觸發鑰石共鳴！</div>
+              <div class="font-black">條件 2：雙重門檻 ＋ 手動鑰石覺醒</div>
+              <div class="text-[10px] text-slate-400">使用【${starterPoke ? starterPoke.name_zh : '小火龍'}】進化至【${basePoke ? basePoke.name_zh : '噴火龍'}】，等級達 <strong class="text-amber-300">Lv.${mf.reqLevel || 24}</strong> <strong class="text-cyan-300">且</strong> ${mf.reqSkillsText}，右下角將浮現【💎 MEGA】按鍵（快捷鍵 [M]），隨時由你親手引爆！</div>
             </div>
           </div>
 
           <div class="bg-amber-950/60 border border-amber-500/60 rounded-lg p-2 text-[10px] text-amber-200 font-bold leading-snug">
-            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 21}</strong>（三階進化瞬間直接引爆 MEGA 覺醒＋蒼藍龍焰震波）！
+            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 23}</strong>，按下【💎 MEGA】瞬間額外引爆 235px 蒼藍龍焰震波！
           </div>
         </div>
       `;
@@ -2245,6 +2275,7 @@ Object.assign(window.GameApp, {
   quitToTitle() {
     this.saveToStorage();
     this.evoSequence = null;
+    this.battleCountdownTimer = 0;
     this._pendingEvolutionTarget = null;
     this._pauseFrameRendered = false;
     clearTimeout(this._cutInHideTimer);

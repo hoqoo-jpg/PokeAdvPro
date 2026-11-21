@@ -195,6 +195,10 @@ window.GameApp = {
         e.preventDefault();
         this.triggerTrainerActiveSkill();
       }
+      if (k === "m" && this.state === "PLAYING") {
+        e.preventDefault();
+        this.triggerManualMegaEvolution();
+      }
       if ((k === "e" || k === "E") && this.state === "PLAYING") {
         const mart = this.mapItems.find(it => it.id === "poke_mart");
         if (mart && Math.hypot(this.player.x - mart.x, this.player.y - mart.y) < 75) {
@@ -215,6 +219,7 @@ window.GameApp = {
     const joyBase = document.getElementById("touchJoyBase");
     const joyStick = document.getElementById("touchJoyStick");
     const skillBtn = document.getElementById("btnTrainerActiveSkill");
+    const megaBtn = document.getElementById("btnManualMegaSkill");
 
     const onTouchStart = (e) => {
       if (this.state !== "PLAYING") return;
@@ -226,6 +231,13 @@ window.GameApp = {
           const rect = skillBtn.getBoundingClientRect();
           if (t.clientX >= rect.left - 20 && t.clientX <= rect.right + 20 &&
               t.clientY >= rect.top - 20 && t.clientY <= rect.bottom + 20) {
+            continue;
+          }
+        }
+        if (megaBtn && megaBtn.offsetParent !== null) {
+          const mRect = megaBtn.getBoundingClientRect();
+          if (t.clientX >= mRect.left - 18 && t.clientX <= mRect.right + 18 &&
+              t.clientY >= mRect.top - 18 && t.clientY <= mRect.bottom + 18) {
             continue;
           }
         }
@@ -310,7 +322,7 @@ window.GameApp = {
     window.addEventListener("touchend", onTouchEnd, { passive: true });
     window.addEventListener("touchcancel", () => resetJoy(), { passive: true }); // 防死鎖徹底重置
 
-    // 解決移動中無法點擊大招：綁定原生 touchstart 支援多點觸控
+    // 解決移動中無法點擊大招與手動 Mega：綁定原生 touchstart 支援多點觸控
     if (skillBtn) {
       skillBtn.addEventListener("touchstart", (e) => {
         e.preventDefault();
@@ -318,10 +330,18 @@ window.GameApp = {
         this.triggerTrainerActiveSkill();
       }, { passive: false });
     }
+    if (megaBtn) {
+      megaBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerManualMegaEvolution();
+      }, { passive: false });
+    }
 
     // 手機端多點觸控委派：確保左手按住虛擬搖桿時，右手點擊頂部功能按鈕能即刻執行
     const topHudBtns = document.querySelectorAll("#hudLayer .pointer-events-auto button");
     topHudBtns.forEach(btn => {
+      if (btn.id === "btnTrainerActiveSkill" || btn.id === "btnManualMegaSkill") return;
       btn.addEventListener("touchstart", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1085,12 +1105,64 @@ window.GameApp = {
     MapEngine.setWeather("CLEAR");
     this.updateWeatherUI("CLEAR");
 
+    this.battleCountdownTimer = 1.52;
+    this._lastCountdownBeat = 4;
+    const megaWrap = document.getElementById("btnManualMegaWrap");
+    if (megaWrap) megaWrap.classList.add("hidden");
+
     this.state = "PLAYING";
     this.refreshHUD();
   },
 
-  triggerTrainerActiveSkill() {
+  checkMegaEvolutionReady() {
+    const p = this.player;
+    if (!p || p.megaEvolved || p.megaReady) return false;
+    const mf = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[p.id] : null;
+    if (!mf) return false;
+    const hasRing = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1);
+    if (!hasRing) return false;
+
+    const isBond = !!(this.selectedTrainer && (mf.bondTrainerIds || []).includes(this.selectedTrainer.id));
+    const reqLv = isBond ? (mf.bondReqLevel || 23) : (mf.reqLevel || 24);
+    if (p.level < reqLv) return false;
+
+    const flameLv = (p.skills["Flamethrower"] && p.skills["Flamethrower"].level) || 0;
+    const dragonLv = ((p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level) || 0)
+      + ((p.skills["DragonRush"] && p.skills["DragonRush"].level) || 0);
+    const reqSum = mf.reqSkillSum || 10;
+    if ((flameLv + dragonLv) < reqSum) return false;
+
+    p.megaReady = true;
+    p.megaTargetId = mf.id;
+    const megaWrap = document.getElementById("btnManualMegaWrap");
+    const megaImg = document.getElementById("hudManualMegaImg");
+    if (megaImg && mf.stoneSprite) megaImg.src = mf.stoneSprite;
+    if (megaWrap) megaWrap.classList.remove("hidden");
+
+    SoundFX.play("shiny");
+    this.showCutsceneBanner(
+      "【💎 MEGA 鑰石共鳴就緒！】",
+      `點擊右下角【💎 MEGA】按鈕（或按 M 鍵），隨時釋放【${mf.name_zh}】覺醒！`,
+      3200
+    );
+    this.spawnFloatingText(p.x, p.y - 34, "💎 MEGA 覺醒就緒！", "#38BDF8", 15);
+    return true;
+  },
+
+  triggerManualMegaEvolution() {
     if (this.state !== "PLAYING" || !this.player) return;
+    if (this.battleCountdownTimer > 0) return;
+    const p = this.player;
+    if (!p.megaReady || p.megaEvolved) return;
+    const targetId = p.megaTargetId || 10034;
+    p.megaReady = false;
+    const megaWrap = document.getElementById("btnManualMegaWrap");
+    if (megaWrap) megaWrap.classList.add("hidden");
+    this.startEvolutionMoment(targetId, false, null, true);
+  },
+
+  triggerTrainerActiveSkill() {
+    if (this.state !== "PLAYING" || !this.player || this.battleCountdownTimer > 0) return;
     if (this.player.trainerSkillCd > 0 || this.player.buffTimer > 0 || this.player.shieldTimer > 0) return;
 
     const tr = this.selectedTrainer;
@@ -1419,7 +1491,18 @@ window.GameApp = {
   },
 
   updateCombat(dt) {
-    this.runTime += dt;
+    const isWarmupCountdown = (this.battleCountdownTimer > 0);
+    if (isWarmupCountdown) {
+      this.battleCountdownTimer = Math.max(0, this.battleCountdownTimer - dt);
+      const beat = Math.ceil(this.battleCountdownTimer / 0.38); // 4..1 -> 3, 2, 1, START!
+      const mappedBeat = Math.min(3, Math.max(0, beat - 1));
+      if (this._lastCountdownBeat !== mappedBeat) {
+        this._lastCountdownBeat = mappedBeat;
+        SoundFX.play(mappedBeat > 0 ? "countdown_tick" : "countdown_go");
+      }
+    } else {
+      this.runTime += dt;
+    }
     const p = this.player;
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
@@ -1682,7 +1765,9 @@ window.GameApp = {
           radius: 24,
           life: 2.0,
           maxLife: 2.0,
-          tickTimer: 0.1
+          tickTimer: 0.1,
+          isMegaBlue: !!(p.megaEvolved || p.id === 10034),
+          seed: Math.random() * 100
         });
       }
     }
@@ -1986,6 +2071,17 @@ window.GameApp = {
 
     this.camera.x = p.x;
     this.camera.y = p.y;
+
+    if (isWarmupCountdown) {
+      MapEngine.updateWeather(dt, this.width, this.height);
+      this.updateParticlesAndTexts(dt);
+      this._hudRefreshTimer = (this._hudRefreshTimer || 0) - dt;
+      if (this._hudRefreshTimer <= 0) {
+        this._hudRefreshTimer = 0.10;
+        this.refreshHUD();
+      }
+      return;
+    }
 
     const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
     const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
@@ -4190,18 +4286,6 @@ window.GameApp = {
         } else if (p.data.evo_to) {
           this._pendingEvolutionTarget = p.data.evo_to;
         }
-      } else if (p.id === 6 && !p.megaEvolved && this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1) {
-        const mf6 = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[6] : null;
-        const isBondMega = !!(mf6 && this.selectedTrainer && (mf6.bondTrainerIds || []).includes(this.selectedTrainer.id));
-        const reqLv = isBondMega ? (mf6.bondReqLevel || 21) : (mf6 ? (mf6.reqLevel || 24) : 24);
-        const skillReady = !!(
-          (p.skills["Flamethrower"] && p.skills["Flamethrower"].level >= 10) ||
-          (p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level >= 10) ||
-          (p.skills["DragonRush"] && p.skills["DragonRush"].level >= 10)
-        );
-        if (p.level >= reqLv || skillReady) {
-          this._pendingEvolutionTarget = "mega_6";
-        }
       } else if (p.id >= 144 && p.id < 10000 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
         // 排入三選一之後播放 1.35 秒傳說共鳴特寫（不再被升級彈窗遮蔽）
         this._pendingEvolutionTarget = "awaken_legendary";
@@ -4410,15 +4494,8 @@ window.GameApp = {
       this.evoSequence = null;
       this.refreshHUD();
 
-      // 方案 2+3 羈絆鑰石共鳴：小火龍家族進化成噴火龍 (#006) 當下，若已購超級手環且由羈絆訓練家(小智/赤紅/莎莉娜)帶隊，立即接續引爆 Mega 覺醒！
-      const pCur = this.player;
-      const mfNext = (!wasMega && !wasAwaken && pCur && typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[finishedTargetId] : null;
-      const hasRing = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1);
-      const isBondTr = !!(mfNext && this.selectedTrainer && (mfNext.bondTrainerIds || []).includes(this.selectedTrainer.id));
-      if (mfNext && pCur && !pCur.megaEvolved && hasRing && isBondTr && pCur.level >= (mfNext.bondReqLevel || 21)) {
-        this.startEvolutionMoment(mfNext.id, shouldOpenLvl, null, true);
-        return;
-      }
+      // 進化完成後檢查是否達成手動 MEGA 雙重門檻（不再自動強制變身，改為點亮右下角 💎 MEGA 按鍵）
+      this.checkMegaEvolutionReady();
 
       if (shouldOpenLvl) {
         this.openLevelUpModal();
@@ -5296,18 +5373,84 @@ window.GameApp = {
     // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
     SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
 
-    // 繪製【木炭】熔岩灼燒腳印
+    // 繪製地面燃燒火焰（三層動態搖曳像素火簇 ＋ 超級噴火龍X 蒼藍冥炎聯動）
+    const flameNow = performance.now() * 0.011;
     this.lavaFootprints.forEach(lf => {
       const lsx = toSx(lf.x), lsy = toSy(lf.y);
-      const alpha = Math.max(0, (lf.life / lf.maxLife) * 0.65);
+      if (lsx < -48 || lsx > this.width + 48 || lsy < -48 || lsy > this.height + 48) return;
+      const lifeRatio = Math.max(0, Math.min(1, lf.life / (lf.maxLife || 2.0)));
+      const fade = lifeRatio < 0.25 ? (lifeRatio / 0.25) : 1.0;
+      const isBlue = !!lf.isMegaBlue;
+      const r = lf.radius || 24;
+      const seed = lf.seed || (lf.x * 0.13 + lf.y * 0.07);
+
       ctx.save();
-      ctx.fillStyle = `rgba(239, 68, 68, ${alpha})`;
-      ctx.strokeStyle = `rgba(253, 224, 71, ${alpha * 1.1})`;
-      ctx.lineWidth = 1.8;
+      ctx.translate(lsx, lsy);
+      ctx.globalAlpha = fade * 0.92;
+
+      // 第 1 層：地面焦黑炭化烙印（讓火焰真正「咬」在草地與石板上）
+      ctx.fillStyle = isBlue ? "rgba(10, 18, 40, 0.56)" : "rgba(32, 14, 6, 0.52)";
       ctx.beginPath();
-      ctx.ellipse(lsx, lsy, lf.radius, lf.radius * 0.55, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 2, r * 0.95, r * 0.44, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
+
+      ctx.fillStyle = isBlue ? "rgba(14, 165, 233, 0.28)" : "rgba(234, 88, 12, 0.30)";
+      ctx.beginPath();
+      ctx.ellipse(0, 1, r * 0.72, r * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 第 2 層：3～4 簇錯落動態搖曳淚滴火舌（外焰 -> 中焰 -> 亮芯）
+      const tongues = r > 28
+        ? [
+            { ox: -r * 0.42, oy: 2, s: 0.95 },
+            { ox: 0,         oy: -1, s: 1.25 },
+            { ox: r * 0.42,  oy: 3, s: 0.92 },
+            { ox: -r * 0.14, oy: 5, s: 0.85 }
+          ]
+        : [
+            { ox: -r * 0.36, oy: 2, s: 0.85 },
+            { ox: 0,         oy: -1, s: 1.08 },
+            { ox: r * 0.36,  oy: 2, s: 0.82 }
+          ];
+
+      const outerCol = isBlue ? "#1D4ED8" : "#DC2626";
+      const midCol   = isBlue ? "#0EA5E9" : "#F97316";
+      const coreCol  = isBlue ? "#E0F2FE" : "#FEF08A";
+
+      for (let t = 0; t < tongues.length; t++) {
+        const tg = tongues[t];
+        const phase = flameNow + seed + t * 2.1;
+        const sway = Math.sin(phase) * 2.8;
+        const h = (13.5 + Math.cos(phase * 1.35) * 2.6) * tg.s * (0.72 + 0.28 * lifeRatio);
+        const w = 6.2 * tg.s;
+        const bx = tg.ox;
+        const by = tg.oy;
+
+        // 外焰
+        ctx.fillStyle = outerCol;
+        ctx.beginPath();
+        ctx.moveTo(bx - w, by);
+        ctx.quadraticCurveTo(bx - w * 0.95, by - h * 0.55, bx + sway, by - h);
+        ctx.quadraticCurveTo(bx + w * 0.95, by - h * 0.55, bx + w, by);
+        ctx.quadraticCurveTo(bx, by + w * 0.45, bx - w, by);
+        ctx.closePath();
+        ctx.fill();
+
+        // 中焰
+        ctx.fillStyle = midCol;
+        ctx.beginPath();
+        ctx.moveTo(bx - w * 0.66, by - 0.5);
+        ctx.quadraticCurveTo(bx - w * 0.6, by - h * 0.45, bx + sway * 0.72, by - h * 0.76);
+        ctx.quadraticCurveTo(bx + w * 0.6, by - h * 0.45, bx + w * 0.66, by - 0.5);
+        ctx.closePath();
+        ctx.fill();
+
+        // 熾亮火芯
+        ctx.fillStyle = coreCol;
+        ctx.beginPath();
+        ctx.ellipse(bx + sway * 0.25, by - h * 0.24, w * 0.34, h * 0.20, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       ctx.restore();
     });
 
@@ -6505,6 +6648,9 @@ window.GameApp = {
     if (this.state === "EVOLVING") {
       this.renderEvolutionDialogBox(ctx);
     }
+    if (this.battleCountdownTimer > 0 && this.state === "PLAYING") {
+      this.renderBattleCountdownOverlay(ctx);
+    }
 
     this.floatingTexts.forEach(ft => {
       const sx = toSx(ft.x), sy = toSy(ft.y);
@@ -6623,6 +6769,50 @@ window.GameApp = {
       }
       drawEdgeIconIndicator(it.x, it.y, cfg.color, cfg.label, iconImg, cfg.size);
     });
+  },
+
+  renderBattleCountdownOverlay(ctx) {
+    const t = this.battleCountdownTimer || 0;
+    if (t <= 0) return;
+    const beatDur = 0.38;
+    const beatIdx = Math.min(3, Math.floor(t / beatDur)); // 3="3", 2="2", 1="1", 0="BATTLE START!"
+    const localElapsed = beatDur - (t - beatIdx * beatDur);
+    const localProg = Math.max(0, Math.min(1, localElapsed / beatDur));
+    const popScale = localProg < 0.28
+      ? (1.55 - 0.55 * (localProg / 0.28))
+      : (1.0 + Math.sin((localProg - 0.28) * Math.PI) * 0.06);
+    const alpha = localProg > 0.82 ? Math.max(0, (1 - localProg) / 0.18) : 1.0;
+
+    const labels = ["BATTLE START!", "1", "2", "3"];
+    const text = labels[beatIdx] || "3";
+    const isStart = (beatIdx === 0);
+
+    ctx.save();
+    ctx.translate(this.width / 2, this.height * 0.40);
+    ctx.scale(popScale, popScale);
+    ctx.globalAlpha = alpha;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.font = isStart
+      ? "900 32px 'Press Start 2P', 'Noto Sans TC', sans-serif"
+      : "900 58px 'Press Start 2P', monospace";
+    ctx.lineWidth = isStart ? 7 : 9;
+    ctx.strokeStyle = "#0F172A";
+    ctx.strokeText(text, 0, 0);
+
+    ctx.fillStyle = isStart ? "#34D399" : (beatIdx === 1 ? "#F43F5E" : "#FACC15");
+    ctx.fillText(text, 0, 0);
+
+    if (!isStart) {
+      ctx.font = "900 12px 'Noto Sans TC', sans-serif";
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = "#0F172A";
+      ctx.strokeText("熱身走位中 ‧ 準備迎戰！", 0, 44);
+      ctx.fillStyle = "#E0F2FE";
+      ctx.fillText("熱身走位中 ‧ 準備迎戰！", 0, 44);
+    }
+    ctx.restore();
   },
 
   refreshHUD() {
@@ -6792,6 +6982,14 @@ window.GameApp = {
         btnEl.className = "tactical-btn-ready relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
         cdOverlay.className = "hidden absolute inset-0";
       }
+    }
+
+    if (!p.megaEvolved && !p.megaReady && typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[p.id]) {
+      this.checkMegaEvolutionReady();
+    }
+    const megaWrapEl = document.getElementById("btnManualMegaWrap");
+    if (megaWrapEl) {
+      megaWrapEl.classList.toggle("hidden", !(p.megaReady && !p.megaEvolved));
     }
 
     if (this.activeBoss && this.activeBoss.hp > 0) {

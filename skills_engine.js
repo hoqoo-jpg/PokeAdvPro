@@ -2285,7 +2285,7 @@ const SkillsEngine = {
         if (GameApp.player && Math.hypot(hz.x - hz.lastSpawnX, hz.y - hz.lastSpawnY) >= 44) {
           hz.lastSpawnX = hz.x;
           hz.lastSpawnY = hz.y;
-          GameApp.lavaFootprints.push({ x: hz.x, y: hz.y, radius: 36, life: 2.4, maxLife: 2.4, tickTimer: 0.1 });
+          GameApp.lavaFootprints.push({ x: hz.x, y: hz.y, radius: 36, life: 2.4, maxLife: 2.4, tickTimer: 0.1, isMegaBlue: !!hz.isMegaBlueFlame, seed: Math.random() * 100 });
         }
       } else if (hz.kind === "thunder_pillars_storm") {
         (hz.strikePts || []).forEach(pt => {
