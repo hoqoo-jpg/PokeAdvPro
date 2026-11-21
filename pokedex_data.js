@@ -138,7 +138,7 @@ Ember: {
     knockback: 0, isMelee: false, vfx: "fire_stream", reqItem: "charcoal",
     evolvedName: "大字爆炎", color: "#EF4444",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
-    desc: "朝前方噴吐高溫烈焰，無擊退，專注高頻灼傷輸出。",
+    desc: "從口中噴出連續錐形高溫烈焰流，持續兩段灼燒整片扇形敵群，升級大幅拓寬烈焰寬度與射程！",
     evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
   },
   HydroPump: {
@@ -146,7 +146,7 @@ Ember: {
     knockback: 16, isMelee: false, vfx: "water_beam", reqItem: "mystic_water",
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
-    desc: "從炮口射出貫穿式高壓螺旋水柱，持續兩段沖刷並強力擊退整排敵群，升級解鎖雙肩雙炮與三向齊射！",
+    desc: "從炮口射出貫穿式高壓螺旋水柱，持續兩段沖刷並強力擊退整排敵群，Lv.4 雙炮齊射、Lv.8 超壓加粗（水箭龜專屬雙肩平行重炮）！",
     evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
   },
   SeedBomb: {
@@ -186,7 +186,7 @@ Ember: {
     knockback: 4, isMelee: false, vfx: "frost_beam", reqItem: "never_melt_ice",
     evolvedName: "絕對零度", color: "#67E8F9",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
-    desc: "極低溫寒冰射線，微抖動擊退，高概率冰凍遲緩。",
+    desc: "瞬間貫穿整條直線的經典 GBA 折線極寒雷射，末端引發六角冰霜爆破並高機率凍結敵群！",
     evoDesc: "【終極超武】凍結全屏怪物 3 秒，並引發全屏冰爆碎裂！"
   },
   Earthquake: {

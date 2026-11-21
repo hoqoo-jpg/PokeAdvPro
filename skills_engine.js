@@ -564,63 +564,86 @@ const SkillsEngine = {
       return;
     }
 
-    // 2E. 噴射火焰 (Flamethrower)：主角前方 30px 淨空噴出扇形翻湧四色漸層火浪
+    // 2E. 噴射火焰 (Flamethrower) — 連續噴射式錐形烈焰流：四層翻湧火浪 ＋ 捲曲火舌 ＋ 兩段灼燒沖刷（火焰鳥 #146 專屬三向鳳凰烈焰）
     if (cleanSkillId === "Flamethrower") {
       const isMoltres = !!(caster && caster.id === 146);
-      const waveStreams = isMoltres ? Math.min(5, count + 1) : Math.min(4, count);
-      const moltresWidthMult = isMoltres ? 1.20 : 1.0;
-      for (let w = 0; w < 2; w++) {
-        for (let i = 0; i < waveStreams; i++) {
-          const spread = (waveStreams > 1 ? (i - (waveStreams - 1) / 2) * 0.18 : 0) + (w === 1 ? (Math.random() - 0.5) * 0.12 : 0);
-          const ang = baseAngle + spread;
-          const spd = 290 + w * 45;
-          const muzzleDist = 30 + w * 18;
-          this.projectiles.push({
-            x: caster.x + Math.cos(ang) * muzzleDist,
-            y: caster.y + Math.sin(ang) * muzzleDist,
-            vx: Math.cos(ang) * spd,
-            vy: Math.sin(ang) * spd,
-            angle: ang,
-            radius: (15 + w * 4.5) * GameApp.player.areaMult * moltresWidthMult * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
-            dmg: rawDmg * 0.62,
-            type: "Fire",
-            skillId,
-            vfx: "fire_stream",
-            homing: false,
-            color: "#EF4444",
-            pierce: (level >= 6 ? 4 : 3),
-            knockback: 0,
-            life: 0.68,
-            statusBonus: level >= 5 ? 0.35 : 0.15,
-            hitSet: new Set(),
-            trailTimer: 0
-          });
+      const isInferno = (level >= 8);
+      const streamCount = isMoltres ? 3 : 1;
+      const traitAreaMult = 1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
+      const lvLenMult = level >= 8 ? 1.22 : (level >= 4 ? 1.12 : 1.0);
+      const lvWidthMult = level >= 8 ? 1.34 : (level >= 4 ? 1.18 : 1.0);
+      const beamLength = Math.min(285, (185 + level * 6.5) * Math.min(1.42, GameApp.player.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
+      const endHalfW = Math.min(54, (24 + level * 1.1) * lvWidthMult * (isMoltres ? 1.12 : 1.0) * Math.min(1.38, GameApp.player.areaMult * traitAreaMult));
+
+      for (let s = 0; s < streamCount; s++) {
+        const angOffset = streamCount === 3 ? (s - 1) * 0.28 : 0;
+        const ang = baseAngle + angOffset;
+        const startX = caster.x + Math.cos(ang) * 22;
+        const startY = caster.y + Math.sin(ang) * 22;
+
+        this.meleeEffects.push({
+          style: "flamethrower_beam",
+          casterRef: caster,
+          ox: startX,
+          oy: startY,
+          x: startX,
+          y: startY,
+          angle: ang,
+          length: beamLength,
+          startHalfW: 9,
+          endHalfW: endHalfW,
+          isInferno,
+          isMoltresFlame: isMoltres,
+          dmg: rawDmg * (isInferno ? 0.66 : 0.60),
+          type: "Fire",
+          kb: 0,
+          statusBonus: level >= 5 ? 0.36 : 0.18,
+          hitSet: new Set(),
+          secondTickDone: false,
+          emberEmitTimer: 0.04,
+          timer: 0.38,
+          maxTime: 0.38,
+          color: "#EF4444"
+        });
+
+        for (let ms = 0; ms < 4; ms++) {
+          const mAng = ang + (Math.random() - 0.5) * 0.9;
+          const mSpd = 55 + Math.random() * 55;
+          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd - 16, ms % 2 === 0 ? "#FEF08A" : "#F97316", 3.0, 0.26, "star");
         }
+      }
+
+      if (caster === GameApp.player) {
+        caster.recoilX = -Math.cos(baseAngle) * 3.8;
+        caster.recoilY = -Math.sin(baseAngle) * 3.8;
+        caster.recoilTimer = 0.11;
       }
       SoundFX.play("hit", "Fire");
       return;
     }
 
-    // 2F. 水炮 (Hydro Pump) — 方案 A【貫穿式高壓水柱】：炮口聚焦水霧環 ➔ 雙股純白高壓螺旋絞線 ➔ 末端扇形翻捲白沫與水花飛濺
+    // 2F. 水炮 (Hydro Pump) — 統一最多 2 條高壓加粗水柱 ＋ 水箭龜 (#009) 專屬雙肩平行重炮演出
     if (cleanSkillId === "HydroPump") {
-      const beamCount = Math.min(3, count);
+      const isBlastoise = !!(caster && caster.id === 9);
+      const isOverpressure = (level >= 8);
+      const beamCount = isBlastoise ? 2 : Math.min(2, count);
       const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
       const traitKbMult = 1 + (trait.megaLauncherKbBonus || 0);
-      const beamLength = Math.min(340, (220 + level * 8) * Math.min(1.45, GameApp.player.areaMult * (level >= 8 ? 1.15 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
-      const beamWidth = Math.min(38, (18 + level * 0.8) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
+      const beamLength = Math.min(355, (225 + level * 8) * Math.min(1.48, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+      const beamWidth = Math.min(48, (18 + level * 0.85) * (isOverpressure ? 1.28 : 1.0) * (isBlastoise ? 1.16 : 1.0) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
       const perp = baseAngle + Math.PI / 2;
 
       for (let b = 0; b < beamCount; b++) {
         let angOffset = 0;
         let latOffset = 0;
-        if (beamCount === 2) {
-          // 經典水箭龜雙肩雙炮齊射（微張角 + 左右肩部 10px 平行位移）
-          angOffset = (b === 0 ? -0.10 : 0.10);
-          latOffset = (b === 0 ? -10 : 10);
-        } else if (beamCount >= 3) {
-          // 滿級三向扇形高壓水炮齊射
-          angOffset = (b - 1) * 0.22;
-          latOffset = (b - 1) * 8;
+        if (isBlastoise) {
+          // 水箭龜 (#009) 專屬：雙肩寬距嚴格平行齊射（張角 0、肩距 ±13px）
+          angOffset = 0;
+          latOffset = (b === 0 ? -13 : 13);
+        } else if (beamCount === 2) {
+          // 通用 Lv.4+ 雙柱高壓水炮（微張角 ±0.08 rad）
+          angOffset = (b === 0 ? -0.08 : 0.08);
+          latOffset = (b === 0 ? -9 : 9);
         }
         const ang = baseAngle + angOffset;
         const startX = caster.x + Math.cos(perp) * latOffset + Math.cos(ang) * 22;
@@ -631,6 +654,8 @@ const SkillsEngine = {
           casterRef: caster,
           latOffset,
           perpAngle: perp,
+          isBlastoiseCannon: isBlastoise,
+          isOverpressure,
           ox: startX,
           oy: startY,
           x: startX,
@@ -638,9 +663,9 @@ const SkillsEngine = {
           angle: ang,
           length: beamLength,
           width: beamWidth,
-          dmg: rawDmg * 0.60, // 0.36s 持續水柱共觸發 2 段高壓沖刷（總計 1.20x）
+          dmg: rawDmg * (isOverpressure ? 0.68 : 0.60),
           type: "Water",
-          kb: (meta.knockback !== undefined ? meta.knockback : 16) * traitKbMult,
+          kb: (meta.knockback !== undefined ? meta.knockback : 16) * traitKbMult * (isBlastoise ? 1.15 : 1.0),
           statusBonus: level >= 5 ? 0.30 : 0.12,
           hitSet: new Set(),
           secondTickDone: false,
@@ -650,22 +675,79 @@ const SkillsEngine = {
           color: "#38BDF8"
         });
 
-        // 炮口瞬間噴散的霧化水珠
         for (let ms = 0; ms < 4; ms++) {
           const mAng = ang + (ms % 2 === 0 ? 1 : -1) * (0.45 + Math.random() * 0.45);
           const mSpd = 60 + Math.random() * 50;
-          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd, ms % 2 === 0 ? "#E0FFFF" : "#38BDF8", 2.8, 0.24, "circle");
+          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd, (isBlastoise && ms === 0) ? "#FEF08A" : (ms % 2 === 0 ? "#E0FFFF" : "#38BDF8"), 2.8, 0.24, "circle");
         }
       }
 
       if (caster === GameApp.player) {
-        caster.recoilX = -Math.cos(baseAngle) * 5.5;
-        caster.recoilY = -Math.sin(baseAngle) * 5.5;
+        const rec = isBlastoise ? 6.2 : 5.5;
+        caster.recoilX = -Math.cos(baseAngle) * rec;
+        caster.recoilY = -Math.sin(baseAngle) * rec;
         caster.recoilTimer = 0.13;
         GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.06);
-        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.5);
+        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, isBlastoise ? 1.8 : 1.5);
       }
       SoundFX.play("hit", "Water");
+      return;
+    }
+
+    // 2G. 冷凍光線 (Ice Beam) — 經典 GBA 折線極寒雷射：瞬發貫穿冰藍折線結晶鞘 ＋ 純白雷射軸 ＋ 末端六角冰霜爆破（急凍鳥 #144 三向冰光）
+    if (cleanSkillId === "IceBeam") {
+      const isArticuno = !!(caster && caster.id === 144);
+      const isHighCryo = (level >= 8);
+      const beamCount = isArticuno ? 3 : 1;
+      const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
+      const beamLength = Math.min(365, (255 + level * 8) * Math.min(1.45, GameApp.player.areaMult * (isHighCryo ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
+      const beamWidth = Math.min(34, (14 + level * 0.72) * (isHighCryo ? 1.28 : (level >= 4 ? 1.14 : 1.0)) * Math.min(1.38, GameApp.player.areaMult * traitSizeMult));
+
+      for (let b = 0; b < beamCount; b++) {
+        const angOffset = beamCount === 3 ? (b - 1) * 0.22 : 0;
+        const ang = baseAngle + angOffset;
+        const startX = caster.x + Math.cos(ang) * 22;
+        const startY = caster.y + Math.sin(ang) * 22;
+        const zigSeed = Math.random() * 10;
+
+        this.meleeEffects.push({
+          style: "ice_beam_laser",
+          casterRef: caster,
+          ox: startX,
+          oy: startY,
+          x: startX,
+          y: startY,
+          angle: ang,
+          length: beamLength,
+          width: beamWidth,
+          zigSeed,
+          isHighCryo,
+          isArticunoBeam: isArticuno,
+          dmg: rawDmg * (isHighCryo ? 0.64 : 0.58),
+          type: "Ice",
+          kb: (meta.knockback !== undefined ? meta.knockback : 4) * (1 + (trait.megaLauncherKbBonus || 0)),
+          statusBonus: level >= 5 ? 0.36 : 0.22,
+          hitSet: new Set(),
+          secondTickDone: false,
+          shardEmitTimer: 0.04,
+          timer: 0.32,
+          maxTime: 0.32,
+          color: "#67E8F9"
+        });
+
+        for (let ms = 0; ms < 4; ms++) {
+          const mAng = ang + (ms % 2 === 0 ? 1 : -1) * (0.5 + Math.random() * 0.4);
+          const mSpd = 65 + Math.random() * 45;
+          this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd, ms % 2 === 0 ? "#FFFFFF" : "#67E8F9", 3.0, 0.22, "diamond");
+        }
+      }
+
+      if (caster === GameApp.player) {
+        caster.recoilX = -Math.cos(baseAngle) * 4.5;
+        caster.recoilY = -Math.sin(baseAngle) * 4.5;
+        caster.recoilTimer = 0.11;
+      }
+      SoundFX.play("hit", "Ice");
       return;
     }
 
@@ -741,34 +823,7 @@ const SkillsEngine = {
       caster.recoilTimer = 0.11;
     }
 
-    if (cleanSkillId === "IceBeam" && caster && caster.id === 144) {
-      [-0.22, 0.22].forEach(sideAng => {
-        const a = baseAngle + sideAng;
-        this.projectiles.push({
-          x: caster.x + Math.cos(a) * 28,
-          y: caster.y + Math.sin(a) * 28,
-          vx: Math.cos(a) * 395,
-          vy: Math.sin(a) * 395,
-          initSpeed: 395,
-          angle: a,
-          casterRef: caster,
-          radius: 13 * GameApp.player.areaMult,
-          dmg: rawDmg * 0.55,
-          type: "Ice",
-          skillId,
-          vfx: "frost_beam",
-          homing: false,
-          color: "#67E8F9",
-          pierce: 3,
-          knockback: 4,
-          life: 0.78,
-          maxLife: 0.78,
-          statusBonus: 0.35,
-          hitSet: new Set(),
-          trailTimer: 0
-        });
-      });
-    }
+
     SoundFX.play("hit", meta.type);
   },
 
@@ -1908,6 +1963,95 @@ const SkillsEngine = {
                   color: "#38BDF8"
                 });
               }
+            }
+          }
+        } else if (m.style === "flamethrower_beam") {
+          if (m.casterRef) {
+            m.ox = m.casterRef.x + Math.cos(m.angle) * 22;
+            m.oy = m.casterRef.y + Math.sin(m.angle) * 22;
+            m.x = m.ox;
+            m.y = m.oy;
+          }
+          if (!m.secondTickDone && prog >= 0.48) {
+            m.secondTickDone = true;
+            m.hitSet.clear();
+          }
+          const extendFrac = Math.min(1, prog / 0.24);
+          const curLen = m.length * extendFrac;
+          const cosA = Math.cos(m.angle), sinA = Math.sin(m.angle);
+          const midX = m.ox + cosA * (curLen * 0.5);
+          const midY = m.oy + sinA * (curLen * 0.5);
+
+          m.emberEmitTimer = (m.emberEmitTimer || 0) - dt;
+          if (m.emberEmitTimer <= 0 && prog < 0.85) {
+            m.emberEmitTimer = 0.05;
+            const sampleT = 0.45 + Math.random() * 0.55;
+            const px = m.ox + cosA * (curLen * sampleT);
+            const py = m.oy + sinA * (curLen * sampleT);
+            const spreadW = (m.startHalfW + (m.endHalfW - m.startHalfW) * sampleT) * (Math.random() - 0.5) * 1.4;
+            const ex = px - sinA * spreadW;
+            const ey = py + cosA * spreadW;
+            this.spawnSubParticle(ex, ey, cosA * 55 + (Math.random() - 0.5) * 35, sinA * 55 - 35 - Math.random() * 30, Math.random() < 0.5 ? "#FEF08A" : "#F97316", 3.0 + Math.random() * 1.4, 0.28, "star");
+          }
+
+          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + (m.endHalfW || 36) + 18);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const rx = e.x - m.ox, ry = e.y - m.oy;
+            const along = rx * cosA + ry * sinA;
+            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            const tFrac = Math.max(0, Math.min(1, along / Math.max(1, m.length)));
+            const coneHalfW = (m.startHalfW || 9) + ((m.endHalfW || 32) - (m.startHalfW || 9)) * tFrac;
+            const perpDist = Math.abs(-rx * sinA + ry * cosA);
+            if (perpDist <= coneHalfW + e.radius * 0.85) {
+              m.hitSet.add(e);
+              GameApp.dealDamageToEnemy(e, m.dmg, "Fire", m.statusBonus || 0.22, 0);
+              this.spawnElementalHitSpark(e.x, e.y, "Fire");
+            }
+          }
+        } else if (m.style === "ice_beam_laser") {
+          if (m.casterRef) {
+            m.ox = m.casterRef.x + Math.cos(m.angle) * 22;
+            m.oy = m.casterRef.y + Math.sin(m.angle) * 22;
+            m.x = m.ox;
+            m.y = m.oy;
+          }
+          if (!m.secondTickDone && prog >= 0.48) {
+            m.secondTickDone = true;
+            m.hitSet.clear();
+          }
+          const extendFrac = Math.min(1, prog / 0.16);
+          const curLen = m.length * extendFrac;
+          const halfW = (m.width || 16) * 0.62;
+          const cosA = Math.cos(m.angle), sinA = Math.sin(m.angle);
+          const midX = m.ox + cosA * (curLen * 0.5);
+          const midY = m.oy + sinA * (curLen * 0.5);
+
+          m.shardEmitTimer = (m.shardEmitTimer || 0) - dt;
+          if (m.shardEmitTimer <= 0 && prog < 0.82) {
+            m.shardEmitTimer = 0.05;
+            const tipX = m.ox + cosA * curLen;
+            const tipY = m.oy + sinA * curLen;
+            for (let sp = 0; sp < 2; sp++) {
+              const spAng = m.angle + (Math.random() - 0.5) * 1.8;
+              const spSpd = 60 + Math.random() * 65;
+              this.spawnSubParticle(tipX, tipY, Math.cos(spAng) * spSpd, Math.sin(spAng) * spSpd, sp % 2 === 0 ? "#FFFFFF" : "#67E8F9", 3.2, 0.24, "diamond");
+            }
+          }
+
+          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const rx = e.x - m.ox, ry = e.y - m.oy;
+            const along = rx * cosA + ry * sinA;
+            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            const perpDist = Math.abs(-rx * sinA + ry * cosA);
+            if (perpDist <= halfW + e.radius * 0.85) {
+              m.hitSet.add(e);
+              GameApp.dealDamageToEnemy(e, m.dmg, "Ice", m.statusBonus || 0.25, m.kb || 4);
+              this.spawnElementalHitSpark(e.x, e.y, "Ice");
             }
           }
         } else if (m.style === "vine_whip") {
@@ -3272,7 +3416,52 @@ const SkillsEngine = {
 
     // 地面底層：終極衝擊 (giga_impact_lance) 與撞擊 (sonic_cone) 的地面犁地焦黑溝槽與 Z 軸投影暗影
     this.meleeEffects.forEach(m => {
-      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle" && m.style !== "hydro_pump_beam") return;
+      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle" && m.style !== "hydro_pump_beam" && m.style !== "flamethrower_beam" && m.style !== "ice_beam_laser") return;
+      if (m.style === "flamethrower_beam") {
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.38))));
+        const extendFrac = Math.min(1, prog / 0.24);
+        const curLen = m.length * extendFrac;
+        const wFade = prog < 0.72 ? 1.0 : Math.max(0.1, (1 - prog) / 0.28);
+        const endW = (m.endHalfW || 32) * wFade;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        ctx.save();
+        ctx.translate(osx, osy + 12);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = Math.max(0, (1 - prog * 0.72) * 0.36);
+        const scGrad = ctx.createLinearGradient(0, 0, curLen, 0);
+        scGrad.addColorStop(0, "rgba(185, 28, 28, 0.55)");
+        scGrad.addColorStop(0.65, "rgba(234, 88, 12, 0.42)");
+        scGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
+        ctx.fillStyle = scGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.lineTo(curLen, -endW * 1.05);
+        ctx.lineTo(curLen + 14, 0);
+        ctx.lineTo(curLen, endW * 1.05);
+        ctx.lineTo(0, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+      if (m.style === "ice_beam_laser") {
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.32))));
+        const extendFrac = Math.min(1, prog / 0.16);
+        const curLen = m.length * extendFrac;
+        const wFade = prog < 0.70 ? 1.0 : Math.max(0.1, (1 - prog) / 0.30);
+        const halfW = (m.width || 16) * 0.58 * wFade;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        ctx.save();
+        ctx.translate(osx, osy + 12);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = Math.max(0, (1 - prog * 0.75) * 0.34);
+        ctx.fillStyle = "rgba(56, 189, 248, 0.48)";
+        ctx.beginPath();
+        ctx.ellipse(curLen * 0.5, 0, curLen * 0.52, halfW * 1.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
       if (m.style === "hydro_pump_beam") {
         const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.36))));
         const extendFrac = Math.min(1, prog / 0.22);
@@ -4233,7 +4422,7 @@ const SkillsEngine = {
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
 
       if (m.style === "hydro_pump_beam") {
-        // 【水炮（Hydro Pump）・方案 A 貫穿式高壓水柱】：炮口聚焦水霧環 ➔ 雙股純白高壓螺旋絞線 ➔ 末端扇形翻捲白沫與飛濺水珠
+        // 【水炮（Hydro Pump）】：雙柱加粗高壓水柱 ＋ 水箭龜 (#009) 專屬金青【超級發射器】雙肩平行重炮 ＋ Lv.8+ 三股純白螺旋絞線
         const extendFrac = Math.min(1, prog / 0.22);
         const curLen = Math.max(18, m.length * extendFrac);
         const wScale = prog < 0.72 ? (0.90 + Math.sin(prog * 30) * 0.10) : Math.max(0.08, (1 - prog) / 0.28);
@@ -4246,111 +4435,111 @@ const SkillsEngine = {
         ctx.rotate(m.angle || 0);
         ctx.globalAlpha = alpha;
 
-        // 1. 炮口聚焦水霧環（兩道傾斜橢圓高壓氣圈）
-        ctx.strokeStyle = "rgba(224, 242, 254, 0.88)";
-        ctx.lineWidth = 2.6 * wScale;
+        // 1. 炮口聚焦水霧環（水箭龜專屬追加金青色超級發射器氣爆環）
+        ctx.strokeStyle = m.isBlastoiseCannon ? "#FEF08A" : "rgba(224, 242, 254, 0.88)";
+        ctx.lineWidth = (m.isBlastoiseCannon ? 3.2 : 2.6) * wScale;
         ctx.beginPath();
-        ctx.ellipse(2, 0, 4.5, halfW * 1.38, 0, 0, Math.PI * 2);
+        ctx.ellipse(2, 0, 5.0, halfW * (m.isBlastoiseCannon ? 1.52 : 1.38), 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = "rgba(56, 189, 248, 0.72)";
-        ctx.lineWidth = 1.8 * wScale;
+        ctx.strokeStyle = "rgba(56, 189, 248, 0.78)";
+        ctx.lineWidth = 2.0 * wScale;
         ctx.beginPath();
-        ctx.ellipse(10 + prog * 14, 0, 3.8, halfW * (1.15 + prog * 0.45), 0, 0, Math.PI * 2);
+        ctx.ellipse(10 + prog * 16, 0, 4.0, halfW * (1.18 + prog * 0.45), 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 2. 外層深海藍高壓水柱（上下邊緣帶高速推進的正弦浪紋，無方塊切邊）
+        // 2. 外層深海藍高壓水柱（上下正弦浪紋）
         const stepPx = 14;
-        ctx.fillStyle = "rgba(2, 132, 199, 0.86)";
+        ctx.fillStyle = m.isBlastoiseCannon ? "rgba(3, 105, 161, 0.90)" : "rgba(2, 132, 199, 0.86)";
         ctx.beginPath();
-        ctx.moveTo(0, -halfW * 0.75);
+        ctx.moveTo(0, -halfW * 0.78);
         for (let x = 0; x <= curLen; x += stepPx) {
-          const taper = 0.82 + (x / Math.max(1, curLen)) * 0.26;
-          const wave = Math.sin(now * 26 - x * 0.085) * 2.4 * wScale;
+          const taper = 0.84 + (x / Math.max(1, curLen)) * 0.26;
+          const wave = Math.sin(now * 26 - x * 0.085) * 2.6 * wScale;
           ctx.lineTo(x, -halfW * taper + wave);
         }
         ctx.lineTo(curLen + 6, 0);
         for (let x = curLen; x >= 0; x -= stepPx) {
-          const taper = 0.82 + (x / Math.max(1, curLen)) * 0.26;
-          const wave = Math.sin(now * 26 - x * 0.085 + 1.4) * 2.4 * wScale;
+          const taper = 0.84 + (x / Math.max(1, curLen)) * 0.26;
+          const wave = Math.sin(now * 26 - x * 0.085 + 1.4) * 2.6 * wScale;
           ctx.lineTo(x, halfW * taper + wave);
         }
         ctx.closePath();
         ctx.fill();
 
-        // 3. 中層亮青色高壓湍流帶 (#00D2FF)
+        // 3. 中層亮青色高壓湍流帶
         const midGrad = ctx.createLinearGradient(0, -halfW, 0, halfW);
         midGrad.addColorStop(0, "rgba(56, 189, 248, 0.45)");
-        midGrad.addColorStop(0.5, "rgba(186, 230, 253, 0.94)");
+        midGrad.addColorStop(0.5, "rgba(186, 230, 253, 0.95)");
         midGrad.addColorStop(1, "rgba(56, 189, 248, 0.45)");
         ctx.fillStyle = midGrad;
         ctx.beginPath();
-        ctx.moveTo(0, -halfW * 0.56);
-        ctx.lineTo(curLen, -halfW * 0.68);
+        ctx.moveTo(0, -halfW * 0.58);
+        ctx.lineTo(curLen, -halfW * 0.70);
         ctx.lineTo(curLen + 4, 0);
-        ctx.lineTo(curLen, halfW * 0.68);
-        ctx.lineTo(0, halfW * 0.56);
+        ctx.lineTo(curLen, halfW * 0.70);
+        ctx.lineTo(0, halfW * 0.58);
         ctx.closePath();
         ctx.fill();
 
-        // 4. 雙股純白高壓螺旋絞線 (Dual Helical Intertwined Streams) ＋ 中央白熾水壓軸線
+        // 4. 中央白熾水壓軸線 ＋ 螺旋絞線（Lv.8+ 升級為三股純白高壓螺旋絞線）
         ctx.lineCap = "round";
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.92)";
-        ctx.lineWidth = Math.max(1.5, halfW * 0.28);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.94)";
+        ctx.lineWidth = Math.max(1.8, halfW * (m.isOverpressure ? 0.34 : 0.28));
         ctx.beginPath();
         ctx.moveTo(4, 0);
         ctx.lineTo(curLen - 4, 0);
         ctx.stroke();
 
-        for (let strand = 0; strand < 2; strand++) {
-          ctx.strokeStyle = strand === 0 ? "#FFFFFF" : "#BAE6FD";
-          ctx.lineWidth = Math.max(1.3, 2.5 * wScale);
+        const strandCount = m.isOverpressure ? 3 : 2;
+        for (let strand = 0; strand < strandCount; strand++) {
+          ctx.strokeStyle = strand === 0 ? "#FFFFFF" : (strand === 1 ? "#BAE6FD" : "#E0F2FE");
+          ctx.lineWidth = Math.max(1.4, (m.isOverpressure ? 2.7 : 2.4) * wScale);
           ctx.beginPath();
           for (let x = 2; x <= curLen; x += 10) {
-            const amp = halfW * 0.62 * (0.75 + (x / Math.max(1, curLen)) * 0.28);
-            const y = Math.sin(x * 0.095 - now * 30 + strand * Math.PI) * amp;
+            const amp = halfW * 0.66 * (0.75 + (x / Math.max(1, curLen)) * 0.28);
+            const y = Math.sin(x * 0.095 - now * 30 + (strand * Math.PI * 2) / strandCount) * amp;
             if (x === 2) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
           ctx.stroke();
         }
 
-        // 5. 水柱內部高速推進的細長氣泡拉絲
-        ctx.strokeStyle = "rgba(224, 255, 255, 0.85)";
-        ctx.lineWidth = 1.6;
+        // 5. 高速氣泡拉絲
+        ctx.strokeStyle = "rgba(224, 255, 255, 0.88)";
+        ctx.lineWidth = 1.7;
         for (let k = 0; k < 5; k++) {
           const fx = ((now * 460 + k * (curLen / 5)) % Math.max(20, curLen - 14)) + 8;
           const fy = ((k % 3) - 1) * halfW * 0.55;
           ctx.beginPath();
           ctx.moveTo(fx, fy);
-          ctx.lineTo(Math.max(4, fx - 16), fy);
+          ctx.lineTo(Math.max(4, fx - 18), fy);
           ctx.stroke();
         }
 
-        // 6. 末端扇形炸開的翻捲白沫與飛濺水花（徹底取代實心白半圓！）
+        // 6. 末端扇形炸開的翻捲白沫與飛濺水珠（Lv.8+ 與水箭龜大幅放大水花冠）
         ctx.save();
         ctx.translate(curLen, 0);
-        const sprayR = Math.max(12, halfW * 1.65 + prog * 10);
+        const sprayBoost = (m.isOverpressure ? 1.22 : 1.0) * (m.isBlastoiseCannon ? 1.12 : 1.0);
+        const sprayR = Math.max(14, halfW * 1.65 * sprayBoost + prog * 11);
 
-        // 兩層半透明 V 形翻捲破浪弧
-        ctx.strokeStyle = "rgba(125, 211, 252, 0.82)";
-        ctx.lineWidth = 3.2 * wScale;
+        ctx.strokeStyle = "rgba(125, 211, 252, 0.85)";
+        ctx.lineWidth = 3.4 * wScale;
         ctx.beginPath();
         ctx.arc(-4, 0, sprayR * 0.88, -1.18, 1.18);
         ctx.stroke();
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.4 * wScale;
+        ctx.lineWidth = 2.6 * wScale;
         ctx.beginPath();
         ctx.arc(-2, 0, sprayR * 0.65, -1.05, 1.05);
         ctx.stroke();
 
-        // 5 朵錯落翻捲白沫花簇 + 外濺水滴
         const foamPts = [
-          [2, -sprayR * 0.58, 4.6], [7, -sprayR * 0.25, 5.4],
-          [9, 0, 5.8], [7, sprayR * 0.25, 5.4], [2, sprayR * 0.58, 4.6]
+          [2, -sprayR * 0.58, 4.8 * sprayBoost], [7, -sprayR * 0.25, 5.6 * sprayBoost],
+          [9, 0, 6.0 * sprayBoost], [7, sprayR * 0.25, 5.6 * sprayBoost], [2, sprayR * 0.58, 4.8 * sprayBoost]
         ];
-        ctx.fillStyle = "rgba(255, 255, 255, 0.90)";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
         foamPts.forEach(([fx, fy, fr], idx) => {
           const jitter = Math.sin(now * 24 + idx * 1.7) * 2.5;
           ctx.beginPath();
@@ -4358,7 +4547,6 @@ const SkillsEngine = {
           ctx.fill();
         });
 
-        // 4 顆斜向飛濺的銳利水滴
         [-0.85, -0.35, 0.35, 0.85].forEach((da, idx) => {
           const dist = sprayR * 0.92 + prog * 16 + (idx % 2) * 5;
           const dx = Math.cos(da) * dist;
@@ -4368,13 +4556,233 @@ const SkillsEngine = {
           ctx.rotate(da);
           ctx.fillStyle = idx % 2 === 0 ? "#E0FFFF" : "#38BDF8";
           ctx.beginPath();
-          ctx.moveTo(5.5 * wScale, 0);
-          ctx.lineTo(-3.5 * wScale, -2.4 * wScale);
-          ctx.lineTo(-3.5 * wScale, 2.4 * wScale);
+          ctx.moveTo(5.8 * wScale, 0);
+          ctx.lineTo(-3.6 * wScale, -2.5 * wScale);
+          ctx.lineTo(-3.6 * wScale, 2.5 * wScale);
           ctx.closePath();
           ctx.fill();
           ctx.restore();
         });
+        ctx.restore();
+
+        ctx.restore();
+      } else if (m.style === "flamethrower_beam") {
+        // 【噴射火焰（Flamethrower）・連續錐形烈焰流】：深紅➔熾橘➔明黃➔純白四層翻湧火浪 ＋ 邊緣捲曲火舌 ＋ 前端烈焰湧冠
+        const extendFrac = Math.min(1, prog / 0.24);
+        const curLen = Math.max(20, m.length * extendFrac);
+        const wScale = prog < 0.72 ? (0.92 + Math.sin(prog * 28) * 0.08) : Math.max(0.10, (1 - prog) / 0.28);
+        const sW = (m.startHalfW || 9) * wScale;
+        const eW = (m.endHalfW || 32) * wScale;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        const alpha = prog < 0.74 ? 0.96 : Math.max(0, (1 - prog) / 0.26);
+
+        ctx.save();
+        ctx.translate(osx, osy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = alpha;
+
+        // 1. 口部灼熱噴射火花環
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath();
+        ctx.ellipse(3, 0, 5.5 * wScale, sW * 1.15, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const stepPx = 14;
+        const buildConePath = (wMul, lenMul, phaseShift, ampMul) => {
+          const lim = curLen * lenMul;
+          ctx.beginPath();
+          ctx.moveTo(0, -sW * wMul);
+          for (let x = 0; x <= lim; x += stepPx) {
+            const t = x / Math.max(1, curLen);
+            const baseHalf = (sW + (eW - sW) * t) * wMul;
+            const curl = Math.sin(now * 28 - x * 0.095 + phaseShift) * (3.2 + t * 5.2) * ampMul * wScale;
+            ctx.lineTo(x, -baseHalf + curl);
+          }
+          ctx.lineTo(lim + 10 * wMul, Math.sin(now * 24 + phaseShift) * 3.5);
+          for (let x = lim; x >= 0; x -= stepPx) {
+            const t = x / Math.max(1, curLen);
+            const baseHalf = (sW + (eW - sW) * t) * wMul;
+            const curl = Math.sin(now * 28 - x * 0.095 + phaseShift + 2.1) * (3.2 + t * 5.2) * ampMul * wScale;
+            ctx.lineTo(x, baseHalf + curl);
+          }
+          ctx.closePath();
+        };
+
+        // 2. 第 1 層：深紅外焰翻湧火浪
+        const outerGrad = ctx.createLinearGradient(0, 0, curLen, 0);
+        outerGrad.addColorStop(0, "rgba(185, 28, 28, 0.92)");
+        outerGrad.addColorStop(0.75, "rgba(220, 38, 38, 0.85)");
+        outerGrad.addColorStop(1, "rgba(153, 27, 27, 0.45)");
+        ctx.fillStyle = outerGrad;
+        buildConePath(1.02, 1.0, 0, 1.0);
+        ctx.fill();
+
+        // 3. 第 2 層：熾橘主體火流
+        const midGrad = ctx.createLinearGradient(0, 0, curLen, 0);
+        midGrad.addColorStop(0, "#FB923C");
+        midGrad.addColorStop(0.65, "#F97316");
+        midGrad.addColorStop(1, "rgba(234, 88, 12, 0.55)");
+        ctx.fillStyle = midGrad;
+        buildConePath(0.76, 0.94, 1.1, 0.85);
+        ctx.fill();
+
+        // 4. 第 3 層：明黃高溫內焰
+        ctx.fillStyle = m.isMoltresFlame ? "#FEF08A" : "#FACC15";
+        buildConePath(0.48, 0.82, 2.3, 0.60);
+        ctx.fill();
+
+        // 5. 第 4 層：純白熾熱噴射火芯
+        ctx.fillStyle = "#FFFFFF";
+        buildConePath(0.24, 0.58, 3.1, 0.35);
+        ctx.fill();
+
+        // 6. 邊緣捲曲躍動的烈焰火舌簇與前端翻滾火球團
+        const puffCount = m.isInferno ? 6 : 4;
+        for (let k = 0; k < puffCount; k++) {
+          const frac = ((now * 3.8 + k / puffCount) % 1.0);
+          const fx = frac * curLen * 0.96;
+          const side = (k % 2 === 0 ? 1 : -1);
+          const halfH = sW + (eW - sW) * frac;
+          const fy = side * halfH * 0.72;
+          const pr = (5.5 + frac * 6.5) * wScale;
+
+          ctx.fillStyle = k % 2 === 0 ? "rgba(249, 115, 22, 0.88)" : "rgba(250, 204, 21, 0.86)";
+          ctx.beginPath();
+          ctx.arc(fx, fy, pr, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = "rgba(254, 240, 138, 0.85)";
+          ctx.beginPath();
+          ctx.arc(fx + 2, fy, pr * 0.48, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // 前端翻湧火焰湧冠
+        ctx.save();
+        ctx.translate(curLen, 0);
+        const capPts = [
+          [-2, -eW * 0.62, eW * 0.32],
+          [5, -eW * 0.24, eW * 0.38],
+          [8, 0, eW * 0.42],
+          [5, eW * 0.24, eW * 0.38],
+          [-2, eW * 0.62, eW * 0.32]
+        ];
+        capPts.forEach(([cx, cy, cr], idx) => {
+          const jit = Math.sin(now * 26 + idx * 1.9) * 3.0;
+          ctx.fillStyle = idx === 2 ? "rgba(250, 204, 21, 0.82)" : "rgba(249, 115, 22, 0.78)";
+          ctx.beginPath();
+          ctx.arc(cx + jit, cy, Math.max(3, cr), 0, Math.PI * 2);
+          ctx.fill();
+        });
+        ctx.restore();
+
+        ctx.restore();
+      } else if (m.style === "ice_beam_laser") {
+        // 【冷凍光線（Ice Beam）・經典 GBA 折線極寒雷射】：冰藍折線結晶鞘 ＋ 純白高壓極寒雷射軸 ＋ 環繞菱形冰晶 ＋ 末端六角冰霜爆破
+        const extendFrac = Math.min(1, prog / 0.16);
+        const curLen = Math.max(20, m.length * extendFrac);
+        const wScale = prog < 0.70 ? (0.94 + Math.sin(prog * 34) * 0.06) : Math.max(0.08, (1 - prog) / 0.30);
+        const halfW = (m.width || 16) * 0.5 * wScale;
+        const osx = toSx(m.ox), osy = toSy(m.oy);
+        const alpha = prog < 0.74 ? 0.97 : Math.max(0, (1 - prog) / 0.26);
+
+        ctx.save();
+        ctx.translate(osx, osy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = alpha;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "miter";
+
+        // 1. 發射口寒冰六角光暈
+        ctx.fillStyle = "rgba(224, 242, 254, 0.90)";
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 2.0 * wScale;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3 + now * 4;
+          const rr = halfW * 1.15;
+          if (k === 0) ctx.moveTo(2 + Math.cos(a) * rr * 0.65, Math.sin(a) * rr);
+          else ctx.lineTo(2 + Math.cos(a) * rr * 0.65, Math.sin(a) * rr);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. 半透明冰藍外鞘光束帶
+        const beamGrad = ctx.createLinearGradient(0, -halfW, 0, halfW);
+        beamGrad.addColorStop(0, "rgba(2, 132, 199, 0.25)");
+        beamGrad.addColorStop(0.5, "rgba(103, 232, 249, 0.78)");
+        beamGrad.addColorStop(1, "rgba(2, 132, 199, 0.25)");
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(0, -halfW * 0.85, curLen, halfW * 1.70);
+
+        // 3. 經典 GBA 折線寒冰雷射（雙層交錯銳利鋸齒折線）
+        const segLen = 22;
+        const zigCount = Math.max(2, Math.floor(curLen / segLen));
+        const flickerPhase = Math.floor(now * 24 + (m.zigSeed || 0));
+
+        const drawZigZag = (color, lineW, ampMul, invert) => {
+          ctx.strokeStyle = color;
+          ctx.lineWidth = Math.max(1.2, lineW * wScale);
+          ctx.beginPath();
+          ctx.moveTo(2, 0);
+          for (let s = 1; s < zigCount; s++) {
+            const zx = (s / zigCount) * curLen;
+            const sign = ((s + flickerPhase) % 2 === 0 ? 1 : -1) * (invert ? -1 : 1);
+            const zy = sign * halfW * ampMul;
+            ctx.lineTo(zx, zy);
+          }
+          ctx.lineTo(curLen, 0);
+          ctx.stroke();
+        };
+
+        drawZigZag("#0284C7", halfW * 0.72, 0.88, false);
+        drawZigZag("#67E8F9", halfW * 0.42, 0.82, false);
+        if (m.isHighCryo || m.isArticunoBeam) {
+          drawZigZag("#BAE6FD", halfW * 0.34, 0.76, true);
+        }
+
+        // 4. 中央極細純白極寒雷射主軸
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = Math.max(2.0, halfW * 0.36);
+        ctx.beginPath();
+        ctx.moveTo(2, 0);
+        ctx.lineTo(curLen, 0);
+        ctx.stroke();
+
+        // 5. 沿光束飛速推進的菱形冰晶碎片
+        for (let d = 0; d < 5; d++) {
+          const dx = ((now * 420 + d * (curLen / 5)) % Math.max(18, curLen - 12)) + 8;
+          const dy = ((d % 2 === 0 ? 1 : -1) * halfW * 0.75);
+          const sz = (3.4 + (d % 2) * 1.4) * wScale;
+          ctx.fillStyle = d % 2 === 0 ? "#FFFFFF" : "#BAE6FD";
+          ctx.beginPath();
+          ctx.moveTo(dx + sz * 1.4, dy);
+          ctx.lineTo(dx, dy - sz * 0.7);
+          ctx.lineTo(dx - sz * 1.4, dy);
+          ctx.lineTo(dx, dy + sz * 0.7);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // 6. 末端六角冰霜爆破星芒
+        ctx.save();
+        ctx.translate(curLen, 0);
+        const burstR = Math.max(12, halfW * 1.45 + prog * 14);
+        ctx.rotate(now * 3.2);
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 2.4 * wScale;
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3;
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.lineTo(Math.cos(a) * burstR, Math.sin(a) * burstR);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(3, halfW * 0.55), 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
         ctx.restore();

@@ -1954,9 +1954,16 @@ window.GameApp = {
           } else if (skSlot.id === "Ember") {
             triggerRange = 185 * p.areaMult;
           } else if (skSlot.id === "HydroPump" || skSlot.id === "Hydro Pump") {
-            const beamLen = Math.min(340, (220 + lv * 8) * Math.min(1.45, p.areaMult * (lv >= 8 ? 1.15 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+            const beamLen = Math.min(355, (225 + lv * 8) * Math.min(1.48, p.areaMult * (lv >= 8 ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
             triggerRange = beamLen * 0.92;
-          } else if (skSlot.id === "WaterGun" || skSlot.id === "Flamethrower") {
+          } else if (skSlot.id === "Flamethrower") {
+            const lvLenMult = lv >= 8 ? 1.22 : (lv >= 4 ? 1.12 : 1.0);
+            const flameLen = Math.min(285, (185 + lv * 6.5) * Math.min(1.42, p.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
+            triggerRange = flameLen * 0.92;
+          } else if (skSlot.id === "IceBeam" || skSlot.id === "Ice Beam") {
+            const iceLen = Math.min(365, (255 + lv * 8) * Math.min(1.45, p.areaMult * (lv >= 8 ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
+            triggerRange = iceLen * 0.92;
+          } else if (skSlot.id === "WaterGun") {
             triggerRange = 245 * p.areaMult;
           }
           const hasTargetInRange = this.findNearestEnemyInViewport(p.x, p.y, triggerRange);
