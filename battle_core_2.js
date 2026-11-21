@@ -100,6 +100,13 @@ window.GameApp = {
     if (this.loadSaveData) this.loadSaveData();
     this.resize();
     window.addEventListener("resize", () => this.resize());
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => this.resize(), 120);
+      setTimeout(() => this.resize(), 360);
+    });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", () => this.resize());
+    }
     this.bindInputs();
     this.bindTouchJoystick();
 
@@ -112,8 +119,12 @@ window.GameApp = {
   dpr: 1,
 
   resize() {
-    this.width = window.innerWidth;
-    this.height = window.innerHeight;
+    const vv = window.visualViewport;
+    this.width = vv ? Math.round(vv.width) : window.innerWidth;
+    this.height = vv ? Math.round(vv.height) : window.innerHeight;
+    if (this.height > 0) {
+      document.documentElement.style.setProperty("--app-h", `${this.height}px`);
+    }
     const maxDpr = this.isMobileDevice() ? 1.35 : 2.0;
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.dpr = dpr;

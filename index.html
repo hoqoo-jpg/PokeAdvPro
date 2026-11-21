@@ -29,27 +29,33 @@
       user-select: none;
     }
 
+    :root {
+      --app-h: 100dvh;
+    }
+
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden !important;
+      overscroll-behavior: none !important;
       position: fixed;
+      inset: 0;
       width: 100%;
-      height: 100%;
-      height: -webkit-fill-available;
-      height: 100dvh;
+      height: var(--app-h, 100dvh) !important;
+      max-height: var(--app-h, 100dvh) !important;
       background-color: #0f172a;
       font-family: 'Noto Sans TC', sans-serif;
       color: #1e293b;
       -webkit-text-size-adjust: none;
     }
 
-    /* 支援 iOS Safari 底部安全區與動態視口，徹底解決底部被遮蔽問題 */
-    #titleScreen, #setupModal, #pokedexModal, #skillTreeModal, #achievementModal, #pokeMartModal, #endModal {
-      height: 100% !important;
-      height: -webkit-fill-available !important;
-      height: 100dvh !important;
-      max-height: 100dvh !important;
+    /* 跨端真實視口鎖定（微信 WKWebView / Android X5 / iOS Safari / PWA 100% 統一高度） */
+    #preloader-screen, #splashScreen, #titleScreen, #hudLayer, #cutInLayer,
+    #setupModal, #pokedexModal, #skillTreeModal, #achievementModal,
+    #pokeMartModal, #endModal, #settingsModal, #megaInfoModal,
+    #unlock-confirm-modal, #levelUpModal, #eevee-evo-modal {
+      height: var(--app-h, 100dvh) !important;
+      max-height: var(--app-h, 100dvh) !important;
     }
 
     #titleScreen {
@@ -70,12 +76,36 @@
       bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 94px) !important;
     }
 
+    .hud-mart-safe {
+      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 118px) !important;
+    }
+
     /* 封面輕微暗角與清晰像素背景穿透，凸顯 3D 標題與後方 GBA 像素地圖漫步 */
     #splashScreen {
       backdrop-filter: blur(1.5px) brightness(0.92);
       -webkit-backdrop-filter: blur(1.5px) brightness(0.92);
       background: radial-gradient(circle, rgba(15, 23, 42, 0.12) 0%, rgba(15, 23, 42, 0.62) 100%);
       padding-bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 24px) !important;
+    }
+
+    /* 微信內置瀏覽器精準底部校準：已貼齊微信底部工具列正上方，收斂多餘墊高以維持最佳畫面比例 */
+    .wechat-env #splashScreen {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 18px) !important;
+    }
+    .wechat-env #titleScreen {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    }
+    .wechat-env .setup-footer-safe {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px) !important;
+    }
+    .wechat-env .hud-bottom-safe {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+    }
+    .wechat-env .hud-partner-safe {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important;
+    }
+    .wechat-env .hud-mart-safe {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 108px) !important;
     }
 
     /* iPhone PWA 主畫面獨立模式（Standalone）與橫屏強制安全留白，徹底杜絕底部圓角與 Home 橫條切邊 */
@@ -317,8 +347,32 @@
       }
     }
   </style>
+  <script>
+    (function () {
+      var ua = navigator.userAgent || "";
+      if (/MicroMessenger/i.test(ua)) {
+        document.documentElement.classList.add("wechat-env");
+      }
+      function syncAppViewport() {
+        var vv = window.visualViewport;
+        var h = vv ? Math.round(vv.height) : window.innerHeight;
+        if (h > 0) {
+          document.documentElement.style.setProperty("--app-h", h + "px");
+        }
+      }
+      syncAppViewport();
+      window.addEventListener("resize", syncAppViewport);
+      window.addEventListener("orientationchange", function () {
+        setTimeout(syncAppViewport, 120);
+        setTimeout(syncAppViewport, 350);
+      });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", syncAppViewport);
+      }
+    })();
+  </script>
 </head>
-<body class="w-screen h-screen overflow-hidden bg-slate-900 select-none">
+<body class="w-screen overflow-hidden bg-slate-900 select-none">
 
   <!-- 1. 遊戲主畫面 Canvas (永遠位於最底層 z-0，持續跑自然生態與精靈漫步) -->
   <canvas id="gameCanvas" class="absolute inset-0 w-full h-full block z-0"></canvas>
@@ -573,7 +627,7 @@
     </div>
 
     <!-- 方案A 友好商店快捷進入按鈕（靠近商店時自動浮現，點擊直接進店） -->
-    <div id="hudEnterMartPrompt" class="hidden absolute right-4 pointer-events-auto flex flex-col items-center animate-bounce" style="bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 118px);">
+    <div id="hudEnterMartPrompt" class="hidden absolute right-4 hud-mart-safe pointer-events-auto flex flex-col items-center animate-bounce">
       <button onclick="GameApp.openPokeMartModal()" class="poke-btn-blue px-3 py-1.5 text-xs font-black flex items-center gap-1.5 shadow-2xl border-2 border-white">
         <i class="fa-solid fa-store text-amber-300"></i>
         <span>進入商店 [E]</span>
@@ -1062,10 +1116,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.8.4"></script>
-  <script src="map_v11_engine.js?v=6.8.4"></script>
-  <script src="skills_engine.js?v=6.8.4"></script>
-  <script src="battle_core_2.js?v=6.8.4"></script>
-  <script src="game_ui.js?v=6.8.4"></script>
+  <script src="pokedex_data.js?v=6.8.5"></script>
+  <script src="map_v11_engine.js?v=6.8.5"></script>
+  <script src="skills_engine.js?v=6.8.5"></script>
+  <script src="battle_core_2.js?v=6.8.5"></script>
+  <script src="game_ui.js?v=6.8.5"></script>
 </body>
 </html>
