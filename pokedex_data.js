@@ -636,6 +636,8 @@ const MEGA_FORMS = {
   6: {
     id: 10034,
     baseId: 6,
+    starterId: 4,
+    evoLineIds: [4, 5, 6],
     name_zh: "超級噴火龍X",
     type1: "Fire",
     type2: "Dragon",
@@ -648,10 +650,23 @@ const MEGA_FORMS = {
     evo_level: "None",
     evo_to: null,
     isMega: true,
+    bondTrainerIds: ["ash", "red", "serena"],
+    bondTrainerNames: "小智、赤紅、莎莉娜",
+    reqLevel: 24,
+    bondReqLevel: 21,
+    reqSkillsText: "噴射火焰 或 龍之俯衝 達 Lv.10",
+    megaTraitDesc: "屬性進化【火＋龍】（龍之俯衝吃滿 1.35x 本系加成）、HP上限 +25% 並回滿、全傷害 +18%、16% 霸體減傷；噴射火焰、大字爆炎、龍之俯衝全面昇華為【蒼藍冥炎】！",
+    stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png",
     forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png",
     back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10034.png"
   }
 };
+
+function getMegaFormForPokemon(pokeId) {
+  if (!pokeId) return null;
+  if (MEGA_FORMS[pokeId]) return MEGA_FORMS[pokeId];
+  return Object.values(MEGA_FORMS).find(mf => Array.isArray(mf.evoLineIds) && mf.evoLineIds.includes(pokeId)) || null;
+}
 
 const POKEMON_MAP = new Map(POKEMON_DB.map(p => [p.id, p]));
 Object.values(MEGA_FORMS).forEach(mf => POKEMON_MAP.set(mf.id, mf));
@@ -836,6 +851,7 @@ const CENTER_POKEMON_UPGRADES = [
 ];
 
 const CENTER_TRAINER_UPGRADES = [
+  { id: "megaRing", name: "超級手環 (MEGA RING)", maxLv: 1, baseCost: 500, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png", desc: "全訓練家永久解鎖局內【MEGA 超級進化】權限！搭配羈絆訓練家（小智／赤紅／莎莉娜）更可觸發鑰石共鳴提前至 Lv.21 覺醒！" },
   { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
   { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-doll.png", desc: "升級三選一免費重抽次數每級 +1 次（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },

@@ -20,6 +20,7 @@ Object.assign(window.GameApp, {
   pendingUnlockCost: 0,
   useShinyStarter: {},
   pokedexShowBack: {},
+  pokedexShowMega: {},
   selectedGameMode: "standard",
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
@@ -60,6 +61,7 @@ Object.assign(window.GameApp, {
           pokedexCaught: { ...this.saveData.pokedexCaught, ...(parsed.pokedexCaught || {}) },
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
+          megaUnlocked: { ...(this.saveData.megaUnlocked || {}), ...(parsed.megaUnlocked || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
           settings: {
             mobCapProfile: "auto",
@@ -332,9 +334,22 @@ Object.assign(window.GameApp, {
               </div>
             `;
           }).join("");
+          const lastPoke = chain[chain.length - 1];
+          const megaFormLobby = (lastPoke && typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[lastPoke.id] : null;
+          let megaStepHtml = "";
+          if (megaFormLobby) {
+            const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[megaFormLobby.baseId]);
+            megaStepHtml = `
+              <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
+              <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
+                <img src="${megaFormLobby.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? megaFormLobby.name_zh : 'MEGA ???'}</span>
+              </div>
+            `;
+          }
           evoEl.innerHTML = `
             <span class="text-[9px] font-black text-blue-700 shrink-0"><i class="fa-solid fa-angles-up"></i> 進化鏈：</span>
-            <div class="flex items-center gap-1 overflow-x-auto">${stepsHtml}</div>
+            <div class="flex items-center gap-1 overflow-x-auto">${stepsHtml}${megaStepHtml}</div>
           `;
         } else {
           const isLegend = p.id >= 144;
@@ -623,6 +638,12 @@ Object.assign(window.GameApp, {
             </div>
             <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
               <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''} ${!seen && !unlocked ? 'brightness-0 opacity-25' : ''}" alt="${p.name_zh}" />
+              ${(() => {
+                const mf = (typeof getMegaFormForPokemon === "function") ? getMegaFormForPokemon(p.id) : null;
+                if (!mf) return "";
+                const isMegaDone = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[mf.baseId]);
+                return `<button onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${mf.baseId})" class="absolute top-1 left-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border shadow-sm flex items-center gap-0.5 ${isMegaDone ? 'bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white border-cyan-200' : 'bg-slate-900/90 text-purple-200 border-purple-400 hover:bg-purple-900'}">💎 MEGA</button>`;
+              })()}
               ${hasShiny && (unlocked || seen) ? `
                 <button onclick="event.stopPropagation(); GameApp.toggleStarterShiny(${p.id})" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border flex items-center gap-0.5 ${useShiny ? 'bg-amber-400 text-slate-900 border-slate-900' : 'bg-white/90 text-slate-600 border-slate-400'}">
                   <img src="${ITEM_SPRITES.starPiece}" class="w-3 h-3 pixel-sprite"/>${useShiny ? '閃光中' : '切換閃光'}
@@ -894,16 +915,172 @@ Object.assign(window.GameApp, {
         throw new Error("格式無效");
       }
       this.saveData = {
-        ...this.saveData,
+        ...this.getFreshNewbieSaveData(),
         ...parsed,
-        pokemonStars: { ...(parsed.pokemonStars || {}) }
+        unlockedPokemon: { ...(parsed.unlockedPokemon || { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true }) },
+        unlockedTrainers: { ...(parsed.unlockedTrainers || { ash: true, misty: true, brock: true }) },
+        upgrades: { ...this.getFreshNewbieSaveData().upgrades, ...(parsed.upgrades || {}) },
+        pokemonStars: { ...(parsed.pokemonStars || {}) },
+        stats: { ...this.getFreshNewbieSaveData().stats, ...(parsed.stats || {}) },
+        pokedexSeen: { ...(parsed.pokedexSeen || { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true }) },
+        pokedexCaught: { ...(parsed.pokedexCaught || { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true }) },
+        pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
+        shinyUnlocked: { ...(parsed.shinyUnlocked || { 25: true }) },
+        megaUnlocked: { ...(parsed.megaUnlocked || {}) },
+        claimedAch: { ...(parsed.claimedAch || {}) }
       };
+      this.selectedTrainer = TRAINERS[0];
+      this.selectedStarterId = 25;
+      this.useShinyStarter = {};
+      this.pokedexShowMega = {};
       this.saveToStorage();
       this.renderAchievements();
-      alert("🎉 存檔引繼碼匯入成功！所有圖鑑、代幣、閃光與王冠進度已同步！");
+      alert("🎉 存檔引繼碼匯入成功！所有圖鑑、代幣、閃光與 Mega 進度已同步！");
     } catch (e) {
       alert("❌ 引繼碼無效或格式損毀，請確認複製完整字串！");
     }
+  },
+
+  getFreshNewbieSaveData() {
+    return {
+      coins: 800,
+      unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
+      unlockedTrainers: { ash: true, misty: true, brock: true },
+      upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, megaRing: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
+      pokemonStars: {},
+      stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
+      pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
+      pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
+      pokedexRewardClaimed: {},
+      shinyUnlocked: { 25: true },
+      megaUnlocked: {},
+      claimedAch: {},
+      settings: {
+        mobCapProfile: "auto",
+        screenFilter: "none",
+        dmgTextMode: "all",
+        screenShake: "normal"
+      }
+    };
+  },
+
+  resetToNewbieSave() {
+    const ok1 = confirm("⚠️ 確定要重置為【純淨新手開局存檔】嗎？\n\n建議先點擊「匯出存檔」備份你目前的進度！確定繼續重置？");
+    if (!ok1) return;
+    this.saveData = this.getFreshNewbieSaveData();
+    this.selectedTrainer = TRAINERS[0];
+    this.selectedStarterId = 25;
+    this.useShinyStarter = {};
+    this.pokedexShowMega = {};
+    this.saveToStorage();
+    this.renderAchievements();
+    alert("✅ 已成功回復為純淨新手開局狀態（800 代幣、初始御三家與皮卡丘、研究所全 Lv.0、Mega 未解鎖）！");
+  },
+
+  handlePokedexMegaClick(baseId) {
+    const isUnlocked = !!(this.saveData && this.saveData.megaUnlocked && this.saveData.megaUnlocked[baseId]);
+    if (!isUnlocked) {
+      this.openMegaInfoModal(baseId);
+      return;
+    }
+    if (!this.pokedexShowMega) this.pokedexShowMega = {};
+    this.pokedexShowMega[baseId] = !this.pokedexShowMega[baseId];
+    if (typeof SoundFX !== "undefined") SoundFX.play("super");
+    this.renderPokedexGrid();
+  },
+
+  openMegaInfoModal(baseId) {
+    const mf = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[baseId] : null;
+    if (!mf) return;
+    if (typeof SoundFX !== "undefined") SoundFX.play("hit");
+
+    const hasRing = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1);
+    const isUnlocked = !!(this.saveData && this.saveData.megaUnlocked && this.saveData.megaUnlocked[baseId]);
+    const basePoke = POKEMON_MAP.get(baseId);
+    const starterPoke = POKEMON_MAP.get(mf.starterId || baseId);
+
+    const box = document.getElementById("megaInfoContent");
+    if (box) {
+      box.innerHTML = `
+        <div class="relative flex flex-col items-center justify-center py-4 px-3 rounded-2xl border-2 ${isUnlocked ? 'bg-slate-950 border-cyan-400 shadow-[0_0_24px_rgba(56,189,248,0.35)]' : 'bg-slate-950 border-purple-500/70'} mb-3 overflow-hidden">
+          <div class="absolute inset-0 opacity-25 pointer-events-none" style="background: radial-gradient(circle at center, ${isUnlocked ? '#38BDF8' : '#A855F7'} 0%, transparent 68%);"></div>
+          <img src="${mf.forward_sprite}" class="w-24 h-24 pixel-sprite object-contain relative z-10 ${isUnlocked ? '' : 'brightness-0 drop-shadow-[0_0_10px_rgba(56,189,248,0.85)]'}" alt="MEGA" />
+          <div class="relative z-10 mt-1 text-center">
+            <div class="font-black text-base ${isUnlocked ? 'text-cyan-300' : 'text-purple-200'}">
+              ${isUnlocked ? `🔥 ${mf.name_zh}` : '？？？・未知超級進化形態'}
+            </div>
+            <div class="flex items-center justify-center gap-1 mt-1">
+              ${isUnlocked ? (renderTypeBadgeHTML(mf.type1) + renderTypeBadgeHTML(mf.type2)) : '<span class="px-2 py-0.5 rounded-full bg-purple-900/90 border border-purple-400/60 text-[10px] font-black text-purple-200">首次於戰場覺醒後解禁真容</span>'}
+            </div>
+          </div>
+        </div>
+
+        ${isUnlocked ? `
+          <div class="bg-sky-950/70 border border-cyan-400/60 rounded-xl p-2.5 mb-3 text-[11px] font-bold text-cyan-100 leading-relaxed">
+            <div class="text-amber-300 font-black mb-1"><i class="fa-solid fa-fire-flame-curved mr-1"></i>超級進化覺醒特性</div>
+            ${mf.megaTraitDesc}
+          </div>
+        ` : ''}
+
+        <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3 space-y-2 text-xs">
+          <div class="font-black text-amber-300 flex items-center gap-1.5">
+            <i class="fa-solid fa-list-check"></i>
+            <span>MEGA 超級進化解鎖進度清單</span>
+          </div>
+
+          <div class="flex items-start gap-2 ${hasRing ? 'text-emerald-300' : 'text-slate-200'}">
+            <span class="shrink-0 mt-0.5">${hasRing ? '✅' : '⬜'}</span>
+            <div class="leading-snug">
+              <div class="font-black">條件 1：研發【超級手環 (MEGA RING)】</div>
+              <div class="text-[10px] text-slate-400">於【寶可夢中心研究所 ➔ 訓練家戰術槽位】消耗 500 代幣研發（全訓練家永久通用）。</div>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-2 ${isUnlocked ? 'text-emerald-300' : 'text-slate-200'}">
+            <span class="shrink-0 mt-0.5">${isUnlocked ? '✅' : '⬜'}</span>
+            <div class="leading-snug">
+              <div class="font-black">條件 2：局內進化覺醒</div>
+              <div class="text-[10px] text-slate-400">使用【${starterPoke ? starterPoke.name_zh : '小火龍'}】出戰進化至【${basePoke ? basePoke.name_zh : '噴火龍'}】，等級達 <strong class="text-amber-300">Lv.${mf.reqLevel || 24}</strong>（或 ${mf.reqSkillsText}）即自動觸發鑰石共鳴！</div>
+            </div>
+          </div>
+
+          <div class="bg-amber-950/60 border border-amber-500/60 rounded-lg p-2 text-[10px] text-amber-200 font-bold leading-snug">
+            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 21}</strong>（三階進化瞬間直接引爆 MEGA 覺醒＋蒼藍龍焰震波）！
+          </div>
+        </div>
+      `;
+    }
+
+    const labBtn = document.getElementById("btnMegaGoLab");
+    if (labBtn) {
+      labBtn.classList.toggle("hidden", hasRing);
+    }
+
+    const modal = document.getElementById("megaInfoModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+  },
+
+  closeMegaInfoModal() {
+    const modal = document.getElementById("megaInfoModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
+  },
+
+  goToMegaRingLab() {
+    this.closeMegaInfoModal();
+    this.closePokedexModal();
+    const setupEl = document.getElementById("setupModal");
+    if (setupEl) {
+      setupEl.classList.add("hidden");
+      setupEl.style.display = "none";
+    }
+    this.centerTab = "trainer";
+    this.openSkillTreeModal();
   },
 
   toggleStarterShiny(id) {
@@ -1169,22 +1346,32 @@ Object.assign(window.GameApp, {
       const shiny = !!this.saveData.shinyUnlocked[p.id];
       const claimed = !!this.saveData.pokedexRewardClaimed[p.id];
       const showBack = !!this.pokedexShowBack[p.id];
-      const imgUrl = SpriteCache.resolveUrl(showBack ? p.back_sprite : p.forward_sprite);
+      const megaForm = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[p.id] : null;
+      const megaUnlocked = !!(megaForm && this.saveData.megaUnlocked && this.saveData.megaUnlocked[p.id]);
+      const showMega = megaUnlocked && !!(this.pokedexShowMega && this.pokedexShowMega[p.id]);
+      const dispPoke = showMega ? megaForm : p;
+      const imgUrl = SpriteCache.resolveUrl(showBack ? dispPoke.back_sprite : dispPoke.forward_sprite);
 
       return `
-        <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${caught ? 'border-blue-500' : 'opacity-80'}">
+        <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${showMega ? 'border-cyan-500 bg-sky-50/80 shadow-[0_0_12px_rgba(6,182,212,0.45)]' : (caught ? 'border-blue-500' : 'opacity-80')}">
           <div class="flex items-center justify-between text-[10px] font-bold">
-            <span class="font-pixel text-slate-500">#${String(p.id).padStart(3,'0')}</span>
-            ${shiny ? `<span class="px-1.5 py-0.5 bg-amber-300 text-slate-900 rounded-full font-black text-[8px]">閃光</span>`
-                   : (caught ? `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black text-[8px]">已登錄</span>`
-                             : `<span class="text-slate-400">? 未發現</span>`)}
+            <span class="font-pixel ${showMega ? 'text-cyan-700' : 'text-slate-500'}">#${String(p.id).padStart(3,'0')}</span>
+            ${showMega ? `<span class="px-1.5 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-black text-[8px]">MEGA X</span>`
+                       : (shiny ? `<span class="px-1.5 py-0.5 bg-amber-300 text-slate-900 rounded-full font-black text-[8px]">閃光</span>`
+                                : (caught ? `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black text-[8px]">已登錄</span>`
+                                          : `<span class="text-slate-400">? 未發現</span>`))}
           </div>
-          <div class="h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl relative">
-            <img src="${imgUrl}" class="w-13 h-13 pixel-sprite object-contain ${!seen ? 'brightness-0 opacity-20' : ''}" alt="${p.name_zh}" />
+          <div class="h-15 flex items-center justify-center my-1 ${showMega ? 'bg-slate-900/90 border border-cyan-400/60' : 'bg-sky-50/60'} rounded-xl relative">
+            <img src="${imgUrl}" class="w-13 h-13 pixel-sprite object-contain ${!seen && !showMega ? 'brightness-0 opacity-20' : ''}" alt="${dispPoke.name_zh}" />
+            ${megaForm ? `
+              <button onclick="event.stopPropagation(); GameApp.handlePokedexMegaClick(${p.id})" title="${megaUnlocked ? '切換超級進化形態' : '查看超級進化解鎖條件'}" class="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border shadow flex items-center gap-0.5 ${megaUnlocked ? (showMega ? 'bg-amber-400 text-slate-950 border-white' : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white border-cyan-200') : 'bg-slate-900/90 text-purple-200 border-purple-400'}">
+                💎${showMega ? '還原' : 'MEGA'}
+              </button>
+            ` : ''}
           </div>
           <div class="text-center">
-            <div class="font-black text-xs text-slate-800 truncate">${seen ? p.name_zh : '？？？'}</div>
-            <div class="flex justify-center gap-0.5 my-0.5">${seen ? renderTypeBadgeHTML(p.type1) + renderTypeBadgeHTML(p.type2) : ''}</div>
+            <div class="font-black text-xs ${showMega ? 'text-cyan-800' : 'text-slate-800'} truncate">${seen || showMega ? dispPoke.name_zh : '？？？'}</div>
+            <div class="flex justify-center gap-0.5 my-0.5">${seen || showMega ? renderTypeBadgeHTML(dispPoke.type1) + renderTypeBadgeHTML(dispPoke.type2) : ''}</div>
           </div>
           ${caught && !claimed
             ? `<button onclick="event.stopPropagation(); GameApp.claimPokedexReward(${p.id})" class="poke-btn-yellow w-full py-1 text-[10px] font-black">領取 +50 代幣</button>`

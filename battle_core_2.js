@@ -27,13 +27,14 @@ window.GameApp = {
     coins: 800,
     unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     unlockedTrainers: { ash: true, misty: true, brock: true },
-    upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
+    upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, megaRing: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
     pokemonStars: {},
     stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
     pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
     pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     pokedexRewardClaimed: {},
     shinyUnlocked: { 25: true },
+    megaUnlocked: {},
     claimedAch: {},
     settings: {
       mobCapProfile: "auto",
@@ -781,7 +782,7 @@ window.GameApp = {
     SoundFX.playBgm(stageId, true);
 
     // 徹底隱藏大廳、結算、過場以及所有局內可能殘留的全屏遮罩彈窗（根除第二局黑屏）
-    ["preloader-screen", "splashScreen", "cutInLayer", "setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "settingsModal", "unlock-confirm-modal", "pokedexModal", "skillTreeModal", "achievementModal"].forEach(mId => {
+    ["preloader-screen", "splashScreen", "cutInLayer", "setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "settingsModal", "unlock-confirm-modal", "pokedexModal", "skillTreeModal", "achievementModal", "megaInfoModal"].forEach(mId => {
       const el = document.getElementById(mId);
       if (el) { el.classList.add("hidden"); el.style.display = "none"; }
     });
@@ -1625,7 +1626,7 @@ window.GameApp = {
     }
 
     // 【準神快龍 #149 ＆ 傳說五神獸專屬：多重鱗片 / 傳說王權星冕護盾】(每 10 秒充能，五神獸護盾就緒滿 6.5 秒且身邊有怪時更會主動爆發王權威壓新星！)
-    if (p.id === 149 || p.id >= 144) {
+    if (p.id === 149 || (p.id >= 144 && p.id <= 151)) {
       if (!p.multiscaleReady) {
         p.multiscaleTimer = (p.multiscaleTimer || 10.0) - dt;
         if (p.multiscaleTimer <= 0) {
@@ -4166,13 +4167,18 @@ window.GameApp = {
         } else if (p.data.evo_to) {
           this._pendingEvolutionTarget = p.data.evo_to;
         }
-      } else if (p.id === 6 && !p.megaEvolved && (
-        p.level >= 24 ||
-        (p.skills["Flamethrower"] && p.skills["Flamethrower"].level >= 10) ||
-        (p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level >= 10) ||
-        (p.skills["DragonRush"] && p.skills["DragonRush"].level >= 10)
-      )) {
-        this._pendingEvolutionTarget = "mega_6";
+      } else if (p.id === 6 && !p.megaEvolved && this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1) {
+        const mf6 = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[6] : null;
+        const isBondMega = !!(mf6 && this.selectedTrainer && (mf6.bondTrainerIds || []).includes(this.selectedTrainer.id));
+        const reqLv = isBondMega ? (mf6.bondReqLevel || 21) : (mf6 ? (mf6.reqLevel || 24) : 24);
+        const skillReady = !!(
+          (p.skills["Flamethrower"] && p.skills["Flamethrower"].level >= 10) ||
+          (p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level >= 10) ||
+          (p.skills["DragonRush"] && p.skills["DragonRush"].level >= 10)
+        );
+        if (p.level >= reqLv || skillReady) {
+          this._pendingEvolutionTarget = "mega_6";
+        }
       } else if (p.id >= 144 && p.id < 10000 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
         // 排入三選一之後播放 1.35 秒傳說共鳴特寫（不再被升級彈窗遮蔽）
         this._pendingEvolutionTarget = "awaken_legendary";
@@ -4375,8 +4381,22 @@ window.GameApp = {
     if (seq.timer >= seq.duration) {
       seq.active = false;
       const shouldOpenLvl = seq.openLevelUpAfter;
+      const finishedTargetId = seq.targetId;
+      const wasMega = !!seq.isMega;
+      const wasAwaken = !!seq.isAwakening;
       this.evoSequence = null;
       this.refreshHUD();
+
+      // 方案 2+3 羈絆鑰石共鳴：小火龍家族進化成噴火龍 (#006) 當下，若已購超級手環且由羈絆訓練家(小智/赤紅/莎莉娜)帶隊，立即接續引爆 Mega 覺醒！
+      const pCur = this.player;
+      const mfNext = (!wasMega && !wasAwaken && pCur && typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[finishedTargetId] : null;
+      const hasRing = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1);
+      const isBondTr = !!(mfNext && this.selectedTrainer && (mfNext.bondTrainerIds || []).includes(this.selectedTrainer.id));
+      if (mfNext && pCur && !pCur.megaEvolved && hasRing && isBondTr && pCur.level >= (mfNext.bondReqLevel || 21)) {
+        this.startEvolutionMoment(mfNext.id, shouldOpenLvl, null, true);
+        return;
+      }
+
       if (shouldOpenLvl) {
         this.openLevelUpModal();
       } else {
@@ -4619,6 +4639,25 @@ window.GameApp = {
       p.megaEvolved = true;
       p.finalEvoArmor = 0.16;
       p.areaMult *= 1.08;
+      if (!this.saveData.megaUnlocked) this.saveData.megaUnlocked = {};
+      this.saveData.megaUnlocked[nextData.baseId || 6] = true;
+      const isBondMega = !!(this.selectedTrainer && (nextData.bondTrainerIds || []).includes(this.selectedTrainer.id));
+      if (isBondMega) {
+        SkillsEngine.meleeEffects.push({
+          style: "slam_wave",
+          x: p.x, y: p.y,
+          radius: 235 * p.areaMult,
+          timer: 0.52, maxTime: 0.52,
+          color: "#38BDF8"
+        });
+        this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 36, "star", 1.5);
+        [...SkillsEngine.getEnemiesInRadius(p.x, p.y, 235 * p.areaMult)].forEach(en => {
+          if (en && en.hp > 0 && Math.hypot(en.x - p.x, en.y - p.y) <= 235 * p.areaMult + en.radius) {
+            this.dealDamageToEnemy(en, (p.baseAtk * 1.8 + 60) * p.dmgMult, "Dragon", 0.50, en.isBoss ? 0 : 28);
+          }
+        });
+        this.spawnFloatingText(p.x, p.y - 38, "💎 鑰石共鳴：蒼藍龍焰爆發！", "#38BDF8", 15);
+      }
     } else if (isFinalForm) {
       p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷與範圍擴張
       p.areaMult *= 1.10;
@@ -5763,7 +5802,7 @@ window.GameApp = {
 
     const drawPlayerEntity = () => {
       ctx.save();
-      if (p.id === 149 || p.id >= 144) {
+      if (p.id === 149 || (p.id >= 144 && p.id <= 151)) {
         if (p.multiscaleReady) {
           const crownNow = performance.now() * 0.0035;
           const isLegend = p.id >= 144 && p.id !== 149;
@@ -6547,7 +6586,7 @@ window.GameApp = {
     const traitBadgeEl = document.getElementById("hudTraitBadge");
     if (traitBadgeEl) {
       if (p.innateTrait) {
-        const hasCrownShield = (p.id === 149 || p.id >= 144);
+        const hasCrownShield = (p.id === 149 || (p.id >= 144 && p.id <= 151));
         const shieldHtml = hasCrownShield
           ? (p.multiscaleReady
               ? `<span class="text-emerald-300 ml-0.5">[🛡️就緒]</span>`

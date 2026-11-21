@@ -2279,14 +2279,6 @@ const SkillsEngine = {
             }
           }
         });
-      } else if (hz.kind === "dragon_wave") {
-        ctx.translate(sx, sy + 16);
-        ctx.rotate(hz.angle || 0);
-        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.42);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.60)";
-        ctx.beginPath();
-        ctx.ellipse(0, 0, hz.radius * 0.92, hz.radius * 0.38, 0, 0, Math.PI * 2);
-        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         hz.x += (hz.vx || 0) * dt;
         hz.y += (hz.vy || 0) * dt;
@@ -3362,6 +3354,14 @@ const SkillsEngine = {
         ctx.beginPath();
         ctx.arc(0, 0, hz.radius * shrink, 0, Math.PI * 2);
         ctx.stroke();
+      } else if (hz.kind === "dragon_wave") {
+        ctx.translate(sx, sy + 16);
+        ctx.rotate(hz.angle || 0);
+        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.42);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.60)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, hz.radius * 0.92, hz.radius * 0.38, 0, 0, Math.PI * 2);
+        ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         // 【大字爆炎（底層 Z 軸投影）】：向下偏移 12px 的暗紅焦黑『大』字烙印，撐開空中烈焰懸浮立體感
         ctx.translate(sx, sy + 12);
