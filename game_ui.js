@@ -85,7 +85,7 @@ Object.assign(window.GameApp, {
   },
 
   runAssetPreloader() {
-    const priorityUrls = new Set(["images/logo_title.png"]);
+    const priorityUrls = new Set(["images/logo_title.png", "images/skills_icons_sheet.png"]);
     const secondaryUrls = new Set();
 
     // 1. 優先佇列：所有道具、攜帶物、技能圖標、商店與研究所圖標、訓練家與一階出戰精靈
@@ -1572,7 +1572,7 @@ Object.assign(window.GameApp, {
       const skName = meta ? (sk.evolved ? meta.evolvedName : meta.name) : sk.id;
       return `
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border ${sk.evolved ? 'border-amber-400 text-amber-300' : (sk.level >= 10 ? 'border-emerald-400 text-emerald-300' : 'border-slate-700 text-slate-200')} text-[10px] font-black">
-          ${meta ? `<img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/>` : ''}
+          ${meta ? renderSkillIconHTML(meta, "w-4 h-4") : ''}
           <span>${skName}</span>
           <span class="font-pixel text-[8px] ${sk.evolved ? 'text-amber-300' : 'text-sky-300'}">${sk.evolved ? '★MAX' : `Lv.${sk.level}`}</span>
         </span>
@@ -1620,7 +1620,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
           <div class="flex items-start gap-2.5 min-w-0 flex-1">
             <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-              <img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>
+              ${isTM && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(it.id, "w-8 h-8") : `<img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>`}
             </div>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
@@ -1673,7 +1673,7 @@ Object.assign(window.GameApp, {
           <div class="bg-slate-800/95 p-2.5 rounded-xl border ${isHighLv ? 'border-amber-500/60' : 'border-slate-700'} flex items-center justify-between gap-2">
             <div class="flex items-center gap-2.5 min-w-0">
               <div class="w-9 h-9 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0">
-                ${meta ? `<img src="${meta.sprite}" class="w-6 h-6 pixel-sprite object-contain" alt="${skName}"/>` : ''}
+                ${meta ? renderSkillIconHTML(meta, "w-7 h-7") : ''}
               </div>
               <div class="min-w-0">
                 <div class="flex items-center gap-1.5">
@@ -1937,7 +1937,7 @@ Object.assign(window.GameApp, {
         return `
           <div class="flex items-center justify-between bg-slate-900/90 px-2 py-1 rounded-lg border ${sk.evolved ? 'border-amber-400' : 'border-slate-700'} text-[10px]">
             <div class="flex items-center gap-1.5 min-w-0">
-              <img src="${meta.sprite}" class="w-4 h-4 pixel-sprite shrink-0"/>
+              ${renderSkillIconHTML(meta, "w-4 h-4")}
               <span class="text-white font-black whitespace-nowrap">${sk.evolved ? meta.evolvedName : meta.name}</span>
               <span class="text-amber-300 font-pixel text-[8px]">Lv.${sk.level}</span>
             </div>

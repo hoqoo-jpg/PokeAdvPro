@@ -4747,7 +4747,7 @@ window.GameApp = {
               title: meta.evolvedName,
               subTitle: "★ MAX 滿級突破",
               typeBadge: renderTypeBadgeHTML(meta.type),
-              sprite: meta.sprite,
+              sprite: meta.sprite, skillIconMeta: meta,
               desc: meta.evoDesc,
               isNew: false,
               apply: () => {
@@ -4775,7 +4775,7 @@ window.GameApp = {
               title: meta.name,
               subTitle: `Lv.${sk.level} ➔ Lv.${nextLv}`,
               typeBadge: renderTypeBadgeHTML(meta.type),
-              sprite: meta.sprite,
+              sprite: meta.sprite, skillIconMeta: meta,
               desc: getSkillNextLevelBonusDesc(sk.id, nextLv),
               isNew: false,
               apply: () => { sk.level = nextLv; }
@@ -4828,7 +4828,7 @@ window.GameApp = {
                 title: meta.name,
                 subTitle: "本系領悟 Lv.1",
                 typeBadge: renderTypeBadgeHTML(meta.type),
-                sprite: meta.sprite,
+                sprite: meta.sprite, skillIconMeta: meta,
                 desc: meta.desc,
                 isNew: true,
                 apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
@@ -4850,7 +4850,7 @@ window.GameApp = {
                 title: meta.name,
                 subTitle: "新領悟 Lv.1",
                 typeBadge: renderTypeBadgeHTML(meta.type),
-                sprite: meta.sprite,
+                sprite: meta.sprite, skillIconMeta: meta,
                 desc: meta.desc,
                 isNew: true,
                 apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
@@ -4924,7 +4924,7 @@ window.GameApp = {
       const hasItem = reqMeta ? !!(p.heldItems && p.heldItems[reqMeta.id]) : true;
       return `
         <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border ${sk.evolved ? 'border-amber-400' : (hasItem ? 'border-emerald-500/70' : 'border-slate-700')} text-[10px]">
-          <img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/>
+          ${renderSkillIconHTML(meta, "w-4 h-4")}
           <span class="font-bold text-slate-200">${meta.name}</span>
           <span class="text-slate-500">+</span>
           ${reqMeta ? `<img src="${reqMeta.sprite}" class="w-3.5 h-3.5 pixel-sprite ${hasItem ? '' : 'opacity-40 grayscale'}"/>` : ''}
@@ -4966,7 +4966,7 @@ window.GameApp = {
         ` : ''}
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-12 h-12 rounded-2xl bg-slate-900/40 border-2 border-slate-700 flex items-center justify-center shrink-0">
-            <img src="${c.sprite}" class="w-9 h-9 pixel-sprite object-contain" alt="${c.title}" />
+            ${c.skillIconMeta && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(c.skillIconMeta, "w-9 h-9") : `<img src="${c.sprite}" class="w-9 h-9 pixel-sprite object-contain" alt="${c.title}" />`}
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -6701,10 +6701,10 @@ window.GameApp = {
         const meta = SKILLS_CATALOG[sk.id];
         if (!meta) return "";
         if (sk.evolved) {
-          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
+          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
         }
         const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
-        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md"><img src="${meta.sprite}" class="w-3.5 h-3.5 pixel-sprite"/><span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
+        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
       }).join("");
     }
 

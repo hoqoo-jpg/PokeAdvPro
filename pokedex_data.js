@@ -247,10 +247,52 @@ Ember: {
   }
 };
 
+const SKILL_ICON_SHEET_URL = "images/skills_icons_sheet.png";
+const SKILL_ICON_GRID = {
+  VineWhip:     [0, 0],
+  RazorLeaf:    [1, 0],
+  BulletSeed:   [2, 0],
+  SeedBomb:     [3, 0],
+  Ember:        [4, 0],
+  Flamethrower: [0, 1],
+  WaterGun:     [1, 1],
+  HydroPump:    [2, 1],
+  Thunderbolt:  [3, 1],
+  IceBeam:      [4, 1],
+  Tackle:       [0, 2],
+  KarateChop:   [1, 2],
+  Earthquake:   [2, 2],
+  AirSlash:     [3, 2],
+  SludgeBomb:   [4, 2],
+  ShadowBall:   [0, 3],
+  Psystrike:    [1, 3],
+  Moonblast:    [2, 3],
+  DragonRush:   [3, 3],
+  Metronome:    [4, 3]
+};
+
 Object.values(SKILLS_CATALOG).forEach(sk => {
+  const cleanKey = sk.id.replace(/\s+/g, '');
+  if (SKILL_ICON_GRID[cleanKey]) {
+    sk.iconCol = SKILL_ICON_GRID[cleanKey][0];
+    sk.iconRow = SKILL_ICON_GRID[cleanKey][1];
+  }
   SKILLS_CATALOG[sk.id] = sk;
-  SKILLS_CATALOG[sk.id.replace(/\s+/g, '')] = sk;
+  SKILLS_CATALOG[cleanKey] = sk;
 });
+
+function renderSkillIconHTML(skillOrId, sizeClass = "w-4 h-4") {
+  const meta = typeof skillOrId === "string"
+    ? (SKILLS_CATALOG[skillOrId] || SKILLS_CATALOG[skillOrId.replace(/\s+/g, '')])
+    : skillOrId;
+  if (!meta) return "";
+  if (meta.iconCol !== undefined && meta.iconRow !== undefined) {
+    const posX = (meta.iconCol * 25).toFixed(4);
+    const posY = (meta.iconRow * (100 / 3)).toFixed(4);
+    return `<span class="skill-sheet-icon ${sizeClass} inline-block shrink-0" style="background-position: ${posX}% ${posY}%;" title="${meta.name || ''}"></span>`;
+  }
+  return meta.sprite ? `<img src="${meta.sprite}" class="${sizeClass} pixel-sprite object-contain shrink-0" alt="${meta.name || ''}"/>` : "";
+}
 
 function getSkillNextLevelBonusDesc(skillId, nextLv) {
   // 相容舊呼叫格式 getSkillNextLevelBonusDesc(nextLv)
