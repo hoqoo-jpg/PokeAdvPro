@@ -2216,13 +2216,21 @@ window.GameApp = {
       this.spawnBoss(nextBossId, nextBossId === 150);
     }
 
-    this.magnetSpawnTimer -= dt;
+    // 經驗磁鐵改為「戰鬥掉落 ＋ 場上散落水晶累積超過 45 顆時動態補給」，場上最多只存在 1 顆，不再定時憑空空投
+    this.magnetSpawnTimer = Math.max(0, this.magnetSpawnTimer - dt);
     if (this.magnetSpawnTimer <= 0) {
-      this.magnetSpawnTimer = 35;
       const activeMagnets = this.mapItems.filter(i => i.id === "magnet").length;
-      if (activeMagnets < 2) {
-        const ang = Math.random() * Math.PI * 2;
-        this.spawnMapLoot("magnet", this.player.x + Math.cos(ang) * 320, this.player.y + Math.sin(ang) * 320);
+      if (activeMagnets < 1) {
+        const looseGems = this.gems.filter(g => !g.magnetized).length;
+        if (looseGems >= 45) {
+          this.magnetSpawnTimer = 28;
+          const ang = Math.random() * Math.PI * 2;
+          this.spawnMapLoot("magnet", this.player.x + Math.cos(ang) * 235, this.player.y + Math.sin(ang) * 235);
+        } else {
+          this.magnetSpawnTimer = 3.0;
+        }
+      } else {
+        this.magnetSpawnTimer = 5.0;
       }
     }
 
@@ -2613,8 +2621,10 @@ window.GameApp = {
           }
         }
         if (e.statusTimer <= 0) {
-          // 解除硬控（冰凍/麻痺/混亂）時賦予全員韌性保護期，防止被高頻彈幕無限永控
-          if (["Freeze", "Paralysis", "Confusion"].includes(e.status)) {
+          // 解除硬控（冰凍/麻痺/混亂）時賦予全員韌性保護期，混亂保護期拉長防止被超能/幽靈系無限風箏
+          if (e.status === "Confusion") {
+            e.ccImmunityTimer = e.isBoss ? 4.5 : (e.isElite ? 4.0 : 3.2);
+          } else if (["Freeze", "Paralysis"].includes(e.status)) {
             e.ccImmunityTimer = e.isBoss ? 3.5 : (e.isElite ? 2.6 : 1.8);
           }
           e.status = null;
@@ -2630,7 +2640,7 @@ window.GameApp = {
       const dist = Math.hypot(dx, dy) || 1;
 
       const paraMult = e.status === "Paralysis" ? 0.35 : 1.0;
-      const confDir = e.status === "Confusion" ? -0.22 : 1.0;
+      const confDir = 1.0;
       let eTerrMult = 1.0;
 
       // 效能加速 #1：僅對視野內 (nearView) 怪獸每 4 幀採樣一次地形緩速並快取，畫面外百怪直接略過地形查詢
@@ -2683,9 +2693,11 @@ window.GameApp = {
       let vx = (dx / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
       let vy = (dy / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
       if (e.status === "Confusion" && !e.treasureType) {
-        const wobbleAng = Math.sin(performance.now() * 0.008 + e.id * 1.7) * 1.35;
-        const cSpd = Math.hypot(vx, vy);
-        const baseA = Math.atan2(vy, vx) + wobbleAng;
+        // 混亂改為「暈眩蛇行與切線打轉」，偶爾仍會歪斜撞近玩家，不再永遠倒退逃離螢幕
+        const swirlDir = (e.id % 2 === 0 ? 1 : -1);
+        const dizzyOffset = swirlDir * 1.15 + Math.sin(performance.now() * 0.0055 + e.id * 2.3) * 1.65;
+        const cSpd = Math.hypot(vx, vy) * 0.58;
+        const baseA = Math.atan2(vy, vx) + dizzyOffset;
         vx = Math.cos(baseA) * cSpd;
         vy = Math.sin(baseA) * cSpd;
       }
@@ -3620,9 +3632,13 @@ window.GameApp = {
           } else if (isHardCC) {
             enemy.status = st;
             const durWeightMod = enemy.weightTier === "heavy" ? 0.72 : 1.0;
-            const baseDur = (st === "Freeze") ? 2.2 : 2.8;
-            enemy.statusTimer = (enemy.isBoss ? 1.2 : (enemy.isElite ? 1.8 : baseDur)) * durWeightMod;
-            enemy.ccImmunityTimer = enemy.isBoss ? 4.2 : (enemy.isElite ? 2.8 : (st === "Freeze" ? 1.4 : 1.8));
+            const baseDur = (st === "Confusion") ? 1.8 : ((st === "Freeze") ? 2.2 : 2.8);
+            const eliteDur = (st === "Confusion") ? 1.5 : 1.8;
+            const bossDur = (st === "Confusion") ? 1.0 : 1.2;
+            enemy.statusTimer = (enemy.isBoss ? bossDur : (enemy.isElite ? eliteDur : baseDur)) * durWeightMod;
+            enemy.ccImmunityTimer = (st === "Confusion")
+              ? (enemy.isBoss ? 4.5 : (enemy.isElite ? 4.0 : 3.2))
+              : (enemy.isBoss ? 4.2 : (enemy.isElite ? 2.8 : (st === "Freeze" ? 1.4 : 1.8)));
           } else {
             // 軟狀態（灼傷 Burn / 中毒 Poison）：
             // 1. 狀態優先級保護：絕不覆蓋正在生效的硬控（冰凍/麻痺/混亂）
@@ -3763,16 +3779,23 @@ window.GameApp = {
       this.showCutsceneBanner(`[閃光登錄] 成功收服【閃光・${e.data.name_zh}】！`, "已永久登錄圖鑑，可於選角處自由切換！", 3000);
     }
 
+    const hasActiveMagnet = this.mapItems.some(it => it.id === "magnet");
     if (e.treasureType === "meowth") {
       const jackpot = Math.round(180 * diffCoinMult);
       this.runCoins += jackpot;
       this.saveData.coins += jackpot;
       SoundFX.play("levelup");
+      if (!hasActiveMagnet && Math.random() < 0.45) {
+        this.spawnMapLoot("magnet", e.x + 22, e.y);
+      }
       this.spawnFloatingText(e.x, e.y - 20, `聚寶功大爆代幣 +${jackpot}!`, "#F59E0B", 16);
     } else if (e.treasureType === "chansey") {
       SoundFX.play("levelup");
       this.spawnMapLoot("rare_candy", e.x - 18, e.y);
       this.spawnMapLoot("partner_ball", e.x + 18, e.y);
+      if (!hasActiveMagnet && Math.random() < 0.45) {
+        this.spawnMapLoot("magnet", e.x, e.y + 22);
+      }
       this.spawnFloatingText(e.x, e.y - 20, `幸福吉利蛋掉落神奇糖果＆治癒球!`, "#EC4899", 15);
     }
 
@@ -3783,6 +3806,9 @@ window.GameApp = {
       if (!e.noEliteDrop) {
         const dropId = Math.random() < 0.22 ? "partner_ball" : "rare_candy";
         this.spawnMapLoot(dropId, e.x, e.y);
+        if (!hasActiveMagnet && Math.random() < 0.25) {
+          this.spawnMapLoot("magnet", e.x + 26, e.y);
+        }
       }
     }
 
@@ -3938,7 +3964,11 @@ window.GameApp = {
       if (it.id === "poke_mart") continue; // 商店絕不被碰撞拾取邏輯刪除
 
       const distToItem = Math.hypot(p.x - it.x, p.y - it.y);
-      // 遠距離未拾取地面戰利品自動折疊順移至主角外圍 340px，避免無限累積
+      // 經驗磁鐵走遠超過 1200px 直接回收清除，不再強制瞬移尾隨；重要寶箱/糖果才自動折疊
+      if (it.id === "magnet" && distToItem > 1200) {
+        this.mapItems.splice(i, 1);
+        continue;
+      }
       if (distToItem > 1400) {
         const rAng = Math.random() * Math.PI * 2;
         it.x = p.x + Math.cos(rAng) * 340;
@@ -6246,102 +6276,109 @@ window.GameApp = {
       ctx.restore();
     });
 
-    const edgePad = 32;
+    // 商業級圖像化螢幕邊緣方向指示器（圓形頭像／道具縮圖 ＋ 外緣指向箭頭 ＋ 去噪分級）
+    const edgePad = 36;
+    const drawEdgeIconIndicator = (wx, wy, borderColor, labelText, iconImg, iconDrawSize = 24) => {
+      const esx = toSx(wx), esy = toSy(wy);
+      if (esx >= 0 && esx <= this.width && esy >= 0 && esy <= this.height) return;
+
+      const dx = wx - this.player.x;
+      const dy = wy - this.player.y;
+      const ang = Math.atan2(dy, dx);
+      const distMeters = Math.round(Math.hypot(dx, dy) / 10);
+
+      const cx = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
+      const cy = Math.max(edgePad + 44, Math.min(this.height - edgePad - 16, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+      const rad = 17;
+
+      // 1. 外緣指向箭頭（沿目標方向旋轉，緊貼圓框外側）
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(ang);
+      ctx.fillStyle = borderColor;
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(rad + 10, 0);
+      ctx.lineTo(rad - 1, -6.5);
+      ctx.lineTo(rad - 1, 6.5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      // 2. 深色圓形徽章底座 ＋ 屬性/稀有度外框
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, rad, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // 3. 圓框內繪製實體像素頭像／道具縮圖（直立不旋轉，一眼辨識）
+      if (iconImg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, rad - 2, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(iconImg, -iconDrawSize / 2, -iconDrawSize / 2, iconDrawSize, iconDrawSize);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // 4. 下方精簡文字與距離標籤
+      ctx.save();
+      ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "center";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.8;
+      const fullLabel = `${labelText} ${distMeters}m`;
+      ctx.strokeText(fullLabel, cx, cy + rad + 12);
+      ctx.fillStyle = borderColor;
+      ctx.fillText(fullLabel, cx, cy + rad + 12);
+      ctx.restore();
+    };
+
+    // 僅顯示高價值首領與寶藏精靈（Boss / 聚寶喵喵 / 幸福吉利蛋），移除常規精英與事件怪洗版
     this.enemies.forEach(e => {
-      if (!e.treasureType && !e.isBoss && !e.isElite) return;
-      const esx = toSx(e.x), esy = toSy(e.y);
-
-      if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
-        const dx = e.x - this.player.x;
-        const dy = e.y - this.player.y;
-        const ang = Math.atan2(dy, dx);
-        const distMeters = Math.round(Math.hypot(dx, dy) / 10);
-
-        const arrowX = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
-        const arrowY = Math.max(edgePad, Math.min(this.height - edgePad, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
-
-        const isMeowth = e.treasureType === "meowth";
-        const isChansey = e.treasureType === "chansey";
-        const isOnlyElite = e.isElite && !e.isBoss && !e.treasureType;
-        const arrowColor = isMeowth ? "#F59E0B" : (isChansey ? "#EC4899" : (isOnlyElite ? "#FB7185" : "#EF4444"));
-
-        ctx.save();
-        ctx.translate(arrowX, arrowY);
-
-        ctx.fillStyle = arrowColor;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, 16, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.rotate(ang);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.moveTo(11, 0); ctx.lineTo(-4, -6.5); ctx.lineTo(-4, 6.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        ctx.save();
-        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#FFFFFF";
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 2.5;
-        ctx.strokeText(`${distMeters}m`, arrowX, arrowY + 25);
-        ctx.fillText(`${distMeters}m`, arrowX, arrowY + 25);
-        ctx.restore();
+      if (!e.isBoss && !e.treasureType) return;
+      const sprRec = e.data ? SpriteCache.get(e.data.forward_sprite) : null;
+      const iconImg = (sprRec && sprRec.loaded) ? sprRec.img : null;
+      if (e.isBoss) {
+        drawEdgeIconIndicator(e.x, e.y, "#EF4444", "BOSS", iconImg, 30);
+      } else if (e.treasureType === "meowth") {
+        drawEdgeIconIndicator(e.x, e.y, "#F59E0B", "喵喵", iconImg, 28);
+      } else if (e.treasureType === "chansey") {
+        drawEdgeIconIndicator(e.x, e.y, "#EC4899", "吉利蛋", iconImg, 28);
       }
     });
 
+    // 顯示全場高價值地面互動與掉落物（友好商店、黃金寶箱、神奇糖果、夥伴球、經驗磁鐵）
+    const martPixelIcon = (typeof MapEngine !== "undefined" && MapEngine.spritePropCache)
+      ? MapEngine.spritePropCache.get("poke_mart_pixel")
+      : null;
+    const itemIndicatorCfg = {
+      poke_mart:    { color: "#38BDF8", label: "商店",   size: 26 },
+      evo_chest:    { color: "#F59E0B", label: "寶箱",   size: 22 },
+      rare_candy:   { color: "#38BDF8", label: "糖果",   size: 22 },
+      partner_ball: { color: "#EC4899", label: "夥伴球", size: 22 },
+      magnet:       { color: "#FACC15", label: "磁鐵",   size: 22 }
+    };
     this.mapItems.forEach(it => {
-      const esx = toSx(it.x), esy = toSy(it.y);
-      if (esx < 0 || esx > this.width || esy < 0 || esy > this.height) {
-        const isMart = it.id === "poke_mart";
-        const isMagnet = it.id === "magnet";
-        if (!isMart && !isMagnet) return;
-
-        const dx = it.x - this.player.x;
-        const dy = it.y - this.player.y;
-        const ang = Math.atan2(dy, dx);
-        const distMeters = Math.round(Math.hypot(dx, dy) / 10);
-
-        const arrowX = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
-        const arrowY = Math.max(edgePad, Math.min(this.height - edgePad, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
-
-        const arrowColor = isMart ? "#38BDF8" : "#FACC15";
-        const labelText = isMart ? `商店 ${distMeters}m` : `磁鐵 ${distMeters}m`;
-
-        ctx.save();
-        ctx.translate(arrowX, arrowY);
-        ctx.fillStyle = arrowColor;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        ctx.arc(0, 0, 15, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.rotate(ang);
-        ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath();
-        ctx.moveTo(10, 0); ctx.lineTo(-3, -5.5); ctx.lineTo(-3, 5.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-
-        ctx.save();
-        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillStyle = arrowColor;
-        ctx.strokeStyle = "#0F172A";
-        ctx.lineWidth = 2.5;
-        ctx.strokeText(labelText, arrowX, arrowY + 25);
-        ctx.fillText(labelText, arrowX, arrowY + 25);
-        ctx.restore();
+      const cfg = itemIndicatorCfg[it.id];
+      if (!cfg) return;
+      let iconImg = null;
+      if (it.id === "poke_mart" && martPixelIcon) {
+        iconImg = martPixelIcon;
+      } else if (it.meta && it.meta.sprite) {
+        const rec = SpriteCache.get(it.meta.sprite);
+        if (rec && rec.loaded) iconImg = rec.img;
       }
+      drawEdgeIconIndicator(it.x, it.y, cfg.color, cfg.label, iconImg, cfg.size);
     });
   },
 

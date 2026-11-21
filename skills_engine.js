@@ -933,13 +933,18 @@ const SkillsEngine = {
       return;
     }
 
-    // 2. 地震專屬：柔化微震 ＋ 支援 +1 彈幕多段餘震連發（150ms 錯峰外擴）＋ 不規則網狀瞬爆龜裂
+    // 2. 地震專屬：起跳蓄力 (0ms) ➔ 雙腳落地重踏瞬間 (110ms) 才引爆地裂龜裂與微震 ＋ 多段餘震錯峰外擴
     if (style === "quake_wave") {
       const baseRad = (85 + level * 4) * areaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
       const quakeKb = kb * (1 + (trait.tackleQuakeKbBonus || 0));
       const totalWaves = Math.min(3, Math.max(1, count));
       const waveRadMults = [1.0, 1.12, 1.24];
       const waveDmgMults = [1.0, 0.55, 0.45];
+
+      // 統一對齊 0.24s 跳躍週期：0~110ms 騰空蓄力，110ms 雙腳落地重踏時才震裂地表
+      if (caster === GameApp.player) {
+        caster.slamHopTimer = 0.24;
+      }
 
       const fireQuakeWave = (waveIdx) => {
         if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
@@ -949,9 +954,8 @@ const SkillsEngine = {
 
         if (caster === GameApp.player) {
           if (waveIdx === 0) {
-            caster.slamHopTimer = 0.22;
-            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.06);
-            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.1);
+            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.07);
+            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.2);
           } else if ((GameApp.camera.shakeTime || 0) <= 0) {
             GameApp.camera.shakeTime = 0.04;
             GameApp.camera.shakeMagnitude = 0.7;
@@ -991,9 +995,14 @@ const SkillsEngine = {
         SoundFX.play("hit", "Ground");
       };
 
-      fireQuakeWave(0);
+      const stompDelayMs = (caster === GameApp.player) ? 110 : 0;
+      if (stompDelayMs > 0) {
+        setTimeout(() => fireQuakeWave(0), stompDelayMs);
+      } else {
+        fireQuakeWave(0);
+      }
       for (let w = 1; w < totalWaves; w++) {
-        setTimeout(() => fireQuakeWave(w), w * 150);
+        setTimeout(() => fireQuakeWave(w), stompDelayMs + w * 150);
       }
       return;
     }
@@ -2057,7 +2066,8 @@ const SkillsEngine = {
                   GameApp.spawnFloatingText(e.x, e.y - 24, "🌙 降攻 -35%!", "#F472B6", 11);
                 }
               }
-              GameApp.dealDamageToEnemy(e, dVal, hz.type, hz.kind === "dragon_wave" ? 0.25 : -0.06, hz.kind === "dragon_wave" ? 14 : 2);
+              const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora") ? -0.28 : -0.08);
+              GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2);
             }
           });
         }
