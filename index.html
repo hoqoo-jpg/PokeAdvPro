@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.8.6');
+      background-image: url('images/skills_icons_sheet.png?v=6.8.7');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -271,26 +271,63 @@
       to   { box-shadow: 0 0 28px rgba(16, 185, 129, 1), 0 6px 0 #064e3b; }
     }
 
-    /* 二次元 Cut-in 特寫動畫 */
+    /* 二次元 Cut-in 特寫動畫 (1.20s 清晰定格展示) */
     @keyframes cutInSlide {
       0% { transform: translateY(-50%) rotate(-6deg) translateX(-140%); opacity: 0; }
-      20% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
-      80% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
+      14% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
+      84% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
       100% { transform: translateY(-50%) rotate(-6deg) translateX(140%); opacity: 0; }
     }
     .cut-in-active {
-      animation: cutInSlide 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: cutInSlide 1.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    /* 專屬滿版大招橫幅特寫動畫 (小智等專用) */
+    /* 專屬滿版大招橫幅特寫動畫 (1.20s 定格 0.84s 清楚閱讀文字) */
     @keyframes bannerSlideAnim {
-      0% { transform: scale(1.18) translateX(-120%); opacity: 0; }
-      18% { transform: scale(1.0) translateX(0%); opacity: 1; }
-      82% { transform: scale(1.0) translateX(0%); opacity: 1; }
-      100% { transform: scale(0.92) translateX(120%); opacity: 0; }
+      0% { transform: scale(1.14) translateX(-120%); opacity: 0; }
+      14% { transform: scale(1.0) translateX(0%); opacity: 1; }
+      84% { transform: scale(1.0) translateX(0%); opacity: 1; }
+      100% { transform: scale(0.94) translateX(120%); opacity: 0; }
     }
     .cut-in-banner-active {
-      animation: bannerSlideAnim 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: bannerSlideAnim 1.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* 封面進入大廳：0.65s 經典 GBA 精靈球橫向快門閃白轉場儀式 */
+    @keyframes shutterTopAnim {
+      0%   { transform: translateY(-100%); }
+      38%  { transform: translateY(0%); }
+      52%  { transform: translateY(0%); }
+      100% { transform: translateY(-100%); }
+    }
+    @keyframes shutterBottomAnim {
+      0%   { transform: translateY(100%); }
+      38%  { transform: translateY(0%); }
+      52%  { transform: translateY(0%); }
+      100% { transform: translateY(100%); }
+    }
+    @keyframes shutterCoreAnim {
+      0%   { transform: translate(-50%, -50%) scale(0.2) rotate(0deg); opacity: 0; }
+      38%  { transform: translate(-50%, -50%) scale(1.15) rotate(180deg); opacity: 1; }
+      56%  { transform: translate(-50%, -50%) scale(1.35) rotate(220deg); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(2.2) rotate(360deg); opacity: 0; }
+    }
+    .pokeball-shutter-active .shutter-top {
+      animation: shutterTopAnim 0.65s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    }
+    .pokeball-shutter-active .shutter-bottom {
+      animation: shutterBottomAnim 0.65s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    }
+    .pokeball-shutter-active .shutter-core {
+      animation: shutterCoreAnim 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes lobbyPopIn {
+      0%   { opacity: 0; transform: translateY(16px) scale(0.96); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .lobby-pop-in {
+      animation: lobbyPopIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
 
     /* 緩慢浮動動畫 */
@@ -456,6 +493,15 @@
     </div>
   </div>
 
+  <!-- 3B. 封面進入大廳 0.65s 精靈球快門轉場儀式層 -->
+  <div id="pokeballTransitionOverlay" class="hidden fixed inset-0 z-[90] pointer-events-none overflow-hidden">
+    <div class="shutter-top absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-red-600 to-red-700 border-b-[6px] border-slate-950 shadow-2xl"></div>
+    <div class="shutter-bottom absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-100 to-white border-t-[6px] border-slate-950 shadow-2xl"></div>
+    <div class="shutter-core absolute top-1/2 left-1/2 w-20 h-20 rounded-full bg-white border-[6px] border-slate-950 flex items-center justify-center shadow-[0_0_32px_rgba(255,255,255,0.95)]">
+      <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-200 to-white border-4 border-slate-800"></div>
+    </div>
+  </div>
+
   <!-- 4. 大廳主畫面層 (Title / Lobby Screen) -->
   <div id="titleScreen" class="absolute inset-0 z-30 hidden flex flex-col justify-between p-3 sm:p-5 overflow-y-auto">
     <!-- 頂部大廳導航資訊列 -->
@@ -551,7 +597,7 @@
     <div class="absolute top-2 left-1.5 right-1.5 sm:left-2 sm:right-2 flex items-start justify-between gap-1 sm:gap-2 pointer-events-auto">
       <!-- 左側：玩家主角頭像、屬性標籤、血條與經驗條 (優化雙屬性佈局，不遮擋名字) -->
       <div class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl max-w-[44%] sm:max-w-xs shrink-0">
-        <div class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
+        <div id="hudAvatarFrame" class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
           <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-8 h-8 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="Current" />
           <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[7px] sm:text-[8px] rounded font-black">羈絆</span>
         </div>
@@ -676,9 +722,9 @@
     <!-- 專屬全圖橫幅 (全訓練家大招特寫插畫 + 右下角斜切必殺技字幕疊加演出) -->
     <div id="cutInBannerWrap" class="relative w-full max-w-4xl flex items-center justify-center mx-auto">
       <img id="cutInBannerImg" src="images/cutin_ash.png" class="w-full max-h-[38vh] object-contain drop-shadow-[0_0_35px_rgba(245,158,11,0.85)] border-y-4 border-amber-400" alt="Special Cut-In" />
-      <div id="cutInBannerOverlayBox" class="absolute bottom-2 right-3 sm:bottom-3 sm:right-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-red-950/95 px-3.5 py-1.5 sm:px-5 sm:py-2 rounded-xl border-2 border-amber-400 shadow-[0_6px_20px_rgba(0,0,0,0.9)] transform -skew-x-12 flex flex-col items-end pointer-events-none">
-        <div id="cutInBannerTrainer" class="font-pixel text-[10px] sm:text-xs text-amber-300 font-bold tracking-wider drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">小智 (Ash) ‧ 戰術指令</div>
-        <div id="cutInBannerSkill" class="text-lg sm:text-2xl font-black italic text-white tracking-wider drop-shadow-[0_3px_4px_rgba(0,0,0,0.95)] -mt-0.5">【就決定是你了！】</div>
+      <div id="cutInBannerOverlayBox" class="absolute bottom-2 right-3 sm:bottom-3 sm:right-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-red-950/95 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border-2 border-amber-400 shadow-[0_8px_24px_rgba(0,0,0,0.95)] transform -skew-x-12 flex flex-col items-end pointer-events-none">
+        <div id="cutInBannerTrainer" class="font-pixel text-[11px] sm:text-sm text-amber-300 font-bold tracking-wider drop-shadow-[0_2px_3px_rgba(0,0,0,0.95)]">小智 (Ash) ‧ 戰術指令</div>
+        <div id="cutInBannerSkill" class="text-xl sm:text-3xl font-black italic text-white tracking-wider drop-shadow-[0_3px_5px_rgba(0,0,0,1)] mt-0.5">【就決定是你了！】</div>
       </div>
     </div>
 
@@ -737,25 +783,30 @@
     <div id="setupScrollArea" class="flex-1 overflow-y-auto p-4 bg-slate-100">
       <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
-      <div id="wizardStep3" class="hidden space-y-4">
+      <div id="wizardStep3" class="hidden space-y-3">
         <div>
-          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> GBA 生態地圖（選擇關卡）</h3>
-          <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+          <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> GBA 生態地圖（選擇關卡）</h3>
+          <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式</h3>
+            <div id="gameModeGrid" class="grid grid-cols-2 gap-2"></div>
+          </div>
+          <div>
+            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
+            <div id="difficultyGrid" class="grid grid-cols-2 gap-2"></div>
+          </div>
         </div>
         <div>
-          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式</h3>
-          <div id="gameModeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
-        </div>
-        <div>
-          <h3 class="font-black text-sm text-slate-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
-          <div id="difficultyGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <h3 class="font-black text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術特訓補給（可多選複選 ‧ 選填）</h3>
+          <div class="flex items-center justify-between gap-1.5 mb-1.5 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <h3 class="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術補給（可複選）</h3>
+              <span id="loadoutFirstFreeBadge" class="hidden px-2 py-0.5 bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[10px] font-black rounded-full shadow animate-pulse">🎁 首次免費體驗 1 項</span>
+            </div>
             <span id="loadoutTotalCostBadge" class="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">已選 0 項 (0 金)</span>
           </div>
-          <div id="tacticalLoadoutGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+          <div id="tacticalLoadoutGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
         </div>
       </div>
     </div>
@@ -1127,10 +1178,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.8.6"></script>
-  <script src="map_v11_engine.js?v=6.8.6"></script>
-  <script src="skills_engine.js?v=6.8.6"></script>
-  <script src="battle_core_2.js?v=6.8.6"></script>
-  <script src="game_ui.js?v=6.8.6"></script>
+  <script src="pokedex_data.js?v=6.8.7"></script>
+  <script src="map_v11_engine.js?v=6.8.7"></script>
+  <script src="skills_engine.js?v=6.8.7"></script>
+  <script src="battle_core_2.js?v=6.8.7"></script>
+  <script src="game_ui.js?v=6.8.7"></script>
 </body>
 </html>

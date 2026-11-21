@@ -203,6 +203,9 @@ Object.assign(window.GameApp, {
   },
 
   enterLobbyFromSplash() {
+    if (this._enteringLobby) return;
+    this._enteringLobby = true;
+
     try {
       if (typeof SoundFX !== "undefined") {
         SoundFX.init();
@@ -213,22 +216,47 @@ Object.assign(window.GameApp, {
       console.warn("AudioContext init warning:", err);
     }
 
-    this.state = "TITLE";
     const splashEl = document.getElementById("splashScreen");
     const titleEl = document.getElementById("titleScreen");
     const preEl = document.getElementById("preloader-screen");
+    const shutterEl = document.getElementById("pokeballTransitionOverlay");
 
     if (preEl) preEl.classList.add("hidden");
-    if (splashEl) splashEl.classList.add("hidden");
-    if (titleEl) {
-      titleEl.style.display = "";
-      titleEl.classList.remove("hidden");
-    }
 
-    try {
-      this.updateTitleUI();
-    } catch (e) {
-      console.error("updateTitleUI error:", e);
+    const revealLobby = () => {
+      this.state = "TITLE";
+      if (splashEl) splashEl.classList.add("hidden");
+      if (titleEl) {
+        titleEl.style.display = "";
+        titleEl.classList.remove("hidden");
+        Array.from(titleEl.children).forEach((child, idx) => {
+          child.classList.remove("lobby-pop-in");
+          void child.offsetWidth;
+          child.style.animationDelay = `${idx * 70}ms`;
+          child.classList.add("lobby-pop-in");
+        });
+      }
+      try {
+        this.updateTitleUI();
+      } catch (e) {
+        console.error("updateTitleUI error:", e);
+      }
+    };
+
+    if (shutterEl) {
+      shutterEl.classList.remove("hidden", "pokeball-shutter-active");
+      void shutterEl.offsetWidth;
+      shutterEl.classList.add("pokeball-shutter-active");
+
+      setTimeout(revealLobby, 260);
+      setTimeout(() => {
+        shutterEl.classList.add("hidden");
+        shutterEl.classList.remove("pokeball-shutter-active");
+        this._enteringLobby = false;
+      }, 660);
+    } else {
+      revealLobby();
+      this._enteringLobby = false;
     }
   },
 
@@ -710,16 +738,16 @@ Object.assign(window.GameApp, {
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
       return `
-        <div onclick="GameApp.selectDifficulty('${d.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
+        <div onclick="GameApp.selectDifficulty('${d.id}')" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
           <div>
-            <div class="flex items-center justify-between gap-1 mb-1">
+            <div class="flex items-center justify-between gap-1 mb-0.5">
               <span class="font-black text-xs text-slate-800">${d.name}</span>
-              <span class="px-2 py-0.5 bg-amber-100 text-amber-800 font-black text-[10px] rounded-full">${d.badge}</span>
+              <span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-black text-[9px] rounded-full shrink-0">${d.badge}</span>
             </div>
-            <p class="text-xs font-bold text-slate-600 leading-relaxed">${d.desc}</p>
+            <p class="text-[10px] font-bold text-slate-600 leading-snug">${d.desc}</p>
           </div>
-          <div class="mt-2 text-right">
-            <span class="text-[10px] font-black ${sel ? 'text-blue-600' : 'text-slate-400'}">${sel ? '目前選用' : '點擊切換'}</span>
+          <div class="mt-1 text-right">
+            <span class="text-[9px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已選用' : '點擊切換'}</span>
           </div>
         </div>
       `;
@@ -728,23 +756,22 @@ Object.assign(window.GameApp, {
     document.getElementById("stageGrid").innerHTML = STAGES.map(st => {
       const sel = this.selectedStage.id === st.id;
       return `
-        <div onclick="GameApp.selectStage('${st.id}')" class="poke-card cursor-pointer p-3.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
+        <div onclick="GameApp.selectStage('${st.id}')" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
           <div>
             <div class="flex items-center justify-between gap-1 mb-1">
-              <span class="font-black text-xs text-slate-800">${st.name}</span>
-              <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-black text-[10px] rounded-full">賞金 ${st.rewardMult}x</span>
+              <span class="font-black text-xs text-slate-800 truncate">${st.name}</span>
+              <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-black text-[9px] rounded-full shrink-0">賞金 ${st.rewardMult}x</span>
             </div>
-            <div class="w-full h-3.5 rounded-full my-1.5 border border-slate-700 flex overflow-hidden">
+            <div class="w-full h-2.5 rounded-full my-1 border border-slate-700 flex overflow-hidden">
               <span style="background:${st.tileLight}" class="flex-1"></span>
               <span style="background:${st.tileDark}" class="flex-1"></span>
               <span style="background:${st.roadColor}" class="flex-1"></span>
               <span style="background:${st.waterColor}" class="flex-1"></span>
             </div>
-            <div class="text-[10px] font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md my-1 border border-indigo-200">${st.buffDesc}</div>
-            <p class="text-xs font-bold text-slate-600 leading-relaxed">${st.desc}</p>
+            <div class="text-[10px] font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200 leading-snug">${st.buffDesc}</div>
           </div>
-          <div class="mt-2 text-right">
-            <span class="text-[10px] font-black ${sel ? 'text-blue-600' : 'text-slate-400'}">${sel ? '目前選用' : '點擊切換'}</span>
+          <div class="mt-1.5 text-right">
+            <span class="text-[9px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 目前選用' : '點擊切換'}</span>
           </div>
         </div>
       `;
@@ -759,32 +786,32 @@ Object.assign(window.GameApp, {
       const modes = [
         {
           id: "standard",
-          name: "⏱️ 8 分鐘極速通關（標準模式）",
-          badge: "經典劇情",
+          name: "⏱️ 8分鐘標準",
+          badge: "經典",
           badgeCls: "bg-blue-100 text-blue-800",
-          desc: "5:00 迎戰傳說三聖鳥、7:30 決戰王者超夢與隱藏始祖夢幻 #151，擊破即榮登關都冠軍！"
+          desc: "5:00 三聖鳥、7:30 超夢與隱藏夢幻 #151，擊破即登冠！"
         },
         {
           id: "endless",
-          name: "♾️ 無盡深淵試煉（Endless）",
-          badge: "賞金 1.25x",
+          name: "♾️ 無盡深淵",
+          badge: "1.25x金",
           badgeCls: "bg-purple-100 text-purple-800",
-          desc: `8:00 後無限波次循環！每 2 分鐘輪迴降臨強化神獸，每 150 斬掉落寶箱糖果！（最高紀錄：${bestM}:${bestS} / ${bestKills}斬）`
+          desc: `8:00 後無限神獸波次！（紀錄 ${bestM}:${bestS} / ${bestKills}斬）`
         }
       ];
       modeGridEl.innerHTML = modes.map(m => {
         const sel = (this.selectedGameMode || "standard") === m.id;
         return `
-          <div onclick="GameApp.selectGameMode('${m.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
+          <div onclick="GameApp.selectGameMode('${m.id}')" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
             <div>
-              <div class="flex items-center justify-between gap-1 mb-1">
+              <div class="flex items-center justify-between gap-1 mb-0.5">
                 <span class="font-black text-xs text-slate-800">${m.name}</span>
-                <span class="px-2 py-0.5 ${m.badgeCls} font-black text-[10px] rounded-full shrink-0">${m.badge}</span>
+                <span class="px-1.5 py-0.2 ${m.badgeCls} font-black text-[9px] rounded-full shrink-0">${m.badge}</span>
               </div>
-              <p class="text-xs font-bold text-slate-600 leading-relaxed">${m.desc}</p>
+              <p class="text-[10px] font-bold text-slate-600 leading-snug">${m.desc}</p>
             </div>
-            <div class="mt-2 text-right">
-              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 目前選用' : '點擊切換模式'}</span>
+            <div class="mt-1 text-right">
+              <span class="text-[9px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 目前選用' : '點擊切換'}</span>
             </div>
           </div>
         `;
@@ -795,30 +822,39 @@ Object.assign(window.GameApp, {
     if (loadoutEl) {
       if (!Array.isArray(this.selectedLoadouts)) this.selectedLoadouts = [];
       const loadouts = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
+      const hasFirstFree = !(this.saveData && this.saveData.firstFreeLoadoutUsed);
+      const firstFreeBadge = document.getElementById("loadoutFirstFreeBadge");
+      if (firstFreeBadge) firstFreeBadge.classList.toggle("hidden", !hasFirstFree);
+
       const totalCost = this.getSelectedLoadoutsTotalCost();
       const badgeEl = document.getElementById("loadoutTotalCostBadge");
       if (badgeEl) {
-        badgeEl.textContent = `已選 ${this.selectedLoadouts.length} 項 (共 ${totalCost} 金)`;
+        badgeEl.textContent = (hasFirstFree && this.selectedLoadouts.length > 0)
+          ? `已選 ${this.selectedLoadouts.length} 項 (首項免費 ‧ 共 ${totalCost} 金)`
+          : `已選 ${this.selectedLoadouts.length} 項 (共 ${totalCost} 金)`;
       }
 
       loadoutEl.innerHTML = loadouts.map(ld => {
-        const sel = this.selectedLoadouts.includes(ld.id);
+        const selIdx = this.selectedLoadouts.indexOf(ld.id);
+        const sel = selIdx !== -1;
+        const isFreeSlot = hasFirstFree && (selIdx === 0 || (this.selectedLoadouts.length === 0));
         return `
-          <div onclick="GameApp.toggleTacticalLoadout('${ld.id}', ${ld.cost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${sel ? 'selected' : ''}">
+          <div onclick="GameApp.toggleTacticalLoadout('${ld.id}', ${ld.cost})" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''} ${hasFirstFree && this.selectedLoadouts.length === 0 ? 'border-amber-400' : ''}">
             <div>
               <div class="flex items-center justify-between gap-1 mb-1">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <img src="${ld.sprite}" class="w-5 h-5 pixel-sprite object-contain shrink-0"/>
                   <span class="font-black text-xs text-slate-800 leading-tight">${ld.name}</span>
                 </div>
-                <span class="px-2 py-0.5 ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} font-black text-[10px] rounded-full flex items-center gap-0.5 shrink-0">
-                  <img src="${ITEM_SPRITES.coin}" class="w-3 h-3 pixel-sprite"/>${ld.badge}
-                </span>
+                ${isFreeSlot
+                  ? `<span class="px-2 py-0.5 bg-gradient-to-r from-rose-500 to-amber-500 text-white font-black text-[10px] rounded-full shrink-0 shadow">🎁 首試免費</span>`
+                  : `<span class="px-2 py-0.5 ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} font-black text-[10px] rounded-full flex items-center gap-0.5 shrink-0"><img src="${ITEM_SPRITES.coin}" class="w-3 h-3 pixel-sprite"/>${ld.badge}</span>`
+                }
               </div>
-              <p class="text-xs font-bold text-slate-600 leading-relaxed">${ld.desc}</p>
+              <p class="text-[11px] font-bold text-slate-600 leading-snug">${ld.desc}</p>
             </div>
-            <div class="mt-2 text-right">
-              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已勾選（可再複選其他補給）' : '點擊勾選加入攜帶'}</span>
+            <div class="mt-1.5 text-right">
+              <span class="text-[10px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? (selIdx === 0 && hasFirstFree ? '✓ 已勾選（免費體驗中）' : '✓ 已勾選（可再複選）') : (hasFirstFree && this.selectedLoadouts.length === 0 ? '點擊免費體驗此項' : '點擊勾選加入攜帶')}</span>
             </div>
           </div>
         `;
@@ -1127,7 +1163,9 @@ Object.assign(window.GameApp, {
   getSelectedLoadoutsTotalCost() {
     if (!Array.isArray(this.selectedLoadouts)) return 0;
     const loadouts = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
-    return this.selectedLoadouts.reduce((sum, id) => {
+    const hasFirstFree = !(this.saveData && this.saveData.firstFreeLoadoutUsed);
+    return this.selectedLoadouts.reduce((sum, id, idx) => {
+      if (hasFirstFree && idx === 0) return sum;
       const found = loadouts.find(x => x.id === id);
       return sum + (found ? found.cost : 0);
     }, 0);
@@ -1141,9 +1179,14 @@ Object.assign(window.GameApp, {
       return;
     }
     const totalCost = this.getSelectedLoadoutsTotalCost();
-    btn.textContent = totalCost > 0
-      ? `立即出發冒險 (扣 ${totalCost} 金) →`
-      : "立即出發冒險 →";
+    const hasFirstFree = !(this.saveData && this.saveData.firstFreeLoadoutUsed);
+    if (totalCost > 0) {
+      btn.textContent = `立即出發冒險 (扣 ${totalCost} 金) →`;
+    } else if (hasFirstFree && Array.isArray(this.selectedLoadouts) && this.selectedLoadouts.length > 0) {
+      btn.textContent = "立即出發冒險 (🎁首試免費) →";
+    } else {
+      btn.textContent = "立即出發冒險 →";
+    }
   },
 
   toggleTacticalLoadout(id, cost) {
@@ -1152,7 +1195,9 @@ Object.assign(window.GameApp, {
     if (idx !== -1) {
       this.selectedLoadouts.splice(idx, 1);
     } else {
-      const newTotal = this.getSelectedLoadoutsTotalCost() + cost;
+      const hasFirstFree = !(this.saveData && this.saveData.firstFreeLoadoutUsed);
+      const effectiveCost = (hasFirstFree && this.selectedLoadouts.length === 0) ? 0 : cost;
+      const newTotal = this.getSelectedLoadoutsTotalCost() + effectiveCost;
       if ((this.saveData.coins || 0) < newTotal) {
         alert(`代幣不足！目前已勾選補給加上此項共需 ${newTotal} 代幣（目前持有 ${this.saveData.coins || 0} 金）！`);
         return;

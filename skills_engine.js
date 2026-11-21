@@ -6377,28 +6377,61 @@ const SkillsEngine = {
         ctx.stroke();
 
       } else if (pr.vfx === "wind_blade") {
-        // 【空氣斬（輕盈真空月牙刃）】：移除外圍笨重輪胎圓框，視覺半徑縮小至上限 14px，半透明青白流線
-        const vr = Math.min(14, r * 0.66);
-        ctx.rotate(pr.angle || 0);
+        // 【空氣斬（對齊新圖標・雙重銀青真空月牙風刃 ＋ 破風氣流線）】
+        const vr = Math.min(15.5, r * 0.72);
+        const flyAng = (pr.vx || pr.vy) ? Math.atan2(pr.vy, pr.vx) : (pr.angle || 0);
 
-        [0, Math.PI / 2].forEach((rotOff, idx) => {
+        // 1. 沿飛行方向的斜向破風氣流尾跡（不隨自轉亂晃）
+        ctx.save();
+        ctx.rotate(flyAng);
+        ctx.strokeStyle = "rgba(186, 230, 253, 0.68)";
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-vr * 0.35, -vr * 0.58); ctx.lineTo(-vr * 1.65, -vr * 0.42);
+        ctx.moveTo(-vr * 0.25, 0);          ctx.lineTo(-vr * 1.95, 0);
+        ctx.moveTo(-vr * 0.35, vr * 0.58);  ctx.lineTo(-vr * 1.65, vr * 0.42);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. 雙片對稱銀白淺青紫銳利月牙風刃（高速自轉切割）
+        ctx.rotate(pr.angle || 0);
+        [0, Math.PI].forEach((rotOff, idx) => {
           ctx.save();
           ctx.rotate(rotOff);
-          ctx.fillStyle = idx === 0 ? "rgba(224, 231, 255, 0.88)" : "rgba(199, 210, 254, 0.78)";
-          ctx.strokeStyle = "#6366F1";
-          ctx.lineWidth = 1.4;
+          const bladeGrad = ctx.createLinearGradient(-vr, -vr, vr, vr);
+          if (idx === 0) {
+            bladeGrad.addColorStop(0, "rgba(224, 242, 254, 0.96)");
+            bladeGrad.addColorStop(0.55, "rgba(186, 230, 253, 0.92)");
+            bladeGrad.addColorStop(1, "rgba(165, 180, 252, 0.85)");
+          } else {
+            bladeGrad.addColorStop(0, "rgba(241, 245, 249, 0.94)");
+            bladeGrad.addColorStop(0.55, "rgba(199, 210, 254, 0.90)");
+            bladeGrad.addColorStop(1, "rgba(125, 211, 252, 0.85)");
+          }
+          ctx.fillStyle = bladeGrad;
+          ctx.strokeStyle = "#38BDF8";
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.arc(0, 0, vr * 0.95, -1.05, 1.05);
-          ctx.arc(vr * 0.46, 0, vr * 0.72, 1.05, -1.05, true);
+          ctx.arc(vr * 0.14, 0, vr * 1.02, -1.18, 1.18);
+          ctx.arc(vr * 0.56, 0, vr * 0.78, 1.18, -1.18, true);
           ctx.closePath();
           ctx.fill();
+          ctx.stroke();
+
+          // 刀鋒外緣純白高光刃線
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(vr * 0.14, 0, vr * 0.98, -0.92, 0.92);
           ctx.stroke();
           ctx.restore();
         });
 
+        // 中心真空氣旋微核
         ctx.fillStyle = "#FFFFFF";
         ctx.beginPath();
-        ctx.arc(0, 0, vr * 0.20, 0, Math.PI * 2);
+        ctx.arc(0, 0, vr * 0.18, 0, Math.PI * 2);
         ctx.fill();
       } else {
         ctx.rotate(pr.angle || 0);

@@ -1009,13 +1009,19 @@ window.GameApp = {
     const loadoutCatalog = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
     const appliedNames = [];
 
+    let usedFreeTrialThisRun = false;
     chosenLoadouts.forEach(ldId => {
       const ldMeta = loadoutCatalog.find(x => x.id === ldId);
-      const cost = ldMeta ? ldMeta.cost : 0;
+      let cost = ldMeta ? ldMeta.cost : 0;
+      if (!this.saveData.firstFreeLoadoutUsed && !usedFreeTrialThisRun) {
+        cost = 0;
+        usedFreeTrialThisRun = true;
+        this.saveData.firstFreeLoadoutUsed = true;
+      }
       if ((this.saveData.coins || 0) < cost) return;
       this.saveData.coins -= cost;
       this.activeLoadoutBuffs[ldId] = true;
-      if (ldMeta) appliedNames.push(ldMeta.name);
+      if (ldMeta) appliedNames.push(cost === 0 ? `${ldMeta.name}(首試免費)` : ldMeta.name);
 
       if (ldId === "combat_pack") {
         this.player.xAttackTimer = 45.0;
@@ -1150,9 +1156,10 @@ window.GameApp = {
       this._cutInHideTimer = setTimeout(() => {
         cutLayer.classList.add("hidden");
         cutLayer.style.display = "none";
-      }, 750);
+      }, 1200);
     }
 
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.85);
     this.hitStopTimer = 0.08;
     this.camera.shakeTime = 0.28;
     this.camera.shakeMagnitude = 8;
@@ -1417,13 +1424,18 @@ window.GameApp = {
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
-    if (p.id === 10034) {
+    if (p.megaEvolved || p.id === 10034) {
       p._megaSparkTick = (p._megaSparkTick || 0) - dt;
       if (p._megaSparkTick <= 0) {
-        p._megaSparkTick = 0.24;
-        const ax = p.x + (Math.random() - 0.5) * 32;
-        const ay = p.y + 6 - Math.random() * 18;
-        SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 18, -42 - Math.random() * 22, Math.random() < 0.5 ? "#38BDF8" : "#E0F2FE", 2.8, 0.36, "star");
+        p._megaSparkTick = 0.12;
+        const isDarkFlame = Math.random() < 0.45;
+        const ax = p.x + (Math.random() - 0.5) * 38;
+        const ay = p.y + 10 - Math.random() * 16;
+        if (isDarkFlame) {
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 20, -38 - Math.random() * 24, Math.random() < 0.5 ? "#0F172A" : "#312E81", 4.2, 0.38, "circle");
+        } else {
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 22, -48 - Math.random() * 26, Math.random() < 0.55 ? "#38BDF8" : "#E0F2FE", 3.1, 0.36, "star");
+        }
       }
     }
     if (p.singleStageAwakened || p.legendaryAwaken24) {
@@ -5178,22 +5190,23 @@ window.GameApp = {
     const toSx = (wx) => wx - camX + this.width / 2;
     const toSy = (wy) => wy - camY + this.height / 2;
 
-    // 進化／單階覺醒演出平滑鏡頭 Zoom-in 特寫 (拉近至 1.45x 並彈性拉回 1.0x)
+    // 進化／單階覺醒演出平滑鏡頭 Zoom-in 特寫 (手機端拉近至 2.05x、電腦端 1.80x 並彈性拉回 1.0x)
     let evoZoom = 1.0;
     if (this.state === "EVOLVING" && this.evoSequence && this.evoSequence.active) {
       const seq = this.evoSequence;
       const et = seq.timer;
+      const zoomDelta = this.isMobileDevice() ? 1.05 : 0.80;
       const zoomInEnd = seq.isAwakening ? 0.28 : 0.35;
       const zoomOutStart = seq.isAwakening ? 0.90 : 1.35;
       const zoomOutDur = Math.max(0.1, seq.duration - zoomOutStart);
       if (et < zoomInEnd) {
         const k = et / zoomInEnd;
-        evoZoom = 1.0 + 0.45 * (1 - Math.pow(1 - k, 3));
+        evoZoom = 1.0 + zoomDelta * (1 - Math.pow(1 - k, 3));
       } else if (et < zoomOutStart) {
-        evoZoom = 1.45;
+        evoZoom = 1.0 + zoomDelta;
       } else {
         const k = Math.min(1, (et - zoomOutStart) / zoomOutDur);
-        evoZoom = 1.45 - 0.45 * (1 - Math.pow(1 - k, 3));
+        evoZoom = (1.0 + zoomDelta) - zoomDelta * (1 - Math.pow(1 - k, 3));
       }
     }
 
@@ -5481,6 +5494,45 @@ window.GameApp = {
       ctx.beginPath();
       ctx.ellipse(px, py + 16, 20, 7.0, 0, 0, Math.PI * 2);
       ctx.stroke();
+    }
+
+    if (p.megaEvolved || p.id === 10034) {
+      const mNow = performance.now() * 0.006;
+      const mPulse = Math.sin(mNow * 1.8) * 2.2;
+      ctx.save();
+      // 暗黑焦焰底盤
+      const mGrad = ctx.createRadialGradient(px, py + 15, 6, px, py + 15, 32 + mPulse);
+      mGrad.addColorStop(0, "rgba(15, 23, 42, 0.65)");
+      mGrad.addColorStop(0.55, "rgba(14, 165, 233, 0.34)");
+      mGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = mGrad;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 15, 32 + mPulse, 12.5 + mPulse * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 雙層旋轉暗黑＋蒼藍電焰環
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
+      ctx.lineWidth = 4.2;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#38BDF8";
+      ctx.lineWidth = 2.4;
+      ctx.setLineDash([10, 6]);
+      ctx.lineDashOffset = -mNow * 12;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#E0F2FE";
+      ctx.lineWidth = 1.6;
+      ctx.setLineDash([6, 10]);
+      ctx.lineDashOffset = mNow * 16;
+      ctx.beginPath();
+      ctx.ellipse(px, py + 16, 22, 8.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
     }
 
     if (Object.values(p.skills || {}).filter(s => s.evolved).length >= 2) {
@@ -5941,7 +5993,7 @@ window.GameApp = {
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
-        const awakenScale = p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0));
+        const awakenScale = (p.megaEvolved || p.id === 10034) ? 1.22 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
         ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
@@ -6579,10 +6631,17 @@ window.GameApp = {
     const tr = this.selectedTrainer;
 
     // 1. 頭像與屬性標籤：僅在寶可夢 ID 或訓練家變更時更新 DOM 與圖片 src
-    const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${tr.id}`;
+    const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${p.megaEvolved ? 1 : 0}_${tr.id}`;
     if (this._lastHudIdentityKey !== identityKey) {
       this._lastHudIdentityKey = identityKey;
       document.getElementById("hudAvatar").src = SpriteCache.resolveUrl(p.data.forward_sprite);
+      const avatarFrame = document.getElementById("hudAvatarFrame");
+      if (avatarFrame) {
+        const isMegaHud = !!(p.megaEvolved || p.id === 10034);
+        avatarFrame.className = isMegaHud
+          ? "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-950 rounded-xl border-2 border-cyan-400 shadow-[0_0_12px_rgba(56,189,248,0.85)] flex items-center justify-center shrink-0"
+          : "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0";
+      }
       document.getElementById("hudPartnerName").textContent = p.data.name_zh;
       const tb = document.getElementById("hudTypeBadges");
       if (tb && typeof renderTypeBadgeHTML === "function") {
