@@ -509,8 +509,8 @@ window.GameApp = {
     if (p.data.evo_to) {
       if (p.data.evo_level && p.level < p.data.evo_level) p.level = p.data.evo_level;
       this.startEvolutionMoment(p.data.evo_to, false);
-    } else if (p.id === 6 && !p.megaEvolved) {
-      this.startEvolutionMoment(10034, false, null, true);
+    } else if (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[p.id] && !p.megaEvolved) {
+      this.startEvolutionMoment(MEGA_FORMS[p.id].id, false, null, true);
     } else {
       this.spawnFloatingText(p.x, p.y - 28, "目前已是最終完全體形態！", "#FACC15", 13);
     }
@@ -523,7 +523,6 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級噴火龍X】蒼藍冥炎形態！", "#38BDF8", 14);
       return;
     }
-    // 確保配備噴射火焰與龍之俯衝以便即刻體驗蒼藍冥炎與龍魂殘影
     if (!p.skills["Flamethrower"]) {
       p.skills["Flamethrower"] = { id: "Flamethrower", level: 8, evolved: false, timer: 0.15 };
     }
@@ -531,6 +530,38 @@ window.GameApp = {
       p.skills["Dragon Rush"] = { id: "Dragon Rush", level: 6, evolved: false, timer: 0.30 };
     }
     this.startEvolutionMoment(10034, false, null, true);
+  },
+
+  debugTriggerMegaBlastoise() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10036) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級水箭龜】重炮形態！", "#38BDF8", 14);
+      return;
+    }
+    if (!p.skills["Hydro Pump"] && !p.skills["HydroPump"]) {
+      p.skills["Hydro Pump"] = { id: "Hydro Pump", level: 8, evolved: false, timer: 0.15 };
+    }
+    if (!p.skills["WaterGun"]) {
+      p.skills["WaterGun"] = { id: "WaterGun", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10036, false, null, true);
+  },
+
+  debugTriggerMegaVenusaur() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10033) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級妙蛙花】霸王花王形態！", "#4ADE80", 14);
+      return;
+    }
+    if (!p.skills["VineWhip"]) {
+      p.skills["VineWhip"] = { id: "VineWhip", level: 8, evolved: false, timer: 0.15 };
+    }
+    if (!p.skills["Seed Bomb"] && !p.skills["SeedBomb"]) {
+      p.skills["Seed Bomb"] = { id: "Seed Bomb", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10033, false, null, true);
   },
 
   debugSpawnTreasureMob(kind) {
@@ -1130,11 +1161,16 @@ window.GameApp = {
     const reqLv = isBond ? (mf.bondReqLevel || 23) : (mf.reqLevel || 24);
     if (p.level < reqLv) return false;
 
-    const flameLv = (p.skills["Flamethrower"] && p.skills["Flamethrower"].level) || 0;
-    const dragonLv = ((p.skills["Dragon Rush"] && p.skills["Dragon Rush"].level) || 0)
-      + ((p.skills["DragonRush"] && p.skills["DragonRush"].level) || 0);
+    const reqList = mf.reqSkills || ["Flamethrower", "Dragon Rush"];
+    const reqCleanSet = new Set(reqList.map(s => s.replace(/\s+/g, "")));
+    let skillSum = 0;
+    Object.values(p.skills || {}).forEach(sk => {
+      if (sk && sk.id && reqCleanSet.has(sk.id.replace(/\s+/g, ""))) {
+        skillSum += (sk.level || 0);
+      }
+    });
     const reqSum = mf.reqSkillSum || 10;
-    if ((flameLv + dragonLv) < reqSum) return false;
+    if (skillSum < reqSum) return false;
 
     p.megaReady = true;
     p.megaTargetId = mf.id;
@@ -1511,17 +1547,26 @@ window.GameApp = {
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
-    if (p.megaEvolved || p.id === 10034) {
+    if (p.megaEvolved || p.id >= 10000) {
       p._megaSparkTick = (p._megaSparkTick || 0) - dt;
       if (p._megaSparkTick <= 0) {
         p._megaSparkTick = 0.12;
-        const isDarkFlame = Math.random() < 0.45;
         const ax = p.x + (Math.random() - 0.5) * 38;
         const ay = p.y + 10 - Math.random() * 16;
-        if (isDarkFlame) {
-          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 20, -38 - Math.random() * 24, Math.random() < 0.5 ? "#0F172A" : "#312E81", 4.2, 0.38, "circle");
+        if (p.id === 10036) {
+          // 超級水箭龜：深藍水霧 ＋ 金青色高壓水珠星芒
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 22, -44 - Math.random() * 24, Math.random() < 0.4 ? "#FEF08A" : "#38BDF8", 3.2, 0.36, Math.random() < 0.5 ? "circle" : "star");
+        } else if (p.id === 10033) {
+          // 超級妙蛙花：翡翠嫩葉 ＋ 粉金霸王花瓣孢子
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 24, -40 - Math.random() * 24, Math.random() < 0.45 ? "#F472B6" : "#4ADE80", 3.3, 0.40, Math.random() < 0.55 ? "leaf" : "star");
         } else {
-          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 22, -48 - Math.random() * 26, Math.random() < 0.55 ? "#38BDF8" : "#E0F2FE", 3.1, 0.36, "star");
+          // 超級噴火龍X：暗黑冥炎 ＋ 蒼藍電焰
+          const isDarkFlame = Math.random() < 0.45;
+          if (isDarkFlame) {
+            SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 20, -38 - Math.random() * 24, Math.random() < 0.5 ? "#0F172A" : "#312E81", 4.2, 0.38, "circle");
+          } else {
+            SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 22, -48 - Math.random() * 26, Math.random() < 0.55 ? "#38BDF8" : "#E0F2FE", 3.1, 0.36, "star");
+          }
         }
       }
     }
@@ -4689,20 +4734,21 @@ window.GameApp = {
         ctx.fillText(isLeg ? `HP上限 +22% 回滿 ‧ 全傷害 +14% ‧ 12%霸體` : `體型與氣場進化 ‧ HP+35%回滿 ‧ 全傷+15% ‧ 12%霸體`, this.width / 2, boxY + 47);
       }
     } else if (seq.isMega) {
+      const mCol = (seq.nextData && seq.nextData.burstColor) || "#38BDF8";
       if (t < burstT) {
         ctx.font = "900 13px 'Noto Sans TC', sans-serif";
-        ctx.fillStyle = "#67E8F9";
+        ctx.fillStyle = mCol;
         ctx.fillText(`💎 MEGA 鑰石強烈共鳴！【${seq.oldData.name_zh}】正在超越進化界限……！`, this.width / 2, boxY + 27);
         ctx.font = "700 11px 'Noto Sans TC', sans-serif";
         ctx.fillStyle = "#E879F9";
-        ctx.fillText("🔥 蒼藍龍焰正在覺醒，時空凍結中 🔥", this.width / 2, boxY + 47);
+        ctx.fillText((seq.nextData && seq.nextData.evoPreText) || "💎 超級進化能量覺醒中，時空凍結 💎", this.width / 2, boxY + 47);
       } else {
         ctx.font = "900 14px 'Noto Sans TC', sans-serif";
-        ctx.fillStyle = "#38BDF8";
-        ctx.fillText(`🔥 MEGA 超級進化！【${seq.nextData.name_zh}】黑龍降臨！`, this.width / 2, boxY + 26);
+        ctx.fillStyle = mCol;
+        ctx.fillText((seq.nextData && seq.nextData.evoDoneTitle) || `💎 MEGA 超級進化！【${seq.nextData.name_zh}】降臨！`, this.width / 2, boxY + 26);
         ctx.font = "700 11px 'Noto Sans TC', sans-serif";
         ctx.fillStyle = "#FEF08A";
-        ctx.fillText(`屬性進化【火＋龍】‧ 蒼藍冥炎全面解放 ‧ HP上限 ${p.maxHp}`, this.width / 2, boxY + 47);
+        ctx.fillText(`${(seq.nextData && seq.nextData.evoDoneSub) || "全屬性大幅解放"} ‧ HP上限 ${p.maxHp}`, this.width / 2, boxY + 47);
       }
     } else if (t < burstT) {
       ctx.font = "900 13px 'Noto Sans TC', sans-serif";
@@ -4730,7 +4776,7 @@ window.GameApp = {
     const oldName = p.data.name_zh;
     const isMegaForm = !!(nextData.isMega || nextData.id >= 10000);
     const isFinalForm = !isMegaForm && (nextData.evo_level === "None" || !nextData.evo_to);
-    const hpBoostMult = isMegaForm ? 1.25 : (isFinalForm ? 1.42 : 1.28);
+    const hpBoostMult = isMegaForm ? (nextData.hpBoost || 1.25) : (isFinalForm ? 1.42 : 1.28);
 
     p.id = nextData.id;
     p.data = nextData;
@@ -4738,29 +4784,39 @@ window.GameApp = {
     p.maxHp = Math.round(p.maxHp * hpBoostMult);
     p.hp = p.maxHp;
     p.invulnTimer = Math.max(p.invulnTimer || 0, 1.8);
-    p.dmgMult *= isMegaForm ? 1.18 : (isFinalForm ? 1.18 : 1.12);
+    p.dmgMult *= isMegaForm ? (nextData.dmgBoost || 1.18) : (isFinalForm ? 1.18 : 1.12);
     if (isMegaForm) {
       p.megaEvolved = true;
-      p.finalEvoArmor = 0.16;
+      p.finalEvoArmor = nextData.armor || 0.16;
       p.areaMult *= 1.08;
       if (!this.saveData.megaUnlocked) this.saveData.megaUnlocked = {};
       this.saveData.megaUnlocked[nextData.baseId || 6] = true;
       const isBondMega = !!(this.selectedTrainer && (nextData.bondTrainerIds || []).includes(this.selectedTrainer.id));
       if (isBondMega) {
+        const bCol = nextData.burstColor || "#38BDF8";
+        const bType = nextData.burstType || "Dragon";
+        const bText = nextData.burstText || "💎 鑰石共鳴爆發！";
         SkillsEngine.meleeEffects.push({
           style: "slam_wave",
           x: p.x, y: p.y,
           radius: 235 * p.areaMult,
           timer: 0.52, maxTime: 0.52,
-          color: "#38BDF8"
+          color: bCol
         });
-        this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 36, "star", 1.5);
+        this.spawnParticleCluster(p.x, p.y, bCol, "#FEF08A", 36, "star", 1.5);
         [...SkillsEngine.getEnemiesInRadius(p.x, p.y, 235 * p.areaMult)].forEach(en => {
           if (en && en.hp > 0 && Math.hypot(en.x - p.x, en.y - p.y) <= 235 * p.areaMult + en.radius) {
-            this.dealDamageToEnemy(en, (p.baseAtk * 1.8 + 60) * p.dmgMult, "Dragon", 0.50, en.isBoss ? 0 : 28);
+            this.dealDamageToEnemy(en, (p.baseAtk * 1.8 + 60) * p.dmgMult, bType, 0.55, en.isBoss ? 0 : 28);
+            if (nextData.id === 10033 && !en.status) {
+              en.status = "Poison";
+              en.statusTimer = en.isBoss ? 2.8 : 4.5;
+              en.statusTick = 0.35;
+            } else if (nextData.id === 10036 && !en.isBoss) {
+              en.inFrostAura = true;
+            }
           }
         });
-        this.spawnFloatingText(p.x, p.y - 38, "💎 鑰石共鳴：蒼藍龍焰爆發！", "#38BDF8", 15);
+        this.spawnFloatingText(p.x, p.y - 38, bText, bCol, 15);
       }
     } else if (isFinalForm) {
       p.finalEvoArmor = 0.12; // 最終完全體獲得永久 12% 霸體減傷與範圍擴張
@@ -5703,28 +5759,31 @@ window.GameApp = {
       ctx.stroke();
     }
 
-    if (p.megaEvolved || p.id === 10034) {
+    if (p.megaEvolved || p.id >= 10000) {
       const mNow = performance.now() * 0.006;
       const mPulse = Math.sin(mNow * 1.8) * 2.2;
+      const isMVenu = (p.id === 10033);
+      const isMBlas = (p.id === 10036);
+      const ringMain = isMVenu ? "#4ADE80" : (isMBlas ? "#0EA5E9" : "#38BDF8");
+      const ringInner = isMVenu ? "#F472B6" : (isMBlas ? "#FEF08A" : "#E0F2FE");
+      const midGlow = isMVenu ? "rgba(34, 197, 94, 0.34)" : (isMBlas ? "rgba(2, 132, 199, 0.36)" : "rgba(14, 165, 233, 0.34)");
       ctx.save();
-      // 暗黑焦焰底盤
       const mGrad = ctx.createRadialGradient(px, py + 15, 6, px, py + 15, 32 + mPulse);
-      mGrad.addColorStop(0, "rgba(15, 23, 42, 0.65)");
-      mGrad.addColorStop(0.55, "rgba(14, 165, 233, 0.34)");
+      mGrad.addColorStop(0, "rgba(15, 23, 42, 0.62)");
+      mGrad.addColorStop(0.55, midGlow);
       mGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
       ctx.fillStyle = mGrad;
       ctx.beginPath();
       ctx.ellipse(px, py + 15, 32 + mPulse, 12.5 + mPulse * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 雙層旋轉暗黑＋蒼藍電焰環
       ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
       ctx.lineWidth = 4.2;
       ctx.beginPath();
       ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.strokeStyle = "#38BDF8";
+      ctx.strokeStyle = ringMain;
       ctx.lineWidth = 2.4;
       ctx.setLineDash([10, 6]);
       ctx.lineDashOffset = -mNow * 12;
@@ -5732,7 +5791,7 @@ window.GameApp = {
       ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
       ctx.stroke();
 
-      ctx.strokeStyle = "#E0F2FE";
+      ctx.strokeStyle = ringInner;
       ctx.lineWidth = 1.6;
       ctx.setLineDash([6, 10]);
       ctx.lineDashOffset = mNow * 16;
@@ -6200,7 +6259,7 @@ window.GameApp = {
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
-        const awakenScale = (p.megaEvolved || p.id === 10034) ? 1.22 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
+        const awakenScale = (p.megaEvolved || p.id >= 10000) ? 1.22 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
         ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
@@ -6944,7 +7003,7 @@ window.GameApp = {
       document.getElementById("hudAvatar").src = SpriteCache.resolveUrl(p.data.forward_sprite);
       const avatarFrame = document.getElementById("hudAvatarFrame");
       if (avatarFrame) {
-        const isMegaHud = !!(p.megaEvolved || p.id === 10034);
+        const isMegaHud = !!(p.megaEvolved || p.id >= 10000);
         avatarFrame.className = isMegaHud
           ? "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-950 rounded-xl border-2 border-cyan-400 shadow-[0_0_12px_rgba(56,189,248,0.85)] flex items-center justify-center shrink-0"
           : "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0";

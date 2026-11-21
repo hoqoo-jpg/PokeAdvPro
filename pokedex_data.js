@@ -681,6 +681,7 @@ const MEGA_FORMS = {
     starterId: 4,
     evoLineIds: [4, 5, 6],
     name_zh: "超級噴火龍X",
+    badgeLabel: "MEGA X",
     type1: "Fire",
     type2: "Dragon",
     hp: 260,
@@ -696,12 +697,100 @@ const MEGA_FORMS = {
     bondTrainerNames: "小智、赤紅、莎莉娜",
     reqLevel: 24,
     bondReqLevel: 23,
+    reqSkills: ["Flamethrower", "Dragon Rush"],
     reqSkillSum: 10,
     reqSkillsText: "噴射火焰 ＋ 龍之俯衝 合計達 Lv.10",
+    hpBoost: 1.25,
+    dmgBoost: 1.18,
+    armor: 0.16,
+    burstType: "Dragon",
+    burstColor: "#38BDF8",
+    burstText: "💎 鑰石共鳴：蒼藍龍焰爆發！",
+    evoPreText: "🔥 蒼藍龍焰正在覺醒，時空凍結中 🔥",
+    evoDoneTitle: "🔥 MEGA 超級進化！【超級噴火龍X】黑龍降臨！",
+    evoDoneSub: "屬性進化【火＋龍】‧ 蒼藍冥炎全面解放",
     megaTraitDesc: "屬性進化【火＋龍】（龍之俯衝吃滿 1.35x 本系加成）、HP上限 +25% 並回滿、全傷害 +18%、16% 霸體減傷；噴射火焰、大字爆炎、龍之俯衝全面昇華為【蒼藍冥炎】！",
     stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png",
     forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png",
     back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10034.png"
+  },
+  9: {
+    id: 10036,
+    baseId: 9,
+    starterId: 7,
+    evoLineIds: [7, 8, 9],
+    name_zh: "超級水箭龜",
+    badgeLabel: "MEGA",
+    type1: "Water",
+    type2: "None",
+    hp: 270,
+    atk: 128,
+    speed: 88,
+    skill: "Hydro Pump",
+    weightTier: "heavy",
+    kbResist: 0.96,
+    evo_level: "None",
+    evo_to: null,
+    isMega: true,
+    bondTrainerIds: ["ash", "misty", "red"],
+    bondTrainerNames: "小智、小霞、赤紅",
+    reqLevel: 24,
+    bondReqLevel: 23,
+    reqSkills: ["WaterGun", "Hydro Pump"],
+    reqSkillSum: 10,
+    reqSkillsText: "水槍 ＋ 水炮 合計達 Lv.10",
+    hpBoost: 1.25,
+    dmgBoost: 1.18,
+    armor: 0.16,
+    burstType: "Water",
+    burstColor: "#38BDF8",
+    burstText: "💎 鑰石共鳴：深海重炮震波！",
+    evoPreText: "🌊 背甲主炮超壓蓄能中，時空凍結 🌊",
+    evoDoneTitle: "🌊 MEGA 超級進化！【超級水箭龜】重炮降臨！",
+    evoDoneSub: "超級發射器極限突破 ‧ 背甲三管水炮齊射",
+    megaTraitDesc: "重炮火力型覺醒：HP上限 +25% 並回滿、全傷害 +18%、16% 霸體減傷；【水炮】昇華為背甲巨型主炮＋雙腕副炮三管齊射，【水槍】同步強化為三連重壓水彈！",
+    stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/blastoisinite.png",
+    forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10036.png",
+    back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10036.png"
+  },
+  3: {
+    id: 10033,
+    baseId: 3,
+    starterId: 1,
+    evoLineIds: [1, 2, 3],
+    name_zh: "超級妙蛙花",
+    badgeLabel: "MEGA",
+    type1: "Grass",
+    type2: "Poison",
+    hp: 285,
+    atk: 118,
+    speed: 85,
+    skill: "Seed Bomb",
+    weightTier: "heavy",
+    kbResist: 0.95,
+    evo_level: "None",
+    evo_to: null,
+    isMega: true,
+    bondTrainerIds: ["ash", "red"],
+    bondTrainerNames: "小智、赤紅",
+    reqLevel: 24,
+    bondReqLevel: 23,
+    reqSkills: ["VineWhip", "Razor Leaf", "Seed Bomb"],
+    reqSkillSum: 10,
+    reqSkillsText: "藤鞭 ＋ 飛葉快刀 ＋ 種子炸彈 合計達 Lv.10",
+    hpBoost: 1.30,
+    dmgBoost: 1.16,
+    armor: 0.20,
+    burstType: "Grass",
+    burstColor: "#4ADE80",
+    burstText: "💎 鑰石共鳴：霸王毒花震波！",
+    evoPreText: "🌺 霸王毒花盛放共鳴中，時空凍結 🌺",
+    evoDoneTitle: "🌺 MEGA 超級進化！【超級妙蛙花】花王降臨！",
+    evoDoneSub: "厚脂肪 20% 霸體坦續 ‧ 三藤齊舞與毒花孢子",
+    megaTraitDesc: "厚脂肪坦續覺醒：HP上限 +30% 並回滿、全傷害 +16%、20% 霸體減傷；【藤鞭】昇華為 3 條粉金霸王花巨藤，【種子炸彈】落地額外綻放腐蝕毒花孢子霧！",
+    stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/venusaurite.png",
+    forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10033.png",
+    back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10033.png"
   }
 };
 
@@ -1844,9 +1933,13 @@ function getPokemonInnateTrait(pokeData, currentLevel = 1) {
   const t = tierInfo.scale;
 
   let traitKey = "quick_attack";
-  // 0. Mega 超級進化（超級噴火龍X：極致猛火龍威）
+  // 0. Mega 超級進化（超級噴火龍X / 超級水箭龜 / 超級妙蛙花）
   if (id === 10034) {
     traitKey = "dragon_maw";
+  } else if (id === 10036) {
+    traitKey = "mega_launcher";
+  } else if (id === 10033) {
+    traitKey = "overgrow_thorn";
   }
   // 1. 傳說五神獸
   else if ([144, 145, 146, 150, 151].includes(id)) {

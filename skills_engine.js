@@ -449,7 +449,8 @@ const SkillsEngine = {
           type: "Grass",
           skillId: "Seed Bomb",
           vfx: "seed_nut",
-          isVenusaurSeed: !!(caster && caster.id === 3),
+          isVenusaurSeed: !!(caster && (caster.id === 3 || caster.id === 10033)),
+          isMegaVenusaurSeed: !!(caster && caster.id === 10033),
           color: "#65A30D",
           pierce: 99,
           knockback: meta.knockback !== undefined ? meta.knockback : 10,
@@ -667,21 +668,37 @@ const SkillsEngine = {
       return;
     }
 
-    // 2F. 水炮 (Hydro Pump) — 統一最多 2 條高壓加粗水柱 ＋ 水箭龜 (#009) 專屬雙肩平行重炮演出
+    // 2F. 水炮 (Hydro Pump) — 水箭龜 (#009) 雙肩平行重炮 ／ 超級水箭龜 (#10036) 背甲巨型主炮＋雙腕副炮三管齊射
     if (cleanSkillId === "HydroPump") {
-      const isBlastoise = !!(caster && caster.id === 9);
-      const isOverpressure = (level >= 8);
-      const beamCount = isBlastoise ? 2 : Math.min(2, count);
+      const isMegaBlastoise = !!(caster && caster.id === 10036);
+      const isBlastoise = !!(caster && (caster.id === 9 || caster.id === 10036));
+      const isOverpressure = (level >= 8) || isMegaBlastoise;
+      const beamCount = isMegaBlastoise ? 3 : (isBlastoise ? 2 : Math.min(2, count));
       const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
       const traitKbMult = 1 + (trait.megaLauncherKbBonus || 0);
-      const beamLength = Math.min(this.getBeamLengthCap("HydroPump"), (205 + level * 8) * Math.min(1.48, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
-      const beamWidth = Math.min(48, (18 + level * 0.85) * (isOverpressure ? 1.28 : 1.0) * (isBlastoise ? 1.16 : 1.0) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
+      const beamLength = Math.min(this.getBeamLengthCap("HydroPump") + (isMegaBlastoise ? 22 : 0), (205 + level * 8) * Math.min(1.52, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+      const beamWidth = Math.min(50, (18 + level * 0.85) * (isOverpressure ? 1.28 : 1.0) * (isBlastoise ? 1.16 : 1.0) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
       const perp = baseAngle + Math.PI / 2;
 
       for (let b = 0; b < beamCount; b++) {
         let angOffset = 0;
         let latOffset = 0;
-        if (isBlastoise) {
+        let widthMult = 1.0;
+        let dmgMult = isOverpressure ? 0.68 : 0.60;
+        if (isMegaBlastoise) {
+          // 超級水箭龜 (#10036) 專屬：中央背甲巨型主炮 (b===1) ＋ 左右雙腕副炮 (b===0, 2) 三管齊射
+          if (b === 1) {
+            angOffset = 0;
+            latOffset = 0;
+            widthMult = 1.24;
+            dmgMult = 0.80;
+          } else {
+            angOffset = (b === 0 ? -0.10 : 0.10);
+            latOffset = (b === 0 ? -17 : 17);
+            widthMult = 0.72;
+            dmgMult = 0.50;
+          }
+        } else if (isBlastoise) {
           // 水箭龜 (#009) 專屬：雙肩寬距嚴格平行齊射（張角 0、肩距 ±13px）
           angOffset = 0;
           latOffset = (b === 0 ? -13 : 13);
@@ -700,15 +717,16 @@ const SkillsEngine = {
           latOffset,
           perpAngle: perp,
           isBlastoiseCannon: isBlastoise,
+          isMegaBlastoiseMain: isMegaBlastoise && b === 1,
           isOverpressure,
           ox: startX,
           oy: startY,
           x: startX,
           y: startY,
           angle: ang,
-          length: beamLength,
-          width: beamWidth,
-          dmg: rawDmg * (isOverpressure ? 0.68 : 0.60),
+          length: beamLength * (isMegaBlastoise && b !== 1 ? 0.88 : 1.0),
+          width: Math.min(54, beamWidth * widthMult),
+          dmg: rawDmg * dmgMult,
           type: "Water",
           kb: (meta.knockback !== undefined ? meta.knockback : 16) * traitKbMult * (isBlastoise ? 1.15 : 1.0),
           statusBonus: level >= 5 ? 0.30 : 0.12,
@@ -808,8 +826,10 @@ const SkillsEngine = {
     const targetDist = target ? Math.hypot(target.x - caster.x, target.y - caster.y) : 999;
     const isCloseQuarters = targetDist < 75;
 
-    for (let i = 0; i < count; i++) {
-      const spread = count > 1 ? (i - (count - 1) / 2) * 0.16 : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
+    const isMegaWaterGun = !!(cleanSkillId === "WaterGun" && caster && caster.id === 10036);
+    const loopCount = isMegaWaterGun ? Math.max(3, count + 1) : count;
+    for (let i = 0; i < loopCount; i++) {
+      const spread = loopCount > 1 ? (i - (loopCount - 1) / 2) * (isMegaWaterGun ? 0.14 : 0.16) : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
       const spd = cleanSkillId === "IceBeam" ? 385 : ((cleanSkillId === "WaterGun" || cleanSkillId === "Ember" || cleanSkillId === "RazorLeaf") ? 355 : (cleanSkillId === "HydroPump" ? 335 : (cleanSkillId === "AirSlash" ? 365 : 315)));
       // 冷凍光線 (IceBeam) 取消轉彎追蹤，改為 385 極速直線穿雲狙擊光束 (+1 穿透)！
@@ -844,7 +864,7 @@ const SkillsEngine = {
         casterRef: caster,
         isBoomerang,
         returning: false,
-        radius: (cleanSkillId === "HydroPump" ? 22 : 16) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * traitSizeMult,
+        radius: (cleanSkillId === "HydroPump" ? 22 : (isMegaWaterGun ? 19 : 16)) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * traitSizeMult,
         dmg: isBoomerang ? rawDmg * 0.72 : rawDmg,
         type: meta.type,
         skillId,
@@ -896,14 +916,15 @@ const SkillsEngine = {
 
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "vine_whip") {
-      const isVenusaur = !!(caster && caster.id === 3);
-      const whipCount = isVenusaur ? 2 : (1 + (level >= 5 ? 1 : 0));
+      const isMegaVenusaur = !!(caster && caster.id === 10033);
+      const isVenusaur = !!(caster && (caster.id === 3 || caster.id === 10033));
+      const whipCount = isMegaVenusaur ? 3 : (isVenusaur ? 2 : (1 + (level >= 5 ? 1 : 0)));
       const reach = this.getVineWhipReach(level, areaScale, trait.overgrowAreaBonus || 0);
       const perp = baseAngle + Math.PI / 2;
       for (let w = 0; w < whipCount; w++) {
         const spread = (w - (whipCount - 1) / 2) * 0.30;
         const ang = baseAngle + spread;
-        const sideShift = whipCount > 1 ? (w === 0 ? -12 : 12) : 0;
+        const sideShift = whipCount === 3 ? ((w - 1) * 14) : (whipCount > 1 ? (w === 0 ? -12 : 12) : 0);
         const startX = caster.x + Math.cos(ang) * 24 + Math.cos(perp) * sideShift;
         const startY = caster.y + Math.sin(ang) * 24 + Math.sin(perp) * sideShift;
         this.meleeEffects.push({
@@ -1416,6 +1437,7 @@ const SkillsEngine = {
       // 【水箭龜超武・潮旋激流】：底層 300px 深海大漩渦（中央 45px 淨空風眼）＋ 外圈 6 道浮世繪風拍岸巨浪
       this.groundHazards.push({
         kind: "blastoise_maelstrom",
+        isMegaMaelstrom: !!(p && p.id === 10036),
         x: p.x, y: p.y,
         followPlayer: true,
         rotAngle: 0,
@@ -1899,6 +1921,24 @@ const SkillsEngine = {
               GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 10);
             }
           });
+          if (pr.isMegaVenusaurSeed) {
+            const activePuddles = this.groundHazards.filter(h => h.kind === "poison_puddle");
+            if (activePuddles.length < 6) {
+              this.groundHazards.push({
+                kind: "poison_puddle",
+                x: pr.targetX,
+                y: pr.targetY,
+                radius: 52 * GameApp.player.areaMult,
+                dmg: pr.dmg * 0.34,
+                type: "Poison",
+                timer: 1.8,
+                maxTime: 1.8,
+                tickTimer: 0.25,
+                tickInterval: 0.42,
+                color: "#EC4899"
+              });
+            }
+          }
           SoundFX.play("hit", "Grass");
           this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
           this.projectiles.pop();
@@ -3359,12 +3399,14 @@ const SkillsEngine = {
         ctx.arc(0, 0, hz.radius * shrink, 0, Math.PI * 2);
         ctx.stroke();
       } else if (hz.kind === "dragon_wave") {
-        ctx.translate(sx, sy + 16);
+        ctx.translate(sx, sy + 15);
         ctx.rotate(hz.angle || 0);
-        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.42);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.60)";
+        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.30);
+        const isMegaD = !!hz.isMegaCharizardX;
+        const isKingD = !!hz.isDragoniteKing;
+        ctx.fillStyle = isMegaD ? "rgba(56, 189, 248, 0.45)" : (isKingD ? "rgba(250, 204, 21, 0.42)" : "rgba(99, 102, 241, 0.38)");
         ctx.beginPath();
-        ctx.ellipse(0, 0, hz.radius * 0.92, hz.radius * 0.38, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, hz.radius * 0.78, hz.radius * 0.30, 0, 0, Math.PI * 2);
         ctx.fill();
       } else if (hz.kind === "drifting_daimonji") {
         // 【大字爆炎（底層 Z 軸投影）】：向下偏移 12px 的暗紅焦黑『大』字烙印，撐開空中烈焰懸浮立體感
@@ -3921,18 +3963,21 @@ const SkillsEngine = {
         const sprRec = hz.spriteUrl ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
         const trailTint = isMegaX ? "#00F0FF" : (isKing ? "#FACC15" : "#38BDF8");
 
-        // 0. 3 連階梯式精靈拖尾殘影（提升清晰度：0.22 -> 0.38 -> 0.56，零 ctx.filter 開銷）
+        // 0. 方案 A：加法發光混合 (lighter) 3 連純能量靈體殘影（徹底消除棕色木橋上的灰褐泥印）
         if (sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
-          const alphas = [0.22, 0.38, 0.56];
-          const scales = [0.84, 0.94, 1.04];
+          const alphas = [0.18, 0.32, 0.48];
+          const scales = [0.82, 0.92, 1.02];
+          const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
           const totalAI = hz.afterimages.length;
           for (let ai = 0; ai < totalAI; ai++) {
             const pt = hz.afterimages[ai];
             const idxMap = Math.min(2, ai + (3 - totalAI));
             const asx = toSx(pt.x), asy = toSy(pt.y) - 6;
             ctx.save();
+            ctx.globalCompositeOperation = "lighter";
             ctx.translate(asx, asy);
-            ctx.scale((hz.facingX > 0 ? -1 : 1) * scales[idxMap] * 1.12, scales[idxMap] * 0.92);
+            ctx.rotate(leanAngle);
+            ctx.scale((hz.facingX > 0 ? -1 : 1) * scales[idxMap] * 1.14, scales[idxMap] * 0.88);
             GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, trailTint, lifeAlpha * alphas[idxMap]);
             ctx.restore();
           }
@@ -4014,13 +4059,15 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.restore();
 
-        // 5. 繪製於清透龍首之上的「清晰精靈俯衝本影」（一眼看清龍魂附體感）
+        // 5. 方案 A：移除原色複製分身，改為「純能量發光靈體剪影（外層蒼藍/金焰 ＋ 內層純白熾核）」並前傾俯衝
         if (sprRec && sprRec.loaded) {
+          const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
           ctx.save();
-          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.16, 0.88);
-          ctx.globalAlpha = lifeAlpha * 0.78;
-          ctx.drawImage(sprRec.img, -24, -22, 48, 48);
-          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#BAE6FD"), lifeAlpha * 0.45);
+          ctx.globalCompositeOperation = "lighter";
+          ctx.rotate(leanAngle);
+          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.16, 0.86);
+          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -25, -23, 50, 50, trailTint, lifeAlpha * 0.72);
+          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -20, -18, 40, 40, "#FFFFFF", lifeAlpha * 0.42);
           ctx.restore();
         }
         ctx.restore();

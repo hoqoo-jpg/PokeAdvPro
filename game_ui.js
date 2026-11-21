@@ -1075,7 +1075,7 @@ Object.assign(window.GameApp, {
           <img src="${mf.forward_sprite}" class="w-24 h-24 pixel-sprite object-contain relative z-10 ${isUnlocked ? '' : 'brightness-0 drop-shadow-[0_0_10px_rgba(56,189,248,0.85)]'}" alt="MEGA" />
           <div class="relative z-10 mt-1 text-center">
             <div class="font-black text-base ${isUnlocked ? 'text-cyan-300' : 'text-purple-200'}">
-              ${isUnlocked ? `🔥 ${mf.name_zh}` : '？？？・未知超級進化形態'}
+              ${isUnlocked ? `💎 ${mf.name_zh}` : '？？？・未知超級進化形態'}
             </div>
             <div class="flex items-center justify-center gap-1 mt-1">
               ${isUnlocked ? (renderTypeBadgeHTML(mf.type1) + renderTypeBadgeHTML(mf.type2)) : '<span class="px-2 py-0.5 rounded-full bg-purple-900/90 border border-purple-400/60 text-[10px] font-black text-purple-200">首次於戰場覺醒後解禁真容</span>'}
@@ -1113,7 +1113,7 @@ Object.assign(window.GameApp, {
           </div>
 
           <div class="bg-amber-950/60 border border-amber-500/60 rounded-lg p-2 text-[10px] text-amber-200 font-bold leading-snug">
-            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 23}</strong>，按下【💎 MEGA】瞬間額外引爆 235px 蒼藍龍焰震波！
+            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 23}</strong>，按下【💎 MEGA】瞬間額外引爆 235px 專屬鑰石共鳴震波！
           </div>
         </div>
       `;
@@ -1442,7 +1442,7 @@ Object.assign(window.GameApp, {
         <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${showMega ? 'border-cyan-500 bg-sky-50/80 shadow-[0_0_12px_rgba(6,182,212,0.45)]' : (caught ? 'border-blue-500' : 'opacity-80')}">
           <div class="flex items-center justify-between text-[10px] font-bold">
             <span class="font-pixel ${showMega ? 'text-cyan-700' : 'text-slate-500'}">#${String(p.id).padStart(3,'0')}</span>
-            ${showMega ? `<span class="px-1.5 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-black text-[8px]">MEGA X</span>`
+            ${showMega ? `<span class="px-1.5 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-black text-[8px]">${megaForm.badgeLabel || 'MEGA'}</span>`
                        : (shiny ? `<span class="px-1.5 py-0.5 bg-amber-300 text-slate-900 rounded-full font-black text-[8px]">閃光</span>`
                                 : (caught ? `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black text-[8px]">已登錄</span>`
                                           : `<span class="text-slate-400">? 未發現</span>`))}
