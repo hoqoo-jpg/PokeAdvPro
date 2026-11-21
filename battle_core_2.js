@@ -1921,15 +1921,20 @@ window.GameApp = {
           } else if (meta.isMelee) {
             // 精準對齊各近戰招式的真實有效打擊距離 (乘以 0.90 貼身裕度，確保怪獸踏入打擊圈內才出招，徹底根除打空氣！)
             if (meta.meleeStyle === "slam_wave") {
-              // 撞擊 (Tackle)：Lv.1 第一波真實距離 ~80px，隨 Lv.4 二段 / Lv.8 三段震波延伸
-              const tackleScale = p.areaMult * (lv >= 3 ? 1.20 : 1.0) * (lv >= 8 ? 1.25 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0));
+              // 撞擊 (Tackle A+C)：第 1 段本體貼身 + 第 2/3 段殘影接力前衝（附帶距離軟上限）
+              const tackleScale = Math.min(1.52, p.areaMult * (lv >= 3 ? 1.14 : 1.0) * (lv >= 8 ? 1.15 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.65));
               const waves = 1 + (lv >= 4 ? 1 : 0) + (lv >= 8 ? 1 : 0);
-              const actualReach = (28 + (waves - 1) * 24 + 50 + (waves - 1) * 10) * tackleScale;
+              const firstDist = 26 * Math.min(1.20, tackleScale);
+              const stepDist = 34 * Math.min(1.25, tackleScale);
+              const lastRad = Math.min(waves === 1 ? 64 : 78, (46 + (waves - 1) * 7) * tackleScale);
+              const actualReach = firstDist + (waves - 1) * stepDist + lastRad;
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "martial_fist") {
-              // 空手劈 (Karate Chop)：連環拳黃金距離 (76 + lv * 4.5) * meleeAreaScale
-              const actualReach = (76 + lv * 4.5) * meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0));
-              triggerRange = actualReach * 0.92;
+              // 空手劈 (Karate Chop)：收斂肉搏射程軟上限，避免滿級隔空揮拳
+              const karateScale = Math.min(1.42, meleeAreaScale * (1 + (trait.ironFistAreaBonus || 0) * 0.75));
+              const reach = Math.min(138, (64 + lv * 3.5) * karateScale);
+              const actualReach = 16 + reach * 0.82 + Math.min(58, Math.max(34, reach * 0.44));
+              triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "quake_wave") {
               // 地震 (Earthquake)：真實距離 (85 + lv * 4) * meleeAreaScale
               const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));

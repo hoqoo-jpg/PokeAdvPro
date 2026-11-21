@@ -764,8 +764,9 @@ const SkillsEngine = {
     }
 
     if (style === "martial_fist") {
-      // 【空手劈・商業級單點突破連環拳】：黃金肉搏拳風射程 (76 + lv*4.5) ＋ 單軸高速交替快拳 ＋ 終結重拳貫穿
-      const reach = (76 + level * 4.5) * areaScale * (1 + (trait.ironFistAreaBonus || 0));
+      // 【空手劈・商業級單點突破連環拳】：收斂肉搏射程軟上限 (最高 138px)，避免滿級重坦隔空揮拳
+      const karateScale = Math.min(1.42, areaScale * (1 + (trait.ironFistAreaBonus || 0) * 0.75));
+      const reach = Math.min(138, (64 + level * 3.5) * karateScale);
       const baseHits = level >= 8 ? 4 : (level >= 4 ? 3 : 2);
       const totalHits = Math.min(5, baseHits + (trait.ironFistExtraStrike || 0));
       const dmgTable = {
@@ -792,15 +793,15 @@ const SkillsEngine = {
 
         // 沿同一進攻軸線由近到遠梯次推進（前段快拳貼身 42~68px ➔ 終結重拳 85~95px），左右僅 ±6px 交替直拳
         const stepFrac = totalHits > 1 ? (hitIdx / (totalHits - 1)) : 1;
-        const distReach = 18 + reach * (0.34 + stepFrac * 0.56);
+        const distReach = 16 + reach * (0.30 + stepFrac * 0.52);
         const perpAng = curAng + Math.PI / 2;
         const sideOffset = isFinisher ? 0 : ((hitIdx % 2 === 0 ? -1 : 1) * 6);
 
-        const ox = caster.x + Math.cos(curAng) * 16 + Math.cos(perpAng) * (sideOffset * 0.5);
-        const oy = caster.y + Math.sin(curAng) * 16 + Math.sin(perpAng) * (sideOffset * 0.5);
+        const ox = caster.x + Math.cos(curAng) * 14 + Math.cos(perpAng) * (sideOffset * 0.5);
+        const oy = caster.y + Math.sin(curAng) * 14 + Math.sin(perpAng) * (sideOffset * 0.5);
         const fx = caster.x + Math.cos(curAng) * distReach + Math.cos(perpAng) * sideOffset;
         const fy = caster.y + Math.sin(curAng) * distReach + Math.sin(perpAng) * sideOffset;
-        const hitRad = Math.min(72, Math.max(36, reach * (isFinisher ? 0.48 : 0.36)));
+        const hitRad = Math.min(58, Math.max(34, reach * (isFinisher ? 0.44 : 0.34)));
 
         this.triggerSmartMeleeLunge(caster, curAng, 0, 0, isFinisher ? 15 : 8, 0);
         if (isFinisher && caster === GameApp.player) {
@@ -864,10 +865,10 @@ const SkillsEngine = {
       return;
     }
 
-    // 1. 撞擊專屬：方案 C 零物理位移 ＋ 重量級霸體/電光疾行特性加成 ＋ Lv.4 二段 / Lv.8 三段連環破空震波推進！
+    // 1. 撞擊專屬（A+C 方案）：第 1 段本體貼身撞擊 ➔ 第 2/3 段由第一擊落點展開「精靈殘影分身＋1:1 動能氣浪」接力前衝！
     if (style === "slam_wave") {
-      const tackleAreaScale = GameApp.player.areaMult * (level >= 3 ? 1.20 : 1.0) * (level >= 8 ? 1.25 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0));
-      const visualLungePx = (17 + (level >= 3 ? 3 : 0) + (level >= 8 ? 4 : 0)) * (1 + (trait.quickAttackLungeBonus || 0));
+      const tackleAreaScale = Math.min(1.52, GameApp.player.areaMult * (level >= 3 ? 1.14 : 1.0) * (level >= 8 ? 1.15 : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.65));
+      const visualLungePx = Math.min(26, (16 + (level >= 3 ? 2 : 0) + (level >= 8 ? 3 : 0)) * (1 + (trait.quickAttackLungeBonus || 0)));
       this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, visualLungePx, 0);
 
       const totalWaves = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0);
@@ -875,32 +876,68 @@ const SkillsEngine = {
       const drainPct = level >= 6 ? 0.010 : 0.008;
       let healedThisCast = false;
 
+      // 記錄第 1 段本體撞擊的基準落點，後續殘影與動能氣浪從上一段落點接力向前推進
+      const stepDist = 34 * Math.min(1.25, tackleAreaScale);
+      const firstDist = 26 * Math.min(1.20, tackleAreaScale);
+      let chainX = caster.x + Math.cos(baseAngle) * firstDist;
+      let chainY = caster.y + Math.sin(baseAngle) * firstDist;
+      const lockedSprUrl = (caster.data && (caster.facingY < 0 ? caster.data.back_sprite : caster.data.forward_sprite)) || null;
+      const lockedIsShiny = !!caster.isShiny;
+      const lockedFacingX = Math.cos(baseAngle) >= 0 ? 1 : -1;
+
       const fireTackleWave = (waveIdx) => {
         if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-        const forwardStep = (28 + waveIdx * 24) * tackleAreaScale;
-        const hitX = caster.x + Math.cos(baseAngle) * forwardStep;
-        const hitY = caster.y + Math.sin(baseAngle) * forwardStep;
-        const rad = (52 + waveIdx * 10) * tackleAreaScale;
-        const waveDmg = rawDmg * (waveIdx === 0 ? 1.0 : (waveIdx === 1 ? 0.65 : 0.50));
-
-        if (waveIdx > 0 && caster === GameApp.player) {
-          this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, visualLungePx * 0.75, 0);
+        let startX, startY, hitX, hitY;
+        if (waveIdx === 0) {
+          startX = caster.x;
+          startY = caster.y;
+          hitX = chainX;
+          hitY = chainY;
+        } else {
+          startX = chainX;
+          startY = chainY;
+          hitX = startX + Math.cos(baseAngle) * stepDist;
+          hitY = startY + Math.sin(baseAngle) * stepDist;
+          chainX = hitX;
+          chainY = hitY;
         }
 
-        this.meleeEffects.push({
-          style: "sonic_cone",
-          casterRef: waveIdx === 0 ? caster : null,
-          ox: caster.x + Math.cos(baseAngle) * (8 + waveIdx * 22),
-          oy: caster.y + Math.sin(baseAngle) * (8 + waveIdx * 22),
-          x: hitX,
-          y: hitY,
-          angle: baseAngle,
-          radius: rad,
-          waveIdx: waveIdx,
-          timer: 0.20,
-          maxTime: 0.20,
-          color: waveIdx === 0 ? "#F8FAFC" : (waveIdx === 1 ? "#BAE6FD" : "#FEF08A")
-        });
+        const rad = Math.min(waveIdx === 0 ? 64 : 78, (46 + waveIdx * 7) * tackleAreaScale);
+        const waveDmg = rawDmg * (waveIdx === 0 ? 1.0 : (waveIdx === 1 ? 0.68 : 0.54));
+
+        if (waveIdx === 0) {
+          this.meleeEffects.push({
+            style: "sonic_cone",
+            casterRef: caster,
+            ox: startX,
+            oy: startY,
+            x: hitX,
+            y: hitY,
+            angle: baseAngle,
+            radius: rad,
+            waveIdx: 0,
+            timer: 0.20,
+            maxTime: 0.20,
+            color: "#F8FAFC"
+          });
+        } else {
+          this.meleeEffects.push({
+            style: "phantom_tackle",
+            ox: startX,
+            oy: startY,
+            x: hitX,
+            y: hitY,
+            angle: baseAngle,
+            radius: rad,
+            waveIdx: waveIdx,
+            spriteUrl: lockedSprUrl,
+            isShiny: lockedIsShiny,
+            facingX: lockedFacingX,
+            timer: 0.24,
+            maxTime: 0.24,
+            color: waveIdx === 1 ? "#BAE6FD" : "#FEF08A"
+          });
+        }
 
         const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
         hitCandidates.forEach(e => {
@@ -928,7 +965,7 @@ const SkillsEngine = {
 
       fireTackleWave(0);
       for (let w = 1; w < totalWaves; w++) {
-        setTimeout(() => fireTackleWave(w), w * 115);
+        setTimeout(() => fireTackleWave(w), w * 110);
       }
       return;
     }
@@ -3100,7 +3137,23 @@ const SkillsEngine = {
 
     // 地面底層：終極衝擊 (giga_impact_lance) 與撞擊 (sonic_cone) 的地面犁地焦黑溝槽與 Z 軸投影暗影
     this.meleeEffects.forEach(m => {
-      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone") return;
+      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle") return;
+      if (m.style === "phantom_tackle") {
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.24))));
+        const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.45), 3);
+        const curX = toSx(m.ox + (m.x - m.ox) * ease);
+        const curY = toSy(m.oy + (m.y - m.oy) * ease);
+        ctx.save();
+        ctx.translate(curX, curY + 14);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = Math.max(0, (1 - prog) * 0.42);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.52)";
+        ctx.beginPath();
+        ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.30, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
       const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.4))));
       const osx = toSx(m.ox !== undefined ? m.ox : m.x);
       const osy = toSy(m.oy !== undefined ? m.oy : m.y);
@@ -4277,6 +4330,88 @@ const SkillsEngine = {
           ctx.restore();
         }
 
+        ctx.restore();
+      } else if (m.style === "phantom_tackle") {
+        // 【撞擊 A+C 接力段】：從上一擊落點飛出的「半透明精靈殘影分身 ＋ 1:1 真實範圍動能月牙氣浪」
+        const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.55), 3);
+        const curWx = m.ox + (m.x - m.ox) * ease;
+        const curWy = m.oy + (m.y - m.oy) * ease;
+        const csx = toSx(curWx), csy = toSy(curWy);
+        const fade = Math.max(0, 1 - prog * 0.92);
+        const waveR = Math.max(30, m.radius * (0.76 + ease * 0.24));
+        const tintCol = m.waveIdx >= 2 ? "#FEF08A" : "#7DD3FC";
+        const rimCol = m.waveIdx >= 2 ? "#FACC15" : "#38BDF8";
+
+        ctx.save();
+        ctx.translate(csx, csy);
+
+        // 1. 殘影衝刺拖尾速度線（沿衝擊軸向後拉開）
+        ctx.save();
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = fade * 0.85;
+        ctx.strokeStyle = tintCol;
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = "round";
+        [-1, 0, 1].forEach((row) => {
+          const ly = row * (waveR * 0.32);
+          ctx.beginPath();
+          ctx.moveTo(-4, ly);
+          ctx.lineTo(-26 - ease * 18, ly * 1.15);
+          ctx.stroke();
+        });
+        ctx.restore();
+
+        // 2. 半透明精靈前衝殘影分身（直立朝向衝擊左右方向，帶輕微前傾擠壓拉伸，0 ctx.filter 開銷）
+        const sprRec = m.spriteUrl ? (m.isShiny ? SpriteCache.getShiny(m.spriteUrl) : SpriteCache.get(m.spriteUrl)) : null;
+        if (sprRec && sprRec.loaded) {
+          ctx.save();
+          ctx.scale((m.facingX > 0 ? -1 : 1) * 1.12, 0.92);
+          ctx.globalAlpha = fade * 0.42;
+          ctx.drawImage(sprRec.img, -26, -24, 52, 52);
+          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -26, -24, 52, 52, tintCol, fade * 0.65);
+          ctx.restore();
+        }
+
+        // 3. 1:1 等比貼合真實傷害半徑 m.radius 的寬幅動能月牙氣浪 (Shockwave Crescent)
+        ctx.save();
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = fade;
+        const crescentGrad = ctx.createRadialGradient(8, 0, waveR * 0.30, 8, 0, waveR);
+        crescentGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
+        crescentGrad.addColorStop(0.55, m.waveIdx >= 2 ? "rgba(254, 240, 138, 0.32)" : "rgba(125, 211, 252, 0.32)");
+        crescentGrad.addColorStop(0.88, "rgba(255, 255, 255, 0.92)");
+        crescentGrad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+        ctx.fillStyle = crescentGrad;
+        ctx.beginPath();
+        ctx.arc(4, 0, waveR, -1.12, 1.12);
+        ctx.arc(-8, 0, waveR * 0.68, 1.12, -1.12, true);
+        ctx.closePath();
+        ctx.fill();
+
+        // 外緣主氣浪高光弧線
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 3.4 * (1 - prog * 0.35);
+        ctx.beginPath();
+        ctx.arc(6, 0, waveR * 0.96, -1.02, 1.02);
+        ctx.stroke();
+
+        ctx.strokeStyle = rimCol;
+        ctx.lineWidth = 2.0 * (1 - prog * 0.35);
+        ctx.beginPath();
+        ctx.arc(10, 0, waveR * 1.02, -0.78, 0.78);
+        ctx.stroke();
+
+        // 前鋒破空四芒閃光點
+        if (prog < 0.72) {
+          const tipX = 6 + waveR * 0.98;
+          ctx.fillStyle = tintCol;
+          ctx.beginPath();
+          ctx.moveTo(tipX + 9, 0); ctx.lineTo(tipX + 1, -4.5);
+          ctx.lineTo(tipX - 3, 0); ctx.lineTo(tipX + 1, 4.5);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
         ctx.restore();
       } else if (m.style === "sonic_cone") {
         // 【撞擊（Tackle）・一體化貼身破空衝鋒風罩】：動態鎖定精靈前撲本體，緊貼鼻尖包覆身體兩側，徹底消除空殼分離感！

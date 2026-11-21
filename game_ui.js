@@ -1688,8 +1688,8 @@ Object.assign(window.GameApp, {
       const fpsVal = this.currentFps || 60;
       const mobCount = this.enemies ? this.enemies.length : 0;
       const projCount = (typeof SkillsEngine !== "undefined" && SkillsEngine.projectiles ? SkillsEngine.projectiles.length : 0) + (this.enemyProjectiles ? this.enemyProjectiles.length : 0);
-      fpsEl.textContent = `${fpsVal} FPS (${mobCount} 怪 / ${projCount} 彈幕)`;
-      fpsEl.className = `font-pixel text-[10px] ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
+      fpsEl.textContent = `${fpsVal} FPS · ${mobCount}怪 / ${projCount}彈`;
+      fpsEl.className = `font-pixel text-[9px] sm:text-[10px] whitespace-nowrap text-right ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
     }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
     const modeTag = this.isEndlessMode ? " [♾️無盡試煉]" : "";
@@ -1744,6 +1744,28 @@ Object.assign(window.GameApp, {
         </div>
       ` : "";
 
+      const ownedHeldIds = p ? Object.keys(p.heldItems || {}).filter(id => p.heldItems[id] && HELD_ITEMS[id]) : [];
+      const heldItemsHtml = ownedHeldIds.length > 0
+        ? ownedHeldIds.map(itemId => {
+            const hi = HELD_ITEMS[itemId];
+            const reqSk = hi.skillReq && SKILLS_CATALOG[hi.skillReq] ? SKILLS_CATALOG[hi.skillReq] : null;
+            return `
+              <div class="bg-slate-900/90 px-2.5 py-1.5 rounded-xl border border-purple-500/50 flex items-start gap-2">
+                <div class="w-7 h-7 bg-slate-800 rounded-lg border border-amber-400/70 flex items-center justify-center shrink-0 mt-0.5">
+                  <img src="${hi.sprite}" class="w-5 h-5 pixel-sprite object-contain" alt="${hi.name}"/>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="font-black text-[11px] text-amber-300">${hi.name}</span>
+                    ${reqSk ? `<span class="px-1.5 py-0.2 rounded bg-purple-900/80 border border-purple-400/50 text-[9px] font-bold text-purple-200">對應：${reqSk.name} ➔ ${reqSk.evolvedName}</span>` : ''}
+                  </div>
+                  <div class="text-[10px] text-slate-200 font-bold leading-snug mt-0.5 whitespace-normal break-words">${hi.desc}</div>
+                </div>
+              </div>
+            `;
+          }).join("")
+        : `<div class="text-[10px] text-slate-400 font-bold bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-700/60">尚未裝備攜帶物（可於升級三選一、友好商店或擊敗三聖鳥取得）</div>`;
+
       dpsBox.innerHTML = traitBannerHtml + `
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
           <div class="text-[11px] font-black text-amber-300 mb-1.5 flex items-center gap-1">
@@ -1752,6 +1774,14 @@ Object.assign(window.GameApp, {
           </div>
           <div class="space-y-1 mb-2.5">
             ${recipeRows}
+          </div>
+        </div>
+        <div class="mt-2.5 pt-2 border-t border-slate-700/80">
+          <div class="text-[11px] font-black text-purple-300 mb-1.5 flex items-center justify-between">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-toolbox text-[10px]"></i><span>已裝備攜帶物效果 (${ownedHeldIds.length}件)</span></span>
+          </div>
+          <div class="space-y-1.5 mb-2.5">
+            ${heldItemsHtml}
           </div>
         </div>
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
