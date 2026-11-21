@@ -1072,10 +1072,19 @@ Object.assign(window.GameApp, {
   },
 
   goToMegaRingLab() {
-    this.closeMegaInfoModal();
-    this.closePokedexModal();
     const setupEl = document.getElementById("setupModal");
-    if (setupEl) {
+    const dexEl = document.getElementById("pokedexModal");
+    const fromSetup = !!(setupEl && !setupEl.classList.contains("hidden"));
+    const fromDex = !!(dexEl && !dexEl.classList.contains("hidden"));
+
+    this._labReturnTarget = fromSetup ? "setup" : (fromDex ? "pokedex" : "title");
+
+    this.closeMegaInfoModal();
+    if (fromDex) {
+      dexEl.classList.add("hidden");
+      dexEl.style.display = "none";
+    }
+    if (fromSetup) {
       setupEl.classList.add("hidden");
       setupEl.style.display = "none";
     }
@@ -1430,6 +1439,35 @@ Object.assign(window.GameApp, {
     if (modal) {
       modal.classList.add("hidden");
       modal.style.display = "none";
+    }
+    const ret = this._labReturnTarget || "title";
+    this._labReturnTarget = null;
+
+    if (ret === "setup") {
+      const setupEl = document.getElementById("setupModal");
+      if (setupEl) {
+        setupEl.classList.remove("hidden");
+        setupEl.style.display = "flex";
+      }
+      this.renderWizardContent();
+    } else if (ret === "pokedex") {
+      const titleEl = document.getElementById("titleScreen");
+      if (titleEl) {
+        titleEl.classList.remove("hidden");
+        titleEl.style.display = "flex";
+      }
+      const dexEl = document.getElementById("pokedexModal");
+      if (dexEl) {
+        dexEl.classList.remove("hidden");
+        dexEl.style.display = "flex";
+      }
+      this.renderPokedexGrid();
+    } else {
+      const titleEl = document.getElementById("titleScreen");
+      if (titleEl && this.state === "TITLE") {
+        titleEl.classList.remove("hidden");
+        titleEl.style.display = "flex";
+      }
     }
     this.updateTitleUI();
   },
