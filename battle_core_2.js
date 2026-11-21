@@ -134,6 +134,27 @@ window.GameApp = {
       this.ctx.imageSmoothingEnabled = false;
       this.ctx.webkitImageSmoothingEnabled = false;
     }
+
+    // 手機橫拿友善保護：偵測觸控手機意外轉橫 (寬>高 且 高度<=500px) 時自動暫停戰鬥，轉回直向即自動繼續
+    const isCoarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    const isMobileLandscape = isCoarsePointer && this.width > this.height && this.height <= 500;
+    if (isMobileLandscape) {
+      if (this.state === "PLAYING") {
+        this.state = "PAUSED";
+        this._pausedByLandscape = true;
+        if (this.touchJoy) {
+          this.touchJoy.active = false;
+          this.touchJoy.dx = 0;
+          this.touchJoy.dy = 0;
+        }
+      }
+    } else if (this._pausedByLandscape) {
+      this._pausedByLandscape = false;
+      if (this.state === "PAUSED") {
+        this.state = "PLAYING";
+        this.lastFrameTime = performance.now();
+      }
+    }
   },
 
   bindInputs() {
@@ -1954,14 +1975,17 @@ window.GameApp = {
           } else if (skSlot.id === "Ember") {
             triggerRange = 185 * p.areaMult;
           } else if (skSlot.id === "HydroPump" || skSlot.id === "Hydro Pump") {
-            const beamLen = Math.min(355, (225 + lv * 8) * Math.min(1.48, p.areaMult * (lv >= 8 ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+            const cap = (typeof SkillsEngine !== "undefined" && SkillsEngine.getBeamLengthCap) ? SkillsEngine.getBeamLengthCap("HydroPump") : 355;
+            const beamLen = Math.min(cap, (205 + lv * 8) * Math.min(1.48, p.areaMult * (lv >= 8 ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
             triggerRange = beamLen * 0.92;
           } else if (skSlot.id === "Flamethrower") {
+            const cap = (typeof SkillsEngine !== "undefined" && SkillsEngine.getBeamLengthCap) ? SkillsEngine.getBeamLengthCap("Flamethrower") : 285;
             const lvLenMult = lv >= 8 ? 1.22 : (lv >= 4 ? 1.12 : 1.0);
-            const flameLen = Math.min(285, (185 + lv * 6.5) * Math.min(1.42, p.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
+            const flameLen = Math.min(cap, (175 + lv * 6.5) * Math.min(1.42, p.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
             triggerRange = flameLen * 0.92;
           } else if (skSlot.id === "IceBeam" || skSlot.id === "Ice Beam") {
-            const iceLen = Math.min(365, (255 + lv * 8) * Math.min(1.45, p.areaMult * (lv >= 8 ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
+            const cap = (typeof SkillsEngine !== "undefined" && SkillsEngine.getBeamLengthCap) ? SkillsEngine.getBeamLengthCap("IceBeam") : 365;
+            const iceLen = Math.min(cap, (225 + lv * 8) * Math.min(1.45, p.areaMult * (lv >= 8 ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
             triggerRange = iceLen * 0.92;
           } else if (skSlot.id === "WaterGun") {
             triggerRange = 245 * p.areaMult;

@@ -50,6 +50,32 @@ const SkillsEngine = {
     return res;
   },
 
+  isInsideViewport(x, y, pad = 20) {
+    if (typeof GameApp === "undefined" || !GameApp.camera) return true;
+    return (
+      Math.abs(x - GameApp.camera.x) <= GameApp.width * 0.5 + pad &&
+      Math.abs(y - GameApp.camera.y) <= GameApp.height * 0.5 + pad
+    );
+  },
+
+  getBeamLengthCap(kind) {
+    const isPortraitMobile = !!(
+      typeof GameApp !== "undefined" &&
+      GameApp.isMobileDevice &&
+      GameApp.isMobileDevice() &&
+      GameApp.width < GameApp.height
+    );
+    if (isPortraitMobile) {
+      if (kind === "Flamethrower") return Math.min(245, Math.max(195, Math.round(GameApp.width * 0.58)));
+      if (kind === "HydroPump") return Math.min(265, Math.max(210, Math.round(GameApp.width * 0.62)));
+      if (kind === "IceBeam") return Math.min(290, Math.max(230, Math.round(GameApp.width * 0.68)));
+    }
+    if (kind === "Flamethrower") return 285;
+    if (kind === "HydroPump") return 355;
+    if (kind === "IceBeam") return 365;
+    return 320;
+  },
+
   spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
     const maxCap = (GameApp.enemies && GameApp.enemies.length > 140) ? 130 : 240;
     if (this.subParticles.length > maxCap) this.subParticles.shift();
@@ -572,7 +598,7 @@ const SkillsEngine = {
       const traitAreaMult = 1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
       const lvLenMult = level >= 8 ? 1.22 : (level >= 4 ? 1.12 : 1.0);
       const lvWidthMult = level >= 8 ? 1.34 : (level >= 4 ? 1.18 : 1.0);
-      const beamLength = Math.min(285, (185 + level * 6.5) * Math.min(1.42, GameApp.player.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
+      const beamLength = Math.min(this.getBeamLengthCap("Flamethrower"), (175 + level * 6.5) * Math.min(1.42, GameApp.player.areaMult * lvLenMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.5)));
       const endHalfW = Math.min(54, (24 + level * 1.1) * lvWidthMult * (isMoltres ? 1.12 : 1.0) * Math.min(1.38, GameApp.player.areaMult * traitAreaMult));
 
       for (let s = 0; s < streamCount; s++) {
@@ -629,7 +655,7 @@ const SkillsEngine = {
       const beamCount = isBlastoise ? 2 : Math.min(2, count);
       const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
       const traitKbMult = 1 + (trait.megaLauncherKbBonus || 0);
-      const beamLength = Math.min(355, (225 + level * 8) * Math.min(1.48, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
+      const beamLength = Math.min(this.getBeamLengthCap("HydroPump"), (205 + level * 8) * Math.min(1.48, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
       const beamWidth = Math.min(48, (18 + level * 0.85) * (isOverpressure ? 1.28 : 1.0) * (isBlastoise ? 1.16 : 1.0) * Math.min(1.40, GameApp.player.areaMult * traitSizeMult));
       const perp = baseAngle + Math.PI / 2;
 
@@ -700,7 +726,7 @@ const SkillsEngine = {
       const isHighCryo = (level >= 8);
       const beamCount = isArticuno ? 3 : 1;
       const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
-      const beamLength = Math.min(365, (255 + level * 8) * Math.min(1.45, GameApp.player.areaMult * (isHighCryo ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
+      const beamLength = Math.min(this.getBeamLengthCap("IceBeam"), (225 + level * 8) * Math.min(1.45, GameApp.player.areaMult * (isHighCryo ? 1.16 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.45)));
       const beamWidth = Math.min(34, (14 + level * 0.72) * (isHighCryo ? 1.28 : (level >= 4 ? 1.14 : 1.0)) * Math.min(1.38, GameApp.player.areaMult * traitSizeMult));
 
       for (let b = 0; b < beamCount; b++) {
@@ -1881,6 +1907,17 @@ const SkillsEngine = {
           pr.hitSet.add(e);
           GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0);
           this.spawnElementalHitSpark(e.x, e.y, pr.type);
+          if ((pr.vfx === "shadow_orb" || pr.skillId === "Shadow Ball") && !(GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.55)) {
+            this.meleeEffects.push({
+              style: "shadow_implosion",
+              x: e.x,
+              y: e.y,
+              radius: 26,
+              timer: 0.18,
+              maxTime: 0.18,
+              color: "#A855F7"
+            });
+          }
 
           const pColor = pr.color || "#FFFFFF";
           for (let k = 0; k < 5; k++) {
@@ -1943,7 +1980,7 @@ const SkillsEngine = {
           const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
-            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
             if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
@@ -1997,7 +2034,7 @@ const SkillsEngine = {
           const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + (m.endHalfW || 36) + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
-            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
             if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
@@ -2043,7 +2080,7 @@ const SkillsEngine = {
           const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
-            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
             if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
@@ -2054,7 +2091,47 @@ const SkillsEngine = {
               this.spawnElementalHitSpark(e.x, e.y, "Ice");
             }
           }
-        } else if (m.style === "vine_whip") {
+        } else if (m.style === "shadow_implosion") {
+        // 【暗影球命中・暗紫內爆空間漣漪】：極短促 0.18s 空間向內坍縮收縮環 ＋ 幽紫吞噬閃光
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const shrink = Math.max(0.12, 1 - prog * 0.86);
+        const curR = m.radius * shrink;
+        const fade = Math.max(0, 1 - prog * 0.75);
+
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.globalAlpha = fade;
+
+        // 外層深紫黑內縮吞噬漣漪
+        ctx.fillStyle = "rgba(59, 7, 100, 0.55)";
+        ctx.strokeStyle = "#A855F7";
+        ctx.lineWidth = 2.6 * fade + 0.8;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 4 道向圓心拉扯的蒼紫幽靈裂紋
+        ctx.strokeStyle = "#E9D5FF";
+        ctx.lineWidth = 1.6;
+        for (let k = 0; k < 4; k++) {
+          const a = (k * Math.PI) / 2 + prog * 1.4;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * (curR * 1.25), Math.sin(a) * (curR * 1.25));
+          ctx.lineTo(Math.cos(a) * (curR * 0.35), Math.sin(a) * (curR * 0.35));
+          ctx.stroke();
+        }
+
+        // 中央純黑奇點與蒼白高光環
+        ctx.fillStyle = "#090514";
+        ctx.strokeStyle = "#F3E8FF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.max(2.5, curR * 0.38), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "vine_whip") {
           const curReach = m.reach * Math.min(1, prog * 1.7);
           const ox = m.ox !== undefined ? m.ox : m.x;
           const oy = m.oy !== undefined ? m.oy : m.y;
@@ -4885,18 +4962,33 @@ const SkillsEngine = {
           ctx.fill();
         }
 
-        // 末端鞭打落地爆破雙層氣泡音爆環 (V10 經典設計)
-        ctx.strokeStyle = "#BBF7D0";
-        ctx.lineWidth = 3.2;
+        // 末端破空月牙鞭影斬痕（翠綠＋純白銳利甩鞭閃光）
+        const slashR = 14 + prog * 12;
+        const slashAlpha = Math.max(0, 1 - prog * 0.78);
+        ctx.save();
+        ctx.translate(reach, 0);
+        ctx.globalAlpha = slashAlpha;
+
+        ctx.fillStyle = "rgba(34, 197, 94, 0.72)";
         ctx.beginPath();
-        ctx.arc(reach, 0, 16 * prog, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.arc(-2, 0, slashR, -1.18, 1.18);
+        ctx.arc(-8, 0, slashR * 0.74, 1.18, -1.18, true);
+        ctx.closePath();
+        ctx.fill();
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 1.8;
+        ctx.lineWidth = 2.8 * slashAlpha + 0.8;
         ctx.beginPath();
-        ctx.arc(reach, 0, 10 * prog, 0, Math.PI * 2);
+        ctx.arc(-1, 0, slashR * 0.96, -1.05, 1.05);
         ctx.stroke();
+
+        ctx.strokeStyle = "#BBF7D0";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(slashR * 0.65, -7); ctx.lineTo(slashR * 1.18, -13);
+        ctx.moveTo(slashR * 0.65, 7); ctx.lineTo(slashR * 1.18, 13);
+        ctx.stroke();
+        ctx.restore();
 
         ctx.restore();
       } else if (m.style === "karate_cross") {

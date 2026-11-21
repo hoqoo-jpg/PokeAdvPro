@@ -301,6 +301,16 @@
     .canvas-vivid-boost {
       filter: saturate(1.22) contrast(1.06);
     }
+
+    /* 手機橫拿友善旋轉提示遮罩（僅對觸控手機橫向生效，不影響電腦寬屏、平板與掌機） */
+    #landscapeGuardOverlay {
+      display: none;
+    }
+    @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+      #landscapeGuardOverlay {
+        display: flex !important;
+      }
+    }
   </style>
 </head>
 <body class="w-screen h-screen overflow-hidden bg-slate-900 select-none">
@@ -1010,11 +1020,21 @@
     </div>
   </div>
 
+  <!-- 15C. 手機橫拿友善旋轉提示遮罩 -->
+  <div id="landscapeGuardOverlay" class="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-md flex-col items-center justify-center text-white p-6 text-center select-none">
+    <div class="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-amber-400 flex items-center justify-center mb-3 shadow-xl animate-bounce-slow">
+      <i class="fa-solid fa-mobile-screen-button text-3xl text-amber-400"></i>
+    </div>
+    <div class="font-pixel text-xs text-amber-300 tracking-wider mb-1.5">PORTRAIT MODE RECOMMENDED</div>
+    <div class="text-base font-black text-white">請將手機旋轉回「直向」遊玩</div>
+    <p class="text-xs font-bold text-slate-300 mt-1.5 max-w-xs">已為您自動暫停戰鬥，轉回直向後將立即無縫繼續冒險！</p>
+  </div>
+
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.8.0"></script>
-  <script src="map_v11_engine.js?v=6.8.0"></script>
-  <script src="skills_engine.js?v=6.8.0"></script>
-  <script src="battle_core_2.js?v=6.8.0"></script>
-  <script src="game_ui.js?v=6.8.0"></script>
+  <script src="pokedex_data.js?v=6.8.1"></script>
+  <script src="map_v11_engine.js?v=6.8.1"></script>
+  <script src="skills_engine.js?v=6.8.1"></script>
+  <script src="battle_core_2.js?v=6.8.1"></script>
+  <script src="game_ui.js?v=6.8.1"></script>
 </body>
 </html>
