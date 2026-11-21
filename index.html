@@ -67,17 +67,17 @@
       padding-bottom: calc(max(env(safe-area-inset-bottom, 24px), 24px) + 14px) !important;
     }
 
-    /* 戰鬥局內底部安全距離，全面向上抬升至安全可視區 (兼容 PWA 獨立模式橫豎屏) */
+    /* 戰鬥局內底部安全距離（一般瀏覽器已由 100dvh 扣除工具列，貼合拇指區並釋放中央視野） */
     .hud-bottom-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 18px) !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
     }
 
     .hud-partner-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 28px), 28px) + 94px) !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 88px) !important;
     }
 
     .hud-mart-safe {
-      bottom: calc(max(env(safe-area-inset-bottom, 32px), 32px) + 118px) !important;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 112px) !important;
     }
 
     /* 封面輕微暗角與清晰像素背景穿透，凸顯 3D 標題與後方 GBA 像素地圖漫步 */
@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.8.8');
+      background-image: url('images/skills_icons_sheet.png?v=6.8.9');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -277,6 +277,15 @@
     @keyframes pulseMega {
       from { box-shadow: 0 0 12px rgba(56, 189, 248, 0.8), 0 0 24px rgba(168, 85, 247, 0.55), 0 5px 0 #1e1b4b; transform: scale(1); }
       to   { box-shadow: 0 0 24px rgba(56, 189, 248, 1), 0 0 38px rgba(192, 132, 252, 0.9), 0 5px 0 #1e1b4b; transform: scale(1.06); }
+    }
+
+    @keyframes heldItemProcPulse {
+      0%   { transform: scale(1); box-shadow: 0 0 0 rgba(250, 204, 21, 0); border-color: rgba(250, 204, 21, 0.8); }
+      40%  { transform: scale(1.32); box-shadow: 0 0 14px rgba(250, 204, 21, 1); border-color: #FFFFFF; }
+      100% { transform: scale(1); box-shadow: 0 0 0 rgba(250, 204, 21, 0); border-color: rgba(250, 204, 21, 0.8); }
+    }
+    .held-item-proc-pulse {
+      animation: heldItemProcPulse 0.30s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
     /* 二次元 Cut-in 特寫動畫 (1.20s 清晰定格展示) */
@@ -1198,10 +1207,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.8.8"></script>
-  <script src="map_v11_engine.js?v=6.8.8"></script>
-  <script src="skills_engine.js?v=6.8.8"></script>
-  <script src="battle_core_2.js?v=6.8.8"></script>
-  <script src="game_ui.js?v=6.8.8"></script>
+  <script src="pokedex_data.js?v=6.8.9"></script>
+  <script src="map_v11_engine.js?v=6.8.9"></script>
+  <script src="skills_engine.js?v=6.8.9"></script>
+  <script src="battle_core_2.js?v=6.8.9"></script>
+  <script src="game_ui.js?v=6.8.9"></script>
 </body>
 </html>

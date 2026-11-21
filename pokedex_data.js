@@ -364,7 +364,7 @@ function getSkillNextLevelBonusDesc(skillId, nextLv) {
   if (cleanId === "DragonRush") {
     if (nextLv === 3) return `龍首氣旋範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
     if (nextLv === 4) return `冷卻縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
-    if (nextLv === 6) return `★ 龍首氣旋數量 +1！穿透壓制大幅強化，傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `★ 巨龍破陣覺醒！龍首尺寸、突進距離與單發爆發大幅提升（${dmgMultStr}x）！`;
     if (nextLv === 8) return `龍首氣旋範圍擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
     return `龍威衝擊威力提升至 ${dmgMultStr}x！`;
   }

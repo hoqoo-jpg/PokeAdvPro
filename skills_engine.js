@@ -1223,7 +1223,7 @@ const SkillsEngine = {
       return;
     }
 
-    // 3. 龍之俯衝 (Dragon Rush)：方案 B 智慧龍威撲擊 (含騰空飛撲小跳與 0.18s 霸體) ＋ 蒼藍/金焰龍首氣旋直接從胸前咆哮衝出
+    // 3. 龍之俯衝 (Dragon Rush)：單發巨龍破陣（尺寸與距離隨等級平滑成長，並設視覺上限避免遮屏，高爆發濃縮傷害）
     if (meta.type === "Dragon") {
       this.triggerSmartMeleeLunge(caster, baseAngle, 155, 0.12, 14, 0.18);
       if (caster === GameApp.player) {
@@ -1231,35 +1231,39 @@ const SkillsEngine = {
       }
       const isDragonite = !!(caster && caster.id === 149);
       const isMegaX = !!(caster && caster.id === 10034);
-      const dragonWaves = 1 + (level >= 6 ? 1 : 0) + ((isDragonite || isMegaX) ? 1 : 0);
       const dSprUrl = (caster.data && (caster.facingY < 0 ? caster.data.back_sprite : caster.data.forward_sprite)) || null;
-      for (let d = 0; d < dragonWaves; d++) {
-        const ang = baseAngle + (d - (dragonWaves - 1) / 2) * 0.26;
-        const speedVal = (isDragonite || isMegaX) ? 295 : 265;
-        this.groundHazards.push({
-          kind: "dragon_wave",
-          isDragoniteKing: isDragonite,
-          isMegaCharizardX: isMegaX,
-          spriteUrl: dSprUrl,
-          isShiny: !!caster.isShiny,
-          facingX: Math.cos(ang) >= 0 ? 1 : -1,
-          afterimages: [],
-          afterimageTimer: 0.02,
-          x: caster.x + Math.cos(ang) * 16,
-          y: caster.y + Math.sin(ang) * 16,
-          vx: Math.cos(ang) * speedVal,
-          vy: Math.sin(ang) * speedVal,
-          angle: ang,
-          radius: ((isDragonite || isMegaX) ? 58 : 42) * areaScale * (1 + (trait.dragonMawAreaBonus || 0)),
-          dmg: rawDmg * ((isDragonite || isMegaX) ? 0.74 : 0.60),
-          type: "Dragon",
-          timer: 0.78,
-          maxTime: 0.78,
-          tickTimer: 0.01,
-          tickInterval: 0.15,
-          color: isMegaX ? "#0EA5E9" : (isDragonite ? "#F59E0B" : "#4338CA")
-        });
-      }
+      const isMob = typeof GameApp !== "undefined" && GameApp.isMobileDevice && GameApp.isMobileDevice();
+      const maxVisualR = isMob ? 56 : 64;
+      const baseR = (isDragonite || isMegaX) ? 38 : 32;
+      const lvGrow = 1 + (Math.max(1, level) - 1) * 0.042;
+      const finalR = Math.min(maxVisualR, baseR * lvGrow * Math.min(1.28, GameApp.player.areaMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.45)));
+      const speedVal = 275 + Math.max(1, level) * 9 + ((isDragonite || isMegaX) ? 32 : 0);
+      const durVal = 0.68 + Math.max(1, level) * 0.026 + ((isDragonite || isMegaX) ? 0.08 : 0);
+      const singleDmgMult = 0.96 + (level >= 6 ? 0.28 : 0) + ((isDragonite || isMegaX) ? 0.30 : 0);
+
+      this.groundHazards.push({
+        kind: "dragon_wave",
+        isDragoniteKing: isDragonite,
+        isMegaCharizardX: isMegaX,
+        spriteUrl: dSprUrl,
+        isShiny: !!caster.isShiny,
+        facingX: Math.cos(baseAngle) >= 0 ? 1 : -1,
+        afterimages: [],
+        afterimageTimer: 0.02,
+        x: caster.x + Math.cos(baseAngle) * 18,
+        y: caster.y + Math.sin(baseAngle) * 18,
+        vx: Math.cos(baseAngle) * speedVal,
+        vy: Math.sin(baseAngle) * speedVal,
+        angle: baseAngle,
+        radius: finalR,
+        dmg: rawDmg * singleDmgMult,
+        type: "Dragon",
+        timer: durVal,
+        maxTime: durVal,
+        tickTimer: 0.01,
+        tickInterval: 0.14,
+        color: isMegaX ? "#0EA5E9" : (isDragonite ? "#F59E0B" : "#4338CA")
+      });
       SoundFX.play("hit", "Dragon");
       return;
     }
@@ -3917,9 +3921,9 @@ const SkillsEngine = {
         const sprRec = hz.spriteUrl ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
         const trailTint = isMegaX ? "#00F0FF" : (isKing ? "#FACC15" : "#38BDF8");
 
-        // 0. 3 連階梯式精靈拖尾殘影（透明度 0.14 -> 0.28 -> 0.44，零 ctx.filter 開銷）
+        // 0. 3 連階梯式精靈拖尾殘影（提升清晰度：0.22 -> 0.38 -> 0.56，零 ctx.filter 開銷）
         if (sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
-          const alphas = [0.14, 0.28, 0.44];
+          const alphas = [0.22, 0.38, 0.56];
           const scales = [0.84, 0.94, 1.04];
           const totalAI = hz.afterimages.length;
           for (let ai = 0; ai < totalAI; ai++) {
@@ -3938,51 +3942,42 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(sx, sy - 6);
 
-        // 1. 龍首氣旋正中央內嵌「高速拉長俯衝剪影」
-        if (sprRec && sprRec.loaded) {
-          ctx.save();
-          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.18, 0.88);
-          ctx.globalAlpha = lifeAlpha * 0.52;
-          ctx.drawImage(sprRec.img, -24, -22, 48, 48);
-          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#BAE6FD"), lifeAlpha * 0.58);
-          ctx.restore();
-        }
-
+        ctx.save();
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = lifeAlpha;
 
-        // 2. 身後雙道螺旋擴散龍魂尾波
-        [-22, -11].forEach((tx, idx) => {
+        // 1. 身後雙道螺旋擴散龍魂尾波
+        [-18, -9].forEach((tx, idx) => {
           ctx.strokeStyle = isMegaX
-            ? (idx === 0 ? "rgba(37, 99, 235, 0.65)" : "rgba(103, 232, 249, 0.92)")
+            ? (idx === 0 ? "rgba(37, 99, 235, 0.55)" : "rgba(103, 232, 249, 0.88)")
             : (isKing
-                ? (idx === 0 ? "rgba(234, 88, 12, 0.58)" : "rgba(250, 204, 21, 0.88)")
-                : (idx === 0 ? "rgba(67, 56, 202, 0.50)" : "rgba(56, 189, 248, 0.75)"));
-          ctx.lineWidth = ((isKing || isMegaX) ? 6.0 : 5.0) - idx;
+                ? (idx === 0 ? "rgba(234, 88, 12, 0.52)" : "rgba(250, 204, 21, 0.86)")
+                : (idx === 0 ? "rgba(67, 56, 202, 0.45)" : "rgba(56, 189, 248, 0.72)"));
+          ctx.lineWidth = ((isKing || isMegaX) ? 4.8 : 4.0) - idx;
           ctx.beginPath();
-          ctx.arc(tx, 0, r * (0.72 + idx * 0.14), -0.88, 0.88);
+          ctx.arc(tx, 0, r * (0.72 + idx * 0.14), -0.82, 0.82);
           ctx.stroke();
         });
 
-        // 3. 威猛龍首主體輪廓（半透明包裹剪影，呈現龍魂附體感）
-        ctx.fillStyle = isMegaX ? "rgba(12, 74, 110, 0.76)" : (isKing ? "rgba(124, 45, 18, 0.74)" : "rgba(30, 27, 75, 0.74)");
+        // 2. 清透化龍首外殼（透明度降至 0.36，強化外緣流光描邊，絕不糊掉內部精靈剪影）
+        ctx.fillStyle = isMegaX ? "rgba(12, 74, 110, 0.36)" : (isKing ? "rgba(124, 45, 18, 0.34)" : "rgba(30, 27, 75, 0.34)");
         ctx.strokeStyle = isMegaX ? "#38BDF8" : (isKing ? "#FACC15" : "#38BDF8");
-        ctx.lineWidth = (isKing || isMegaX) ? 3.5 : 3.0;
+        ctx.lineWidth = (isKing || isMegaX) ? 3.2 : 2.8;
         ctx.beginPath();
-        ctx.moveTo(r * 1.18, 0);
-        ctx.lineTo(r * 0.45, -r * 0.48);
-        ctx.lineTo(-r * 0.35, -r * 0.92);
-        ctx.lineTo(-r * 0.05, -r * 0.32);
-        ctx.lineTo(-r * 0.55, 0);
-        ctx.lineTo(-r * 0.05, r * 0.32);
-        ctx.lineTo(-r * 0.35, r * 0.92);
-        ctx.lineTo(r * 0.45, r * 0.48);
+        ctx.moveTo(r * 1.15, 0);
+        ctx.lineTo(r * 0.45, -r * 0.46);
+        ctx.lineTo(-r * 0.34, -r * 0.88);
+        ctx.lineTo(-r * 0.05, -r * 0.30);
+        ctx.lineTo(-r * 0.50, 0);
+        ctx.lineTo(-r * 0.05, r * 0.30);
+        ctx.lineTo(-r * 0.34, r * 0.88);
+        ctx.lineTo(r * 0.45, r * 0.46);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
 
-        // 4. 龍首內部能量脈絡與雙側發光龍睛
-        ctx.fillStyle = isMegaX ? "rgba(2, 132, 199, 0.78)" : (isKing ? "rgba(234, 88, 12, 0.75)" : "rgba(67, 56, 202, 0.72)");
+        // 3. 龍首內部半透明能量脈絡與雙側發光龍睛
+        ctx.fillStyle = isMegaX ? "rgba(2, 132, 199, 0.30)" : (isKing ? "rgba(234, 88, 12, 0.28)" : "rgba(67, 56, 202, 0.28)");
         ctx.beginPath();
         ctx.moveTo(r * 0.95, 0);
         ctx.lineTo(r * 0.25, -r * 0.32);
@@ -4011,12 +4006,23 @@ const SkillsEngine = {
           ctx.stroke();
         }
 
-        // 5. 龍吻前端破空純白氣刃
+        // 4. 龍吻前端破空純白氣刃
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 3.2;
+        ctx.lineWidth = 3.0;
         ctx.beginPath();
-        ctx.arc(r * 0.12, 0, r * 0.96, -0.78, 0.78);
+        ctx.arc(r * 0.12, 0, r * 0.94, -0.76, 0.76);
         ctx.stroke();
+        ctx.restore();
+
+        // 5. 繪製於清透龍首之上的「清晰精靈俯衝本影」（一眼看清龍魂附體感）
+        if (sprRec && sprRec.loaded) {
+          ctx.save();
+          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.16, 0.88);
+          ctx.globalAlpha = lifeAlpha * 0.78;
+          ctx.drawImage(sprRec.img, -24, -22, 48, 48);
+          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#BAE6FD"), lifeAlpha * 0.45);
+          ctx.restore();
+        }
         ctx.restore();
 
       } else if (hz.kind === "meteor_strike") {

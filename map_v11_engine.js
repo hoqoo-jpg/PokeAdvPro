@@ -628,11 +628,13 @@ const MapEngine = {
         else if (obPick > 0.45) { kind = "fallen_log"; ow = 96; oh = 40; }
         else if (obPick > 0.25) { kind = "tree_stump"; ow = 48; oh = 48; }
 
-        chunk.obstacles.push({
-          x: baseX + 80 + Math.floor(pseudoRand(8) * 360),
-          y: baseY + 80 + Math.floor(pseudoRand(9) * 360),
-          w: ow, h: oh, kind
-        });
+        // 防堵路保護：避開中央十字主幹道 (x/y: 225~365) 與跳崖缺口，改佈置於四個安全象限內
+        const leftHalf = pseudoRand(8) < 0.5;
+        const topHalf = pseudoRand(9) < 0.5;
+        const ox = baseX + (leftHalf ? (65 + Math.floor(pseudoRand(10) * (170 - ow))) : (370 + Math.floor(pseudoRand(10) * (165 - ow))));
+        const oy = baseY + (topHalf ? (65 + Math.floor(pseudoRand(11) * (165 - oh))) : (375 + Math.floor(pseudoRand(11) * (155 - oh))));
+
+        chunk.obstacles.push({ x: ox, y: oy, w: ow, h: oh, kind });
       }
 
       for (let i = 0; i < 5; i++) {
@@ -715,7 +717,8 @@ const MapEngine = {
         for (const ob of chunk.obstacles) {
           if (ob.kind === "fallen_log") {
             if (!isPlayer) continue;
-            if (ent.vy > 0 && ent.y >= ob.y - 18 && ent.y <= ob.y + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
+            // 橫木雙向可輕跳跨越（無論向上或向下逃命皆不卡住玩家）
+            if (Math.abs(ent.vy) > 1 && ent.y >= ob.y - 16 && ent.y <= ob.y + ob.h + 12 && ent.x >= ob.x - 10 && ent.x <= ob.x + ob.w + 10) {
               if (!ent.isJumpingLedge) {
                 ent.isJumpingLedge = true;
                 ent.jumpTimer = 0;
@@ -725,8 +728,22 @@ const MapEngine = {
           }
           if (ent.isJumpingLedge && ob.kind === "fallen_log") continue;
 
-          const nearX = Math.max(ob.x, Math.min(ent.x, ob.x + ob.w));
-          const nearY = Math.max(ob.y, Math.min(ent.y, ob.y + ob.h));
+          // 2.5D 腳底縮框：大樹、木屋、神殿雕像、石柱與礁石只針對下半部底座做碰撞，北側繞行滑順不卡頭
+          let bx1 = ob.x, bx2 = ob.x + ob.w, by1 = ob.y, by2 = ob.y + ob.h;
+          if (ob.kind === "oak_tree" || ob.kind === "house" || ob.kind === "statue" || ob.kind === "broken_pillar") {
+            bx1 = ob.x + 8;
+            bx2 = ob.x + ob.w - 8;
+            by1 = ob.y + ob.h * 0.54;
+            by2 = ob.y + ob.h - 4;
+          } else if (ob.kind === "reef" || ob.kind === "tree_stump") {
+            bx1 = ob.x + 6;
+            bx2 = ob.x + ob.w - 6;
+            by1 = ob.y + ob.h * 0.42;
+            by2 = ob.y + ob.h - 4;
+          }
+
+          const nearX = Math.max(bx1, Math.min(ent.x, bx2));
+          const nearY = Math.max(by1, Math.min(ent.y, by2));
           const distX = ent.x - nearX;
           const distY = ent.y - nearY;
           const distSq = distX * distX + distY * distY;

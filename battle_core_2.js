@@ -40,6 +40,7 @@ window.GameApp = {
       mobCapProfile: "auto",
       screenFilter: "none",
       dmgTextMode: "all",
+      procNoticeMode: "icon",
       screenShake: "normal"
     }
   },
@@ -58,6 +59,7 @@ window.GameApp = {
   enemies: [],
   particles: [],
   floatingTexts: [],
+  iconPopups: [],
   gems: [],
   mapItems: [],
   lavaFootprints: [],
@@ -991,6 +993,8 @@ window.GameApp = {
     this.enemies = [];
     this.particles = [];
     this.floatingTexts = [];
+    this.iconPopups = [];
+    this._procThrottleMap = {};
     this.gems = [];
     this.mapItems = [];
     this.lavaFootprints = [];
@@ -1658,7 +1662,7 @@ window.GameApp = {
       if (p.miracleSeedTick <= 0) {
         p.miracleSeedTick = 1.2;
         const healAmt = Math.max(1, Math.round(p.maxHp * healRate * 1.2));
-        this.spawnFloatingText(p.x, p.y - 24, `🌱 奇蹟種子 +${healAmt}`, "#4ADE80", 12);
+        this.spawnItemProcFeedback("miracle_seed", p.x, p.y - 28, `+${healAmt}`, `🌱 奇蹟種子 +${healAmt}`, "#4ADE80", "miracle_seed");
         this.spawnParticleCluster(p.x, p.y, "#22C55E", "#86EFAC", 5, "leaf", 0.5);
       }
     }
@@ -1677,7 +1681,7 @@ window.GameApp = {
         color: "#38BDF8"
       });
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 26, "circle", 1.25);
-      this.spawnFloatingText(p.x, p.y - 28, "💧 神秘水滴：護體水幕擊退！", "#38BDF8", 14);
+      this.spawnItemProcFeedback("mystic_water", p.x, p.y - 30, "", "💧 神秘水滴：護體水幕擊退！", "#38BDF8", "mystic_water");
       SoundFX.play("super");
       this.enemies.forEach(e => {
         if (!e.isBoss && Math.hypot(e.x - p.x, e.y - p.y) <= 165) {
@@ -1696,7 +1700,7 @@ window.GameApp = {
         p.loadoutMagnetPulseTimer = 25.0;
         if (this.gems.some(g => !g.magnetized)) {
           this.gems.forEach(g => { g.magnetized = true; });
-          this.spawnFloatingText(p.x, p.y - 26, "🧲 磁力徽章：全場水晶回收！", "#38BDF8", 13);
+          this.spawnItemProcFeedback("magnet", p.x, p.y - 30, "", "🧲 磁力徽章：全場水晶回收！", "#38BDF8", "magnet_badge");
         }
       }
     }
@@ -1723,7 +1727,7 @@ window.GameApp = {
             color: "#FACC15"
           });
           this.spawnParticleCluster(p.x, p.y, "#FACC15", "#FFFFFF", 14, "star", 0.9);
-          this.spawnFloatingText(p.x, p.y - 28, "⚡ 磁鐵脈衝：遠程水晶牽引！", "#FACC15", 14);
+          this.spawnItemProcFeedback("magnet", p.x, p.y - 30, "", "⚡ 磁鐵脈衝：遠程水晶牽引！", "#FACC15", "magnet");
           SoundFX.play("super");
         } else {
           p.heldMagnetTimer = 1.0;
@@ -2760,10 +2764,10 @@ window.GameApp = {
         }
       });
       SoundFX.play("super");
-      this.spawnFloatingText(p.x, p.y - 28, isAutoPulse ? "👑 傳說王權：神聖威壓新星!" : "👑 傳說王權：護盾反震新星!", "#FACC15", 14);
+      this.spawnItemProcFeedback(null, p.x, p.y - 30, "NOVA", isAutoPulse ? "👑 傳說王權：神聖威壓新星!" : "👑 傳說王權：護盾反震新星!", "#FACC15", "royal_nova", ITEM_SPRITES.starPiece);
     } else {
       SoundFX.play("hit");
-      this.spawnFloatingText(p.x, p.y - 24, "🛡️ 多重鱗片抵擋傷害!", "#FACC15", 14);
+      this.spawnItemProcFeedback(null, p.x, p.y - 28, "GUARD", "🛡️ 多重鱗片抵擋傷害!", "#FACC15", "shield_guard", ITEM_SPRITES.starPiece);
     }
   },
 
@@ -3185,7 +3189,7 @@ window.GameApp = {
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
           this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.8);
-          this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+          this.spawnItemProcFeedback("soft_sand", p.x, p.y - 28, "MISS", "柔軟沙子：沙塵閃避 MISS!", "#FDE047", "soft_sand");
           continue;
         }
 
@@ -3526,7 +3530,7 @@ window.GameApp = {
           if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
             p.invulnTimer = 0.45;
             this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 16, "circle", 0.9);
-            this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+            this.spawnItemProcFeedback("soft_sand", p.x, p.y - 28, "MISS", "柔軟沙子：沙塵閃避 MISS!", "#FDE047", "soft_sand");
             this.telegraphs.splice(i, 1);
             continue;
           }
@@ -3610,7 +3614,7 @@ window.GameApp = {
         if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
           p.invulnTimer = 0.45;
           this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 14, "circle", 0.85);
-          this.spawnFloatingText(p.x, p.y - 24, "柔軟沙子：沙塵閃避 MISS!", "#FDE047", 14);
+          this.spawnItemProcFeedback("soft_sand", p.x, p.y - 28, "MISS", "柔軟沙子：沙塵閃避 MISS!", "#FDE047", "soft_sand");
           this.enemyProjectiles.splice(i, 1);
           continue;
         }
@@ -3921,7 +3925,7 @@ window.GameApp = {
             maxTime: 0.20,
             color: "#EC4899"
           });
-          this.spawnFloatingText(enemy.x, enemy.y - 24, "🌀 念力混亂!", "#F472B6", 11);
+          this.spawnItemProcFeedback("twisted_spoon", enemy.x, enemy.y - 26, "", "🌀 念力混亂!", "#F472B6", "twisted_spoon");
         }
       }
     }
@@ -3992,7 +3996,7 @@ window.GameApp = {
         trailTimer: 0
       });
       this.spawnParticleCluster(e.x, e.y - 20, "#A855F7", "#E9D5FF", 10, "star", 0.8);
-      this.spawnFloatingText(e.x, e.y - 28, "👻 詛咒鬼火！", "#C084FC", 13);
+      this.spawnItemProcFeedback("spell_tag", e.x, e.y - 28, "", "👻 詛咒鬼火！", "#C084FC", "spell_tag");
     }
 
     const loadoutCoinMod = (this.player && this.player.loadoutCoinMult) ? this.player.loadoutCoinMult : 1.0;
@@ -5190,6 +5194,66 @@ window.GameApp = {
       ft.life -= dt;
       if (ft.life <= 0) this.floatingTexts.splice(i, 1);
     }
+    if (this.iconPopups) {
+      for (let i = this.iconPopups.length - 1; i >= 0; i--) {
+        const ip = this.iconPopups[i];
+        ip.age += dt;
+        ip.y -= 24 * dt;
+        ip.life -= dt;
+        if (ip.life <= 0) this.iconPopups.splice(i, 1);
+      }
+    }
+  },
+
+  triggerHeldItemHudPulse(itemId) {
+    if (!itemId) return;
+    const el = document.querySelector(`#hudHeldItemList [data-held-id="${itemId}"]`);
+    if (!el) return;
+    el.classList.remove("held-item-proc-pulse");
+    void el.offsetWidth;
+    el.classList.add("held-item-proc-pulse");
+  },
+
+  spawnItemProcFeedback(itemId, x, y, shortLabel = "", fullText = "", color = "#FACC15", throttleKey = null, customSpriteUrl = null) {
+    if (itemId) this.triggerHeldItemHudPulse(itemId);
+    const mode = (this.saveData && this.saveData.settings && this.saveData.settings.procNoticeMode) || "icon";
+    if (mode === "off") return;
+    if (mode === "text") {
+      if (fullText) this.spawnFloatingText(x, y, fullText, color, 13);
+      return;
+    }
+
+    const nowMs = performance.now();
+    if (!this._procThrottleMap) this._procThrottleMap = {};
+    const tKey = throttleKey || itemId || shortLabel;
+    const minInterval = (tKey === "spell_tag" || tKey === "twisted_spoon") ? 450 : 180;
+    if (this._procThrottleMap[tKey] && (nowMs - this._procThrottleMap[tKey]) < minInterval) return;
+    this._procThrottleMap[tKey] = nowMs;
+
+    const hiMeta = (itemId && typeof HELD_ITEMS !== "undefined") ? HELD_ITEMS[itemId] : null;
+    const spriteUrl = customSpriteUrl || (hiMeta ? hiMeta.sprite : null);
+    if (!this.iconPopups) this.iconPopups = [];
+
+    // 水平防重疊錯位：若同時觸發多個氣泡，自動左右微錯開 24px
+    const offsets = [0, 24, -24, 44, -44];
+    let chosenX = x;
+    for (let oi = 0; oi < offsets.length; oi++) {
+      const candX = x + offsets[oi];
+      const clash = this.iconPopups.some(ip => Math.abs(ip.x - candX) < 20 && Math.abs(ip.y - y) < 22);
+      if (!clash) { chosenX = candX; break; }
+    }
+
+    if (this.iconPopups.length > 10) this.iconPopups.shift();
+    this.iconPopups.push({
+      x: chosenX,
+      y,
+      spriteUrl,
+      label: shortLabel || "",
+      color,
+      age: 0,
+      life: 0.72,
+      maxLife: 0.72
+    });
   },
 
   spawnFloatingText(x, y, text, color = "#FFFFFF", size = 12) {
@@ -6665,6 +6729,51 @@ window.GameApp = {
       ctx.restore();
     });
 
+    // 繪製輕量級攜帶物／被動觸發頭頂圖標氣泡 (Icon Pop-ups)
+    if (this.iconPopups && this.iconPopups.length > 0) {
+      this.iconPopups.forEach(ip => {
+        const sx = toSx(ip.x), sy = toSy(ip.y);
+        const popScale = ip.age < 0.12
+          ? (0.55 + 0.60 * (ip.age / 0.12))
+          : (ip.age < 0.22 ? (1.15 - 0.15 * ((ip.age - 0.12) / 0.10)) : 1.0);
+        const alpha = ip.life < 0.22 ? Math.max(0, ip.life / 0.22) : 0.96;
+
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.scale(popScale, popScale);
+        ctx.globalAlpha = alpha;
+
+        // 半透明深色圓底 ＋ 屬性光環描邊
+        ctx.fillStyle = "rgba(15, 23, 42, 0.86)";
+        ctx.strokeStyle = ip.color || "#FACC15";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(0, 0, 11.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // 道具像素原圖
+        const rec = ip.spriteUrl ? SpriteCache.get(ip.spriteUrl) : null;
+        if (rec && rec.loaded) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(rec.img, -8.5, -8.5, 17, 17);
+        }
+
+        // 極簡右側短詞（如 +12 / MISS / GUARD）
+        if (ip.label) {
+          ctx.font = "900 11px 'Noto Sans TC', sans-serif";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "middle";
+          ctx.strokeStyle = "#0F172A";
+          ctx.lineWidth = 3.2;
+          ctx.strokeText(ip.label, 14, 1);
+          ctx.fillStyle = ip.color || "#FFFFFF";
+          ctx.fillText(ip.label, 14, 1);
+        }
+        ctx.restore();
+      });
+    }
+
     // 商業級圖像化螢幕邊緣方向指示器（圓形頭像／道具縮圖 ＋ 外緣指向箭頭 ＋ 去噪分級）
     const edgePad = 36;
     const drawEdgeIconIndicator = (wx, wy, borderColor, labelText, iconImg, iconDrawSize = 24) => {
@@ -6676,8 +6785,16 @@ window.GameApp = {
       const ang = Math.atan2(dy, dx);
       const distMeters = Math.round(Math.hypot(dx, dy) / 10);
 
-      const cx = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
-      const cy = Math.max(edgePad + 44, Math.min(this.height - edgePad - 16, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+      let cx = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
+      let cy = Math.max(edgePad + 46, Math.min(this.height - edgePad - 18, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+      // 智慧避讓左下角招式／夥伴 HUD 與右下角大招／Mega 按鈕區，杜絕重疊
+      const bottomLeftLimitY = this.height - 148;
+      const bottomRightLimitY = this.height - 132;
+      if (cx < this.width * 0.54 && cy > bottomLeftLimitY) {
+        cy = bottomLeftLimitY;
+      } else if (cx > this.width - 148 && cy > bottomRightLimitY) {
+        cy = bottomRightLimitY;
+      }
       const rad = 17;
 
       // 1. 外緣指向箭頭（沿目標方向旋轉，緊貼圓框外側）
@@ -6935,7 +7052,7 @@ window.GameApp = {
         heldBox.innerHTML = Object.keys(p.heldItems || {}).map(itemId => {
           const itemMeta = HELD_ITEMS[itemId];
           return itemMeta ? `
-            <div class="w-6 h-6 bg-slate-900/80 rounded-lg border border-amber-400/80 flex items-center justify-center p-0.5 shadow" title="${itemMeta.name}">
+            <div data-held-id="${itemId}" class="w-6 h-6 bg-slate-900/80 rounded-lg border border-amber-400/80 flex items-center justify-center p-0.5 shadow transition-transform" title="${itemMeta.name}">
               <img src="${itemMeta.sprite}" class="w-4 h-4 pixel-sprite object-contain"/>
             </div>
           ` : '';

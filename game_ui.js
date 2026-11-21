@@ -67,6 +67,7 @@ Object.assign(window.GameApp, {
             mobCapProfile: "auto",
             screenFilter: "none",
             dmgTextMode: "all",
+            procNoticeMode: "icon",
             screenShake: "normal",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
@@ -1025,6 +1026,7 @@ Object.assign(window.GameApp, {
         mobCapProfile: "auto",
         screenFilter: "none",
         dmgTextMode: "all",
+        procNoticeMode: "icon",
         screenShake: "normal"
       }
     };
@@ -2121,6 +2123,7 @@ Object.assign(window.GameApp, {
         mobCapProfile: "auto",
         screenFilter: "none",
         dmgTextMode: "all",
+        procNoticeMode: "icon",
         screenShake: "normal"
       };
     }
@@ -2182,6 +2185,7 @@ Object.assign(window.GameApp, {
       mobCapProfile: "auto",
       screenFilter: "none",
       dmgTextMode: "all",
+      procNoticeMode: "icon",
       screenShake: "normal"
     };
     this.debugMobCap = 0;
@@ -2249,6 +2253,18 @@ Object.assign(window.GameApp, {
           ${renderOptionBtn("dmgTextMode", "all", "全部顯示", "所有攻擊跳字")}
           ${renderOptionBtn("dmgTextMode", "crit_only", "精簡模式", "僅暴擊與克制")}
           ${renderOptionBtn("dmgTextMode", "off", "關閉傷害字", "視野最乾淨")}
+        </div>
+      </div>
+
+      <!-- 3B. 攜帶物與被動觸發提示模式 -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-toolbox"></i> 攜帶物與被動提示</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          ${renderOptionBtn("procNoticeMode", "icon", "✨ 圖標氣泡", "頭頂輕量圖標(推薦)")}
+          ${renderOptionBtn("procNoticeMode", "text", "📝 完整文字", "詳細中文說明")}
+          ${renderOptionBtn("procNoticeMode", "off", "🔇 極簡關閉", "僅留左下閃光")}
         </div>
       </div>
 
