@@ -446,12 +446,29 @@ const SkillsEngine = {
     // 2. 沙盒 V10 物理高拋拋物線：種子炸彈 (Seed Bomb / seed_nut)
     if (cleanSkillId === "SeedBomb" || meta.vfx === "seed_nut") {
       const nutCount = Math.min(4, count);
+      // 0.28s 移動方向微預判（針對朝向玩家逼近的敵群，避開逃跑寶藏怪）
+      let aimX = caster.x + Math.cos(baseAngle) * 185;
+      let aimY = caster.y + Math.sin(baseAngle) * 185;
+      if (!useManualAim && target) {
+        let leadX = target.x, leadY = target.y;
+        if (!target.treasureType && target.status !== "Freeze") {
+          const toPAng = Math.atan2(GameApp.player.y - target.y, GameApp.player.x - target.x);
+          const leadDist = Math.min(44, (target.speed || 65) * 0.28);
+          leadX += Math.cos(toPAng) * leadDist;
+          leadY += Math.sin(toPAng) * leadDist;
+        }
+        aimX = leadX;
+        aimY = leadY;
+      }
+      const aimAng = Math.atan2(aimY - caster.y, aimX - caster.x);
+      const baseDist = (!useManualAim && target) ? Math.min(310, Math.max(75, Math.hypot(aimX - caster.x, aimY - caster.y))) : 185;
+
       for (let i = 0; i < nutCount; i++) {
-        const spreadAng = baseAngle + (nutCount > 1 ? (i - (nutCount - 1) / 2) * 0.24 : 0) + (Math.random() - 0.5) * 0.10;
-        const baseDist = target ? Math.min(310, Math.max(85, Math.hypot(target.x - caster.x, target.y - caster.y))) : 185;
+        const spreadAng = aimAng + (nutCount > 1 ? (i - (nutCount - 1) / 2) * 0.24 : 0) + (Math.random() - 0.5) * 0.10;
         const targetDist = baseDist + (i - (nutCount - 1) / 2) * 24;
         const tx = caster.x + Math.cos(spreadAng) * targetDist;
         const ty = caster.y + Math.sin(spreadAng) * targetDist;
+        const flightTime = 0.46 + i * 0.04;
 
         this.projectiles.push({
           x: caster.x,
@@ -464,7 +481,7 @@ const SkillsEngine = {
           vy: 0,
           angle: spreadAng,
           progress: 0,
-          arcHeight: 68 + i * 8,
+          arcHeight: 62 + i * 7,
           radius: Math.min(22, (13 + level * 0.5) * GameApp.player.areaMult * (1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0))),
           blastAreaBonus: 1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0),
           dmg: rawDmg * 1.15,
@@ -476,8 +493,8 @@ const SkillsEngine = {
           color: "#65A30D",
           pierce: 99,
           knockback: meta.knockback !== undefined ? meta.knockback : 10,
-          life: 0.62 + i * 0.05,
-          maxLife: 0.62 + i * 0.05,
+          life: flightTime,
+          maxLife: flightTime,
           statusBonus: level >= 5 ? 0.35 : 0.15,
           hitSet: new Set(),
           trailTimer: 0
@@ -490,24 +507,40 @@ const SkillsEngine = {
     // 2B. 污泥炸彈 (Sludge Bomb)：拋物線投擲 + 落地生成持續 3.2 秒冒泡腐蝕毒沼 (多段 DOT)
     if (cleanSkillId === "SludgeBomb") {
       const lobCount = Math.min(3, count);
+      let aimX = caster.x + Math.cos(baseAngle) * 165;
+      let aimY = caster.y + Math.sin(baseAngle) * 165;
+      if (!useManualAim && target) {
+        let leadX = target.x, leadY = target.y;
+        if (!target.treasureType && target.status !== "Freeze") {
+          const toPAng = Math.atan2(GameApp.player.y - target.y, GameApp.player.x - target.x);
+          const leadDist = Math.min(42, (target.speed || 65) * 0.28);
+          leadX += Math.cos(toPAng) * leadDist;
+          leadY += Math.sin(toPAng) * leadDist;
+        }
+        aimX = leadX;
+        aimY = leadY;
+      }
+      const aimAng = Math.atan2(aimY - caster.y, aimX - caster.x);
+      const baseDist = (!useManualAim && target) ? Math.min(280, Math.max(72, Math.hypot(aimX - caster.x, aimY - caster.y))) : 165;
+
       for (let i = 0; i < lobCount; i++) {
-        const spreadAng = baseAngle + (lobCount > 1 ? (i - (lobCount - 1) / 2) * 0.28 : 0);
-        const baseDist = (!useManualAim && target) ? Math.min(280, Math.max(80, Math.hypot(target.x - caster.x, target.y - caster.y))) : 165;
+        const spreadAng = aimAng + (lobCount > 1 ? (i - (lobCount - 1) / 2) * 0.28 : 0);
         const tx = caster.x + Math.cos(spreadAng) * (baseDist + (i - (lobCount - 1) / 2) * 26);
         const ty = caster.y + Math.sin(spreadAng) * (baseDist + (i - (lobCount - 1) / 2) * 26);
+        const flightTime = 0.45 + i * 0.04;
 
         this.projectiles.push({
           x: caster.x, y: caster.y,
           startX: caster.x, startY: caster.y,
           targetX: tx, targetY: ty,
           vx: 0, vy: 0, angle: spreadAng,
-          progress: 0, arcHeight: 58 + i * 6,
+          progress: 0, arcHeight: 54 + i * 5,
           radius: Math.min(22, (14 + level * 0.5) * GameApp.player.areaMult),
           hazardDurMult: trait.psychicHazardDurMult || 1.0,
           dmg: rawDmg * 0.85,
           type: "Poison", skillId: "Sludge Bomb", vfx: "sludge_lob",
           color: "#9333EA", pierce: 99, knockback: 4,
-          life: 0.55 + i * 0.04, maxLife: 0.55 + i * 0.04,
+          life: flightTime, maxLife: flightTime,
           statusBonus: level >= 5 ? 0.45 : 0.25,
           hitSet: new Set(), trailTimer: 0
         });
@@ -595,13 +628,13 @@ const SkillsEngine = {
     // 2E-0. 火花 (Ember)：廣角扇形（±26°）、短射程（~180px）高頻噴吐 2～4 團搖曳火苗，專職貼身扇形撒網與高頻灼傷
     if (cleanSkillId === "Ember") {
       const sparkCount = Math.min(5, count + 1); // Lv.1: 2團, Lv.4: 3團, Lv.8: 4團
-      const fanArc = 0.56 + (level >= 6 ? 0.14 : 0); // 約 32°~40° 廣角扇形
+      const fanArc = 0.60 + (level >= 6 ? 0.14 : 0); // 約 34°~42° 廣角噴濺火星扇面
       const areaBonus = 1 + (trait.dragonMawAreaBonus || 0) + (trait.legendaryAreaBonus || 0);
       for (let i = 0; i < sparkCount; i++) {
         const frac = sparkCount > 1 ? (i / (sparkCount - 1) - 0.5) : 0;
-        const ang = baseAngle + frac * fanArc + (Math.random() - 0.5) * 0.08;
-        const spd = 365 + (i % 2) * 20;
-        const muzzle = 22;
+        const ang = baseAngle + frac * fanArc + (Math.random() - 0.5) * 0.10;
+        const spd = 410 + (Math.random() - 0.5) * 45;
+        const muzzle = 20;
         this.projectiles.push({
           x: caster.x + Math.cos(ang) * muzzle,
           y: caster.y + Math.sin(ang) * muzzle,
@@ -609,6 +642,8 @@ const SkillsEngine = {
           vy: Math.sin(ang) * spd,
           initSpeed: spd,
           angle: ang,
+          cinderSeed: Math.random() * 100,
+          flutterSign: (i % 2 === 0 ? 1 : -1),
           casterRef: caster,
           radius: Math.min(23, 15.5 * GameApp.player.areaMult * (level >= 8 ? 1.18 : 1.0) * areaBonus),
           dmg: rawDmg * 0.68,
@@ -619,8 +654,8 @@ const SkillsEngine = {
           color: "#F97316",
           pierce: level >= 6 ? 3 : 2,
           knockback: 0,
-          life: 0.48,
-          maxLife: 0.48,
+          life: 0.54,
+          maxLife: 0.54,
           statusBonus: level >= 5 ? 0.40 : 0.22,
           hitSet: new Set(),
           trailTimer: 0
@@ -1081,20 +1116,23 @@ const SkillsEngine = {
         }
 
         // 前段快拳採極輕擊退把目標釘在拳程內吃滿連招，終結重拳才轟出強擊退＋額外 +20% 暴擊率
+        // 微延遲 55ms 對齊拳頭伸直撞擊目標的衝擊幀 (Impact Frame)
         const punchKb = isFinisher ? (kb * 1.55) : Math.min(4, kb * 0.25);
         const punchDmg = rawDmg * (dmgMults[hitIdx] || 0.50);
         const extraCrit = isFinisher ? 0.20 : 0;
-        const hitCandidates = this.getEnemiesInRadius(fx, fy, hitRad * 1.08);
-        hitCandidates.forEach(e => {
-          if (Math.hypot(e.x - fx, e.y - fy) <= hitRad * 1.08 + e.radius) {
-            GameApp.dealDamageToEnemy(e, punchDmg, meta.type, isFinisher ? 0.35 : 0.15, punchKb, extraCrit);
+        setTimeout(() => {
+          if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+          const hitCandidates = this.getEnemiesInRadius(fx, fy, hitRad * 1.08);
+          hitCandidates.forEach(e => {
+            if (e && e.hp > 0 && Math.hypot(e.x - fx, e.y - fy) <= hitRad * 1.08 + e.radius) {
+              GameApp.dealDamageToEnemy(e, punchDmg, meta.type, isFinisher ? 0.35 : 0.15, punchKb, extraCrit);
+            }
+          });
+          if (isFinisher) {
+            GameApp.spawnParticleCluster(fx, fy, "#FFFFFF", "#FACC15", 8, "star", 1.05);
           }
-        });
-
-        if (isFinisher) {
-          GameApp.spawnParticleCluster(fx, fy, "#FFFFFF", "#FACC15", 8, "star", 1.05);
-        }
-        SoundFX.play("hit", "Fighting");
+          SoundFX.play("hit", "Fighting");
+        }, 55);
       };
 
       firePunch(0);
@@ -1118,9 +1156,9 @@ const SkillsEngine = {
       const drainPct = level >= 6 ? 0.010 : 0.008;
       let healedThisCast = false;
 
-      // 記錄第 1 段本體撞擊的基準落點，後續殘影與動能氣浪從上一段落點接力向前推進
+      // 記錄第 1 段本體貼身撞擊基準落點（1:1 對齊風罩視覺半徑，杜絕隔山打牛），後續殘影接力前衝
       const stepDist = 34 * Math.min(1.25, tackleAreaScale);
-      const firstDist = 26 * Math.min(1.20, tackleAreaScale);
+      const firstDist = 22 * Math.min(1.15, tackleAreaScale);
       let chainX = caster.x + Math.cos(baseAngle) * firstDist;
       let chainY = caster.y + Math.sin(baseAngle) * firstDist;
       const lockedSprUrl = (caster.data && (caster.facingY < 0 ? caster.data.back_sprite : caster.data.forward_sprite)) || null;
@@ -1152,7 +1190,9 @@ const SkillsEngine = {
           chainY = hitY;
         }
 
-        const rad = Math.min(waveIdx === 0 ? 60 : (isFinisher ? 78 : 68), (44 + waveIdx * 8) * tackleAreaScale);
+        const rad = waveIdx === 0
+          ? Math.min(46, Math.round(36 * tackleAreaScale))
+          : Math.min(isFinisher ? 74 : 64, Math.round((42 + waveIdx * 8) * tackleAreaScale));
         const waveDmg = rawDmg * (tackleDmgMults[waveIdx] || 0.80);
         const waveKb = isFinisher ? (effectiveKb * 1.25) : effectiveKb;
 
@@ -1194,11 +1234,14 @@ const SkillsEngine = {
         hitCandidates.forEach(e => {
           if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
             GameApp.dealDamageToEnemy(e, waveDmg, meta.type, isFinisher ? 0.30 : 0.18, waveKb, isFinisher ? 0.15 : 0);
+            const hitAng = Math.atan2(e.y - startY, e.x - startX);
+            const impactX = e.x - Math.cos(hitAng) * (e.radius * 0.45);
+            const impactY = e.y - Math.sin(hitAng) * (e.radius * 0.45);
             this.meleeEffects.push({
               style: "z_spark",
-              x: (e.x + hitX) * 0.5,
-              y: (e.y + hitY) * 0.5,
-              radius: 18 + waveIdx * 3,
+              x: impactX,
+              y: impactY,
+              radius: 16 + waveIdx * 3,
               timer: 0.16,
               maxTime: 0.16,
               color: isFinisher ? "#FEF08A" : "#FFFFFF"
@@ -2045,8 +2088,20 @@ const SkillsEngine = {
         continue;
       }
 
-      pr.x += pr.vx * dt;
-      pr.y += pr.vy * dt;
+      if (pr.vfx === "ember_spark") {
+        // 火花阻尼減速 ＋ 輕微熱氣流左右飄忽 (Drag + Thermal Flutter)
+        const drag = Math.pow(0.24, dt);
+        pr.vx *= drag;
+        pr.vy *= drag;
+        const elapsed = (pr.maxLife || 0.54) - pr.life;
+        const perpAng = (pr.angle || 0) + Math.PI * 0.5;
+        const flutter = Math.sin(elapsed * 22 + (pr.cinderSeed || 0)) * 58 * (pr.flutterSign || 1);
+        pr.x += (pr.vx + Math.cos(perpAng) * flutter) * dt;
+        pr.y += (pr.vy + Math.sin(perpAng) * flutter) * dt;
+      } else {
+        pr.x += pr.vx * dt;
+        pr.y += pr.vy * dt;
+      }
       pr.life -= dt;
       if (pr.spawnGraceTimer > 0) pr.spawnGraceTimer -= dt;
 
@@ -2054,7 +2109,7 @@ const SkillsEngine = {
       if (pr.trailTimer <= 0) {
         pr.trailTimer = 0.045;
         if (pr.vfx === "ember_spark") {
-          this.spawnSubParticle(pr.x - pr.vx * 0.02, pr.y - pr.vy * 0.02, (Math.random() - 0.5) * 15, (Math.random() - 0.5) * 15, "#F97316", 2.0, 0.20, "circle");
+          this.spawnSubParticle(pr.x + (Math.random() - 0.5) * 6, pr.y + (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 28, -22 - Math.random() * 24, Math.random() < 0.5 ? "#FEF08A" : "#F97316", 2.2, 0.22, "diamond");
         } else if (pr.vfx === "water_gun") {
           this.spawnSubParticle(pr.x - pr.vx * 0.02, pr.y - pr.vy * 0.02, (Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16, "#BAE6FD", 2.0, 0.18, "circle");
         } else if (pr.vfx === "fire_stream") {
@@ -2094,6 +2149,20 @@ const SkillsEngine = {
               maxTime: 0.18,
               color: "#A855F7"
             });
+          } else if (pr.vfx === "ember_spark") {
+            // 火花接觸爆散 (Cinder Pop)：炸出 5 顆紅橘跳躍像素火星
+            for (let cp = 0; cp < 5; cp++) {
+              const ca = Math.random() * Math.PI * 2;
+              const cs = 55 + Math.random() * 65;
+              this.spawnSubParticle(e.x, e.y, Math.cos(ca) * cs, Math.sin(ca) * cs - 18, cp % 2 === 0 ? "#FEF08A" : "#EF4444", 2.6 + Math.random() * 1.1, 0.22, "diamond");
+            }
+          } else if (pr.vfx === "bullet_seed") {
+            // 種子機關槍命中：補上細碎翠綠＋深褐爆殼微粒
+            for (let bs = 0; bs < 4; bs++) {
+              const ba = (pr.angle || 0) + Math.PI + (Math.random() - 0.5) * 1.6;
+              const bspd = 52 + Math.random() * 48;
+              this.spawnSubParticle(e.x, e.y, Math.cos(ba) * bspd, Math.sin(ba) * bspd, bs % 2 === 0 ? "#84CC16" : "#78350F", 2.5, 0.20, bs % 2 === 0 ? "leaf" : "diamond");
+            }
           }
 
           const pColor = pr.color || "#FFFFFF";
@@ -5684,20 +5753,21 @@ const SkillsEngine = {
         const ly = cRef ? Math.sin(cRef.lungeAngle || 0) * (cRef.lungeDist || 0) * lungeProg : 0;
         const baseSx = cRef ? toSx(cRef.x) + lx : toSx(m.ox !== undefined ? m.ox : m.x);
         const baseSy = cRef ? toSy(cRef.y) + ly : toSy(m.oy !== undefined ? m.oy : m.y);
-        const shroudR = 26 + prog * 10;
+        const targetR = Math.max(30, m.radius || 38);
+        const shroudR = targetR * (0.72 + prog * 0.30);
 
         ctx.save();
         ctx.translate(baseSx, baseSy);
         ctx.rotate(m.angle || 0);
 
-        // 1. 身體兩側向後掠起的破風流線羽翼 (Swept-back Slipstreams，從頭頂包覆至身後)
+        // 1. 身體兩側向後掠起的破風流線羽翼 (Swept-back Slipstreams)
         ctx.strokeStyle = "rgba(224, 242, 254, 0.82)";
         ctx.lineWidth = 2.4 * (1 - prog * 0.35);
         ctx.lineCap = "round";
         [-1, 1].forEach(side => {
           ctx.beginPath();
           ctx.moveTo(16, side * 6);
-          ctx.quadraticCurveTo(2, side * (shroudR * 0.85), -20 - prog * 8, side * (shroudR * 0.95));
+          ctx.quadraticCurveTo(2, side * (shroudR * 0.82), -18 - prog * 8, side * (shroudR * 0.92));
           ctx.stroke();
 
           ctx.strokeStyle = "rgba(254, 240, 138, 0.75)";
@@ -5708,29 +5778,36 @@ const SkillsEngine = {
           ctx.stroke();
         });
 
-        // 2. 緊貼精靈鼻尖前緣 (僅 +6px) 的半透明貼身破空弧形風罩 (Mach Bow Shock)
-        const bowGrad = ctx.createRadialGradient(8, 0, 6, 8, 0, shroudR);
+        // 2. 1:1 貼齊實際判定半徑的破空衝擊風罩 ＋ 前推短促動能氣浪
+        const bowGrad = ctx.createRadialGradient(10, 0, 8, 10, 0, shroudR);
         bowGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
-        bowGrad.addColorStop(0.55, "rgba(186, 230, 253, 0.35)");
+        bowGrad.addColorStop(0.55, "rgba(186, 230, 253, 0.36)");
         bowGrad.addColorStop(0.88, "rgba(255, 255, 255, 0.92)");
         bowGrad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
         ctx.fillStyle = bowGrad;
         ctx.beginPath();
-        ctx.arc(4, 0, shroudR, -1.05, 1.05);
-        ctx.arc(-4, 0, shroudR * 0.72, 1.05, -1.05, true);
+        ctx.arc(8, 0, shroudR, -1.08, 1.08);
+        ctx.arc(-2, 0, shroudR * 0.72, 1.08, -1.08, true);
         ctx.closePath();
         ctx.fill();
 
         // 風罩最前緣銳利純白高光刃線
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 3.0 * (1 - prog * 0.3);
+        ctx.lineWidth = 3.2 * (1 - prog * 0.3);
         ctx.beginPath();
-        ctx.arc(5, 0, shroudR * 0.96, -0.92, 0.92);
+        ctx.arc(9, 0, shroudR * 0.98, -0.96, 0.96);
+        ctx.stroke();
+
+        // 前推短促動能氣浪外弧（標示實際打擊前緣）
+        ctx.strokeStyle = "rgba(186, 230, 253, 0.75)";
+        ctx.lineWidth = 2.0 * (1 - prog * 0.45);
+        ctx.beginPath();
+        ctx.arc(14 + prog * 10, 0, shroudR * 1.06, -0.78, 0.78);
         ctx.stroke();
 
         // 鼻尖破空閃光點
         if (prog < 0.65) {
-          const tipX = 5 + shroudR * 0.98;
+          const tipX = 10 + shroudR;
           ctx.fillStyle = "#FEF08A";
           ctx.beginPath();
           ctx.moveTo(tipX + 7, 0); ctx.lineTo(tipX, -3.5);
@@ -6097,42 +6174,62 @@ const SkillsEngine = {
       ctx.translate(sx, sy);
 
       if (pr.vfx === "ember_spark") {
-        // 【小火龍・火花（Ember）】：搖曳淚滴形火苗舌 ＋ 亮黃高溫內焰 ＋ 隨行飛散火星簇
-        ctx.rotate(pr.angle || 0);
-        const vr = Math.min(13, r * 0.78);
-        const wag = Math.sin(now * 14 + pr.x * 0.08) * (vr * 0.28);
+        // 【小火龍・火花（Ember）】：不規則跳動像素火星簇（高溫明黃火芯 ＋ 3 顆錯落閃爍菱形／方形火星）
+        const seed = pr.cinderSeed || (pr.x * 0.13);
+        const flicker = Math.sin(now * 28 + seed);
+        const vr = Math.min(11.5, r * 0.68);
+        const jx = Math.cos(now * 34 + seed) * 1.4;
+        const jy = Math.sin(now * 31 + seed * 1.7) * 1.4;
 
-        // 外層赤紅搖曳火舌（前圓後尖淚滴流線）
+        ctx.rotate(pr.angle || 0);
+
+        // 1. 柔和赤橘熱暈外層（營造高溫餘燼感，不再是硬邊子彈）
+        const halo = ctx.createRadialGradient(jx, jy, 1.5, jx, jy, vr * 1.15);
+        halo.addColorStop(0, "rgba(254, 240, 138, 0.85)");
+        halo.addColorStop(0.5, "rgba(249, 115, 22, 0.55)");
+        halo.addColorStop(1, "rgba(220, 38, 38, 0)");
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(jx, jy, vr * 1.15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. 主火星：高頻跳動的不規則菱形火芯（外赤紅 ➔ 中熾橘 ➔ 內白黃）
+        const cs = vr * (0.62 + flicker * 0.12);
+        ctx.save();
+        ctx.translate(jx, jy);
+        ctx.rotate(flicker * 0.35);
         ctx.fillStyle = "#DC2626";
         ctx.beginPath();
-        ctx.arc(vr * 0.22, 0, vr * 0.68, -Math.PI * 0.55, Math.PI * 0.55);
-        ctx.quadraticCurveTo(-vr * 0.35, vr * 0.55, -vr * 1.35, wag);
-        ctx.quadraticCurveTo(-vr * 0.35, -vr * 0.55, vr * 0.22, -vr * 0.68);
+        ctx.moveTo(cs * 1.15, 0); ctx.lineTo(0, -cs * 0.85);
+        ctx.lineTo(-cs * 1.35, 0); ctx.lineTo(0, cs * 0.85);
         ctx.closePath();
         ctx.fill();
 
-        // 中層橘黃躍動火苗
         ctx.fillStyle = "#F97316";
         ctx.beginPath();
-        ctx.arc(vr * 0.26, 0, vr * 0.48, -Math.PI * 0.55, Math.PI * 0.55);
-        ctx.quadraticCurveTo(-vr * 0.15, vr * 0.35, -vr * 0.92, wag * 0.65);
-        ctx.quadraticCurveTo(-vr * 0.15, -vr * 0.35, vr * 0.26, -vr * 0.48);
+        ctx.moveTo(cs * 0.82, 0); ctx.lineTo(0, -cs * 0.58);
+        ctx.lineTo(-cs * 0.95, 0); ctx.lineTo(0, cs * 0.58);
         ctx.closePath();
         ctx.fill();
 
-        // 內層熾白金黃火芯
-        ctx.fillStyle = "#FEF08A";
-        ctx.beginPath();
-        ctx.ellipse(vr * 0.30, 0, vr * 0.32, vr * 0.22, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = "#FEF9C3";
+        ctx.fillRect(-cs * 0.30, -cs * 0.30, cs * 0.60, cs * 0.60);
+        ctx.restore();
 
-        // 周圍伴飛的 3 顆跳動小火星（體現「火花」散落感）
-        ctx.fillStyle = "#FDE047";
-        ctx.beginPath();
-        ctx.arc(-vr * 0.65, -vr * 0.52 + wag * 0.3, 2.1, 0, Math.PI * 2);
-        ctx.arc(-vr * 0.95, vr * 0.46 - wag * 0.3, 1.8, 0, Math.PI * 2);
-        ctx.arc(-vr * 1.45, -wag * 0.4, 1.5, 0, Math.PI * 2);
-        ctx.fill();
+        // 3. 周圍 3 顆錯落閃爍的方形／菱形像素火星碎屑
+        const embers = [
+          { ox: -vr * 0.72, oy: -vr * 0.58 + Math.sin(now * 24 + seed) * 2.4, sz: 3.6, col: "#FEF08A" },
+          { ox: -vr * 0.98, oy:  vr * 0.50 + Math.cos(now * 26 + seed) * 2.4, sz: 3.0, col: "#FB923C" },
+          { ox: -vr * 1.48, oy:  Math.sin(now * 20 + seed * 2) * 3.2,         sz: 2.4, col: "#EF4444" }
+        ];
+        embers.forEach((em, idx) => {
+          ctx.save();
+          ctx.translate(em.ox, em.oy);
+          ctx.rotate(now * (idx % 2 === 0 ? 5 : -5) + seed);
+          ctx.fillStyle = em.col;
+          ctx.fillRect(-em.sz * 0.5, -em.sz * 0.5, em.sz, em.sz);
+          ctx.restore();
+        });
 
       } else if (pr.vfx === "fire_stream") {
         // 【噴火龍／火焰鳥・噴射火焰（視覺精悍修長版）】：保留完整大範圍傷害判定 r，視覺半徑收斂於 vr (上限 17px)，呈現俐落修長噴射火舌
@@ -6513,9 +6610,9 @@ const SkillsEngine = {
         ctx.arc(6, 0, 21, -0.68, 0.68);
         ctx.stroke();
       } else if (pr.vfx === "bullet_seed") {
-        // 【種子機關槍（Bullet Seed）】：精巧高速黃金流光種子彈（視覺半徑 6.5px，帶翠綠尾跡流線，密集不擋視野）
+        // 【種子機關槍（Bullet Seed）】：飽滿高速黃金流光種子彈（視覺半徑 8.5px，貼近判定框且連射感明確）
         ctx.rotate(pr.angle || 0);
-        const vr = 6.5;
+        const vr = 8.5;
 
         // 尾部翠綠高速流光線
         const tailGrad = ctx.createLinearGradient(-vr * 3.2, 0, 0, 0);
