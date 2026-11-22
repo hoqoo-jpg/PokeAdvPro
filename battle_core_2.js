@@ -1547,6 +1547,28 @@ window.GameApp = {
 
     const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
+    // 閃光精靈出戰專屬：每 2.2 秒於身周輕閃淡金四芒星，突顯正版官方色違質感
+    if (p.isShiny) {
+      p._shinySparkTick = (p._shinySparkTick || 0.8) - dt;
+      if (p._shinySparkTick <= 0) {
+        p._shinySparkTick = 2.2;
+        for (let ss = 0; ss < 2; ss++) {
+          const sx = p.x + (Math.random() - 0.5) * 34;
+          const sy = p.y - 4 + (Math.random() - 0.5) * 24;
+          SkillsEngine.spawnSubParticle(sx, sy, (Math.random() - 0.5) * 14, -26 - Math.random() * 14, ss === 0 ? "#FEF08A" : "#FFFFFF", 3.2, 0.55, "star");
+        }
+      }
+    }
+    // 超級妙蛙花 (#10033) 【厚脂肪 ＋ 光合堡壘】：免疫灼傷/冰凍並常駐 +0.8%/s 光合回血
+    if (p.id === 10033) {
+      if (p.status === "Burn" || p.status === "Freeze") {
+        p.status = null;
+        p.statusTimer = 0;
+      }
+      if (p.hp < p.maxHp) {
+        p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.008 * dt * bossHealMod);
+      }
+    }
     if (p.megaEvolved || p.id >= 10000) {
       p._megaSparkTick = (p._megaSparkTick || 0) - dt;
       if (p._megaSparkTick <= 0) {
@@ -2632,8 +2654,8 @@ window.GameApp = {
     const pokeId = kind === "meowth" ? 52 : 113;
     const pData = POKEMON_MAP.get(pokeId);
     const ang = Math.random() * Math.PI * 2;
-    const ex = this.player.x + Math.cos(ang) * 340;
-    const ey = this.player.y + Math.sin(ang) * 340;
+    const ex = this.player.x + Math.cos(ang) * 285;
+    const ey = this.player.y + Math.sin(ang) * 285;
     const diff = this.selectedDifficulty;
     const hp = Math.round((kind === "meowth" ? 260 : 620) * (1 + (this.runTime / 60) * 0.40) * diff.hpMult);
 
@@ -2646,13 +2668,17 @@ window.GameApp = {
       hp,
       maxHp: hp,
       atk: 0,
-      speed: kind === "meowth" ? 130 : 54,
+      speed: kind === "meowth" ? 104 : 58,
       radius: 24,
       isElite: false,
       isBoss: false,
       isShiny: false,
       treasureType: kind,
-      escapeTimer: 20.0,
+      fleeTriggered: false,
+      fleeDirSign: Math.random() < 0.5 ? 1 : -1,
+      tauntPauseTimer: 0,
+      tauntCd: 3.0,
+      escapeTimer: 26.0,
       facingX: -1,
       facingY: 1,
       status: null,
@@ -2961,12 +2987,48 @@ window.GameApp = {
         : e.speed * bossEnrageSpd;
 
       let moveDir = confDir;
-      if (e.treasureType === "meowth") moveDir = -1.0;
-      else if (e.treasureType === "chansey") moveDir = -0.85;
-
       let vx = (dx / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
       let vy = (dy / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
-      if (e.status === "Confusion" && !e.treasureType) {
+
+      if (e.treasureType) {
+        // 盜寶哥布林 AI：見面 (220px 內) 或受傷後才受驚逃跑；未受驚前在視野邊緣附近切線徘徊，絕不剛出生就逃到百米外！
+        if (!e.fleeTriggered && (dist <= 220 || e.hp < e.maxHp)) {
+          e.fleeTriggered = true;
+          this.spawnFloatingText(e.x, e.y - 26, e.treasureType === "meowth" ? "❗ 聚寶喵喵受驚逃跑!" : "❗ 吉利蛋受驚逃跑!", "#FACC15", 12);
+        }
+        const angToPlayer = Math.atan2(dy, dx);
+        const side = e.fleeDirSign || 1;
+        if (!e.fleeTriggered) {
+          // 巡邏階段：若距離偏遠(>260px)則斜向靠近視野，否則繞著主角切線散步
+          const patrolAng = dist > 260 ? (angToPlayer + side * 0.55) : (angToPlayer + side * 1.48);
+          const patrolSpd = Math.min(72, effectiveSpd * 0.72);
+          vx = Math.cos(patrolAng) * patrolSpd;
+          vy = Math.sin(patrolAng) * patrolSpd;
+        } else {
+          // 受驚逃跑階段：弧線切線繞逃 ＋ 每 3 秒停頓 0.42 秒灑落金幣讓玩家有機會追上
+          if (e.tauntPauseTimer > 0) {
+            e.tauntPauseTimer -= dt;
+            vx = 0;
+            vy = 0;
+          } else {
+            e.tauntCd = (e.tauntCd === undefined ? 3.0 : e.tauntCd - dt);
+            if (e.tauntCd <= 0) {
+              e.tauntCd = 3.0;
+              e.tauntPauseTimer = 0.42;
+              if (e.treasureType === "meowth") {
+                this.runCoins += 12;
+                this.saveData.coins += 12;
+                this.spawnParticleCluster(e.x, e.y, "#FACC15", "#FEF08A", 8, "star", 0.7);
+                this.spawnFloatingText(e.x, e.y - 24, "💰 掉金幣 +12!", "#FACC15", 11);
+              }
+            }
+            const fleeBase = angToPlayer + Math.PI + side * 0.62;
+            const fleeSpd = Math.min(e.treasureType === "meowth" ? 108 : 64, effectiveSpd) * paraMult * eTerrMult;
+            vx = Math.cos(fleeBase) * fleeSpd;
+            vy = Math.sin(fleeBase) * fleeSpd;
+          }
+        }
+      } else if (e.status === "Confusion") {
         // 混亂改為「暈眩蛇行與切線打轉」，偶爾仍會歪斜撞近玩家，不再永遠倒退逃離螢幕
         const swirlDir = (e.id % 2 === 0 ? 1 : -1);
         const dizzyOffset = swirlDir * 1.15 + Math.sin(performance.now() * 0.0055 + e.id * 2.3) * 1.65;
@@ -2974,17 +3036,6 @@ window.GameApp = {
         const baseA = Math.atan2(vy, vx) + dizzyOffset;
         vx = Math.cos(baseA) * cSpd;
         vy = Math.sin(baseA) * cSpd;
-      }
-
-      // 寶藏精靈防卡牆/障礙物滑動引導
-      if (e.treasureType) {
-        if (!e.slipAngle || Math.random() < 0.04) {
-          e.slipAngle = (Math.random() < 0.5 ? 0.45 : -0.45);
-        }
-        const curAng = Math.atan2(vy, vx) + e.slipAngle;
-        const curSpd = Math.hypot(vx, vy);
-        vx = Math.cos(curAng) * curSpd;
-        vy = Math.sin(curAng) * curSpd;
       }
 
       e.x += vx * dt;
@@ -3692,10 +3743,14 @@ window.GameApp = {
         }
 
         if (inflictedStatus && Math.random() < inflictedChance && !p.status) {
-          p.status = inflictedStatus;
+          if (p.id === 10033 && (inflictedStatus === "Burn" || inflictedStatus === "Freeze")) {
+            this.spawnFloatingText(p.x, p.y - 30, "🌺 厚脂肪免疫！", "#4ADE80", 12);
+          } else {
+            p.status = inflictedStatus;
           p.statusTimer = duration;
-          const statusNames = { Poison: "中毒!", Paralysis: "麻痺!", Confusion: "混亂反向!", Freeze: "減速遲緩!", Burn: "灼傷!" };
-          this.spawnFloatingText(p.x, p.y - 32, statusNames[inflictedStatus] || "異常!", "#F43F5E", 14);
+            const statusNames = { Poison: "中毒!", Paralysis: "麻痺!", Confusion: "混亂反向!", Freeze: "減速遲緩!", Burn: "灼傷!" };
+            this.spawnFloatingText(p.x, p.y - 32, statusNames[inflictedStatus] || "異常!", "#F43F5E", 14);
+          }
         }
 
         // 火焰鳥大字炎巨彈分裂火星
@@ -5768,19 +5823,19 @@ window.GameApp = {
       const ringInner = isMVenu ? "#F472B6" : (isMBlas ? "#FEF08A" : "#E0F2FE");
       const midGlow = isMVenu ? "rgba(34, 197, 94, 0.34)" : (isMBlas ? "rgba(2, 132, 199, 0.36)" : "rgba(14, 165, 233, 0.34)");
       ctx.save();
-      const mGrad = ctx.createRadialGradient(px, py + 15, 6, px, py + 15, 32 + mPulse);
+      const mGrad = ctx.createRadialGradient(px, py + 16, 6, px, py + 16, 36 + mPulse);
       mGrad.addColorStop(0, "rgba(15, 23, 42, 0.62)");
       mGrad.addColorStop(0.55, midGlow);
       mGrad.addColorStop(1, "rgba(56, 189, 248, 0)");
       ctx.fillStyle = mGrad;
       ctx.beginPath();
-      ctx.ellipse(px, py + 15, 32 + mPulse, 12.5 + mPulse * 0.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 16, 36 + mPulse, 13.8 + mPulse * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
       ctx.lineWidth = 4.2;
       ctx.beginPath();
-      ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 17, 31 + mPulse * 0.5, 11.4, 0, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.strokeStyle = ringMain;
@@ -5788,7 +5843,7 @@ window.GameApp = {
       ctx.setLineDash([10, 6]);
       ctx.lineDashOffset = -mNow * 12;
       ctx.beginPath();
-      ctx.ellipse(px, py + 16, 27 + mPulse * 0.5, 10.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 17, 31 + mPulse * 0.5, 11.4, 0, 0, Math.PI * 2);
       ctx.stroke();
 
       ctx.strokeStyle = ringInner;
@@ -5796,7 +5851,7 @@ window.GameApp = {
       ctx.setLineDash([6, 10]);
       ctx.lineDashOffset = mNow * 16;
       ctx.beginPath();
-      ctx.ellipse(px, py + 16, 22, 8.2, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py + 17, 25, 9.2, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -6260,7 +6315,9 @@ window.GameApp = {
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
         const awakenScale = (p.megaEvolved || p.id >= 10000) ? 1.22 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
-        ctx.translate(px + visOffsetX, py + visOffsetY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
+        // 腳底錨點校準：放大體型時向上延伸身高，雙腳始終穩踩於腳底光環正中央不穿幫
+        const footAnchorLiftY = (awakenScale - 1.0) * 28;
+        ctx.translate(px + visOffsetX, py + visOffsetY - footAnchorLiftY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
         if (submergeWater) {
@@ -7000,7 +7057,7 @@ window.GameApp = {
     const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${p.megaEvolved ? 1 : 0}_${tr.id}`;
     if (this._lastHudIdentityKey !== identityKey) {
       this._lastHudIdentityKey = identityKey;
-      document.getElementById("hudAvatar").src = SpriteCache.resolveUrl(p.data.forward_sprite);
+      document.getElementById("hudAvatar").src = SpriteCache.resolveUrl((p.isShiny && p.data.shiny_forward_sprite) ? p.data.shiny_forward_sprite : p.data.forward_sprite);
       const avatarFrame = document.getElementById("hudAvatarFrame");
       if (avatarFrame) {
         const isMegaHud = !!(p.megaEvolved || p.id >= 10000);

@@ -657,6 +657,23 @@ const SkillsEngine = {
           const mCol = isMegaX ? (ms % 2 === 0 ? "#E0F2FE" : "#38BDF8") : (isCharizard && ms === 0 ? "#38BDF8" : (ms % 2 === 0 ? "#FEF08A" : "#F97316"));
           this.spawnSubParticle(startX, startY, Math.cos(mAng) * mSpd, Math.sin(mAng) * mSpd - 16, mCol, 3.0, 0.26, "star");
         }
+
+        // 超級噴火龍X (#10034) 蒼藍冥炎質變：噴射火焰沿途與末端潑灑留下 2 團蒼藍冥炎火簇持續灼燒敵群
+        if (isMegaX && typeof GameApp !== "undefined" && Array.isArray(GameApp.lavaFootprints)) {
+          [0.58, 0.92].forEach(frac => {
+            if (GameApp.lavaFootprints.length >= 26) GameApp.lavaFootprints.shift();
+            GameApp.lavaFootprints.push({
+              x: startX + Math.cos(ang) * (beamLength * frac),
+              y: startY + Math.sin(ang) * (beamLength * frac) + 6,
+              radius: 28,
+              life: 2.3,
+              maxLife: 2.3,
+              tickTimer: 0.12,
+              isMegaBlue: true,
+              seed: Math.random() * 100
+            });
+          });
+        }
       }
 
       if (caster === GameApp.player) {
@@ -2508,7 +2525,16 @@ const SkillsEngine = {
                 }
               }
               const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora") ? -0.28 : -0.08);
-              GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2);
+              const megaToughClawsCrit = (hz.kind === "dragon_wave" && hz.isMegaCharizardX) ? 0.25 : 0;
+              GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2, megaToughClawsCrit);
+              // 超級噴火龍X (#10034) 硬爪＋藍焰聯動：龍之俯衝命中必定掛上灼傷，完美觸發猛火龍威增傷
+              if (hz.kind === "dragon_wave" && hz.isMegaCharizardX && e.hp > 0 && !checkStatusImmunity(e, "Burn")) {
+                if (!["Freeze", "Paralysis", "Confusion"].includes(e.status)) {
+                  e.status = "Burn";
+                  e.statusTimer = e.isBoss ? 2.8 : 4.2;
+                  if (!e.statusTick || e.statusTick <= 0) e.statusTick = 0.40;
+                }
+              }
             }
           });
         }

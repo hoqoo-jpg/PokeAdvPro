@@ -672,6 +672,8 @@ const POKEMON_DB = [
 POKEMON_DB.forEach(p => {
   p.forward_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/${p.id}.png`;
   p.back_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${p.id}.png`;
+  p.shiny_forward_sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${p.id}.png`;
+  p.shiny_back_sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/shiny/${p.id}.png`;
 });
 
 const MEGA_FORMS = {
@@ -709,7 +711,7 @@ const MEGA_FORMS = {
     evoPreText: "🔥 蒼藍龍焰正在覺醒，時空凍結中 🔥",
     evoDoneTitle: "🔥 MEGA 超級進化！【超級噴火龍X】黑龍降臨！",
     evoDoneSub: "屬性進化【火＋龍】‧ 蒼藍冥炎全面解放",
-    megaTraitDesc: "屬性進化【火＋龍】（龍之俯衝吃滿 1.35x 本系加成）、HP上限 +25% 並回滿、全傷害 +18%、16% 霸體減傷；噴射火焰、大字爆炎、龍之俯衝全面昇華為【蒼藍冥炎】！",
+    megaTraitDesc: "硬爪爆發覺醒：屬性進化【火＋龍】、HP上限 +25% 回滿、全傷 +18%、16% 霸體；【噴射火焰】沿途留下蒼藍火簇持續燃燒，【龍之俯衝】附帶硬爪暴擊 +25% 與命中必灼傷！",
     stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png",
     forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10034.png",
     back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10034.png"
@@ -787,7 +789,7 @@ const MEGA_FORMS = {
     evoPreText: "🌺 霸王毒花盛放共鳴中，時空凍結 🌺",
     evoDoneTitle: "🌺 MEGA 超級進化！【超級妙蛙花】花王降臨！",
     evoDoneSub: "厚脂肪 20% 霸體坦續 ‧ 三藤齊舞與毒花孢子",
-    megaTraitDesc: "厚脂肪坦續覺醒：HP上限 +30% 並回滿、全傷害 +16%、20% 霸體減傷；【藤鞭】昇華為 3 條粉金霸王花巨藤，【種子炸彈】落地額外綻放腐蝕毒花孢子霧！",
+    megaTraitDesc: "厚脂肪坦續覺醒：HP上限 +30% 回滿、全傷 +16%、20% 霸體、免疫灼傷與冰凍並常駐光合回血；【藤鞭】昇華為 3 條粉金霸王花巨藤，【種子炸彈】落地綻放腐蝕毒花孢子霧！",
     stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/venusaurite.png",
     forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10033.png",
     back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10033.png"
@@ -801,7 +803,11 @@ function getMegaFormForPokemon(pokeId) {
 }
 
 const POKEMON_MAP = new Map(POKEMON_DB.map(p => [p.id, p]));
-Object.values(MEGA_FORMS).forEach(mf => POKEMON_MAP.set(mf.id, mf));
+Object.values(MEGA_FORMS).forEach(mf => {
+  mf.shiny_forward_sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${mf.id}.png`;
+  mf.shiny_back_sprite = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/shiny/${mf.id}.png`;
+  POKEMON_MAP.set(mf.id, mf);
+});
 const REGULAR_MOB_POOL = POKEMON_DB.filter(p => p.id <= 143 && p.id !== 52 && p.id !== 113);
 const PARTNER_SUMMON_POOL = [1, 4, 7, 25, 39, 54, 58, 60, 133, 147];
 
@@ -1033,34 +1039,28 @@ const SpriteCache = {
     });
     this.silhouetteCache.clear();
   },
+  toOfficialShinyUrl(url) {
+    if (!url || typeof url !== "string") return url;
+    if (url.includes("/shiny/")) return url;
+    const mNight = url.match(/\/images\/sprite\/(forward|back)\/(\d+)\.png$/);
+    if (mNight) {
+      const dir = mNight[1] === "back" ? "back/shiny" : "shiny";
+      return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dir}/${mNight[2]}.png`;
+    }
+    const mPokeApi = url.match(/\/sprites\/pokemon\/(back\/)?(\d+)\.png$/);
+    if (mPokeApi) {
+      const dir = mPokeApi[1] ? "back/shiny" : "shiny";
+      return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${dir}/${mPokeApi[2]}.png`;
+    }
+    return url;
+  },
   getShiny(url) {
-    const baseRec = this.get(url);
-    if (!baseRec || !baseRec.loaded) return baseRec;
-    if (this.shinyCache.has(url)) return this.shinyCache.get(url);
-
-    const can = document.createElement("canvas");
-    const w = baseRec.img.naturalWidth || 96;
-    const h = baseRec.img.naturalHeight || 96;
-    can.width = w;
-    can.height = h;
-    const c = can.getContext("2d");
-
-    // 離線一次性烘焙閃光色相與金芒濾鏡，戰鬥主循環 0 ctx.filter 開銷
-    try {
-      c.filter = "hue-rotate(48deg) saturate(1.8) brightness(1.15)";
-    } catch (e) {}
-    c.drawImage(baseRec.img, 0, 0, w, h);
-    c.filter = "none";
-
-    // 針對不支援 Canvas filter 的行動端核心，疊加輕量級 source-atop 閃光金澤確保視覺一致
-    c.globalCompositeOperation = "source-atop";
-    c.fillStyle = "rgba(250, 204, 21, 0.22)";
-    c.fillRect(0, 0, w, h);
-    c.globalCompositeOperation = "source-over";
-
-    const shinyRec = { img: can, loaded: true, error: false, activeUrl: baseRec.activeUrl || url };
-    this.shinyCache.set(url, shinyRec);
-    return shinyRec;
+    if (!url) return null;
+    const shinyUrl = this.toOfficialShinyUrl(url);
+    const shinyRec = this.get(shinyUrl);
+    if (shinyRec && shinyRec.loaded) return shinyRec;
+    // 官方閃光圖載入中或異常時，無縫降級回原圖避免閃爍隱形
+    return this.get(url);
   },
   getSilhouette(imgOrUrl, color = "#FFFFFF") {
     const key = typeof imgOrUrl === "string" ? `${imgOrUrl}|${color}` : `${imgOrUrl.src || "img"}|${color}`;

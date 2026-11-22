@@ -316,8 +316,8 @@ Object.assign(window.GameApp, {
       if (tNameEl) tNameEl.textContent = t.name;
     }
     if (lPkImg && p) {
-      lPkImg.src = SpriteCache.resolveUrl(p.forward_sprite);
-      lPkImg.className = `w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''}`;
+      lPkImg.src = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
+      lPkImg.className = "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
       const pNameEl = document.getElementById("lobbyPokemonName");
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
       const starStr = starLv > 0 ? ` ${'★'.repeat(starLv)}` : '';
@@ -451,8 +451,8 @@ Object.assign(window.GameApp, {
     if (trImg) trImg.src = SpriteCache.resolveUrl(t.sprite);
     if (trName) trName.textContent = t.name.split(" ")[0];
     if (pkImg) {
-      pkImg.src = SpriteCache.resolveUrl(p.forward_sprite);
-      pkImg.className = `w-6 h-6 pixel-sprite object-contain shrink-0 ${useShiny ? 'shiny-sprite-filter' : ''}`;
+      pkImg.src = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
+      pkImg.className = "w-6 h-6 pixel-sprite object-contain shrink-0";
     }
     if (pkName) {
       pkName.textContent = `${p.name_zh}${starLv > 0 ? ' ' + '★'.repeat(starLv) : ''}`;
@@ -696,7 +696,7 @@ Object.assign(window.GameApp, {
               }
             </div>
             <div class="relative h-15 flex items-center justify-center my-1 bg-sky-50/60 rounded-xl border border-slate-200">
-              <img src="${p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${useShiny ? 'shiny-sprite-filter' : ''} ${!seen && !unlocked ? 'brightness-0 opacity-25' : ''}" alt="${p.name_zh}" />
+              <img src="${(useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite}" class="w-13 h-13 pixel-sprite object-contain ${!seen && !unlocked ? 'brightness-0 opacity-25' : ''}" alt="${p.name_zh}" />
               ${(() => {
                 const mf = (typeof getMegaFormForPokemon === "function") ? getMegaFormForPokemon(p.id) : null;
                 if (!mf) return "";
@@ -1267,10 +1267,10 @@ Object.assign(window.GameApp, {
     } else if (type === "shiny_unlock") {
       const p = POKEMON_MAP.get(id);
       document.getElementById("unlockModalHeaderTitle").textContent = "✨ 閃光寶可夢特訓覺醒確認";
-      document.getElementById("unlockConfirmFrontImg").src = p.forward_sprite;
-      document.getElementById("unlockConfirmFrontImg").className = "w-12 h-12 pixel-sprite object-contain shiny-sprite-filter";
-      document.getElementById("unlockConfirmBackImg").src = p.back_sprite;
-      document.getElementById("unlockConfirmBackImg").className = "w-12 h-12 pixel-sprite object-contain shiny-sprite-filter";
+      document.getElementById("unlockConfirmFrontImg").src = p.shiny_forward_sprite || p.forward_sprite;
+      document.getElementById("unlockConfirmFrontImg").className = "w-12 h-12 pixel-sprite object-contain";
+      document.getElementById("unlockConfirmBackImg").src = p.shiny_back_sprite || p.back_sprite;
+      document.getElementById("unlockConfirmBackImg").className = "w-12 h-12 pixel-sprite object-contain";
       document.getElementById("unlockBackCol").classList.remove("hidden");
       document.getElementById("unlockConfirmName").textContent = `閃光・${p.name_zh} (#${String(p.id).padStart(3,'0')})`;
       document.getElementById("unlockConfirmTypes").innerHTML = `${renderTypeBadgeHTML(p.type1)}${renderTypeBadgeHTML(p.type2)}`;
