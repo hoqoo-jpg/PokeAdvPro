@@ -4017,72 +4017,193 @@ const SkillsEngine = {
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = lifeAlpha;
 
-        // 1. 身後雙道螺旋擴散龍魂尾波
-        [-18, -9].forEach((tx, idx) => {
-          ctx.strokeStyle = isMegaX
-            ? (idx === 0 ? "rgba(37, 99, 235, 0.55)" : "rgba(103, 232, 249, 0.88)")
+        // 【方案一：流線貝茲真・龍首氣場 ＋ 破空 V 字音爆 ＋ 動態鋸齒電弧】
+        const dWave = Math.sin(now * 16 + hz.x * 0.04) * 3.5;
+        const gradMain = ctx.createLinearGradient(-r * 1.0, 0, r * 1.15, 0);
+        if (isMegaX) {
+          gradMain.addColorStop(0, "rgba(14, 116, 144, 0.18)");
+          gradMain.addColorStop(0.45, "rgba(2, 132, 199, 0.52)");
+          gradMain.addColorStop(1, "rgba(34, 211, 238, 0.85)");
+        } else if (isKing) {
+          gradMain.addColorStop(0, "rgba(180, 83, 9, 0.18)");
+          gradMain.addColorStop(0.45, "rgba(234, 88, 12, 0.52)");
+          gradMain.addColorStop(1, "rgba(250, 204, 21, 0.86)");
+        } else {
+          gradMain.addColorStop(0, "rgba(49, 46, 129, 0.18)");
+          gradMain.addColorStop(0.45, "rgba(56, 189, 248, 0.50)");
+          gradMain.addColorStop(1, "rgba(103, 232, 249, 0.84)");
+        }
+        const edgeCol = isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#7DD3FC");
+        const hornCol = isMegaX ? "#0F172A" : (isKing ? "#9A3412" : "#1E1B4B");
+        const eyeCol  = isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15");
+
+        // 1. 飄逸龍鬃焰尾（3 股貝茲流動龍氣鬃毛向後翻捲）
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        for (let m = -1; m <= 1; m++) {
+          const my = m * r * 0.24;
+          const tailWag = Math.sin(now * 18 + m * 2.1) * 5.5;
+          ctx.fillStyle = isMegaX
+            ? (m === 0 ? "rgba(34, 211, 238, 0.42)" : "rgba(37, 99, 235, 0.34)")
             : (isKing
-                ? (idx === 0 ? "rgba(234, 88, 12, 0.52)" : "rgba(250, 204, 21, 0.86)")
-                : (idx === 0 ? "rgba(67, 56, 202, 0.45)" : "rgba(56, 189, 248, 0.72)"));
-          ctx.lineWidth = ((isKing || isMegaX) ? 4.8 : 4.0) - idx;
+                ? (m === 0 ? "rgba(250, 204, 21, 0.42)" : "rgba(234, 88, 12, 0.34)")
+                : (m === 0 ? "rgba(56, 189, 248, 0.40)" : "rgba(99, 102, 241, 0.32)"));
           ctx.beginPath();
-          ctx.arc(tx, 0, r * (0.72 + idx * 0.14), -0.82, 0.82);
+          ctx.moveTo(r * 0.15, my - r * 0.12);
+          ctx.quadraticCurveTo(-r * 0.45, my - r * 0.28 + tailWag, -r * (1.05 - Math.abs(m) * 0.16), my + tailWag * 1.4);
+          ctx.quadraticCurveTo(-r * 0.45, my + r * 0.24 + tailWag, r * 0.15, my + r * 0.12);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // 2. 有機貝茲龍首本體（修長龍吻 ＋ 微張尖牙下顎 ＋ 雙側後掠龍角）
+        ctx.fillStyle = gradMain;
+        ctx.strokeStyle = edgeCol;
+        ctx.lineWidth = 2.4;
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        // 龍吻上緣
+        ctx.moveTo(r * 1.06, -r * 0.04);
+        ctx.quadraticCurveTo(r * 0.72, -r * 0.26, r * 0.34, -r * 0.34);
+        // 上龍角外廓（流線後掠收尖）
+        ctx.quadraticCurveTo(-r * 0.05, -r * 0.56, -r * 0.46, -r * 0.66);
+        ctx.quadraticCurveTo(-r * 0.26, -r * 0.36, -r * 0.18, -r * 0.22);
+        // 龍頸後收
+        ctx.quadraticCurveTo(-r * 0.52, -r * 0.08, -r * 0.64, 0);
+        ctx.quadraticCurveTo(-r * 0.52, r * 0.08, -r * 0.18, r * 0.22);
+        // 下龍角外廓
+        ctx.quadraticCurveTo(-r * 0.26, r * 0.36, -r * 0.46, r * 0.66);
+        ctx.quadraticCurveTo(-r * 0.05, r * 0.56, r * 0.34, r * 0.34);
+        // 龍吻下緣（微張尖牙感）
+        ctx.quadraticCurveTo(r * 0.72, r * 0.26, r * 1.06, r * 0.04);
+        ctx.quadraticCurveTo(r * 1.14, 0, r * 1.06, -r * 0.04);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 雙龍角深色實質角稜與高光脊
+        [-1, 1].forEach(side => {
+          ctx.fillStyle = hornCol;
+          ctx.strokeStyle = edgeCol;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(r * 0.24, side * r * 0.28);
+          ctx.quadraticCurveTo(-r * 0.06, side * r * 0.52, -r * 0.44, side * r * 0.64);
+          ctx.quadraticCurveTo(-r * 0.16, side * r * 0.34, r * 0.06, side * r * 0.20);
+          ctx.closePath();
+          ctx.fill();
           ctx.stroke();
         });
 
-        // 2. 清透化龍首外殼（透明度降至 0.36，強化外緣流光描邊，絕不糊掉內部精靈剪影）
-        ctx.fillStyle = isMegaX ? "rgba(12, 74, 110, 0.36)" : (isKing ? "rgba(124, 45, 18, 0.34)" : "rgba(30, 27, 75, 0.34)");
-        ctx.strokeStyle = isMegaX ? "#38BDF8" : (isKing ? "#FACC15" : "#38BDF8");
-        ctx.lineWidth = (isKing || isMegaX) ? 3.2 : 2.8;
+        // 龍吻尖牙與鼻樑高光脊線
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.78)";
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(r * 1.15, 0);
-        ctx.lineTo(r * 0.45, -r * 0.46);
-        ctx.lineTo(-r * 0.34, -r * 0.88);
-        ctx.lineTo(-r * 0.05, -r * 0.30);
-        ctx.lineTo(-r * 0.50, 0);
-        ctx.lineTo(-r * 0.05, r * 0.30);
-        ctx.lineTo(-r * 0.34, r * 0.88);
-        ctx.lineTo(r * 0.45, r * 0.46);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(r * 1.02, 0);
+        ctx.lineTo(r * 0.22, 0);
         ctx.stroke();
 
-        // 3. 龍首內部半透明能量脈絡與雙側發光龍睛
-        ctx.fillStyle = isMegaX ? "rgba(2, 132, 199, 0.30)" : (isKing ? "rgba(234, 88, 12, 0.28)" : "rgba(67, 56, 202, 0.28)");
-        ctx.beginPath();
-        ctx.moveTo(r * 0.95, 0);
-        ctx.lineTo(r * 0.25, -r * 0.32);
-        ctx.lineTo(-r * 0.22, 0);
-        ctx.lineTo(r * 0.25, r * 0.32);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15");
-        ctx.beginPath();
-        ctx.ellipse(r * 0.36, -r * 0.22, 4.5, 2.2, -0.3, 0, Math.PI * 2);
-        ctx.ellipse(r * 0.36, r * 0.22, 4.5, 2.2, 0.3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 快龍王／Mega 黑噴專屬：周身跳動的金白／蒼藍龍焰電弧
-        if (isKing || isMegaX) {
-          ctx.strokeStyle = isMegaX ? "#E0F2FE" : "#FEF08A";
-          ctx.lineWidth = 2.2;
+        ctx.fillStyle = "#FFFFFF";
+        [-1, 1].forEach(side => {
           ctx.beginPath();
-          ctx.moveTo(-r * 0.3, -r * 0.65);
-          ctx.lineTo(r * 0.15, -r * 0.35 + Math.sin(now * 20) * 4);
-          ctx.lineTo(r * 0.75, -r * 0.15);
-          ctx.moveTo(-r * 0.3, r * 0.65);
-          ctx.lineTo(r * 0.15, r * 0.35 - Math.sin(now * 20) * 4);
-          ctx.lineTo(r * 0.75, r * 0.15);
+          ctx.moveTo(r * 0.88, side * r * 0.10);
+          ctx.lineTo(r * 0.78, side * r * 0.19);
+          ctx.lineTo(r * 0.72, side * r * 0.11);
+          ctx.closePath();
+          ctx.fill();
+        });
+
+        // 3. 凌厲斜挑龍眉與發光龍睛
+        [-1, 1].forEach(side => {
+          ctx.fillStyle = "#0F172A";
+          ctx.beginPath();
+          ctx.moveTo(r * 0.58, side * r * 0.12);
+          ctx.lineTo(r * 0.34, side * r * 0.26);
+          ctx.lineTo(r * 0.24, side * r * 0.16);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = eyeCol;
+          ctx.beginPath();
+          ctx.moveTo(r * 0.54, side * r * 0.13);
+          ctx.lineTo(r * 0.36, side * r * 0.23);
+          ctx.lineTo(r * 0.30, side * r * 0.16);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.arc(r * 0.44, side * r * 0.16, 1.4, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // 4. 動態多段鋸齒龍焰電弧（3 條緊貼龍角與龍鬃微閃，告別僵硬白棍）
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = isKing ? "#FEF08A" : "#E0F2FE";
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = "round";
+        const sparkCount = (isKing || isMegaX) ? 3 : 2;
+        for (let s = 0; s < sparkCount; s++) {
+          const side = s === 2 ? (Math.sin(now * 30) >= 0 ? 1 : -1) : (s === 0 ? -1 : 1);
+          const jitter1 = Math.sin(now * 28 + s * 3.1) * 5;
+          const jitter2 = Math.cos(now * 32 + s * 4.7) * 6;
+          ctx.beginPath();
+          ctx.moveTo(r * 0.46, side * r * 0.22);
+          ctx.lineTo(r * 0.16, side * r * 0.42 + jitter1);
+          ctx.lineTo(-r * 0.18, side * r * 0.34 + jitter2);
+          ctx.lineTo(-r * 0.56, side * r * 0.54 - jitter1 * 0.8);
           ctx.stroke();
         }
+        ctx.restore();
 
-        // 4. 龍吻前端破空純白氣刃
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 3.0;
+        // 5. 破空 V 字音爆（Mach Cone）＋ 速度線：由龍吻尖端向兩側後方掠出漸隱，徹底取代奇怪圓弧
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        const tipX = r * 1.24;
+        const wingX = -r * 0.48;
+        const wingY = r * 0.96;
+
+        // 外層蒼藍／耀金寬幅漸隱 V 字衝擊波
+        const vGrad = ctx.createLinearGradient(tipX, 0, wingX, 0);
+        vGrad.addColorStop(0, "rgba(255, 255, 255, 0.95)");
+        vGrad.addColorStop(0.45, isKing ? "rgba(250, 204, 21, 0.72)" : "rgba(56, 189, 248, 0.72)");
+        vGrad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+
+        ctx.strokeStyle = vGrad;
+        ctx.lineWidth = 6.0;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "miter";
         ctx.beginPath();
-        ctx.arc(r * 0.12, 0, r * 0.94, -0.76, 0.76);
+        ctx.moveTo(wingX, -wingY);
+        ctx.lineTo(tipX, 0);
+        ctx.lineTo(wingX, wingY);
         ctx.stroke();
+
+        // 內層純白銳利 V 字音爆核心刃
+        const vCoreGrad = ctx.createLinearGradient(tipX, 0, wingX * 0.65, 0);
+        vCoreGrad.addColorStop(0, "#FFFFFF");
+        vCoreGrad.addColorStop(0.55, "rgba(224, 242, 254, 0.85)");
+        vCoreGrad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+        ctx.strokeStyle = vCoreGrad;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(wingX * 0.65, -wingY * 0.76);
+        ctx.lineTo(tipX + 2, 0);
+        ctx.lineTo(wingX * 0.65, wingY * 0.76);
+        ctx.stroke();
+
+        // 兩側平行破空速度線
+        ctx.strokeStyle = "rgba(224, 242, 254, 0.55)";
+        ctx.lineWidth = 1.4;
+        [-1, 1].forEach(side => {
+          ctx.beginPath();
+          ctx.moveTo(r * 0.55, side * r * 0.56);
+          ctx.lineTo(-r * 0.68, side * r * 0.78 + dWave * 0.25);
+          ctx.stroke();
+        });
+        ctx.restore();
         ctx.restore();
 
         // 5. 方案 A：移除原色複製分身，改為「純能量發光靈體剪影（外層蒼藍/金焰 ＋ 內層純白熾核）」並前傾俯衝

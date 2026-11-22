@@ -1227,12 +1227,21 @@ const SoundFX = {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (AudioCtx) {
       this.ctx = new AudioCtx();
+      // 主軌防破音動態壓限器 (DynamicsCompressorNode)：確保百怪＋雙超武齊發時手機喇叭不破音
+      this.masterCompressor = this.ctx.createDynamicsCompressor();
+      this.masterCompressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+      this.masterCompressor.knee.setValueAtTime(18, this.ctx.currentTime);
+      this.masterCompressor.ratio.setValueAtTime(6, this.ctx.currentTime);
+      this.masterCompressor.attack.setValueAtTime(0.004, this.ctx.currentTime);
+      this.masterCompressor.release.setValueAtTime(0.14, this.ctx.currentTime);
+      this.masterCompressor.connect(this.ctx.destination);
+
       this.bgmGain = this.ctx.createGain();
       this.sfxGain = this.ctx.createGain();
-      this.bgmGain.connect(this.ctx.destination);
-      this.sfxGain.connect(this.ctx.destination);
+      this.bgmGain.connect(this.masterCompressor);
+      this.sfxGain.connect(this.masterCompressor);
       this.bgmGain.gain.setValueAtTime(this.muted ? 0 : 0.35, this.ctx.currentTime);
-      this.sfxGain.gain.setValueAtTime(this.muted ? 0 : 0.40, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(this.muted ? 0 : 0.44, this.ctx.currentTime);
       if (this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});
       }
@@ -1499,13 +1508,15 @@ const SoundFX = {
     return this.muted;
   },
 
-  lastHitTime: 0,
+  lastSfxTimes: {},
+  _gemComboCount: 0,
+  _lastGemMs: 0,
   _noiseBuffer: null,
 
   getNoiseBuffer() {
     if (!this.ctx) return null;
     if (this._noiseBuffer) return this._noiseBuffer;
-    const bufSize = Math.floor(this.ctx.sampleRate * 0.12);
+    const bufSize = Math.floor(this.ctx.sampleRate * 0.36);
     const buffer = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufSize; i++) {
@@ -1517,84 +1528,302 @@ const SoundFX = {
 
   play(type, moveType = null) {
     if (this.muted) return;
-    if (type === "hit") {
-      const perfNow = performance.now();
-      if (perfNow - (this.lastHitTime || 0) < 38) return;
-      this.lastHitTime = perfNow;
+    const perfNow = performance.now();
+    // 分頻獨立節流（依招式/事件類型各自冷卻，徹底避免多招齊發互相吃音）
+    if (type === "hit" || type === "gem" || type === "coin" || type === "hurt") {
+      const catKey = type === "hit" ? `hit_${moveType || "default"}` : type;
+      const minGap = type === "gem" ? 42 : (type === "coin" ? 55 : (type === "hurt" ? 120 : (moveType === "Fire" || moveType === "Water" ? 110 : 75)));
+      if (this.lastSfxTimes[catKey] && (perfNow - this.lastSfxTimes[catKey]) < minGap) return;
+      this.lastSfxTimes[catKey] = perfNow;
     }
     this.init();
     if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
+      const dest = this.sfxGain || this.ctx.destination;
+
+      if (type === "gem") {
+        // 💎 經驗水晶連吸升調（1.2 秒內連續拾取沿五聲音階爬升：C6 -> D6 -> E6 -> G6 -> A6 -> C7 -> D7 -> E7）
+        if (perfNow - this._lastGemMs <= 1200) {
+          this._gemComboCount = Math.min(7, (this._gemComboCount || 0) + 1);
+        } else {
+          this._gemComboCount = 0;
+        }
+        this._lastGemMs = perfNow;
+        const scale = [1046.5, 1174.66, 1318.51, 1567.98, 1760.0, 2093.0, 2349.32, 2637.02];
+        const freq = scale[this._gemComboCount] || 1046.5;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.12, now + 0.075);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.09);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.095);
+        return;
+      }
+
+      if (type === "coin") {
+        // 💰 經典金屬金幣「叮－鈴！」(B5 -> E6)
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(987.77, now);
+        osc.frequency.setValueAtTime(1318.51, now + 0.055);
+        gain.gain.setValueAtTime(0.13, now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.19);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.20);
+        return;
+      }
+
+      if (type === "hurt") {
+        // 💔 主角／訓練家受創獨立警示音（低沉雙拍「咚－嗡」，混戰中光靠耳朵即能察覺掉血）
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(155, now);
+        osc.frequency.exponentialRampToValueAtTime(88, now + 0.075);
+        osc.frequency.setValueAtTime(112, now + 0.08);
+        osc.frequency.exponentialRampToValueAtTime(58, now + 0.18);
+        gain.gain.setValueAtTime(0.24, now);
+        gain.gain.exponentialRampToValueAtTime(0.008, now + 0.19);
+        osc.connect(gain);
+        gain.connect(dest);
+        osc.start(now);
+        osc.stop(now + 0.195);
+        return;
+      }
+
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.connect(gain);
-      gain.connect(this.sfxGain || this.ctx.destination);
+      gain.connect(dest);
 
       if (type === "hit") {
-        // P3 屬性化 WebAudio 命中音色分流：消除長時間聽覺疲勞，賦予各系招式獨特物理打擊感
-        if (moveType === "Fire" || moveType === "Ground" || moveType === "Rock") {
-          // 爆裂灼燒 / 重踏震地：低頻下潛 + 短促白噪音爆裂層
-          osc.type = "sawtooth";
-          osc.frequency.setValueAtTime(125 + Math.random() * 20, now);
-          osc.frequency.exponentialRampToValueAtTime(28, now + 0.095);
-          gain.gain.setValueAtTime(0.17, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.095);
+        // 全屬性 WebAudio 濾波合成音效引擎（零外部流量、低延遲、具材質辨識度）
+        if (moveType === "Fire") {
+          // 🔥 火系（火花／噴射火焰）：帶通濾波白噪音掃頻（350Hz -> 1300Hz -> 280Hz，0.28s）模擬燃燒氣流「呼——嘶！」＋ 尾段火星劈啪
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(190, now);
+          osc.frequency.exponentialRampToValueAtTime(65, now + 0.16);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.17);
           osc.start(now);
-          osc.stop(now + 0.095);
+          osc.stop(now + 0.175);
 
           const nBuf = this.getNoiseBuffer();
           if (nBuf) {
             const nSrc = this.ctx.createBufferSource();
-            const nGain = this.ctx.createGain();
             nSrc.buffer = nBuf;
-            nSrc.connect(nGain);
-            nGain.connect(this.sfxGain || this.ctx.destination);
-            nGain.gain.setValueAtTime(0.11, now);
-            nGain.gain.exponentialRampToValueAtTime(0.008, now + 0.075);
+            const bp = this.ctx.createBiquadFilter();
+            bp.type = "bandpass";
+            bp.Q.setValueAtTime(1.6, now);
+            bp.frequency.setValueAtTime(360, now);
+            bp.frequency.exponentialRampToValueAtTime(1320, now + 0.09);
+            bp.frequency.exponentialRampToValueAtTime(280, now + 0.28);
+
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.01, now);
+            nGain.gain.linearRampToValueAtTime(0.26, now + 0.045);
+            nGain.gain.exponentialRampToValueAtTime(0.008, now + 0.28);
+
+            nSrc.connect(bp);
+            bp.connect(nGain);
+            nGain.connect(dest);
             nSrc.start(now);
-            nSrc.stop(now + 0.075);
+            nSrc.stop(now + 0.29);
+
+            // 火星劈啪爆裂微點 (Highpass crackle)
+            const crackSrc = this.ctx.createBufferSource();
+            crackSrc.buffer = nBuf;
+            const hp = this.ctx.createBiquadFilter();
+            hp.type = "highpass";
+            hp.frequency.setValueAtTime(3200, now + 0.10);
+            const cGain = this.ctx.createGain();
+            cGain.gain.setValueAtTime(0.001, now);
+            cGain.gain.setValueAtTime(0.10, now + 0.11);
+            cGain.gain.exponentialRampToValueAtTime(0.005, now + 0.16);
+            crackSrc.connect(hp);
+            hp.connect(cGain);
+            cGain.connect(dest);
+            crackSrc.start(now + 0.10);
+            crackSrc.stop(now + 0.17);
           }
-        } else if (moveType === "Ice" || moveType === "Psychic" || moveType === "Ghost") {
-          // 寒冰結晶 / 超能念刃：清脆高頻泛音雙振盪
+        } else if (moveType === "Water") {
+          // 🌊 水系（水槍／水炮）：低通濾波沖刷水聲（900Hz -> 320Hz）＋ 快速上升氣泡正弦滑音
           osc.type = "sine";
-          const f0 = moveType === "Ice" ? 920 : 680;
-          osc.frequency.setValueAtTime(f0 + (Math.random() - 0.5) * 60, now);
-          osc.frequency.exponentialRampToValueAtTime(f0 * 0.42, now + 0.085);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.085);
+          osc.frequency.setValueAtTime(360 + Math.random() * 40, now);
+          osc.frequency.exponentialRampToValueAtTime(760, now + 0.11);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.13);
           osc.start(now);
-          osc.stop(now + 0.085);
-        } else if (moveType === "Electric") {
-          // 電漿麻痺：高頻方波快速跳變
-          osc.type = "square";
-          osc.frequency.setValueAtTime(520, now);
-          osc.frequency.setValueAtTime(240, now + 0.025);
-          osc.frequency.setValueAtTime(640, now + 0.05);
-          gain.gain.setValueAtTime(0.12, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
-          osc.start(now);
-          osc.stop(now + 0.08);
-        } else if (moveType === "Fighting" || moveType === "Normal" || moveType === "Dragon") {
-          // 重拳悶響 / 破空衝撞：厚實三角波重擊下潛
+          osc.stop(now + 0.135);
+
+          const nBuf = this.getNoiseBuffer();
+          if (nBuf) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = nBuf;
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = "lowpass";
+            lp.Q.setValueAtTime(2.2, now);
+            lp.frequency.setValueAtTime(950, now);
+            lp.frequency.exponentialRampToValueAtTime(320, now + 0.22);
+
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.22, now);
+            nGain.gain.exponentialRampToValueAtTime(0.008, now + 0.22);
+            nSrc.connect(lp);
+            lp.connect(nGain);
+            nGain.connect(dest);
+            nSrc.start(now);
+            nSrc.stop(now + 0.23);
+          }
+        } else if (moveType === "Grass" || moveType === "Bug") {
+          // 🌿 草／蟲系（藤鞭／飛葉／種子）：高通濾波瞬時抽裂「啪！」＋ 俐落切音
           osc.type = "triangle";
-          osc.frequency.setValueAtTime(165 + (Math.random() - 0.5) * 20, now);
-          osc.frequency.exponentialRampToValueAtTime(34, now + 0.09);
-          gain.gain.setValueAtTime(0.22, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+          osc.frequency.setValueAtTime(580 + Math.random() * 60, now);
+          osc.frequency.exponentialRampToValueAtTime(175, now + 0.065);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.07);
           osc.start(now);
-          osc.stop(now + 0.09);
-        } else {
-          // 水 / 草 / 飛 / 毒系：流暢帶彈性的標準像素打擊音
+          osc.stop(now + 0.075);
+
+          const nBuf = this.getNoiseBuffer();
+          if (nBuf) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = nBuf;
+            const hp = this.ctx.createBiquadFilter();
+            hp.type = "highpass";
+            hp.frequency.setValueAtTime(1800, now);
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.18, now);
+            nGain.gain.exponentialRampToValueAtTime(0.006, now + 0.065);
+            nSrc.connect(hp);
+            hp.connect(nGain);
+            nGain.connect(dest);
+            nSrc.start(now);
+            nSrc.stop(now + 0.07);
+          }
+        } else if (moveType === "Flying") {
+          // 💨 飛行系（空氣斬）：高 Q 帶通銳利風切「咻！」掃頻
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(760, now);
+          osc.frequency.exponentialRampToValueAtTime(320, now + 0.11);
+          gain.gain.setValueAtTime(0.09, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.125);
+
+          const nBuf = this.getNoiseBuffer();
+          if (nBuf) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = nBuf;
+            const bp = this.ctx.createBiquadFilter();
+            bp.type = "bandpass";
+            bp.Q.setValueAtTime(3.2, now);
+            bp.frequency.setValueAtTime(1200, now);
+            bp.frequency.exponentialRampToValueAtTime(2400, now + 0.045);
+            bp.frequency.exponentialRampToValueAtTime(620, now + 0.14);
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.18, now);
+            nGain.gain.exponentialRampToValueAtTime(0.006, now + 0.14);
+            nSrc.connect(bp);
+            bp.connect(nGain);
+            nGain.connect(dest);
+            nSrc.start(now);
+            nSrc.stop(now + 0.15);
+          }
+        } else if (moveType === "Poison") {
+          // ☠️ 毒系（污泥炸彈）：黏稠低頻氣泡「咕嚕」彈音
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(165, now);
+          osc.frequency.exponentialRampToValueAtTime(310, now + 0.055);
+          osc.frequency.exponentialRampToValueAtTime(135, now + 0.125);
+          gain.gain.setValueAtTime(0.17, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.13);
+          osc.start(now);
+          osc.stop(now + 0.135);
+        } else if (moveType === "Ground" || moveType === "Rock") {
+          // 🪨 地面／岩石系（地震）：沉重低頻下潛 ＋ 低通岩土悶響
           osc.type = "sawtooth";
-          const startFreq = 155 + (Math.random() - 0.5) * 35;
-          const endFreq = Math.max(28, 45 + (Math.random() - 0.5) * 14);
-          osc.frequency.setValueAtTime(startFreq, now);
-          osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.08);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.frequency.setValueAtTime(118 + Math.random() * 16, now);
+          osc.frequency.exponentialRampToValueAtTime(26, now + 0.13);
+          gain.gain.setValueAtTime(0.20, now);
+          gain.gain.exponentialRampToValueAtTime(0.008, now + 0.135);
           osc.start(now);
-          osc.stop(now + 0.08);
+          osc.stop(now + 0.14);
+
+          const nBuf = this.getNoiseBuffer();
+          if (nBuf) {
+            const nSrc = this.ctx.createBufferSource();
+            nSrc.buffer = nBuf;
+            const lp = this.ctx.createBiquadFilter();
+            lp.type = "lowpass";
+            lp.frequency.setValueAtTime(420, now);
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.16, now);
+            nGain.gain.exponentialRampToValueAtTime(0.008, now + 0.11);
+            nSrc.connect(lp);
+            lp.connect(nGain);
+            nGain.connect(dest);
+            nSrc.start(now);
+            nSrc.stop(now + 0.12);
+          }
+        } else if (moveType === "Ice") {
+          // ❄️ 冰系（冷凍光線）：清脆高頻冰晶折射雙泛音
+          osc.type = "sine";
+          const f0 = 1120 + (Math.random() - 0.5) * 80;
+          osc.frequency.setValueAtTime(f0, now);
+          osc.frequency.exponentialRampToValueAtTime(f0 * 1.45, now + 0.09);
+          gain.gain.setValueAtTime(0.13, now);
+          gain.gain.exponentialRampToValueAtTime(0.005, now + 0.10);
+          osc.start(now);
+          osc.stop(now + 0.105);
+        } else if (moveType === "Psychic" || moveType === "Ghost") {
+          // 🔮 超能／幽靈系：空靈共振念波滑音
+          osc.type = "sine";
+          const f0 = moveType === "Psychic" ? 720 : 540;
+          osc.frequency.setValueAtTime(f0 + (Math.random() - 0.5) * 50, now);
+          osc.frequency.exponentialRampToValueAtTime(f0 * 0.44, now + 0.11);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.115);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (moveType === "Electric") {
+          // ⚡ 電系（十萬伏特）：高頻電漿跳變劈啪聲
+          osc.type = "square";
+          osc.frequency.setValueAtTime(560, now);
+          osc.frequency.setValueAtTime(260, now + 0.022);
+          osc.frequency.setValueAtTime(720, now + 0.045);
+          osc.frequency.setValueAtTime(340, now + 0.068);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.095);
+          osc.start(now);
+          osc.stop(now + 0.10);
+        } else if (moveType === "Fighting" || moveType === "Normal" || moveType === "Dragon") {
+          // 🥊 格鬥／一般／龍系：厚實拳風破空重擊下潛
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(178 + (Math.random() - 0.5) * 20, now);
+          osc.frequency.exponentialRampToValueAtTime(34, now + 0.095);
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.008, now + 0.10);
+          osc.start(now);
+          osc.stop(now + 0.105);
+        } else {
+          // 通用介面輕點回饋
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(320, now);
+          osc.frequency.exponentialRampToValueAtTime(160, now + 0.055);
+          gain.gain.setValueAtTime(0.11, now);
+          gain.gain.exponentialRampToValueAtTime(0.006, now + 0.06);
+          osc.start(now);
+          osc.stop(now + 0.065);
         }
       } else if (type === "evolution") {
         // GBA 經典進化旋律 (哒-哒-哒-哒 加速交替音階 + 1.35s 破殼大三和弦勝利樊音)

@@ -3019,6 +3019,7 @@ window.GameApp = {
                 this.runCoins += 12;
                 this.saveData.coins += 12;
                 this.spawnParticleCluster(e.x, e.y, "#FACC15", "#FEF08A", 8, "star", 0.7);
+                SoundFX.play("coin");
                 this.spawnFloatingText(e.x, e.y - 24, "💰 掉金幣 +12!", "#FACC15", 11);
               }
             }
@@ -3318,7 +3319,7 @@ window.GameApp = {
           this.spawnFloatingText(tc.x, tc.y - 25, `訓練家受創 -${dmg}!`, "#EF4444", 15);
           this.spawnFloatingText(tc.x, tc.y - 42, "⏳ 大招冷卻 +1.5s!", "#F59E0B", 13);
           this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 12, "star", 0.8);
-          SoundFX.play("hit");
+          SoundFX.play("hurt");
         } else {
           p.whiteFlashTimer = 0.24; // 延長至 0.24s 扎實受創反饋
           this.camera.shakeTime = 0.18;
@@ -3326,7 +3327,7 @@ window.GameApp = {
           this.hitStopTimer = 0.05;
           this.spawnParticleCluster(p.x, p.y, "#EF4444", "#FFFFFF", 10, "star", 0.7);
           this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 15);
-          SoundFX.play("hit");
+          SoundFX.play("hurt");
         }
 
         if (p.hp <= 0) {
@@ -3639,7 +3640,7 @@ window.GameApp = {
           p.hp -= dmg;
           p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
-          SoundFX.play("hit");
+          SoundFX.play("hurt");
           if (p.hp <= 0) {
             p.hp = 0;
             this.triggerGameOver(false);
@@ -3782,7 +3783,7 @@ window.GameApp = {
           this.spawnFloatingText(tc.x, tc.y - 25, `訓練家受創 -${dmg}!`, "#EF4444", 15);
           this.spawnFloatingText(tc.x, tc.y - 42, "⏳ 大招冷卻 +1.5s!", "#F59E0B", 13);
           this.spawnParticleCluster(tc.x, tc.y, "#EF4444", "#F59E0B", 12, "star", 0.8);
-          SoundFX.play("hit");
+          SoundFX.play("hurt");
         } 
         // B. 精靈主角受創反饋 (強化版)
         else {
@@ -3791,7 +3792,7 @@ window.GameApp = {
           this.camera.shakeMagnitude = 5.0;
           this.spawnFloatingText(p.x, p.y - 18, `-${dmg}`, "#EF4444", 15);
           this.spawnParticleCluster(ep.x, ep.y, ep.color || "#FFFFFF", "#EF4444", 10, "star", 0.7);
-          SoundFX.play("hit");
+          SoundFX.play("hurt");
         }
 
         this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
@@ -3926,6 +3927,7 @@ window.GameApp = {
     if (enemy.treasureType === "meowth") {
       this.runCoins += 8;
       this.saveData.coins += 8;
+      SoundFX.play("coin");
       this.spawnFloatingText(enemy.x, enemy.y - 20, "+8 代幣", "#F59E0B", 11);
     }
 
@@ -4285,6 +4287,7 @@ window.GameApp = {
       if (dSq < 484) {
         this.gems[i] = this.gems[this.gems.length - 1];
         this.gems.pop();
+        SoundFX.play("gem");
         this.gainExp(g.val);
       }
     }
@@ -7011,14 +7014,17 @@ window.GameApp = {
     const beatIdx = Math.min(3, Math.floor(t / beatDur)); // 3="3", 2="2", 1="1", 0="BATTLE START!"
     const localElapsed = beatDur - (t - beatIdx * beatDur);
     const localProg = Math.max(0, Math.min(1, localElapsed / beatDur));
+    const popPeak = beatIdx === 0 ? 1.20 : 1.38;
     const popScale = localProg < 0.28
-      ? (1.55 - 0.55 * (localProg / 0.28))
-      : (1.0 + Math.sin((localProg - 0.28) * Math.PI) * 0.06);
+      ? (popPeak - (popPeak - 1.0) * (localProg / 0.28))
+      : (1.0 + Math.sin((localProg - 0.28) * Math.PI) * 0.05);
     const alpha = localProg > 0.82 ? Math.max(0, (1 - localProg) / 0.18) : 1.0;
 
     const labels = ["BATTLE START!", "1", "2", "3"];
     const text = labels[beatIdx] || "3";
     const isStart = (beatIdx === 0);
+    const startFontSize = Math.min(30, Math.max(18, Math.floor(this.width * 0.054)));
+    const maxSafeW = Math.max(220, (this.width - 36) / popScale);
 
     ctx.save();
     ctx.translate(this.width / 2, this.height * 0.40);
@@ -7028,14 +7034,14 @@ window.GameApp = {
     ctx.textBaseline = "middle";
 
     ctx.font = isStart
-      ? "900 32px 'Press Start 2P', 'Noto Sans TC', sans-serif"
-      : "900 58px 'Press Start 2P', monospace";
-    ctx.lineWidth = isStart ? 7 : 9;
+      ? `900 ${startFontSize}px 'Press Start 2P', 'Noto Sans TC', sans-serif`
+      : "900 54px 'Press Start 2P', monospace";
+    ctx.lineWidth = isStart ? 5.5 : 8.5;
     ctx.strokeStyle = "#0F172A";
-    ctx.strokeText(text, 0, 0);
+    ctx.strokeText(text, 0, 0, maxSafeW);
 
     ctx.fillStyle = isStart ? "#34D399" : (beatIdx === 1 ? "#F43F5E" : "#FACC15");
-    ctx.fillText(text, 0, 0);
+    ctx.fillText(text, 0, 0, maxSafeW);
 
     if (!isStart) {
       ctx.font = "900 12px 'Noto Sans TC', sans-serif";
