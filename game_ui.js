@@ -422,7 +422,7 @@ Object.assign(window.GameApp, {
               <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
             </span>
             <span class="text-[9px] font-bold text-slate-600 truncate">
-              ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+35% ‧ 全傷+15% ‧ 12%霸體)'}
+              ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+22% ‧ 全傷+15% ‧ 12%霸體)'}
             </span>
           `;
         }

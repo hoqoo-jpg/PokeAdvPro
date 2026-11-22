@@ -89,6 +89,24 @@ const SkillsEngine = {
     return Math.min(maxCap, Math.round(baseLen * Math.min(1.38, areaScale * (1 + (traitBonus || 0)))));
   },
 
+  // 超武半徑軟上限計算：手機直屏自動收斂在螢幕寬度約 2/3（直徑 ~260~310px），避免蓋屏與遮擋彈幕
+  getUltRadius(baseR, mobileCap = 158, desktopCap = 205) {
+    const p = GameApp.player;
+    const areaMult = p ? (p.areaMult || 1.0) : 1.0;
+    const scaled = baseR * (1 + (areaMult - 1) * 0.60);
+    const isPortraitMobile = !!(
+      typeof GameApp !== "undefined" &&
+      GameApp.isMobileDevice &&
+      GameApp.isMobileDevice() &&
+      GameApp.width < GameApp.height
+    );
+    if (isPortraitMobile) {
+      const screenCap = Math.round(GameApp.width * 0.39);
+      return Math.min(mobileCap, Math.max(125, screenCap), Math.round(scaled));
+    }
+    return Math.min(desktopCap, Math.round(scaled));
+  },
+
   spawnSubParticle(x, y, vx, vy, color, size, life, shape = "circle") {
     const maxCap = (GameApp.enemies && GameApp.enemies.length > 140) ? 130 : 240;
     if (this.subParticles.length > maxCap) this.subParticles.shift();
@@ -1400,83 +1418,87 @@ const SkillsEngine = {
       name: meta.evolvedName,
       x: p.x,
       y: p.y,
-      timer: 1.35,
-      maxTime: 1.35,
+      timer: 1.15,
+      maxTime: 1.15,
       color: meta.color,
-      radius: 260
+      radius: 165
     });
 
     if (meta.type === "Electric") {
-      // 【比卡超超武・打雷暴風雨】：黑金雷雲壓頂 ＋ 8 道垂直落下的三層白熾天罰雷柱 ＋ 底層焦黑裂痕與電圈
+      // 【點狀／多發型・打雷暴風雨】：收斂至手機 2/3 範圍，6 道天罰雷柱錯落轟炸
+      const ultR = this.getUltRadius(150, 155, 195);
       const strikePts = [];
-      for (let i = 0; i < 8; i++) {
-        const a = (i * Math.PI * 2) / 8 + (i % 2 === 0 ? 0.12 : -0.12);
-        const dist = (95 + (i % 2) * 95) * p.areaMult;
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI * 2) / 6 + (i % 2 === 0 ? 0.14 : -0.14);
+        const dist = ultR * (i % 2 === 0 ? 0.44 : 0.84);
         strikePts.push({
           x: p.x + Math.cos(a) * dist,
           y: p.y + Math.sin(a) * dist,
-          delay: i * 0.06
+          delay: i * 0.07
         });
       }
       this.groundHazards.push({
         kind: "thunder_pillars_storm",
         x: p.x, y: p.y,
         strikePts,
-        radius: 245 * p.areaMult,
-        dmg: ultDmg * 0.40,
+        radius: ultR,
+        dmg: ultDmg * 0.42,
         type: "Electric",
-        timer: 1.45, maxTime: 1.45,
+        timer: 1.40, maxTime: 1.40,
         tickTimer: 0.16, tickInterval: 0.32,
         color: "#FACC15"
       });
     } else if (meta.type === "Fire") {
-      // 【噴火龍超武・立體大字爆炎】：外推 42px 淨空出發，密集翻滾動態火球簇構成『大』字 ＋ 底層熔岩火海
+      // 【點狀／多發型・立體大字爆炎】：縮減單字半徑與射程，保留八方推進灼燒
+      const fireR = Math.round(this.getUltRadius(56, 62, 74));
       for (let d = 0; d < 4; d++) {
         const ang = (d * Math.PI) / 2 + (p.facingX >= 0 ? 0 : 0.4);
-        const startX = p.x + Math.cos(ang) * 42;
-        const startY = p.y + Math.sin(ang) * 42;
+        const startX = p.x + Math.cos(ang) * 36;
+        const startY = p.y + Math.sin(ang) * 36;
         this.groundHazards.push({
           kind: "drifting_daimonji",
           isMegaBlueFlame: !!(p && p.id === 10034),
           x: startX, y: startY,
           lastSpawnX: startX, lastSpawnY: startY,
-          vx: Math.cos(ang) * 235, vy: Math.sin(ang) * 235,
+          vx: Math.cos(ang) * 190, vy: Math.sin(ang) * 190,
           angle: ang,
-          radius: 78 * p.areaMult,
+          radius: fireR,
           dmg: ultDmg * 0.42,
           type: "Fire",
-          timer: 1.25, maxTime: 1.25,
+          timer: 0.95, maxTime: 0.95,
           tickTimer: 0.08, tickInterval: 0.25,
           color: "#EF4444"
         });
       }
     } else if (meta.type === "Water") {
-      // 【水箭龜超武・潮旋激流】：底層 300px 深海大漩渦（中央 45px 淨空風眼）＋ 外圈 6 道浮世繪風拍岸巨浪
+      // 【持續領域型・潮旋激流】：約 2/3 手機畫面深海大漩渦，保留外圈閃彈視野
+      const ultR = this.getUltRadius(158, 162, 205);
       this.groundHazards.push({
         kind: "blastoise_maelstrom",
         isMegaMaelstrom: !!(p && p.id === 10036),
         x: p.x, y: p.y,
         followPlayer: true,
         rotAngle: 0,
-        radius: 295 * p.areaMult,
-        innerSafeRadius: 44,
-        dmg: ultDmg * 0.34,
+        radius: ultR,
+        innerSafeRadius: 34,
+        dmg: ultDmg * 0.35,
         type: "Water",
         timer: 1.65, maxTime: 1.65,
         tickTimer: 0.06, tickInterval: 0.24,
         color: "#38BDF8"
       });
     } else if (meta.type === "Grass") {
-      // 【奇異種子超武・瘋狂植物】：地面底層裂開 10 個泥坑，破土竄出帶尖刺與紅花苞的巨型彎曲荊棘藤木（完全不擋主角）
+      // 【點狀／多發型・瘋狂植物】：8 株破土巨型荊棘藤木收斂於 2/3 圈內
+      const ultR = this.getUltRadius(152, 158, 198);
       const rootNodes = [];
-      for (let i = 0; i < 10; i++) {
-        const ang = (i * Math.PI * 2) / 10 + (Math.random() - 0.5) * 0.2;
-        const dist = (68 + (i % 3) * 62) * p.areaMult;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i * Math.PI * 2) / 8 + (Math.random() - 0.5) * 0.18;
+        const dist = ultR * (0.34 + (i % 3) * 0.24);
         rootNodes.push({
           x: p.x + Math.cos(ang) * dist,
           y: p.y + Math.sin(ang) * dist,
           leanDir: (i % 2 === 0 ? 1 : -1),
-          heightScale: 0.85 + (i % 3) * 0.14,
+          heightScale: 0.78 + (i % 3) * 0.12,
           phaseOffset: i * 0.45
         });
       }
@@ -1484,79 +1506,78 @@ const SkillsEngine = {
         kind: "frenzy_plant_roots",
         x: p.x, y: p.y,
         rootNodes,
-        radius: 255 * p.areaMult,
+        radius: ultR,
         dmg: ultDmg * 0.36,
         type: "Grass",
         timer: 1.55, maxTime: 1.55,
         tickTimer: 0.08, tickInterval: 0.28,
         color: "#15803D"
       });
-      for (let g = 0; g < 24; g++) {
+      for (let g = 0; g < 18; g++) {
         const gAng = Math.random() * Math.PI * 2;
-        const gSpd = 65 + Math.random() * 145;
+        const gSpd = 55 + Math.random() * 115;
         this.spawnSubParticle(
-          p.x + Math.cos(gAng) * 45, p.y + Math.sin(gAng) * 45,
+          p.x + Math.cos(gAng) * 38, p.y + Math.sin(gAng) * 38,
           Math.cos(gAng) * gSpd, Math.sin(gAng) * gSpd,
           g % 3 === 0 ? "#F472B6" : (g % 2 === 0 ? "#22C55E" : "#86EFAC"),
-          4.0, 0.85, "leaf"
+          3.6, 0.75, "leaf"
         );
       }
     } else if (meta.type === "Normal") {
-      // 【終極衝擊（Giga Impact）】：3 層立體黃金螺旋鑽頭巨錐 ＋ 地面焦土刮痕 ＋ 連環破空音爆雲環
+      // 【近戰爆發型・終極衝擊】：收斂鑽頭長度至中近距離四向衝鋒
+      const ultR = this.getUltRadius(148, 152, 192);
       for (let i = 0; i < 4; i++) {
         const ang = (i * Math.PI * 2) / 4 + Math.PI / 4;
         this.meleeEffects.push({
           style: "giga_impact_lance",
           casterRef: p,
-          ox: p.x + Math.cos(ang) * 30,
-          oy: p.y + Math.sin(ang) * 30,
-          x: p.x + Math.cos(ang) * 30,
-          y: p.y + Math.sin(ang) * 30,
+          ox: p.x + Math.cos(ang) * 26,
+          oy: p.y + Math.sin(ang) * 26,
+          x: p.x + Math.cos(ang) * 26,
+          y: p.y + Math.sin(ang) * 26,
           angle: ang,
-          radius: 245 * p.areaMult,
+          radius: ultR,
           dmg: ultDmg * 0.62,
           type: "Normal",
-          kb: 26,
+          kb: 24,
           hitSet: new Set(),
-          timer: 0.52 + i * 0.04,
-          maxTime: 0.52 + i * 0.04,
+          timer: 0.48 + i * 0.04,
+          maxTime: 0.48 + i * 0.04,
           color: "#FACC15"
         });
       }
     } else if (meta.type === "Fighting") {
-      // 【爆裂十字劈（太極八卦武神破）・三段式武學連招】：
-      // 第 1 拍（0.0s 立陣）：隨身展開 1.95 秒「太極八卦武神陣」（外卦八宮＋中層交錯金剛星盤＋內圈陰陽雙魚氣旋，賦予 +20% 暴擊與 30% 減傷）
-      p.martialGodTimer = 1.95;
+      // 【近戰爆發型・爆裂十字劈】：緊湊太極八卦陣 ＋ 8 拳護體 ＋ 收斂型 X 十字破甲斬
+      const domainR = this.getUltRadius(140, 145, 180);
+      p.martialGodTimer = 1.85;
       this.groundHazards.push({
         kind: "martial_aura_domain",
         x: p.x, y: p.y,
         followPlayer: true,
-        radius: 225 * p.areaMult,
+        radius: domainR,
         dmg: ultDmg * 0.34,
         type: "Fighting",
-        timer: 1.95, maxTime: 1.95,
+        timer: 1.85, maxTime: 1.85,
         tickTimer: 0.06, tickInterval: 0.28,
         color: "#DC2626"
       });
 
-      // 第 2 拍（0.0s 百裂）：12 道阿修羅螺旋金紅重拳護體掃除四周
-      for (let i = 0; i < 12; i++) {
-        const ang = (i * Math.PI * 2) / 12;
+      for (let i = 0; i < 8; i++) {
+        const ang = (i * Math.PI * 2) / 8;
         this.projectiles.push({
-          x: p.x + Math.cos(ang) * 24, y: p.y + Math.sin(ang) * 24,
-          vx: Math.cos(ang) * 310, vy: Math.sin(ang) * 310,
+          x: p.x + Math.cos(ang) * 22, y: p.y + Math.sin(ang) * 22,
+          vx: Math.cos(ang) * 285, vy: Math.sin(ang) * 285,
           angle: ang, spinSpeed: (i % 2 === 0 ? 1.05 : -1.05),
-          radius: 28 * p.areaMult, dmg: ultDmg * 0.68,
+          radius: 21 * Math.min(1.25, p.areaMult), dmg: ultDmg * 0.66,
           type: "Fighting", skillId: "Karate Chop", vfx: "giant_fist",
-          color: "#DC2626", pierce: 14, knockback: 24, life: 1.35, statusBonus: 0.45, hitSet: new Set(), trailTimer: 0
+          color: "#DC2626", pierce: 12, knockback: 22, life: 0.90, statusBonus: 0.45, hitSet: new Set(), trailTimer: 0
         });
       }
 
-      // 第 3 拍（0.28s 鎮嶽終結斬）：以主角自身為中心且全程跟隨主角移動（followPlayer: true），劈開橫跨全屏的白熾「X 十字天譴破甲斬」！
       setTimeout(() => {
         if (GameApp.state !== "PLAYING" || !GameApp.player) return;
         const pl = GameApp.player;
-        const armLen = 235 * pl.areaMult;
+        const armLen = this.getUltRadius(148, 152, 188);
         this.groundHazards = this.groundHazards.filter(h => h.kind !== "cross_chop_cleave");
         this.groundHazards.push({
           kind: "cross_chop_cleave",
@@ -1565,15 +1586,14 @@ const SkillsEngine = {
           radius: armLen,
           dmg: ultDmg * 0.58,
           type: "Fighting",
-          timer: 1.05, maxTime: 1.05,
+          timer: 0.95, maxTime: 0.95,
           tickTimer: 0.16, tickInterval: 0.30,
           color: "#FACC15"
         });
         SoundFX.play("ultimate");
-        GameApp.camera.shakeTime = 0.20;
-        GameApp.camera.shakeMagnitude = 5.5;
+        GameApp.camera.shakeTime = 0.18;
+        GameApp.camera.shakeMagnitude = 4.5;
 
-        // 自身周圍十字斬瞬發破甲裁決判定
         const crossCandidates = [...this.getEnemiesInRadius(pl.x, pl.y, armLen)];
         crossCandidates.forEach(e => {
           if (!e || e.hp <= 0) return;
@@ -1582,10 +1602,10 @@ const SkillsEngine = {
           if (d <= armLen + e.radius) {
             const diag1 = Math.abs(dx - dy) * 0.707;
             const diag2 = Math.abs(dx + dy) * 0.707;
-            const inCore = d <= 88 * pl.areaMult + e.radius;
-            if (inCore || diag1 <= 48 * pl.areaMult + e.radius || diag2 <= 48 * pl.areaMult + e.radius) {
-              const armorBreakMult = inCore ? 1.45 : 1.18;
-              GameApp.dealDamageToEnemy(e, ultDmg * armorBreakMult, "Fighting", 0.65, 28);
+            const inCore = d <= 62 * Math.min(1.25, pl.areaMult) + e.radius;
+            if (inCore || diag1 <= 36 * Math.min(1.25, pl.areaMult) + e.radius || diag2 <= 36 * Math.min(1.25, pl.areaMult) + e.radius) {
+              const armorBreakMult = inCore ? 1.42 : 1.15;
+              GameApp.dealDamageToEnemy(e, ultDmg * armorBreakMult, "Fighting", 0.65, 24);
               if (!e.status && !(e.ccImmunityTimer > 0)) {
                 e.status = "Paralysis";
                 e.statusTimer = e.isBoss ? 1.2 : 2.0;
@@ -1594,41 +1614,43 @@ const SkillsEngine = {
             }
           }
         });
-      }, 280);
+      }, 260);
     } else if (meta.type === "Flying") {
-      // 【暴風驟雨】：生成 3 道沉穩游走的聚怪龍捲風（持續 3.1s，配合 4.2s 保底冷卻絕不疊出 6 道龍捲風）
+      // 【全場控場型・暴風驟雨】：3 道緊湊聚怪龍捲風
+      const torR = Math.round(this.getUltRadius(68, 72, 86));
       for (let i = 0; i < 3; i++) {
         const ang = (i * Math.PI * 2) / 3;
         this.groundHazards.push({
           kind: "tornado",
-          x: p.x + Math.cos(ang) * 90,
-          y: p.y + Math.sin(ang) * 90,
-          vx: Math.cos(ang) * 62,
-          vy: Math.sin(ang) * 62,
-          radius: 95 * p.areaMult,
+          x: p.x + Math.cos(ang) * 68,
+          y: p.y + Math.sin(ang) * 68,
+          vx: Math.cos(ang) * 58,
+          vy: Math.sin(ang) * 58,
+          radius: torR,
           dmg: ultDmg * 0.26,
           type: "Flying",
-          timer: 3.1, maxTime: 3.1,
+          timer: 2.6, maxTime: 2.6,
           tickTimer: 0.1, tickInterval: 0.25,
           color: "#818CF8"
         });
       }
     } else if (meta.type === "Poison") {
-      // 【劇毒沼澤】：展開持續 3.4 秒的 230px 沸騰劇毒領域，減速 30% 並使沼澤內中毒 DOT 翻倍
+      // 【持續領域型・劇毒沼澤】：收斂至約 2/3 畫面的護身毒沼
+      const ultR = this.getUltRadius(150, 155, 195);
       this.groundHazards.push({
         kind: "toxic_swamp",
         x: p.x, y: p.y,
         followPlayer: true,
-        radius: 230 * p.areaMult,
-        dmg: ultDmg * 0.24,
+        radius: ultR,
+        dmg: ultDmg * 0.25,
         type: "Poison",
-        timer: 3.4, maxTime: 3.4,
+        timer: 3.2, maxTime: 3.2,
         tickTimer: 0.1, tickInterval: 0.35,
         color: "#9333EA"
       });
     } else if (meta.type === "Ice") {
-      // 【絕對零度（防永凍平衡版）】：對 285px 極光圈內非韌性保護期的敵人凍結 2.0s (Boss 1.0s)，韌性保護期內則賦予極寒減速
-      const freezeRange = 285 * p.areaMult;
+      // 【全場控場型・絕對零度】：收斂至 168px 極光冰圈，保留螢幕外緣預警視野
+      const freezeRange = this.getUltRadius(168, 172, 215);
       this.getEnemiesInRadius(p.x, p.y, freezeRange).forEach(e => {
         if (Math.hypot(e.x - p.x, e.y - p.y) <= freezeRange + e.radius) {
           if (e.ccImmunityTimer > 0) {
@@ -1644,123 +1666,129 @@ const SkillsEngine = {
       this.groundHazards.push({
         kind: "ice_shatter_domain",
         x: p.x, y: p.y,
-        radius: 280 * p.areaMult,
-        dmg: ultDmg * 0.95,
+        radius: freezeRange,
+        dmg: ultDmg * 0.92,
         type: "Ice",
         timer: 0.95, maxTime: 0.95,
         tickTimer: 0.90, tickInterval: 99,
         color: "#38BDF8"
       });
     } else if (meta.type === "Dragon") {
-      // 【天龍流星雨（重構 4 層次垂直陰影美學）】：6 顆定點雙環星軌陣列（內3外3），比照雷系超武的高空積雲陰影＋垂直龍魂星柱
+      // 【點狀／多發型・天龍流星雨】：6 顆緊湊雙環龍星陣
+      const outerR = this.getUltRadius(115, 120, 148);
+      const innerR = Math.round(outerR * 0.54);
+      const meteorR = Math.round(this.getUltRadius(62, 66, 78));
       for (let m = 0; m < 6; m++) {
         const isOuter = m >= 3;
         const ringIdx = m % 3;
         const ang = (ringIdx * Math.PI * 2) / 3 + (isOuter ? Math.PI / 3 : 0) + (p.facingX >= 0 ? 0.15 : -0.15);
-        const dist = (isOuter ? 165 : 88) * p.areaMult;
+        const dist = isOuter ? outerR : innerR;
         const tx = p.x + Math.cos(ang) * dist;
         const ty = p.y + Math.sin(ang) * dist;
         this.groundHazards.push({
           kind: "meteor_strike",
           x: tx, y: ty,
-          startX: tx + 24, startY: ty - 210,
-          radius: 82 * p.areaMult,
+          startX: tx + 20, startY: ty - 185,
+          radius: meteorR,
           dmg: ultDmg * 0.62,
           type: "Dragon",
-          delay: m * 0.14,
-          timer: 0.48 + m * 0.14,
-          maxTime: 0.48,
+          delay: m * 0.13,
+          timer: 0.45 + m * 0.13,
+          maxTime: 0.45,
           color: "#4338CA"
         });
       }
     } else if (meta.type === "Ground") {
-      // 【地裂斷層破】：柔化破土震屏 (2.0 / 0.12s) ＋ 10～12 條不規則深淵網狀裂谷瞬爆撕裂 (對空有效)
+      // 【近戰爆發型・地裂斷層破】：145px 緊湊深淵網狀裂谷
       GameApp.camera.shakeTime = 0.12;
       GameApp.camera.shakeMagnitude = 2.0;
-      const ultRad = 220 * p.areaMult;
+      const ultRad = this.getUltRadius(145, 150, 188);
       this.groundHazards.push({
         kind: "quake_fissure",
         x: p.x, y: p.y,
         radius: ultRad,
         dmg: ultDmg * 0.36,
         type: "Ground",
-        cracks: this.buildQuakeCrackTree(11, ultRad, true),
-        timer: 2.0, maxTime: 2.0,
+        cracks: this.buildQuakeCrackTree(9, ultRad, true),
+        timer: 1.9, maxTime: 1.9,
         tickTimer: 0.1, tickInterval: 0.45,
         color: "#D97706"
       });
     } else if (meta.type === "Ghost") {
-      // 【耿鬼專屬超武・暗影死滅波】：底層「冥界巨大壞笑暗影陣（血紅雙眼＋弦月壞笑）」＋ 8 隻張嘴惡靈鬼影穿梭撕咬
+      // 【持續領域型・暗影死滅波】：150px 冥界壞笑陣 ＋ 6 隻惡靈鬼影
+      const ultR = this.getUltRadius(150, 156, 195);
       this.groundHazards.push({
         kind: "gengar_grin_domain",
         x: p.x, y: p.y,
-        radius: 235 * p.areaMult,
-        dmg: ultDmg * 0.32,
+        radius: ultR,
+        dmg: ultDmg * 0.34,
         type: "Ghost",
-        timer: 2.1, maxTime: 2.1,
+        timer: 2.0, maxTime: 2.0,
         tickTimer: 0.15, tickInterval: 0.42,
         color: "#A855F7"
       });
-      for (let k = 0; k < 8; k++) {
-        const ang = (k * Math.PI * 2) / 8;
+      for (let k = 0; k < 6; k++) {
+        const ang = (k * Math.PI * 2) / 6;
         this.projectiles.push({
-          x: p.x + Math.cos(ang) * 34,
-          y: p.y + Math.sin(ang) * 34,
-          vx: Math.cos(ang) * 310, vy: Math.sin(ang) * 310,
-          initSpeed: 310,
-          angle: ang, radius: 22, dmg: ultDmg * 0.52,
+          x: p.x + Math.cos(ang) * 28,
+          y: p.y + Math.sin(ang) * 28,
+          vx: Math.cos(ang) * 290, vy: Math.sin(ang) * 290,
+          initSpeed: 290,
+          angle: ang, radius: 17, dmg: ultDmg * 0.52,
           type: "Ghost", skillId: meta.id, vfx: "gengar_phantom",
           homing: true, color: "#A855F7",
-          pierce: 8, knockback: 8, life: 1.85, statusBonus: 0.65, hitSet: new Set(), trailTimer: 0
+          pierce: 7, knockback: 8, life: 1.35, statusBonus: 0.65, hitSet: new Set(), trailTimer: 0
         });
       }
     } else if (meta.id === "Moonblast") {
-      // 【創世極光（月亮之力超武）】：皎潔滿月虛影 ＋ 粉金與青色交織寬幅極光天幕 ＋ 十字星屑洗禮
+      // 【全場控場型・創世極光】：164px 月華極光天幕
+      const ultR = this.getUltRadius(164, 168, 210);
       this.groundHazards.push({
         kind: "genesis_aurora",
         x: p.x, y: p.y,
-        radius: 255 * p.areaMult,
+        radius: ultR,
         dmg: ultDmg * 0.36,
         type: "Psychic",
-        timer: 2.0, maxTime: 2.0,
+        timer: 1.95, maxTime: 1.95,
         tickTimer: 0.14, tickInterval: 0.36,
         color: "#F472B6"
       });
     } else if (meta.type === "Psychic") {
-      // 【精神強念領域】：引力黑洞牽引壓縮怪群 + 8 道同心念力波環
+      // 【持續領域型・精神強念領域】：150px 引力黑洞 ＋ 6 道念力梭
+      const ultR = this.getUltRadius(150, 156, 195);
       this.groundHazards.push({
         kind: "psychic_blackhole",
         x: p.x, y: p.y,
-        radius: 230 * p.areaMult,
-        dmg: ultDmg * 0.32,
+        radius: ultR,
+        dmg: ultDmg * 0.34,
         type: "Psychic",
-        timer: 2.1, maxTime: 2.1,
+        timer: 2.0, maxTime: 2.0,
         tickTimer: 0.15, tickInterval: 0.45,
         color: "#EC4899"
       });
-      for (let k = 0; k < 8; k++) {
-        const ang = (k * Math.PI * 2) / 8;
+      for (let k = 0; k < 6; k++) {
+        const ang = (k * Math.PI * 2) / 6;
         this.projectiles.push({
-          x: p.x + Math.cos(ang) * 32,
-          y: p.y + Math.sin(ang) * 32,
-          vx: Math.cos(ang) * 320, vy: Math.sin(ang) * 320,
-          angle: ang, radius: 20, dmg: ultDmg * 0.50,
+          x: p.x + Math.cos(ang) * 28,
+          y: p.y + Math.sin(ang) * 28,
+          vx: Math.cos(ang) * 300, vy: Math.sin(ang) * 300,
+          angle: ang, radius: 16, dmg: ultDmg * 0.50,
           type: "Psychic", skillId: meta.id, vfx: "psychic_lance",
           homing: true, color: "#EC4899",
-          pierce: 8, knockback: 6, life: 1.8, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
+          pierce: 7, knockback: 6, life: 1.35, statusBonus: 0.5, hitSet: new Set(), trailTimer: 0
         });
       }
     }
 
-    // 釋放瞬間僅對貼身 115px 內敵人產生起手震退氣浪（使用空間網格與淺拷貝快照防刪除錯位）
-    [...this.getEnemiesInRadius(p.x, p.y, 115)].forEach(e => {
+    // 釋放瞬間對貼身 95px 內敵人產生起手震退氣浪
+    [...this.getEnemiesInRadius(p.x, p.y, 95)].forEach(e => {
       if (!e || e.hp <= 0) return;
-      if (Math.hypot(e.x - p.x, e.y - p.y) <= 115 + e.radius) {
-        let adjustedDmg = ultDmg * 0.55;
+      if (Math.hypot(e.x - p.x, e.y - p.y) <= 95 + e.radius) {
+        let adjustedDmg = ultDmg * 0.52;
         if (meta.type === "Ground" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
           adjustedDmg *= 3.0;
         }
-        GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 28);
+        GameApp.dealDamageToEnemy(e, adjustedDmg, meta.type, 0.70, e.isBoss ? 0 : 24);
       }
     });
 
@@ -2869,8 +2897,10 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 耿鬼標誌性「血紅邪魅雙眼 + 弦月露齒壞笑」地面投影圖騰
+        // 耿鬼標誌性「血紅邪魅雙眼 + 弦月露齒壞笑」地面投影圖騰（隨領域半徑等比縮放）
         ctx.save();
+        const grinScale = Math.min(1.0, curR / 205);
+        ctx.scale(grinScale, grinScale);
         ctx.globalAlpha = alpha * 0.85;
         // 左眼三角形
         ctx.fillStyle = "#EF4444";
@@ -5660,7 +5690,7 @@ const SkillsEngine = {
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
         const curLen = Math.max(16, m.radius * Math.min(1, prog * 1.55));
-        const maxW = 44 * (1 - prog * 0.22);
+        const maxW = 32 * (1 - prog * 0.22);
         const tailX = curLen * 0.12;
         const tipX = curLen * 1.08;
 
@@ -5996,7 +6026,7 @@ const SkillsEngine = {
       ctx.save();
       ctx.translate(usx, usy);
       ctx.globalAlpha = Math.max(0, 1 - prog * 0.85);
-      const ringR = 42 + prog * 185;
+      const ringR = 32 + prog * 112;
       ctx.strokeStyle = u.color || "#FACC15";
       ctx.lineWidth = 4.5 * (1 - prog * 0.5);
       ctx.beginPath();

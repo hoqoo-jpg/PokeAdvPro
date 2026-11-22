@@ -559,14 +559,16 @@ window.GameApp = {
       sk.level = 10;
       if (meta.reqItem) p.heldItems[meta.reqItem] = true;
       sk.evolved = true;
+      sk.ultMaxCd = 10.0;
+      sk.ultTimer = idx === 0 ? 10.0 : 11.0;
       if (idx === 0) {
-        SkillsEngine.triggerUltimateSuperMove(meta, sk, 1.0);
+        SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.78);
       } else {
         setTimeout(() => {
           if (this.state === "PLAYING" && this.player) {
-            SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.78);
+            SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.68);
           }
-        }, 450);
+        }, 550);
       }
     });
     this.spawnFloatingText(p.x, p.y - 32, targetCount >= 2 ? "★★ 雙超武全開覺醒！" : "★ 第1招超武突破！", "#FACC15", 15);
@@ -2298,11 +2300,33 @@ window.GameApp = {
     const hasDualSuper = evolvedSlots.length >= 2;
 
     allSkillSlots.forEach((skSlot, slotIdx) => {
+      const meta = SKILLS_CATALOG[skSlot.id];
+      if (!meta) return;
+
+      // 【雙軌超武・軌道 B】：已突破超武的招式擁有獨立 ~10 秒自動充能爆發軸（不取代原本 Lv.10 普攻）
+      if (skSlot.evolved) {
+        const isSecondSuper = hasDualSuper && evolvedSlots[1] === skSlot;
+        const dualCdPenalty = hasDualSuper ? 1.10 : 1.0;
+        const ultMaxCd = Math.max(7.5, Math.min(11.5, 10.0 * Math.max(0.80, cdFactor) * dualCdPenalty));
+        skSlot.ultMaxCd = ultMaxCd;
+        if (skSlot.ultTimer === undefined) skSlot.ultTimer = 0.6;
+        skSlot.ultTimer = Math.max(0, skSlot.ultTimer - dt);
+
+        if (skSlot.ultTimer <= 0 && p.superMoveIcdTimer <= 0) {
+          const ultTriggerRange = 205 * Math.min(1.25, p.areaMult);
+          const hasUltTarget = this.manualAimMode || !!this.findNearestEnemyInViewport(p.x, p.y, ultTriggerRange);
+          if (hasUltTarget) {
+            const ultDmgScale = isSecondSuper ? 0.68 : 0.78;
+            SkillsEngine.triggerUltimateSuperMove(meta, skSlot, ultDmgScale);
+            skSlot.ultTimer = ultMaxCd;
+            p.superMoveIcdTimer = 1.60; // 雙超武強制錯峰 1.6 秒，避免同時蓋屏
+          }
+        }
+      }
+
+      // 【雙軌超武・軌道 A】：所有招式（包含已突破超武的 Lv.10 招式）皆維持正常普攻連發
       skSlot.timer = Math.max(0, skSlot.timer - dt);
       if (skSlot.timer <= 0) {
-        const meta = SKILLS_CATALOG[skSlot.id];
-        if (!meta) return;
-
         // 1. 智能有效射程觸發 (Range-Gated Smart Trigger)：
         // 在「自動索敵模式」下，必須有敵人踏入該招式的有效射程內才發動（沒怪時保持 timer = 0 待命蓄力，絕不對空氣亂放）；
         // 若玩家主動切換為「🧭 朝向（手動突圍）」模式，則允許無條件持續開火！
@@ -2311,9 +2335,7 @@ window.GameApp = {
           const lv = skSlot.level || 1;
           const meleeAreaScale = p.areaMult * (lv >= 3 ? 1.15 : 1.0) * (lv >= 8 ? 1.25 : 1.0) * (1 + (trait.legendaryAreaBonus || 0));
           let triggerRange = 330 * p.areaMult;
-          if (skSlot.evolved) {
-            triggerRange = 245 * p.areaMult;
-          } else if (meta.isMelee) {
+          if (meta.isMelee) {
             // 精準對齊各近戰招式的真實有效打擊距離 (乘以 0.90 貼身裕度，確保怪獸踏入打擊圈內才出招，徹底根除打空氣！)
             if (meta.meleeStyle === "slam_wave") {
               // 撞擊 (Tackle A+C)：第 1 段本體貼身 + 第 2/3 段殘影接力前衝（附帶距離軟上限）
@@ -2372,35 +2394,18 @@ window.GameApp = {
           }
         }
 
-        if (skSlot.evolved) {
-          // 2. 選項 A 雙超武平衡與 1.1s 錯峰共鳴：防止雙超武同幀重疊閃瞎眼並平衡秒王強度
-          if (p.superMoveIcdTimer > 0) {
-            skSlot.timer = p.superMoveIcdTimer;
-            return;
-          }
-          const isSecondSuper = hasDualSuper && evolvedSlots[1] === skSlot;
-          const ultDmgScale = isSecondSuper ? 0.78 : 1.0;
-          const dualCdPenalty = hasDualSuper ? 1.18 : 1.0;
-
-          SkillsEngine.triggerUltimateSuperMove(meta, skSlot, ultDmgScale);
-          const minUltCd = (meta.ultMinCd || 3.2) * dualCdPenalty;
-          skSlot.timer = Math.max(minUltCd, meta.baseCd * 2.45 * cdFactor * dualCdPenalty);
-          p.superMoveIcdTimer = 1.10; // 強制與下一發超武錯開至少 1.1 秒
-          p.castStaggerTimer = 0.08;
-        } else {
-          if (p.castStaggerTimer > 0) {
-            skSlot.timer = 0.015; // 全局微序列排隊，防止多把子彈武器同一毫秒重疊發射
-            return;
-          }
-          SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
-          const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
-          const isQuickSkill = ["Tackle", "AirSlash", "Air Slash", "Thunderbolt"].includes(skSlot.id);
-          const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
-            ? (p.innateTrait.quickAttackCdMult || 1.0)
-            : 1.0;
-          skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
-          p.castStaggerTimer = 0.085;
+        if (p.castStaggerTimer > 0) {
+          skSlot.timer = 0.015; // 全局微序列排隊，防止多把子彈武器同一毫秒重疊發射
+          return;
         }
+        SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
+        const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
+        const isQuickSkill = ["Tackle", "AirSlash", "Air Slash", "Thunderbolt"].includes(skSlot.id);
+        const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
+          ? (p.innateTrait.quickAttackCdMult || 1.0)
+          : 1.0;
+        skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
+        p.castStaggerTimer = 0.085;
       }
     });
 
@@ -4473,6 +4478,8 @@ window.GameApp = {
         const meta = SKILLS_CATALOG[sk.id];
         if (sk.level >= 10 && !sk.evolved && (!meta.reqItem || p.heldItems[meta.reqItem])) {
           sk.evolved = true;
+          sk.ultMaxCd = 10.0;
+          sk.ultTimer = 0.4;
           evolvedAny = true;
           this.saveData.stats.superMoves += 1;
           this.showCutsceneBanner(`[寶箱突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3200);
@@ -4685,7 +4692,7 @@ window.GameApp = {
           if (typeof getPokemonInnateTrait === "function") {
             p.innateTrait = getPokemonInnateTrait(p.data, p.level);
           }
-          p.maxHp = Math.round(p.maxHp * 1.35);
+          p.maxHp = Math.round(p.maxHp * 1.22);
           p.hp = p.maxHp;
           p.dmgMult *= 1.15;
           p.areaMult *= 1.08;
@@ -4921,7 +4928,7 @@ window.GameApp = {
         ctx.fillText(isLeg ? `👑 傳說王權共鳴！【${p.data.name_zh}】解放神聖威壓！` : `⚡ 潛能極限突破！【${p.data.name_zh}】覺醒完全體霸氣！`, this.width / 2, boxY + 26);
         ctx.font = "700 11px 'Noto Sans TC', sans-serif";
         ctx.fillStyle = "#34D399";
-        ctx.fillText(isLeg ? `HP上限 +22% 回滿 ‧ 全傷害 +14% ‧ 12%霸體` : `體型與氣場進化 ‧ HP+35%回滿 ‧ 全傷+15% ‧ 12%霸體`, this.width / 2, boxY + 47);
+        ctx.fillText(isLeg ? `HP上限 +22% 回滿 ‧ 全傷害 +14% ‧ 12%霸體` : `體型與氣場進化 ‧ HP+22%回滿 ‧ 全傷+15% ‧ 12%霸體`, this.width / 2, boxY + 47);
       }
     } else if (seq.isMega) {
       const mCol = (seq.nextData && seq.nextData.burstColor) || "#38BDF8";
@@ -5091,6 +5098,8 @@ window.GameApp = {
               isNew: false,
               apply: () => {
                 sk.evolved = true;
+                sk.ultMaxCd = 10.0;
+                sk.ultTimer = 0.4;
                 this.saveData.stats.superMoves += 1;
                 this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
               }
@@ -7314,14 +7323,20 @@ window.GameApp = {
       }
     }
 
-    const skillKey = Object.values(p.skills).map(sk => `${sk.id}:${sk.level}:${sk.evolved ? 1 : 0}`).join(",");
+    const skillKey = Object.values(p.skills).map(sk => `${sk.id}:${sk.level}:${sk.evolved ? ('1:' + Math.ceil(sk.ultTimer || 0)) : '0'}`).join(",");
     if (this._lastHudSkillKey !== skillKey) {
       this._lastHudSkillKey = skillKey;
       document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
         const meta = SKILLS_CATALOG[sk.id];
         if (!meta) return "";
         if (sk.evolved) {
-          return `<span style="background: linear-gradient(135deg, #4A3510 0%, #2A1C05 100%); border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.38);" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.evolvedName}</span><span class="text-amber-200 font-pixel text-[8px]">L${sk.level}</span></span>`;
+          const maxCd = sk.ultMaxCd || 10.0;
+          const remSec = Math.max(0, Math.ceil(sk.ultTimer || 0));
+          const pct = Math.max(0, Math.min(100, Math.round((1 - (sk.ultTimer || 0) / maxCd) * 100)));
+          const cdBadge = remSec <= 0
+            ? `<span class="text-emerald-300 font-black text-[8px] ml-0.5 animate-pulse">⚡就緒</span>`
+            : `<span class="text-amber-200 font-pixel text-[8px] ml-0.5">${remSec}s</span>`;
+          return `<span style="background: #221604; border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);" class="relative overflow-hidden px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1"><span style="width:${pct}%; background: linear-gradient(90deg, rgba(217,119,6,0.42) 0%, rgba(250,204,21,0.52) 100%);" class="absolute inset-y-0 left-0 transition-all duration-300 pointer-events-none"></span><span class="relative z-10 flex items-center gap-1">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.evolvedName}</span>${cdBadge}</span></span>`;
         }
         const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
         return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
