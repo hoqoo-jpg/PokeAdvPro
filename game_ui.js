@@ -279,11 +279,12 @@ Object.assign(window.GameApp, {
     }
   },
 
-  handleLobbyShinySecretTap() {
+  handleLobbyShinySecretTap(e) {
     if (this.state !== "TITLE") return;
+    if (e && typeof e.preventDefault === "function") e.preventDefault();
     const now = performance.now();
     if (!Array.isArray(this._secretDebugTaps)) this._secretDebugTaps = [];
-    this._secretDebugTaps = this._secretDebugTaps.filter(t => now - t <= 2000);
+    this._secretDebugTaps = this._secretDebugTaps.filter(t => now - t <= 3000);
     this._secretDebugTaps.push(now);
     if (this._secretDebugTaps.length >= 10) {
       this._secretDebugTaps = [];

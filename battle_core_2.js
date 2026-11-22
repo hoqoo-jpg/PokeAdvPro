@@ -360,6 +360,7 @@ window.GameApp = {
 
     let lastTouchEnd = 0;
     document.addEventListener('touchend', (e) => {
+      if (this.state !== "PLAYING") return;
       const now = performance.now();
       if (now - lastTouchEnd <= 300) {
         e.preventDefault();
