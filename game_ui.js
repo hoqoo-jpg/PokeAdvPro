@@ -296,8 +296,8 @@ Object.assign(window.GameApp, {
         setTimeout(() => box.classList.remove("ring-2", "ring-amber-400"), 800);
       }
       alert(this.debugToolsUnlocked
-        ? "🔧 測試工具已解鎖！後續進入遊戲後，右上方將顯示測試齒輪按鈕。"
-        : "🔒 測試工具已重新隱藏。");
+        ? "🔧 測試工具已解鎖（防 F12 保護亦已暫時解除）！後續進入遊戲後，右上方將顯示測試齒輪按鈕。"
+        : "🔒 測試工具已重新隱藏，防 F12 保護已恢復。");
     }
   },
 

@@ -112,6 +112,7 @@ window.GameApp = {
     }
     this.bindInputs();
     this.bindTouchJoystick();
+    this.initDevToolsGuard();
 
     if (this.updateTitleUI) this.updateTitleUI();
     this.lastFrameTime = performance.now();
@@ -368,9 +369,127 @@ window.GameApp = {
   },
 
   // 開發者測試工具全套實裝（預設隱藏，大廳右上角閃光計數 2 秒內連點 10 次後解鎖）
+  isDevToolsGuardActive() {
+    if (this.debugToolsUnlocked) return false;
+    try {
+      const proto = window.location.protocol;
+      const host = window.location.hostname;
+      if (proto === "file:" || host === "localhost" || host === "127.0.0.1" || host === "::1") {
+        return false;
+      }
+    } catch (e) {}
+    return true;
+  },
+
+  initDevToolsGuard() {
+    if (this._devToolsGuardBound) return;
+    this._devToolsGuardBound = true;
+    this._devToolsLocked = false;
+    this._pausedByDevTools = false;
+
+    // 1. 攔截滑鼠右鍵選單
+    window.addEventListener("contextmenu", (e) => {
+      if (this.isDevToolsGuardActive()) {
+        e.preventDefault();
+      }
+    }, true);
+
+    // 2. 攔截 F12、DevTools 與檢視原始碼快捷鍵
+    window.addEventListener("keydown", (e) => {
+      if (!this.isDevToolsGuardActive()) return;
+      const key = (e.key || "").toLowerCase();
+      const ctrlOrMeta = e.ctrlKey || e.metaKey;
+      const isF12 = (e.key === "F12" || e.keyCode === 123);
+      const isDevShortcut = (ctrlOrMeta && e.shiftKey && (key === "i" || key === "j" || key === "c")) ||
+                            (e.metaKey && e.altKey && (key === "i" || key === "j" || key === "c"));
+      const isViewSourceOrSave = (ctrlOrMeta && (key === "u" || key === "s"));
+      if (isF12 || isDevShortcut || isViewSourceOrSave) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    }, true);
+
+    // 3. 輕量級 debugger 斷點陷阱 + 耗時偵測（每 1 秒檢查一次，0 FPS 損耗，切換分頁或鎖屏自動跳過防誤判）
+    setInterval(() => {
+      if (!this.isDevToolsGuardActive()) {
+        if (this._devToolsLocked) this.releaseDevToolsGuard();
+        return;
+      }
+      if (document.hidden) return;
+      const t0 = performance.now();
+      try {
+        (function(){}).constructor("debugger")();
+      } catch (e) {}
+      if (document.hidden) return;
+      const dt = performance.now() - t0;
+      if (dt > 120) {
+        this.triggerDevToolsPause();
+      }
+    }, 1000);
+  },
+
+  triggerDevToolsPause() {
+    if (!this._devToolsLocked) {
+      this._devToolsLocked = true;
+      if (this.state === "PLAYING") {
+        this.state = "PAUSED";
+        this._pausedByDevTools = true;
+      }
+      if (this.touchJoy) {
+        this.touchJoy.active = false;
+        this.touchJoy.dx = 0;
+        this.touchJoy.dy = 0;
+      }
+      const joyBase = document.getElementById("touchJoyBase");
+      const joyStick = document.getElementById("touchJoyStick");
+      if (joyBase) joyBase.style.display = "none";
+      if (joyStick) joyStick.style.display = "none";
+    }
+    const overlay = document.getElementById("devToolsGuardOverlay");
+    if (overlay) {
+      overlay.classList.remove("hidden");
+      overlay.style.display = "flex";
+    }
+  },
+
+  releaseDevToolsGuard() {
+    this._devToolsLocked = false;
+    const overlay = document.getElementById("devToolsGuardOverlay");
+    if (overlay) {
+      overlay.classList.add("hidden");
+      overlay.style.display = "none";
+    }
+    if (this._pausedByDevTools) {
+      this._pausedByDevTools = false;
+      if (this.state === "PAUSED") {
+        this.state = "PLAYING";
+        this.lastFrameTime = performance.now();
+      }
+    }
+  },
+
+  tryResumeFromDevToolsGuard() {
+    if (!this.isDevToolsGuardActive()) {
+      this.releaseDevToolsGuard();
+      return;
+    }
+    const t0 = performance.now();
+    try {
+      (function(){}).constructor("debugger")();
+    } catch (e) {}
+    const dt = performance.now() - t0;
+    if (dt <= 120) {
+      this.releaseDevToolsGuard();
+    }
+  },
+
   syncDebugButtonVisibility() {
     const btn = document.getElementById("btnHudDebugToggle");
     if (btn) btn.classList.toggle("hidden", !this.debugToolsUnlocked);
+    if (this.debugToolsUnlocked && this._devToolsLocked) {
+      this.releaseDevToolsGuard();
+    }
     if (!this.debugToolsUnlocked) {
       const menu = document.getElementById("debugDropdown");
       if (menu) menu.classList.add("hidden");

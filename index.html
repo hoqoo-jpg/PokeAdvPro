@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.3');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.4');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1208,11 +1208,24 @@
     <p class="text-xs font-bold text-slate-300 mt-1.5 max-w-xs">已為您自動暫停戰鬥，轉回直向後將立即無縫繼續冒險！</p>
   </div>
 
+  <!-- 15D. 防 F12 / Console 偵測即時暫停遮罩 -->
+  <div id="devToolsGuardOverlay" class="hidden fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center select-none">
+    <div class="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-rose-500 flex items-center justify-center mb-3 shadow-2xl">
+      <i class="fa-solid fa-shield-halved text-3xl text-rose-400"></i>
+    </div>
+    <div class="font-pixel text-xs text-rose-400 tracking-wider mb-1.5">SECURITY GUARD ACTIVE</div>
+    <div class="text-base sm:text-lg font-black text-white">偵測到開發者工具 (Console) 已開啟</div>
+    <p class="text-xs font-bold text-slate-300 mt-1.5 max-w-xs leading-relaxed">為保護遊戲運行環境，冒險已即時暫停。請先關閉瀏覽器開發者工具視窗後，再點擊下方按鈕恢復遊戲。</p>
+    <button onclick="GameApp.tryResumeFromDevToolsGuard()" class="poke-btn-yellow mt-4 px-5 py-2 text-xs font-black">
+      我已關閉，恢復遊戲
+    </button>
+  </div>
+
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.3"></script>
-  <script src="map_v11_engine.js?v=6.9.3"></script>
-  <script src="skills_engine.js?v=6.9.3"></script>
-  <script src="battle_core_2.js?v=6.9.3"></script>
-  <script src="game_ui.js?v=6.9.3"></script>
+  <script src="pokedex_data.js?v=6.9.4"></script>
+  <script src="map_v11_engine.js?v=6.9.4"></script>
+  <script src="skills_engine.js?v=6.9.4"></script>
+  <script src="battle_core_2.js?v=6.9.4"></script>
+  <script src="game_ui.js?v=6.9.4"></script>
 </body>
 </html>
