@@ -551,6 +551,181 @@ const MapEngine = {
     this.spritePropCache.set("poke_mart_pixel", canMart);
   },
 
+  renderStagePreviewCanvas(canvas, stageId) {
+    if (!canvas) return;
+    if (!this.tileCache || this.tileCache.size === 0) {
+      this.prebakeTileTextures();
+      this.prebakePixelProps();
+    }
+    const w = canvas.width = 240;
+    const h = canvas.height = 116;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+
+    if (stageId === "pallet") {
+      // 1. GBA 草地底紋
+      for (let tx = 0; tx < w; tx += 60) {
+        for (let ty = 0; ty < h; ty += 60) {
+          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
+          const tCan = this.tileCache.get(`pallet_${isDark ? 'dark' : 'light'}`);
+          if (tCan) ctx.drawImage(tCan, tx, ty);
+          else { ctx.fillStyle = isDark ? "#46783E" : "#4E8245"; ctx.fillRect(tx, ty, 60, 60); }
+        }
+      }
+      // 2. 鵝卵石泥土大道
+      ctx.fillStyle = "#C29B61";
+      ctx.fillRect(0, 62, w, 30);
+      ctx.fillStyle = "#D6B278";
+      ctx.fillRect(0, 67, w, 20);
+      for (let wx = 0; wx < w; wx += 14) {
+        ctx.fillStyle = "#3B6634";
+        ctx.fillRect(wx, 62, 8, 3);
+        ctx.fillRect(wx + 4, 89, 8, 3);
+        ctx.fillStyle = "#A8824C";
+        ctx.fillRect(wx + 3, 72 + (wx % 7), 5, 3);
+      }
+      // 3. 高草叢
+      ctx.fillStyle = "#14381F";
+      ctx.fillRect(10, 14, 68, 42);
+      ctx.fillStyle = "#1B3B22";
+      ctx.fillRect(12, 16, 64, 38);
+      for (let gx = 20; gx < 70; gx += 16) {
+        for (let gy = 26; gy < 52; gy += 14) {
+          ctx.fillStyle = "#2E8540";
+          ctx.fillRect(gx - 4, gy - 6, 3, 6);
+          ctx.fillRect(gx, gy - 8, 3, 8);
+          ctx.fillRect(gx + 4, gy - 6, 3, 6);
+          ctx.fillStyle = "#74E068";
+          ctx.fillRect(gx, gy - 9, 3, 2);
+        }
+      }
+      // 4. 單向跳崖與黃色箭頭
+      ctx.fillStyle = "#3E1F0D";
+      ctx.fillRect(12, 95, 118, 16);
+      ctx.fillStyle = "#7C3F1D";
+      ctx.fillRect(14, 99, 114, 10);
+      ctx.fillStyle = "#68A357";
+      ctx.fillRect(14, 95, 114, 4);
+      [34, 70, 106].forEach(ax => {
+        ctx.fillStyle = "#FEF08A";
+        ctx.fillRect(ax - 4, 101, 8, 2);
+        ctx.fillRect(ax - 2, 103, 4, 2);
+        ctx.fillRect(ax - 1, 105, 2, 2);
+      });
+      // 5. 紅頂木屋、常磐大樹、紅白小花與斷木樁
+      const house = this.spritePropCache.get("house_full");
+      const tree = this.spritePropCache.get("oak_tree_full");
+      const fRed = this.spritePropCache.get("flower_red");
+      const fWhite = this.spritePropCache.get("flower_white");
+      const sign = this.spritePropCache.get("crooked_sign_pixel");
+      if (house) ctx.drawImage(house, 134, 4, 72, 65);
+      if (tree) {
+        ctx.drawImage(tree, 82, 4, 52, 55);
+        ctx.drawImage(tree, 188, 52, 52, 55);
+      }
+      if (sign) ctx.drawImage(sign, 116, 48, 20, 20);
+      if (fRed) { ctx.drawImage(fRed, 86, 66, 14, 14); ctx.drawImage(fRed, 152, 92, 14, 14); }
+      if (fWhite) { ctx.drawImage(fWhite, 22, 64, 14, 14); ctx.drawImage(fWhite, 170, 96, 14, 14); }
+    } else if (stageId === "cerulean_bay") {
+      // 1. 碧藍深海與階梯狀像素海浪
+      ctx.fillStyle = "#0284C7";
+      ctx.fillRect(0, 0, w, h);
+      for (let gy = 14; gy < h; gy += 24) {
+        for (let gx = (gy % 48 === 14 ? 14 : 36); gx < w; gx += 46) {
+          ctx.fillStyle = "rgba(7, 89, 133, 0.72)";
+          ctx.fillRect(gx - 10, gy + 2, 20, 3);
+          ctx.fillStyle = "rgba(224, 242, 254, 0.80)";
+          ctx.fillRect(gx - 8, gy, 16, 2);
+          ctx.fillRect(gx - 4, gy - 2, 8, 2);
+        }
+      }
+      // 2. 黃金避難沙洲與拍岸白沫
+      ctx.fillStyle = "rgba(224, 242, 254, 0.72)";
+      ctx.fillRect(138, 12, 88, 66);
+      ctx.fillStyle = "#B48A3E";
+      ctx.fillRect(142, 16, 80, 58);
+      ctx.fillStyle = "#F5D77F";
+      ctx.fillRect(148, 22, 68, 46);
+      // 3. 十字像素木棧道與鉚釘
+      ctx.fillStyle = "rgba(3, 40, 75, 0.50)";
+      ctx.fillRect(62, 0, 44, h);
+      ctx.fillRect(0, 68, w, 34);
+      ctx.fillStyle = "#85522D";
+      ctx.fillRect(58, 0, 42, h);
+      ctx.fillRect(0, 64, w, 32);
+      ctx.fillStyle = "#9A6238";
+      ctx.fillRect(64, 0, 30, h);
+      ctx.fillRect(0, 70, w, 20);
+      for (let py = 12; py < h; py += 16) {
+        ctx.fillStyle = "#4A2A12"; ctx.fillRect(58, py, 42, 2);
+        ctx.fillStyle = "#1E293B"; ctx.fillRect(61, py + 4, 3, 3); ctx.fillRect(94, py + 4, 3, 3);
+      }
+      for (let px = 12; px < w; px += 18) {
+        if (px > 54 && px < 102) continue;
+        ctx.fillStyle = "#4A2A12"; ctx.fillRect(px, 64, 2, 32);
+        ctx.fillStyle = "#1E293B"; ctx.fillRect(px + 4, 67, 3, 3); ctx.fillRect(px + 4, 90, 3, 3);
+      }
+      // 4. 珊瑚暗礁、海星與扇貝
+      const reef = this.spritePropCache.get("reef_pixel");
+      const star = this.spritePropCache.get("starfish_pixel");
+      const shell = this.spritePropCache.get("shell_pixel");
+      if (reef) ctx.drawImage(reef, 160, 16, 48, 48);
+      if (star) { ctx.drawImage(star, 148, 48, 16, 16); ctx.drawImage(star, 20, 22, 16, 16); }
+      if (shell) { ctx.drawImage(shell, 198, 48, 15, 15); ctx.drawImage(shell, 114, 96, 15, 15); }
+    } else {
+      // 1. 石英高原古神殿紫黑石磚
+      for (let tx = 0; tx < w; tx += 60) {
+        for (let ty = 0; ty < h; ty += 60) {
+          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
+          const tCan = this.tileCache.get(`sky_pillar_${isDark ? 'dark' : 'light'}`);
+          if (tCan) ctx.drawImage(tCan, tx, ty);
+          else { ctx.fillStyle = isDark ? "#251E38" : "#2B243D"; ctx.fillRect(tx, ty, 60, 60); }
+        }
+      }
+      // 2. 中央金邊大理石大道
+      ctx.fillStyle = "#1E1B4B"; ctx.fillRect(68, 0, 104, h);
+      ctx.fillStyle = "#E2E8F0"; ctx.fillRect(70, 0, 100, h);
+      ctx.fillStyle = "#F8FAFC"; ctx.fillRect(80, 0, 80, h);
+      ctx.fillStyle = "#B45309"; ctx.fillRect(70, 0, 8, h); ctx.fillRect(162, 0, 8, h);
+      ctx.fillStyle = "#FACC15"; ctx.fillRect(72, 0, 4, h); ctx.fillRect(164, 0, 4, h);
+      for (let wy = 10; wy < h; wy += 24) {
+        ctx.fillStyle = "#CBD5E1"; ctx.fillRect(78, wy, 84, 2);
+        ctx.fillStyle = "#EF4444"; ctx.fillRect(72, wy + 8, 4, 4); ctx.fillRect(164, wy + 8, 4, 4);
+      }
+      // 3. 3D 透視五芒星超能重力陣
+      ctx.save();
+      const cx = 120, cy = 62;
+      const g = ctx.createRadialGradient(cx, cy, 4, cx, cy, 42);
+      g.addColorStop(0, "rgba(217, 70, 239, 0.58)");
+      g.addColorStop(0.6, "rgba(147, 51, 234, 0.28)");
+      g.addColorStop(1, "rgba(15, 23, 42, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(cx, cy, 42, 22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#F472B6"; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.ellipse(cx, cy, 34, 17, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#FDE047"; ctx.lineWidth = 1.6;
+      const pts = [];
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + (k * Math.PI * 2) / 5;
+        pts.push({ x: cx + Math.cos(a) * 26, y: cy + Math.sin(a) * 13 });
+      }
+      ctx.beginPath();
+      let idx = 0; ctx.moveTo(pts[0].x, pts[0].y);
+      for (let s = 0; s < 5; s++) { idx = (idx + 2) % 5; ctx.lineTo(pts[idx].x, pts[idx].y); }
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+      // 4. 翼神獸雕像與斷裂古柱
+      const stat = this.spritePropCache.get("statue_full");
+      const pil = this.spritePropCache.get("broken_pillar_pixel");
+      if (stat) {
+        ctx.drawImage(stat, 12, 16, 48, 60);
+        ctx.fillStyle = "#FACC15";
+        ctx.fillRect(28, 26, 3, 3); ctx.fillRect(36, 26, 3, 3);
+      }
+      if (pil) ctx.drawImage(pil, 180, 18, 48, 60);
+    }
+  },
+
   setStage(stageId) {
     const found = STAGES.find(s => s.id === stageId);
     if (found) {

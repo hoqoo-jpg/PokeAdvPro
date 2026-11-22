@@ -596,37 +596,68 @@ Object.assign(window.GameApp, {
       const selected = this.selectedTrainer.id === t.id;
       const bondIcons = (t.bondPreviewIds || []).map(pid => {
         const bp = POKEMON_MAP.get(pid);
-        return bp ? `<img src="${bp.forward_sprite}" title="${bp.name_zh}" class="w-7 h-7 pixel-sprite bg-white rounded-full border border-slate-300 p-0.5"/>` : '';
+        return bp ? `<img src="${bp.forward_sprite}" title="${bp.name_zh}" class="w-6 h-6 pixel-sprite bg-white rounded-full border border-slate-300 p-0.5 shadow-sm"/>` : '';
       }).join("");
 
+      const passiveTags = [];
+      const m = t.mods || {};
+      if (m.startPartner) passiveTags.push("開局+1雙打夥伴");
+      if (m.dmgMult && m.dmgMult > 1.01) passiveTags.push(`全傷+${Math.round((m.dmgMult - 1) * 100)}%`);
+      if (m.hpMult && m.hpMult > 1.01) passiveTags.push(`HP+${Math.round((m.hpMult - 1) * 100)}%`);
+      if (m.areaMult && m.areaMult > 1.01) passiveTags.push(`範圍+${Math.round((m.areaMult - 1) * 100)}%`);
+      if (m.cdMult && m.cdMult < 0.99) passiveTags.push(`CD-${Math.round((1 - m.cdMult) * 100)}%`);
+      if (m.critBonus && m.critBonus > 0) passiveTags.push(`暴擊+${Math.round(m.critBonus * 100)}%`);
+      if (m.expMult && m.expMult > 1.01) passiveTags.push(`EXP+${Math.round((m.expMult - 1) * 100)}%`);
+      if (m.regen && m.regen >= 0.8) passiveTags.push(`回血+${m.regen}/s`);
+      const passiveHtml = passiveTags.slice(0, 3).map(tag =>
+        `<span class="px-1.5 py-0.2 rounded bg-slate-100 border border-slate-300 text-[9px] font-black text-slate-700">${tag}</span>`
+      ).join("");
+      const accentColor = t.bondColor || "#F59E0B";
+
       return `
-        <div onclick="GameApp.handleTrainerCardClick('${t.id}')" class="poke-card cursor-pointer p-3.5 flex flex-col justify-between ${selected ? 'selected' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''}">
-          <div>
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-13 h-13 rounded-2xl bg-amber-50 border-2 border-slate-800 flex items-center justify-center shrink-0">
+        <div onclick="GameApp.handleTrainerCardClick('${t.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between gap-2 ${selected ? 'selected' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''}">
+          <div class="space-y-2">
+            <!-- 1. 角色身分與常駐被動區 -->
+            <div class="flex items-center gap-2.5">
+              <div class="w-13 h-13 rounded-2xl bg-amber-50 border-2 border-slate-800 flex items-center justify-center shrink-0 shadow-inner">
                 <img src="${t.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-11 h-11 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="${t.name}" />
               </div>
               <div class="min-w-0 flex-1">
                 <div class="flex items-center justify-between gap-1">
-                  <span class="font-black text-sm text-slate-800 truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</span>
-                  ${selected ? `<span class="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-black rounded-full">出戰中</span>` : ''}
+                  <span class="font-black text-sm text-slate-900 truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</span>
+                  ${selected ? `<span class="px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full shrink-0">出戰中</span>` : ''}
                 </div>
-                <div class="text-[11px] font-bold text-blue-700">${t.title}</div>
-                <div class="text-[10px] font-black text-amber-800 bg-amber-100 inline-block px-2 py-0.5 rounded-full mt-0.5">指令：${t.skillName} (CD ${t.skillCd}s)</div>
+                <div class="text-[10px] font-bold text-blue-700">${t.title}</div>
+                <div class="flex flex-wrap gap-1 mt-1">${passiveHtml}</div>
               </div>
             </div>
-            <div class="flex items-center justify-between bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 mb-1.5">
-              <span class="text-[10px] font-black text-slate-700">專屬羈絆【${t.bondName}】：</span>
-              <div class="flex items-center -space-x-1">${bondIcons}</div>
+
+            <!-- 2. 主動大招獨立框（名稱、CD 與效果說明整合呈現，不再斷層） -->
+            <div class="rounded-xl bg-slate-900 text-white p-2 border border-slate-700 shadow-inner" style="border-left: 4px solid ${accentColor};">
+              <div class="flex items-center justify-between gap-1.5 mb-1">
+                <span class="font-black text-[11px] text-amber-300 truncate">⚡ 主動大招：【${t.skillName}】</span>
+                <span class="px-1.5 py-0.2 rounded-full bg-slate-800 border border-slate-600 font-pixel text-[8px] text-sky-300 shrink-0">CD ${t.skillCd}s</span>
+              </div>
+              <p class="text-[11px] font-bold text-slate-200 leading-snug">${t.desc}</p>
             </div>
-            <p class="text-xs font-bold text-slate-600 leading-relaxed">${t.desc}</p>
+
+            <!-- 3. 專屬羈絆條 -->
+            <div class="flex items-center justify-between bg-amber-50/80 px-2 py-1 rounded-xl border border-amber-200 gap-1">
+              <div class="min-w-0">
+                <div class="text-[10px] font-black text-amber-900 truncate">★ 專屬羈絆【${t.bondName}】</div>
+                <div class="text-[9px] font-bold text-amber-700">搭檔全傷 +25% ‧ 冷卻 -20%</div>
+              </div>
+              <div class="flex items-center -space-x-1 shrink-0">${bondIcons}</div>
+            </div>
           </div>
-          <div class="mt-2.5 pt-2 border-t border-slate-200 flex items-center justify-between">
+
+          <!-- 4. 底部操作列 -->
+          <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
             ${unlocked
-              ? `<span class="text-xs font-black text-emerald-600"><i class="fa-solid fa-circle-check"></i> 已解鎖可用</span>`
+              ? `<span class="text-[11px] font-black text-emerald-600"><i class="fa-solid fa-circle-check"></i> 已解鎖可用</span>`
               : (t.isHiddenRed
-                  ? `<span class="text-xs font-black text-purple-700"><i class="fa-solid fa-lock"></i> 擊敗 7.5m 超夢解鎖</span>`
-                  : `<span class="text-xs font-black text-amber-600 flex items-center gap-1"><img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/> ${t.cost} 代幣解鎖</span>`
+                  ? `<span class="text-[11px] font-black text-purple-700"><i class="fa-solid fa-lock"></i> 擊敗 7.5m 超夢解鎖</span>`
+                  : `<span class="text-[11px] font-black text-amber-600 flex items-center gap-1"><img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/> ${t.cost} 代幣解鎖</span>`
                 )
             }
             <button class="${selected ? 'poke-btn-blue' : 'poke-btn-red'} px-3 py-1 text-xs font-black">${unlocked ? (selected ? '已選擇' : '選擇') : (t.isHiddenRed ? '條件' : '解鎖')}</button>
@@ -678,17 +709,44 @@ Object.assign(window.GameApp, {
 
     const curSelPoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
     const curSelTrait1 = (typeof getPokemonInnateTrait === "function" && curSelPoke) ? getPokemonInnateTrait(curSelPoke, 1) : null;
+    const curSelUnlocked = !!(curSelPoke && this.saveData.unlockedPokemon[curSelPoke.id]);
+    const curStarLv = (curSelPoke && this.saveData.pokemonStars && this.saveData.pokemonStars[curSelPoke.id]) || 0;
+    const starCostsTbl = [400, 800, 1500];
+    const curNextStarCost = curStarLv < 3 ? starCostsTbl[curStarLv] : 0;
+    const canAffordCurStar = curSelUnlocked && curStarLv < 3 && (this.saveData.coins || 0) >= curNextStarCost;
+    const starSlotsHtml = [1, 2, 3].map(n =>
+      `<span class="${n <= curStarLv ? 'text-amber-400 drop-shadow-[0_0_4px_rgba(250,204,21,0.8)]' : 'text-slate-600'} text-sm leading-none">${n <= curStarLv ? '★' : '☆'}</span>`
+    ).join("");
+
     const selectedTraitBannerHtml = (curSelPoke && curSelTrait1) ? `
-      <div class="bg-slate-900 text-white p-2.5 rounded-2xl border-2 border-amber-400 shadow-md flex items-center justify-between gap-2.5">
-        <div class="flex items-center gap-2 min-w-0">
-          <img src="${curSelPoke.forward_sprite}" class="w-10 h-10 pixel-sprite object-contain bg-slate-800 rounded-xl border border-slate-600 p-0.5 shrink-0"/>
-          <div class="min-w-0">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-black text-xs text-amber-300">${curSelPoke.name_zh}</span>
-              <span class="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[9px] font-black"><i class="fa-solid ${curSelTrait1.icon} mr-0.5"></i>專屬特性：${curSelTrait1.name}</span>
+      <div class="bg-slate-900 text-white p-2.5 sm:p-3 rounded-2xl border-2 border-amber-400 shadow-lg space-y-2">
+        <div class="flex items-center justify-between gap-2.5">
+          <div class="flex items-center gap-2 min-w-0 flex-1">
+            <img src="${curSelPoke.forward_sprite}" class="w-11 h-11 pixel-sprite object-contain bg-slate-800 rounded-xl border border-slate-600 p-0.5 shrink-0"/>
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-black text-xs sm:text-sm text-amber-300">${curSelPoke.name_zh}</span>
+                <div class="flex items-center gap-0.5 bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700">${starSlotsHtml}</div>
+                <span class="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[9px] font-black"><i class="fa-solid ${curSelTrait1.icon} mr-0.5"></i>${curSelTrait1.name}</span>
+              </div>
+              <div class="text-[10px] text-slate-200 font-bold leading-snug mt-0.5 whitespace-normal break-words">${curSelTrait1.desc}</div>
             </div>
-            <div class="text-[10px] text-slate-200 font-bold leading-snug mt-0.5 whitespace-normal break-words">${curSelTrait1.desc}（隨局內進化階級最高強化至 200%！）</div>
           </div>
+          ${curSelUnlocked ? `
+            <button onclick="GameApp.upgradePokemonStar(${curSelPoke.id})" ${curStarLv >= 3 ? 'disabled' : ''} class="relative shrink-0 px-2.5 sm:px-3 py-1.5 rounded-xl font-black text-[10px] sm:text-xs border-2 flex flex-col items-center justify-center transition-transform active:scale-95 ${curStarLv >= 3 ? 'bg-amber-950/60 text-amber-300 border-amber-500/60' : (canAffordCurStar ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-950 border-white shadow-[0_0_14px_rgba(250,204,21,0.65)]' : 'bg-slate-800 text-amber-300 border-amber-500/60')}">
+              ${canAffordCurStar ? `<span class="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-red-500 border-2 border-white animate-ping"></span><span class="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-red-500 border-2 border-white"></span>` : ''}
+              <span class="flex items-center gap-1"><i class="fa-solid fa-crown text-[10px]"></i>${curStarLv >= 3 ? '金冠滿星' : `王冠突破 ★${curStarLv + 1}`}</span>
+              ${curStarLv < 3 ? `<span class="font-pixel text-[8px] mt-0.5 opacity-90">${curNextStarCost} 金</span>` : `<span class="text-[8px] text-emerald-300 mt-0.5">已達極限</span>`}
+            </button>
+          ` : ''}
+        </div>
+        <div class="bg-slate-950/80 border border-slate-700/80 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 flex-wrap text-[10px]">
+          <span class="font-bold text-amber-200">
+            <i class="fa-solid fa-crown text-amber-400 mr-1"></i>王冠永久養成：每星 <strong class="text-white">HP/攻擊 +12% ‧ 減傷 +6%</strong>
+          </span>
+          <span class="font-black ${curStarLv >= 3 ? 'text-emerald-400' : 'text-sky-300'}">
+            ${curStarLv >= 3 ? '✓ ★3 特典已生效：開局主招式 Lv.2' : '★3 滿星特典：開局主招式直接 Lv.2！'}
+          </span>
         </div>
       </div>
     ` : "";
@@ -772,11 +830,10 @@ Object.assign(window.GameApp, {
                 : `<div class="text-center text-slate-400 py-1 font-bold">需在野外遭遇登錄圖鑑</div>`
               }
             </div>
-            ${unlocked ? `
-              <div class="mt-2 flex justify-center">
-                <button onclick="event.stopPropagation(); GameApp.upgradePokemonStar(${p.id})" ${starLv >= 3 ? 'disabled' : ''} class="px-2.5 py-1 rounded-full text-[9px] font-black border flex items-center justify-center gap-1 shadow-sm ${starLv >= 3 ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-800 text-amber-300 border-amber-500/80 hover:bg-slate-700 active:scale-95'}">
-                  <i class="fa-solid fa-crown text-[8px] text-amber-400"></i>
-                  <span>${starLv >= 3 ? '★3 金冠滿星覺醒' : `王冠突破 ★${starLv + 1} (${nextStarCost}金)`}</span>
+            ${unlocked && starLv < 3 && (this.saveData.coins || 0) >= nextStarCost ? `
+              <div class="mt-1.5 flex justify-center">
+                <button onclick="event.stopPropagation(); GameApp.upgradePokemonStar(${p.id})" class="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-400 text-slate-950 border border-slate-900 shadow-sm flex items-center gap-1 hover:bg-amber-300">
+                  <i class="fa-solid fa-crown text-[8px]"></i> 可突破 ★${starLv + 1}
                 </button>
               </div>
             ` : ''}
@@ -822,26 +879,25 @@ Object.assign(window.GameApp, {
     document.getElementById("stageGrid").innerHTML = STAGES.map(st => {
       const sel = this.selectedStage.id === st.id;
       return `
-        <div onclick="GameApp.selectStage('${st.id}')" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
-          <div>
-            <div class="flex items-center justify-between gap-1 mb-1">
-              <span class="font-black text-xs text-slate-800 truncate">${st.name}</span>
-              <span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 font-black text-[9px] rounded-full shrink-0">賞金 ${st.rewardMult}x</span>
-            </div>
-            <div class="w-full h-2.5 rounded-full my-1 border border-slate-700 flex overflow-hidden">
-              <span style="background:${st.tileLight}" class="flex-1"></span>
-              <span style="background:${st.tileDark}" class="flex-1"></span>
-              <span style="background:${st.roadColor}" class="flex-1"></span>
-              <span style="background:${st.waterColor}" class="flex-1"></span>
-            </div>
-            <div class="text-[10px] font-black text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-200 leading-snug">${st.buffDesc}</div>
+        <div onclick="GameApp.selectStage('${st.id}')" class="poke-card cursor-pointer overflow-hidden p-0 flex flex-col justify-between ${sel ? 'selected ring-2 ring-red-500' : ''}">
+          <div class="relative w-full h-24 sm:h-28 bg-slate-900 overflow-hidden border-b-2 border-slate-800">
+            <canvas data-stage-preview="${st.id}" class="w-full h-full block pixel-sprite object-cover"></canvas>
+            <div class="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent pointer-events-none"></div>
+            ${sel ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-red-600 text-white font-black text-[9px] rounded-full border border-white shadow">✓ 已選定</span>` : ''}
+            <span class="absolute top-1.5 right-1.5 px-2 py-0.5 bg-slate-950/85 text-amber-300 font-black text-[9px] rounded-full border border-amber-400/80 shadow">💰 賞金 ${st.rewardMult}x</span>
+            <div class="absolute bottom-1.5 left-2 right-2 font-black text-xs text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${st.name}</div>
           </div>
-          <div class="mt-1.5 text-right">
-            <span class="text-[9px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 目前選用' : '點擊切換'}</span>
+          <div class="p-2 bg-white flex-1 flex flex-col justify-between gap-1">
+            <div class="text-[10px] font-black text-indigo-800 bg-indigo-50 px-1.5 py-1 rounded-lg border border-indigo-200 leading-snug">${st.buffDesc}</div>
           </div>
         </div>
       `;
     }).join("");
+    if (typeof MapEngine !== "undefined" && typeof MapEngine.renderStagePreviewCanvas === "function") {
+      document.querySelectorAll('#stageGrid canvas[data-stage-preview]').forEach(can => {
+        MapEngine.renderStagePreviewCanvas(can, can.getAttribute("data-stage-preview"));
+      });
+    }
 
     const modeGridEl = document.getElementById("gameModeGrid");
     if (modeGridEl) {

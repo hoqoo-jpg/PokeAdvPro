@@ -914,7 +914,7 @@ const TRAINERS = [
     skillName: "華麗雙打舞台",
     skillCd: 32,
     skillDuration: 5.5,
-    desc: "開局直接召喚 1 隻雙打夥伴！主動發動時全夥伴大招冷卻立即重置！",
+    desc: "展開 5.5 秒粉金華麗舞台（降敵攻 35% 並持續星光打擊）！雙打夥伴立即爆發 1.6x 強化招式，期間攻速翻倍、傷害+45%，並回復 22% HP！",
     bondName: "華麗羈絆",
     bondColor: "#F472B6",
     bondPokemonIds: [133, 4, 39],

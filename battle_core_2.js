@@ -1527,9 +1527,35 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 35, "🪨 岩石壁壘！地裂震退 ＆ 減傷55%！", "#F59E0B", 15);
     } else if (tr.id === "serena") {
       healPct = 0.22;
-      this.partners.forEach(pt => { pt.cdTimer = 0; });
-      this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FCE7F3", 28, "star");
-      this.spawnFloatingText(p.x, p.y - 35, "雙打夥伴大招全開!", "#F472B6", 15);
+      p.buffTimer = 5.5;
+      p.maxBuffTimer = 5.5;
+      if (this.partners.length === 0) {
+        this.summonOrUpgradePartner();
+      }
+      // 展開 5.5 秒粉金「華麗雙打舞台」極光領域（持續星光傷害 ＋ 敵人降攻 35%）
+      const stageDmg = (34 + p.baseAtk * 0.72) * p.dmgMult;
+      SkillsEngine.groundHazards = SkillsEngine.groundHazards.filter(h => h.kind !== "genesis_aurora");
+      SkillsEngine.groundHazards.push({
+        kind: "genesis_aurora",
+        x: p.x, y: p.y,
+        followPlayer: true,
+        radius: 175 * Math.min(1.3, p.areaMult),
+        dmg: stageDmg * 0.45,
+        type: "Psychic",
+        timer: 5.5, maxTime: 5.5,
+        tickTimer: 0.12, tickInterval: 0.48,
+        color: "#F472B6"
+      });
+      // 全雙打夥伴立即爆發 1.6x 強化華麗合擊，並重置冷卻進入 5.5 秒狂熱演出
+      const upgPartnerMult = 1 + ((this.saveData.upgrades && this.saveData.upgrades.partner) || 0) * 0.18;
+      this.partners.forEach(pt => {
+        pt.cdTimer = 0;
+        const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
+        SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + 3), false, upgPartnerMult * 1.10);
+        this.spawnParticleCluster(pt.x, pt.y, "#F472B6", "#FEF08A", 16, "star", 1.1);
+      });
+      this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FEF08A", 32, "star", 1.25);
+      this.spawnFloatingText(p.x, p.y - 35, "✨ 華麗雙打舞台！夥伴狂熱 2x 攻速！", "#F472B6", 15);
     } else if (tr.id === "lillie") {
       healPct = 0.38;
       p.invulnTimer = 2.0;
@@ -1553,8 +1579,8 @@ window.GameApp = {
     p.hp = Math.min(p.maxHp, p.hp + healAmt);
     this.spawnFloatingText(p.x, p.y - 16, `+${healAmt} HP`, "#10B981", 14);
 
-    // 瞬發型訓練家（小霞、莎莉娜、莉莉艾）釋放後立即賦予完整冷卻時間
-    if (tr.id !== "ash" && tr.id !== "brock" && tr.id !== "red") {
+    // 瞬發型訓練家（小霞、莉莉艾）釋放後立即賦予完整冷卻時間；持續型（小智、小剛、莎莉娜、赤紅）於 buff 結束後進冷卻
+    if (tr.id !== "ash" && tr.id !== "brock" && tr.id !== "serena" && tr.id !== "red") {
       p.trainerSkillCd = p.trainerSkillMaxCd;
     }
 
@@ -2299,12 +2325,15 @@ window.GameApp = {
           const bondMult = isPartnerBond ? 1.20 : 1.0;
           const isAwakened = pt.level >= 5;
           pt.shotCount = (pt.shotCount || 0) + 1;
+          const serenaStageOn = (this.selectedTrainer && this.selectedTrainer.id === "serena" && p.buffTimer > 0);
+          const stageDmgMult = serenaStageOn ? 1.45 : 1.0;
           const burstMult = (isAwakened && pt.shotCount % 4 === 0) ? 1.45 : 1.0;
-          SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + (isAwakened ? 2 : 0)), false, upgPartnerMult * 0.68 * bondMult * burstMult);
-          if (burstMult > 1.0) {
-            this.spawnParticleCluster(pt.x, pt.y, "#EC4899", "#FDE047", 10, "star", 0.7);
+          SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + (isAwakened ? 2 : 0) + (serenaStageOn ? 1 : 0)), false, upgPartnerMult * 0.68 * bondMult * burstMult * stageDmgMult);
+          if (burstMult > 1.0 || serenaStageOn) {
+            this.spawnParticleCluster(pt.x, pt.y, "#F472B6", "#FEF08A", serenaStageOn ? 6 : 10, "star", 0.7);
           }
-          pt.cdTimer = isAwakened ? 0.95 : 1.35;
+          const basePartnerCd = isAwakened ? 0.95 : 1.35;
+          pt.cdTimer = serenaStageOn ? (basePartnerCd * 0.50) : basePartnerCd;
         }
       }
     });
@@ -6647,6 +6676,23 @@ window.GameApp = {
 
     const drawPartnerEntity = (pt) => {
       const psx = toSx(pt.x), psy = toSy(pt.y);
+      const serenaStageOn = (this.selectedTrainer && this.selectedTrainer.id === "serena" && p.buffTimer > 0);
+      if (serenaStageOn) {
+        const sNow = performance.now() * 0.008;
+        ctx.save();
+        ctx.strokeStyle = "#F472B6";
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.ellipse(psx, psy + 15, 19 + Math.sin(sNow) * 2, 7.2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.ellipse(psx, psy + 15, 24, 9.0, 0, sNow, sNow + Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
       const sprUrl = pt.facingY < 0 ? pt.data.back_sprite : pt.data.forward_sprite;
       const rec = SpriteCache.get(sprUrl);
       if (rec && rec.loaded) {
