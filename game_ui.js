@@ -21,6 +21,7 @@ Object.assign(window.GameApp, {
   useShinyStarter: {},
   pokedexShowBack: {},
   pokedexShowMega: {},
+  pokedexShowShiny: {},
   selectedGameMode: "standard",
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
@@ -226,9 +227,12 @@ Object.assign(window.GameApp, {
 
     const revealLobby = () => {
       this.state = "TITLE";
-      if (splashEl) splashEl.classList.add("hidden");
+      if (splashEl) {
+        splashEl.classList.add("hidden");
+        splashEl.style.display = "none";
+      }
       if (titleEl) {
-        titleEl.style.display = "";
+        titleEl.style.display = "flex";
         titleEl.classList.remove("hidden");
         Array.from(titleEl.children).forEach((child, idx) => {
           child.classList.remove("lobby-pop-in");
@@ -263,8 +267,38 @@ Object.assign(window.GameApp, {
 
   backToSplash() {
     this.state = "SPLASH";
-    document.getElementById("titleScreen").classList.add("hidden");
-    document.getElementById("splashScreen").classList.remove("hidden");
+    const titleEl = document.getElementById("titleScreen");
+    const splashEl = document.getElementById("splashScreen");
+    if (titleEl) {
+      titleEl.classList.add("hidden");
+      titleEl.style.display = "none";
+    }
+    if (splashEl) {
+      splashEl.style.display = "flex";
+      splashEl.classList.remove("hidden");
+    }
+  },
+
+  handleLobbyShinySecretTap() {
+    if (this.state !== "TITLE") return;
+    const now = performance.now();
+    if (!Array.isArray(this._secretDebugTaps)) this._secretDebugTaps = [];
+    this._secretDebugTaps = this._secretDebugTaps.filter(t => now - t <= 2000);
+    this._secretDebugTaps.push(now);
+    if (this._secretDebugTaps.length >= 10) {
+      this._secretDebugTaps = [];
+      this.debugToolsUnlocked = !this.debugToolsUnlocked;
+      if (this.syncDebugButtonVisibility) this.syncDebugButtonVisibility();
+      if (typeof SoundFX !== "undefined") SoundFX.play(this.debugToolsUnlocked ? "shiny" : "hit");
+      const box = document.getElementById("lobbyShinyCounterBox");
+      if (box) {
+        box.classList.add("ring-2", "ring-amber-400");
+        setTimeout(() => box.classList.remove("ring-2", "ring-amber-400"), 800);
+      }
+      alert(this.debugToolsUnlocked
+        ? "🔧 測試工具已解鎖！後續進入遊戲後，右上方將顯示測試齒輪按鈕。"
+        : "🔒 測試工具已重新隱藏。");
+    }
   },
 
   toggleBgm() {
@@ -1000,6 +1034,8 @@ Object.assign(window.GameApp, {
       this.selectedStarterId = 25;
       this.useShinyStarter = {};
       this.pokedexShowMega = {};
+    this.pokedexShowShiny = {};
+      this.pokedexShowShiny = {};
       this.saveToStorage();
       this.renderAchievements();
       alert("🎉 存檔引繼碼匯入成功！所有圖鑑、代幣、閃光與 Mega 進度已同步！");
@@ -1040,6 +1076,7 @@ Object.assign(window.GameApp, {
     this.selectedStarterId = 25;
     this.useShinyStarter = {};
     this.pokedexShowMega = {};
+    this.pokedexShowShiny = {};
     this.saveToStorage();
     this.renderAchievements();
     alert("✅ 已成功回復為純淨新手開局狀態（800 代幣、初始御三家與皮卡丘、研究所全 Lv.0、Mega 未解鎖）！");
@@ -1384,9 +1421,11 @@ Object.assign(window.GameApp, {
   },
 
   renderPokedexFilterTabs() {
+    const shinyTotal = Object.keys((this.saveData && this.saveData.shinyUnlocked) || {}).length;
     const tabs = [
       { key: "ALL", label: "全部 151" },
       { key: "CAUGHT", label: "已收服" },
+      { key: "SHINY", label: `✨ 閃光 (${shinyTotal})` },
       { key: "Grass", label: "草系" },
       { key: "Fire", label: "火系" },
       { key: "Water", label: "水系" },
@@ -1421,6 +1460,7 @@ Object.assign(window.GameApp, {
     let list = POKEMON_DB;
     filterKey = activeKey;
     if (filterKey === "CAUGHT") list = list.filter(p => this.saveData.pokedexCaught[p.id]);
+    else if (filterKey === "SHINY") list = list.filter(p => this.saveData.shinyUnlocked && this.saveData.shinyUnlocked[p.id]);
     else if (filterKey === "Psychic") list = list.filter(p => p.type1 === "Psychic" || p.type1 === "Ghost");
     else if (filterKey === "Dragon") list = list.filter(p => p.type1 === "Dragon" || [144,145,146,150,151].includes(p.id));
     else if (filterKey !== "ALL") list = list.filter(p => p.type1 === filterKey || p.type2 === filterKey);
@@ -1435,28 +1475,43 @@ Object.assign(window.GameApp, {
       const megaForm = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[p.id] : null;
       const megaUnlocked = !!(megaForm && this.saveData.megaUnlocked && this.saveData.megaUnlocked[p.id]);
       const showMega = megaUnlocked && !!(this.pokedexShowMega && this.pokedexShowMega[p.id]);
+      const showShiny = shiny && (filterKey === "SHINY"
+        ? !(this.pokedexShowShiny && this.pokedexShowShiny[p.id] === false)
+        : !!(this.pokedexShowShiny && this.pokedexShowShiny[p.id]));
       const dispPoke = showMega ? megaForm : p;
-      const imgUrl = SpriteCache.resolveUrl(showBack ? dispPoke.back_sprite : dispPoke.forward_sprite);
+      const rawUrl = showShiny
+        ? (showBack ? (dispPoke.shiny_back_sprite || dispPoke.back_sprite) : (dispPoke.shiny_forward_sprite || dispPoke.forward_sprite))
+        : (showBack ? dispPoke.back_sprite : dispPoke.forward_sprite);
+      const imgUrl = SpriteCache.resolveUrl(rawUrl);
+
+      const cardStyle = showMega
+        ? (showShiny ? 'border-amber-400 bg-sky-50/90 shadow-[0_0_14px_rgba(245,158,11,0.55)]' : 'border-cyan-500 bg-sky-50/80 shadow-[0_0_12px_rgba(6,182,212,0.45)]')
+        : (showShiny ? 'border-amber-400 bg-amber-50/60 shadow-[0_0_12px_rgba(245,158,11,0.45)]' : (caught ? 'border-blue-500' : 'opacity-80'));
 
       return `
-        <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${showMega ? 'border-cyan-500 bg-sky-50/80 shadow-[0_0_12px_rgba(6,182,212,0.45)]' : (caught ? 'border-blue-500' : 'opacity-80')}">
+        <div onclick="GameApp.togglePokedexCardSide(${p.id})" class="poke-card min-h-[162px] p-2 flex flex-col justify-between cursor-pointer ${cardStyle}">
           <div class="flex items-center justify-between text-[10px] font-bold">
-            <span class="font-pixel ${showMega ? 'text-cyan-700' : 'text-slate-500'}">#${String(p.id).padStart(3,'0')}</span>
-            ${showMega ? `<span class="px-1.5 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-black text-[8px]">${megaForm.badgeLabel || 'MEGA'}</span>`
-                       : (shiny ? `<span class="px-1.5 py-0.5 bg-amber-300 text-slate-900 rounded-full font-black text-[8px]">閃光</span>`
+            <span class="font-pixel ${showMega ? 'text-cyan-700' : (showShiny ? 'text-amber-600' : 'text-slate-500')}">#${String(p.id).padStart(3,'0')}</span>
+            ${showMega ? `<span class="px-1.5 py-0.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-full font-black text-[8px]">${showShiny ? '✨' : ''}${megaForm.badgeLabel || 'MEGA'}</span>`
+                       : (shiny ? `<span class="px-1.5 py-0.5 bg-amber-300 text-slate-900 rounded-full font-black text-[8px]">✨ 閃光</span>`
                                 : (caught ? `<span class="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-black text-[8px]">已登錄</span>`
                                           : `<span class="text-slate-400">? 未發現</span>`))}
           </div>
-          <div class="h-15 flex items-center justify-center my-1 ${showMega ? 'bg-slate-900/90 border border-cyan-400/60' : 'bg-sky-50/60'} rounded-xl relative">
-            <img src="${imgUrl}" class="w-13 h-13 pixel-sprite object-contain ${!seen && !showMega ? 'brightness-0 opacity-20' : ''}" alt="${dispPoke.name_zh}" />
+          <div class="h-15 flex items-center justify-center my-1 ${showMega ? 'bg-slate-900/90 border border-cyan-400/60' : (showShiny ? 'bg-gradient-to-br from-amber-50 to-purple-50 border border-amber-300/80' : 'bg-sky-50/60')} rounded-xl relative">
+            <img src="${imgUrl}" class="w-13 h-13 pixel-sprite object-contain ${!seen && !showMega && !showShiny ? 'brightness-0 opacity-20' : ''}" alt="${dispPoke.name_zh}" />
             ${megaForm ? `
               <button onclick="event.stopPropagation(); GameApp.handlePokedexMegaClick(${p.id})" title="${megaUnlocked ? '切換超級進化形態' : '查看超級進化解鎖條件'}" class="absolute top-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border shadow flex items-center gap-0.5 ${megaUnlocked ? (showMega ? 'bg-amber-400 text-slate-950 border-white' : 'bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 text-white border-cyan-200') : 'bg-slate-900/90 text-purple-200 border-purple-400'}">
                 💎${showMega ? '還原' : 'MEGA'}
               </button>
             ` : ''}
+            ${shiny ? `
+              <button onclick="event.stopPropagation(); GameApp.togglePokedexShiny(${p.id})" title="切換正版閃光色違外觀" class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black border shadow flex items-center gap-0.5 ${showShiny ? 'bg-amber-400 text-slate-950 border-slate-900' : 'bg-white/95 text-purple-700 border-purple-300'}">
+                ✨${showShiny ? '閃光中' : '閃光'}
+              </button>
+            ` : ''}
           </div>
           <div class="text-center">
-            <div class="font-black text-xs ${showMega ? 'text-cyan-800' : 'text-slate-800'} truncate">${seen || showMega ? dispPoke.name_zh : '？？？'}</div>
+            <div class="font-black text-xs ${showMega ? 'text-cyan-800' : (showShiny ? 'text-amber-700' : 'text-slate-800')} truncate">${seen || showMega || showShiny ? `${showShiny ? '✨' : ''}${dispPoke.name_zh}` : '？？？'}</div>
             <div class="flex justify-center gap-0.5 my-0.5">${seen || showMega ? renderTypeBadgeHTML(dispPoke.type1) + renderTypeBadgeHTML(dispPoke.type2) : ''}</div>
           </div>
           ${caught && !claimed
@@ -1470,6 +1525,16 @@ Object.assign(window.GameApp, {
 
   togglePokedexCardSide(id) {
     this.pokedexShowBack[id] = !this.pokedexShowBack[id];
+    this.renderPokedexGrid();
+  },
+
+  togglePokedexShiny(id) {
+    if (!this.pokedexShowShiny) this.pokedexShowShiny = {};
+    const curShown = this.pokedexFilter === "SHINY"
+      ? !(this.pokedexShowShiny[id] === false)
+      : !!this.pokedexShowShiny[id];
+    this.pokedexShowShiny[id] = !curShown;
+    if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
     this.renderPokedexGrid();
   },
 
@@ -1956,19 +2021,46 @@ Object.assign(window.GameApp, {
 
   renderAchievements() {
     const box = document.getElementById("achievementListContainer");
-    box.innerHTML = ACHIEVEMENTS.map(a => {
+    const sorted = [...ACHIEVEMENTS].sort((a, b) => {
+      const aUn = a.check(this.saveData.stats, this.saveData);
+      const bUn = b.check(this.saveData.stats, this.saveData);
+      const aCl = !!this.saveData.claimedAch[a.id];
+      const bCl = !!this.saveData.claimedAch[b.id];
+      const rank = (un, cl) => (un && !cl) ? 0 : (!un ? 1 : 2);
+      return rank(aUn, aCl) - rank(bUn, bCl);
+    });
+    const completedCount = ACHIEVEMENTS.filter(a => a.check(this.saveData.stats, this.saveData)).length;
+    const summaryBar = `
+      <div class="bg-slate-900 text-white px-3.5 py-2.5 rounded-2xl border-2 border-amber-400 flex items-center justify-between text-xs font-black shadow">
+        <span class="flex items-center gap-1.5"><i class="fa-solid fa-trophy text-amber-400"></i> 榮譽達成進度</span>
+        <span class="font-pixel text-[11px] text-amber-300">${completedCount} / ${ACHIEVEMENTS.length}</span>
+      </div>
+    `;
+    box.innerHTML = summaryBar + sorted.map(a => {
       const unlocked = a.check(this.saveData.stats, this.saveData);
       const claimed = !!this.saveData.claimedAch[a.id];
+      const progPair = typeof a.progress === "function" ? a.progress(this.saveData.stats, this.saveData) : [unlocked ? 1 : 0, 1];
+      const curVal = Math.min(progPair[1], progPair[0]);
+      const targetVal = Math.max(1, progPair[1]);
+      const pct = Math.min(100, Math.round((curVal / targetVal) * 100));
       return `
-        <div class="poke-card p-3 flex items-center justify-between gap-3">
-          <div>
-            <div class="font-black text-sm text-slate-800">${a.name}</div>
-            <div class="text-xs font-bold text-slate-600">${a.desc}</div>
-            <div class="text-xs font-black text-amber-600 mt-0.5">+${a.reward} 代幣</div>
+        <div class="poke-card p-3 flex items-center justify-between gap-3 ${unlocked && !claimed ? 'border-amber-400 bg-amber-50/40' : (claimed ? 'opacity-80 bg-slate-50' : '')}">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-black text-sm text-slate-800">${a.name}</span>
+              <span class="text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded-full">+${a.reward} 金</span>
+            </div>
+            <div class="text-xs font-bold text-slate-600 mt-0.5">${a.desc}</div>
+            <div class="mt-1.5 flex items-center gap-2">
+              <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${unlocked ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+              </div>
+              <span class="font-pixel text-[9px] text-slate-500 shrink-0">${curVal}/${targetVal}</span>
+            </div>
           </div>
           ${unlocked && !claimed
             ? `<button onclick="GameApp.claimAchievement('${a.id}', ${a.reward})" class="poke-btn-red px-4 py-1.5 text-xs font-black shrink-0 min-h-[38px]">領取賞金</button>`
-            : `<span class="text-xs font-black ${claimed ? 'text-emerald-600' : 'text-slate-400'} shrink-0">${claimed ? '已領取' : '未達成'}</span>`
+            : `<span class="text-xs font-black ${claimed ? 'text-emerald-600' : 'text-slate-400'} shrink-0">${claimed ? '✓ 已領取' : '進行中'}</span>`
           }
         </div>
       `;

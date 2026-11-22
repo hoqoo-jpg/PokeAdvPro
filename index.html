@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.2');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.3');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -542,7 +542,7 @@
           <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="Coins" />
           <span id="titleCoinDisplay" class="font-pixel text-[11px] font-black text-amber-600">0</span>
         </div>
-        <div class="flex items-center gap-1 px-2.5 py-1 bg-white/95 rounded-2xl border-2 border-slate-800 shadow">
+        <div id="lobbyShinyCounterBox" onclick="GameApp.handleLobbyShinySecretTap()" style="touch-action: manipulation;" class="flex items-center gap-1 px-2.5 py-1 bg-white/95 rounded-2xl border-2 border-slate-800 shadow cursor-pointer">
           <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/star-piece.png" class="w-4 h-4 pixel-sprite" alt="Shiny" />
           <span id="titleShinyCount" class="font-pixel text-[11px] font-black text-purple-600">0</span>
         </div>
@@ -665,7 +665,7 @@
         <button onclick="GameApp.togglePause()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow">
           <i class="fa-solid fa-pause text-amber-400 text-xs"></i>
         </button>
-        <button onclick="GameApp.toggleDebugMenu()" class="w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow" title="測試工具">
+        <button id="btnHudDebugToggle" onclick="GameApp.toggleDebugMenu()" class="hidden w-7 h-7 sm:w-8 sm:h-8 bg-slate-900/90 rounded-lg border border-slate-700 text-white flex items-center justify-center shadow" title="測試工具">
           <i class="fa-solid fa-wrench text-slate-300 text-xs"></i>
         </button>
       </div>
@@ -1209,10 +1209,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.2"></script>
-  <script src="map_v11_engine.js?v=6.9.2"></script>
-  <script src="skills_engine.js?v=6.9.2"></script>
-  <script src="battle_core_2.js?v=6.9.2"></script>
-  <script src="game_ui.js?v=6.9.2"></script>
+  <script src="pokedex_data.js?v=6.9.3"></script>
+  <script src="map_v11_engine.js?v=6.9.3"></script>
+  <script src="skills_engine.js?v=6.9.3"></script>
+  <script src="battle_core_2.js?v=6.9.3"></script>
+  <script src="game_ui.js?v=6.9.3"></script>
 </body>
 </html>

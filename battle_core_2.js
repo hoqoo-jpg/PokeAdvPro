@@ -19,6 +19,7 @@ window.GameApp = {
   manualAimMode: false,
   currentFps: 60,
   showFpsHud: false,
+  debugToolsUnlocked: false,
   debugGodMode: false,
   debugMobCap: 0,
 
@@ -366,8 +367,18 @@ window.GameApp = {
     }, { passive: false });
   },
 
-  // 開發者測試工具全套實裝
+  // 開發者測試工具全套實裝（預設隱藏，大廳右上角閃光計數 2 秒內連點 10 次後解鎖）
+  syncDebugButtonVisibility() {
+    const btn = document.getElementById("btnHudDebugToggle");
+    if (btn) btn.classList.toggle("hidden", !this.debugToolsUnlocked);
+    if (!this.debugToolsUnlocked) {
+      const menu = document.getElementById("debugDropdown");
+      if (menu) menu.classList.add("hidden");
+    }
+  },
+
   toggleDebugMenu() {
+    if (!this.debugToolsUnlocked) return;
     const menu = document.getElementById("debugDropdown");
     if (menu) menu.classList.toggle("hidden");
   },
@@ -1145,6 +1156,7 @@ window.GameApp = {
     const megaWrap = document.getElementById("btnManualMegaWrap");
     if (megaWrap) megaWrap.classList.add("hidden");
 
+    this.syncDebugButtonVisibility();
     this.state = "PLAYING";
     this.refreshHUD();
   },

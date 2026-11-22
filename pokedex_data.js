@@ -997,17 +997,25 @@ const CENTER_TRAINER_UPGRADES = [
   { id: "greed", name: "護身金幣 (COINS)", maxLv: 5, baseCost: 150, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png", desc: "每局獲得代幣總量增加 +15%" }
 ];
 
-// 10. 道館榮譽徽章與成就館
+// 10. 道館榮譽徽章與成就館 (涵蓋戰鬥、進化、MEGA、閃光、王冠、無盡深淵與 151 全圖鑑)
 const ACHIEVEMENTS = [
-  { id: "first_blood", name: "初出茅廬", desc: "擊退累計 100 隻野生寶可夢", reward: 150, check: (st) => st.totalKills >= 100 },
-  { id: "hunter_500",  name: "精靈獵手", desc: "擊退累計 500 隻野生寶可夢", reward: 300, check: (st) => st.totalKills >= 500 },
-  { id: "evo_master",  name: "進化之光", desc: "累計完成 5 次寶可夢戰鬥進化", reward: 250, check: (st) => st.evolutions >= 5 },
-  { id: "super_move",  name: "極限突破", desc: "領悟並釋放 3 次究極超武技能", reward: 350, check: (st) => st.superMoves >= 3 },
-  { id: "beat_birds",  name: "傳說落幕", desc: "擊敗 5 分鐘降臨的傳說三聖鳥", reward: 500, check: (st) => st.birdsDefeated >= 1 },
-  { id: "beat_mewtwo", name: "終極宿命", desc: "擊退 7.5 分鐘王者超夢，解鎖【赤紅】", reward: 1000, check: (st) => st.mewtwoDefeated >= 1 },
-  { id: "beat_mew",    name: "始祖夢幻", desc: "擊退終極隱藏 Boss 夢幻 #151", reward: 1500, check: (st) => st.mewDefeated >= 1 },
-  { id: "dex_30",      name: "關都見習生", desc: "圖鑑登錄收服 30 隻寶可夢", reward: 300, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 30 },
-  { id: "dex_70",      name: "資深訓練家", desc: "圖鑑登錄收服 70 隻寶可夢", reward: 600, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 70 }
+  { id: "first_blood", name: "初出茅廬", desc: "擊退累計 100 隻野生寶可夢", reward: 150, check: (st) => (st.totalKills || 0) >= 100, progress: (st) => [st.totalKills || 0, 100] },
+  { id: "hunter_500",  name: "精靈獵手", desc: "擊退累計 500 隻野生寶可夢", reward: 300, check: (st) => (st.totalKills || 0) >= 500, progress: (st) => [st.totalKills || 0, 500] },
+  { id: "slayer_2000", name: "關都無雙", desc: "擊退累計 2,000 隻野生寶可夢", reward: 600, check: (st) => (st.totalKills || 0) >= 2000, progress: (st) => [st.totalKills || 0, 2000] },
+  { id: "evo_master",  name: "進化之光", desc: "累計完成 5 次寶可夢戰鬥進化", reward: 250, check: (st) => (st.evolutions || 0) >= 5, progress: (st) => [st.evolutions || 0, 5] },
+  { id: "super_move",  name: "極限突破", desc: "領悟並釋放 3 次究極超武技能", reward: 350, check: (st) => (st.superMoves || 0) >= 3, progress: (st) => [st.superMoves || 0, 3] },
+  { id: "mega_first",  name: "💎 鑰石覺醒", desc: "首次於戰場完成【MEGA 超級進化】", reward: 500, check: (st, sv) => Object.keys(sv.megaUnlocked || {}).length >= 1, progress: (st, sv) => [Object.keys(sv.megaUnlocked || {}).length, 1] },
+  { id: "mega_trio",   name: "💎 御三家 MEGA 大師", desc: "集齊超級噴火龍X、超級水箭龜與超級妙蛙花", reward: 1200, check: (st, sv) => [3, 6, 9].every(id => !!(sv.megaUnlocked && sv.megaUnlocked[id])), progress: (st, sv) => [[3, 6, 9].filter(id => !!(sv.megaUnlocked && sv.megaUnlocked[id])).length, 3] },
+  { id: "shiny_3",     name: "✨ 閃光收藏家", desc: "於圖鑑中解鎖 3 隻不同閃光色違寶可夢", reward: 450, check: (st, sv) => Object.keys(sv.shinyUnlocked || {}).length >= 3, progress: (st, sv) => [Object.keys(sv.shinyUnlocked || {}).length, 3] },
+  { id: "shiny_10",    name: "✨ 星芒獵人", desc: "於圖鑑中解鎖 10 隻不同閃光色違寶可夢", reward: 1000, check: (st, sv) => Object.keys(sv.shinyUnlocked || {}).length >= 10, progress: (st, sv) => [Object.keys(sv.shinyUnlocked || {}).length, 10] },
+  { id: "crown_max",   name: "👑 金冠王者", desc: "將任意 1 隻寶可夢王冠突破至 ★3 金冠滿星", reward: 600, check: (st, sv) => Object.values(sv.pokemonStars || {}).some(v => v >= 3), progress: (st, sv) => [Object.values(sv.pokemonStars || {}).filter(v => v >= 3).length, 1] },
+  { id: "beat_birds",  name: "傳說落幕", desc: "擊敗 5 分鐘降臨的傳說三聖鳥", reward: 500, check: (st) => (st.birdsDefeated || 0) >= 1, progress: (st) => [st.birdsDefeated || 0, 1] },
+  { id: "beat_mewtwo", name: "終極宿命", desc: "擊退 7.5 分鐘王者超夢，解鎖【赤紅】", reward: 1000, check: (st) => (st.mewtwoDefeated || 0) >= 1, progress: (st) => [st.mewtwoDefeated || 0, 1] },
+  { id: "beat_mew",    name: "始祖夢幻", desc: "擊退終極隱藏 Boss 夢幻 #151", reward: 1500, check: (st) => (st.mewDefeated || 0) >= 1, progress: (st) => [st.mewDefeated || 0, 1] },
+  { id: "endless_10m", name: "♾️ 深淵行者", desc: "於【無盡深淵】模式存活超過 10 分鐘", reward: 800, check: (st) => (st.bestEndlessTime || 0) >= 600, progress: (st) => [Math.floor((st.bestEndlessTime || 0) / 60), 10] },
+  { id: "dex_30",      name: "關都見習生", desc: "圖鑑登錄收服 30 隻寶可夢", reward: 300, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 30, progress: (st, sv) => [Object.keys(sv.pokedexCaught || {}).length, 30] },
+  { id: "dex_70",      name: "資深訓練家", desc: "圖鑑登錄收服 70 隻寶可夢", reward: 600, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 70, progress: (st, sv) => [Object.keys(sv.pokedexCaught || {}).length, 70] },
+  { id: "dex_151",     name: "🏆 關都圖鑑大師", desc: "登錄收服全部 151 隻關都寶可夢", reward: 3000, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 151, progress: (st, sv) => [Object.keys(sv.pokedexCaught || {}).length, 151] }
 ];
 
 // 11. 地面 Boss 戰利品
