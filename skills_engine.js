@@ -322,6 +322,9 @@ const SkillsEngine = {
       ? GameApp.player.innateTrait
       : (typeof getPokemonInnateTrait === "function" ? getPokemonInnateTrait(caster.data, caster.level || 1) : {});
     caster._activeTrait = trait;
+    if (caster === GameApp.player && trait && trait.id === "quick_attack") {
+      caster.quickStepTimer = 1.1; // 電光疾行：全招式（含十萬伏特／空氣斬／撞擊）出招後皆觸發輕巧步伐加速
+    }
 
     const basePower = meta.baseDmg * 0.55 + (GameApp.player.baseAtk * 0.18);
     // v6.6 傷害乘區收斂：地圖、天氣、攜帶物、力量強化與灼傷增傷統一移至 battle_core_2.dealDamageToEnemy 同區加法結算
@@ -419,7 +422,7 @@ const SkillsEngine = {
             initSpeed: spd,
             angle: shotAng,
             casterRef: caster,
-            radius: 11 * GameApp.player.areaMult * areaBonus,
+            radius: Math.min(18, 11 * GameApp.player.areaMult * areaBonus),
             dmg: rawDmg * 0.48,
             type: "Grass",
             skillId: "Bullet Seed",
@@ -462,7 +465,8 @@ const SkillsEngine = {
           angle: spreadAng,
           progress: 0,
           arcHeight: 68 + i * 8,
-          radius: (13 + level * 0.5) * GameApp.player.areaMult * (1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0)),
+          radius: Math.min(22, (13 + level * 0.5) * GameApp.player.areaMult * (1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0))),
+          blastAreaBonus: 1 + (trait.overgrowAreaBonus || 0) + (trait.legendaryAreaBonus || 0),
           dmg: rawDmg * 1.15,
           type: "Grass",
           skillId: "Seed Bomb",
@@ -498,7 +502,8 @@ const SkillsEngine = {
           targetX: tx, targetY: ty,
           vx: 0, vy: 0, angle: spreadAng,
           progress: 0, arcHeight: 58 + i * 6,
-          radius: (14 + level * 0.5) * GameApp.player.areaMult,
+          radius: Math.min(22, (14 + level * 0.5) * GameApp.player.areaMult),
+          hazardDurMult: trait.psychicHazardDurMult || 1.0,
           dmg: rawDmg * 0.85,
           type: "Poison", skillId: "Sludge Bomb", vfx: "sludge_lob",
           color: "#9333EA", pierce: 99, knockback: 4,
@@ -511,23 +516,25 @@ const SkillsEngine = {
       return;
     }
 
-    // 2C. 月亮之力 (Moonblast)：鎖定敵群降下持續 1.45 秒的高速索敵 3D 螺旋月光聖柱 (多段連擊+降攻+星塵粒子)
+    // 2C. 月亮之力 (Moonblast)：平衡版區域月光聖柱（精準半徑 + 0.90s 俐落持續 + 70px/s 緩步壓制 + 降攻輔助）
     if (cleanSkillId === "Moonblast") {
       const pillarCount = Math.min(2, 1 + (level >= 6 ? 1 : 0));
+      const moonDur = 0.90 * (trait.psychicHazardDurMult || 1.0);
+      const moonRad = Math.min(62, (34 + level * 1.6) * GameApp.player.areaMult * (1 + (trait.legendaryAreaBonus || 0)));
       for (let i = 0; i < pillarCount; i++) {
         const ang = baseAngle + (i - (pillarCount - 1) / 2) * 0.42;
-        const dist = (!useManualAim && target) ? Math.min(250, Math.max(48, Math.hypot(target.x - caster.x, target.y - caster.y))) : 120;
+        const dist = (!useManualAim && target) ? Math.min(235, Math.max(48, Math.hypot(target.x - caster.x, target.y - caster.y))) : 120;
         const px = caster.x + Math.cos(ang) * dist;
         const py = caster.y + Math.sin(ang) * dist;
         this.groundHazards.push({
           kind: "moon_pillar",
           x: px, y: py,
-          vx: Math.cos(ang) * 105, vy: Math.sin(ang) * 105,
-          radius: (54 + level * 2.6) * GameApp.player.areaMult * (1 + (trait.legendaryAreaBonus || 0)),
-          dmg: rawDmg * 0.56,
+          vx: Math.cos(ang) * 65, vy: Math.sin(ang) * 65,
+          radius: moonRad,
+          dmg: rawDmg * 0.45,
           type: "Psychic",
-          timer: 1.45 * (trait.psychicHazardDurMult || 1.0), maxTime: 1.45 * (trait.psychicHazardDurMult || 1.0),
-          tickTimer: 0.04, tickInterval: 0.30,
+          timer: moonDur, maxTime: moonDur,
+          tickTimer: 0.06, tickInterval: 0.34,
           color: "#F472B6"
         });
       }
@@ -552,14 +559,14 @@ const SkillsEngine = {
           vx: Math.cos(ang) * spd,
           vy: Math.sin(ang) * spd,
           angle: ang,
-          radius: (20 + level * 0.8) * GameApp.player.areaMult * mewtwoScale,
+          radius: Math.min(28, (18 + level * 0.7) * GameApp.player.areaMult * mewtwoScale),
           dmg: rawDmg * 0.85,
           type: "Psychic",
           skillId: "Psystrike",
           vfx: "psychic_lance",
           homing: true,
           color: "#EC4899",
-          pierce: level >= 6 ? 4 : 3,
+          pierce: (level >= 6 ? 4 : 3) + (trait.psychicExtraPierce || 0),
           knockback: 4,
           life: 0.85,
           statusBonus: level >= 5 ? 0.35 : 0.20,
@@ -603,7 +610,7 @@ const SkillsEngine = {
           initSpeed: spd,
           angle: ang,
           casterRef: caster,
-          radius: 15.5 * GameApp.player.areaMult * (level >= 8 ? 1.22 : 1.0) * areaBonus,
+          radius: Math.min(23, 15.5 * GameApp.player.areaMult * (level >= 8 ? 1.18 : 1.0) * areaBonus),
           dmg: rawDmg * 0.68,
           type: "Fire",
           skillId: "Ember",
@@ -899,7 +906,7 @@ const SkillsEngine = {
         casterRef: caster,
         isBoomerang,
         returning: false,
-        radius: (cleanSkillId === "HydroPump" ? 22 : (isMegaWaterGun ? 19 : 16)) * GameApp.player.areaMult * (level >= 8 ? 1.25 : 1.0) * traitSizeMult,
+        radius: Math.min(cleanSkillId === "HydroPump" ? 28 : (cleanSkillId === "WaterGun" ? 23 : 24), (cleanSkillId === "HydroPump" ? 22 : (isMegaWaterGun ? 18 : 16)) * GameApp.player.areaMult * (level >= 8 ? 1.20 : 1.0) * traitSizeMult),
         dmg: isBoomerang ? rawDmg * 0.72 : rawDmg,
         type: meta.type,
         skillId,
@@ -1120,8 +1127,16 @@ const SkillsEngine = {
       const lockedIsShiny = !!caster.isShiny;
       const lockedFacingX = Math.cos(baseAngle) >= 0 ? 1 : -1;
 
+      const tackleDmgTable = {
+        1: [1.00],
+        2: [0.80, 0.98],
+        3: [0.72, 0.78, 0.96]
+      };
+      const tackleDmgMults = tackleDmgTable[totalWaves] || tackleDmgTable[3];
+
       const fireTackleWave = (waveIdx) => {
         if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const isFinisher = (totalWaves > 1 && waveIdx === totalWaves - 1);
         let startX, startY, hitX, hitY;
         if (waveIdx === 0) {
           startX = caster.x;
@@ -1137,8 +1152,9 @@ const SkillsEngine = {
           chainY = hitY;
         }
 
-        const rad = Math.min(waveIdx === 0 ? 64 : 78, (46 + waveIdx * 7) * tackleAreaScale);
-        const waveDmg = rawDmg * (waveIdx === 0 ? 1.0 : (waveIdx === 1 ? 0.68 : 0.54));
+        const rad = Math.min(waveIdx === 0 ? 60 : (isFinisher ? 78 : 68), (44 + waveIdx * 8) * tackleAreaScale);
+        const waveDmg = rawDmg * (tackleDmgMults[waveIdx] || 0.80);
+        const waveKb = isFinisher ? (effectiveKb * 1.25) : effectiveKb;
 
         if (waveIdx === 0) {
           this.meleeEffects.push({
@@ -1151,8 +1167,8 @@ const SkillsEngine = {
             angle: baseAngle,
             radius: rad,
             waveIdx: 0,
-            timer: 0.20,
-            maxTime: 0.20,
+            timer: 0.18,
+            maxTime: 0.18,
             color: "#F8FAFC"
           });
         } else {
@@ -1168,16 +1184,16 @@ const SkillsEngine = {
             spriteUrl: lockedSprUrl,
             isShiny: lockedIsShiny,
             facingX: lockedFacingX,
-            timer: 0.24,
-            maxTime: 0.24,
-            color: waveIdx === 1 ? "#BAE6FD" : "#FEF08A"
+            timer: isFinisher ? 0.24 : 0.20,
+            maxTime: isFinisher ? 0.24 : 0.20,
+            color: isFinisher ? "#FEF08A" : "#BAE6FD"
           });
         }
 
         const hitCandidates = this.getEnemiesInRadius(hitX, hitY, rad);
         hitCandidates.forEach(e => {
           if (Math.hypot(e.x - hitX, e.y - hitY) <= rad + e.radius) {
-            GameApp.dealDamageToEnemy(e, waveDmg, meta.type, 0.20, effectiveKb);
+            GameApp.dealDamageToEnemy(e, waveDmg, meta.type, isFinisher ? 0.30 : 0.18, waveKb, isFinisher ? 0.15 : 0);
             this.meleeEffects.push({
               style: "z_spark",
               x: (e.x + hitX) * 0.5,
@@ -1185,7 +1201,7 @@ const SkillsEngine = {
               radius: 18 + waveIdx * 3,
               timer: 0.16,
               maxTime: 0.16,
-              color: waveIdx >= 2 ? "#FEF08A" : "#FFFFFF"
+              color: isFinisher ? "#FEF08A" : "#FFFFFF"
             });
             if (!healedThisCast && caster === GameApp.player && GameApp.player.hp < GameApp.player.maxHp) {
               healedThisCast = true;
@@ -1198,39 +1214,76 @@ const SkillsEngine = {
         SoundFX.play("hit", "Normal");
       };
 
+      // 分段收招 ＋ 蓄力停頓節奏：第1段(0ms/180ms) ➔ 停頓80ms ➔ 第2段(260ms/200ms) ➔ 蓄力停頓110ms ➔ 第3段(570ms/240ms)
       fireTackleWave(0);
+      const waveDelays = [0, 260, 570];
       for (let w = 1; w < totalWaves; w++) {
-        setTimeout(() => fireTackleWave(w), w * 110);
+        const triggerMs = waveDelays[w] || (w * 280);
+        const pauseCueMs = Math.max(40, triggerMs - 85);
+        setTimeout(() => {
+          if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+          this.meleeEffects.push({
+            style: "slam_wave",
+            x: chainX,
+            y: chainY,
+            radius: w === totalWaves - 1 ? 30 : 24,
+            timer: 0.10,
+            maxTime: 0.10,
+            color: w === totalWaves - 1 ? "#FEF08A" : "#7DD3FC"
+          });
+        }, pauseCueMs);
+        setTimeout(() => fireTackleWave(w), triggerMs);
       }
       return;
     }
 
-    // 2. 地震專屬：起跳蓄力 (0ms) ➔ 雙腳落地重踏瞬間 (110ms) 才引爆地裂龜裂與微震 ＋ 多段餘震錯峰外擴
+    // 2. 地震專屬：範圍軟上限（基礎 125px / 終結 150px）＋ 類空手劈「輕踏 ➔ 停頓高跳終結重踏」節奏
     if (style === "quake_wave") {
-      const baseRad = (85 + level * 4) * areaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
+      const quakeScale = Math.min(1.45, areaScale * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75));
+      const baseRad = Math.min(125, (80 + level * 3.5) * quakeScale);
       const quakeKb = kb * (1 + (trait.tackleQuakeKbBonus || 0));
       const totalWaves = Math.min(3, Math.max(1, count));
-      const waveRadMults = [1.0, 1.12, 1.24];
-      const waveDmgMults = [1.0, 0.55, 0.45];
 
-      // 統一對齊 0.24s 跳躍週期：0~110ms 騰空蓄力，110ms 雙腳落地重踏時才震裂地表
-      if (caster === GameApp.player) {
-        caster.slamHopTimer = 0.24;
-      }
+      // 節奏表：{ hopStartMs, stompMs, hopDur, hopH, radMult, dmgMult, isFinisher }
+      const cadenceMap = {
+        1: [
+          { hopStartMs: 0, stompMs: 110, hopDur: 0.22, hopH: 14, radMult: 1.00, dmgMult: 1.00, isFinisher: false }
+        ],
+        2: [
+          { hopStartMs: 0,   stompMs: 95,  hopDur: 0.19, hopH: 11, radMult: 0.90, dmgMult: 0.65, isFinisher: false },
+          { hopStartMs: 260, stompMs: 430, hopDur: 0.34, hopH: 22, radMult: 1.18, dmgMult: 1.05, isFinisher: true }
+        ],
+        3: [
+          { hopStartMs: 0,   stompMs: 95,  hopDur: 0.19, hopH: 11, radMult: 0.85, dmgMult: 0.48, isFinisher: false },
+          { hopStartMs: 210, stompMs: 305, hopDur: 0.20, hopH: 12, radMult: 0.95, dmgMult: 0.52, isFinisher: false },
+          { hopStartMs: 480, stompMs: 655, hopDur: 0.35, hopH: 24, radMult: 1.18, dmgMult: 1.05, isFinisher: true }
+        ]
+      };
+      const plan = cadenceMap[totalWaves] || cadenceMap[3];
 
-      const fireQuakeWave = (waveIdx) => {
+      const triggerHop = (stepCfg) => {
         if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-        const waveRad = baseRad * (waveRadMults[waveIdx] || 1.24);
-        const waveDmg = rawDmg * (waveDmgMults[waveIdx] || 0.45);
-        const branchNum = 5 + Math.floor(Math.random() * 3); // 5～7 條不規則主裂縫
+        if (caster === GameApp.player) {
+          caster.slamHopMaxTime = stepCfg.hopDur;
+          caster.slamHopHeight = stepCfg.hopH;
+          caster.slamHopTimer = stepCfg.hopDur;
+        }
+      };
+
+      const fireQuakeWave = (waveIdx, stepCfg) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const capR = stepCfg.isFinisher ? 150 : 125;
+        const waveRad = Math.min(capR, Math.round(baseRad * stepCfg.radMult));
+        const waveDmg = rawDmg * stepCfg.dmgMult;
+        const branchNum = stepCfg.isFinisher ? 8 : 6;
 
         if (caster === GameApp.player) {
-          if (waveIdx === 0) {
-            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.07);
-            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 1.2);
-          } else if ((GameApp.camera.shakeTime || 0) <= 0) {
-            GameApp.camera.shakeTime = 0.04;
-            GameApp.camera.shakeMagnitude = 0.7;
+          if (stepCfg.isFinisher) {
+            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.10);
+            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 2.2);
+          } else {
+            GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime || 0, 0.05);
+            GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude || 0, 0.9);
           }
         }
 
@@ -1242,40 +1295,40 @@ const SkillsEngine = {
           radius: waveRad,
           dmg: waveDmg,
           type: meta.type,
-          kb: quakeKb * (waveIdx === 0 ? 1.0 : 0.72),
+          kb: quakeKb * (stepCfg.isFinisher ? 1.25 : 0.72),
+          extraCrit: stepCfg.isFinisher ? 0.18 : 0,
           waveIdx,
           cracks: this.buildQuakeCrackTree(branchNum, waveRad, false),
           hitSet: new Set(),
-          timer: 0.45,
-          maxTime: 0.45,
-          color: meta.color
+          timer: stepCfg.isFinisher ? 0.50 : 0.36,
+          maxTime: stepCfg.isFinisher ? 0.50 : 0.36,
+          color: stepCfg.isFinisher ? "#F59E0B" : meta.color
         });
 
-        const dustCount = waveIdx === 0 ? 12 : 8;
+        const dustCount = stepCfg.isFinisher ? 14 : 7;
         for (let d = 0; d < dustCount; d++) {
           const dAng = Math.random() * Math.PI * 2;
-          const dSpd = 55 + Math.random() * 85;
+          const dSpd = (stepCfg.isFinisher ? 70 : 50) + Math.random() * 80;
           this.spawnSubParticle(
             caster.x + Math.cos(dAng) * 14,
             caster.y + Math.sin(dAng) * 14,
             Math.cos(dAng) * dSpd,
             Math.sin(dAng) * dSpd,
             d % 2 === 0 ? "#92400E" : "#FDE68A",
-            2.8, 0.34, "circle"
+            stepCfg.isFinisher ? 3.4 : 2.6, 0.34, "circle"
           );
         }
         SoundFX.play("hit", "Ground");
       };
 
-      const stompDelayMs = (caster === GameApp.player) ? 110 : 0;
-      if (stompDelayMs > 0) {
-        setTimeout(() => fireQuakeWave(0), stompDelayMs);
-      } else {
-        fireQuakeWave(0);
-      }
-      for (let w = 1; w < totalWaves; w++) {
-        setTimeout(() => fireQuakeWave(w), stompDelayMs + w * 150);
-      }
+      plan.forEach((stepCfg, idx) => {
+        if (stepCfg.hopStartMs === 0) triggerHop(stepCfg);
+        else setTimeout(() => triggerHop(stepCfg), stepCfg.hopStartMs);
+
+        const impactMs = (caster === GameApp.player) ? stepCfg.stompMs : stepCfg.hopStartMs;
+        if (impactMs === 0) fireQuakeWave(idx, stepCfg);
+        else setTimeout(() => fireQuakeWave(idx, stepCfg), impactMs);
+      });
       return;
     }
 
@@ -1906,15 +1959,16 @@ const SkillsEngine = {
             const firstIdx = this.groundHazards.findIndex(h => h.kind === "poison_puddle");
             if (firstIdx !== -1) this.groundHazards.splice(firstIdx, 1);
           }
+          const puddleDur = 2.2 * (pr.hazardDurMult || 1.0);
           this.groundHazards.push({
             kind: "poison_puddle",
             x: pr.targetX,
             y: pr.targetY,
-            radius: puddleR,
+            radius: Math.min(95, puddleR),
             dmg: pr.dmg * 0.42,
             type: "Poison",
-            timer: 2.2,
-            maxTime: 2.2,
+            timer: puddleDur,
+            maxTime: puddleDur,
             tickTimer: 0.32,
             tickInterval: 0.42,
             color: "#9333EA"
@@ -1950,8 +2004,8 @@ const SkillsEngine = {
               : (s % 2 === 0 ? "#4ADE80" : "#BEF264");
             this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, col, pr.isVenusaurSeed && s % 3 === 0 ? 4.4 : 5.2, 0.48, (pr.isVenusaurSeed && s % 3 === 0) ? "leaf" : "circle");
           }
-          // 落地範圍轟炸傷害判定
-          const blastRadius = 68 * GameApp.player.areaMult;
+          // 落地範圍轟炸傷害判定（接入茂盛荊棘範圍加成並設 105px 軟上限）
+          const blastRadius = Math.min(105, 68 * GameApp.player.areaMult * (pr.blastAreaBonus || 1.0));
           this.meleeEffects.push({
             style: "slam_wave",
             x: pr.targetX,
@@ -2249,7 +2303,7 @@ const SkillsEngine = {
             const rSum = curR + e.radius * 0.85;
             if (dx * dx + dy * dy <= rSum * rSum) {
               m.hitSet.add(e);
-              GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.25, m.kb || 20);
+              GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.25, m.kb || 20, m.extraCrit || 0);
             }
           }
         } else {
@@ -2388,7 +2442,7 @@ const SkillsEngine = {
         if (target) {
           const desired = Math.atan2(target.y - hz.y, target.x - hz.x);
           const distToT = Math.hypot(target.x - hz.x, target.y - hz.y);
-          const trackSpd = distToT > 24 ? 125 : 40;
+          const trackSpd = distToT > 24 ? 70 : 28;
           hz.vx = (hz.vx || 0) * 0.75 + Math.cos(desired) * trackSpd * 0.25;
           hz.vy = (hz.vy || 0) * 0.75 + Math.sin(desired) * trackSpd * 0.25;
         }

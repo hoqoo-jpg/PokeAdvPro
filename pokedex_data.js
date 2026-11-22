@@ -222,7 +222,7 @@ Ember: {
     evoDesc: "【終極超武】全屏覆蓋腐蝕性毒霧，中毒扣血速率提升 100%！"
   },
   Moonblast: {
-    id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.20, ultMinCd: 3.8, ultPowerBonus: 1.10,
+    id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.45, ultMinCd: 3.8, ultPowerBonus: 1.10,
     knockback: 0, isMelee: false, vfx: "moon_blast", reqItem: "twisted_spoon",
     evolvedName: "創世極光", color: "#F472B6",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
@@ -2089,7 +2089,7 @@ const INNATE_TRAITS = {
     name: "重量級霸體",
     badgeColor: "#D97706",
     icon: "fa-weight-hanging",
-    summary: (t) => `撞擊/地震範圍+${Math.round(18 * t)}%・擊退+${Math.round(30 * t)}%・近戰減傷${Math.round(10 * t)}%`
+    summary: (t) => `撞擊/地震範圍+${Math.round(18 * t)}%・擊退+${Math.round(30 * t)}%・近戰減傷${Math.min(12, Math.round(8 * t))}%`
   },
   quick_attack: {
     id: "quick_attack",
@@ -2103,7 +2103,7 @@ const INNATE_TRAITS = {
     name: "鐵拳宗師",
     badgeColor: "#DC2626",
     icon: "fa-hand-fist",
-    summary: (t) => `空手劈/近戰暴擊+${Math.round(8 * t)}%・拳風範圍+${Math.round(12 * t)}%${t >= 1.8 ? '・空手劈額外+1拳' : ''}`
+    summary: (t) => `空手劈/近戰暴擊+${Math.round(8 * t)}%・拳風範圍+${Math.round(12 * t)}%${t >= 1.45 ? '・空手劈額外+1拳' : ''}`
   },
   mega_launcher: {
     id: "mega_launcher",
@@ -2131,34 +2131,34 @@ const INNATE_TRAITS = {
     name: "超能共鳴",
     badgeColor: "#9333EA",
     icon: "fa-wand-sparkles",
-    summary: (t) => `念力/暗影穿透+${t >= 1.8 ? 2 : 1}・月光柱與毒沼持續+${Math.round(15 * t)}%・異常暴擊+12%`
+    summary: (t) => `念力/暗影穿透+${t >= 1.45 ? 2 : 1}・月光柱與毒沼持續+${Math.round(15 * t)}%・異常暴擊+12%`
   },
   legendary_pressure: {
     id: "legendary_pressure",
     name: "傳說王權",
     badgeColor: "#DB2777",
     icon: "fa-crown",
-    summary: () => `全招式範圍+25%・冷卻-12%・王權護盾破裂時爆發全屏屬性震退新星`
+    summary: () => `全招式範圍+20%・冷卻-12%・王權護盾破裂時爆發全屏屬性震退新星`
   }
 };
 
 function getPokemonEvolutionTierScale(pokeData, currentLevel = 1) {
   if (!pokeData) return { tier: 1, scale: 1.0, label: "一階" };
   if (pokeData.isMega || pokeData.id >= 10000) {
-    return { tier: 4, scale: 2.25, label: "MEGA 覺醒" };
+    return { tier: 4, scale: 1.65, label: "MEGA 覺醒" };
   }
   if (pokeData.id >= 144 && pokeData.id !== 147 && pokeData.id !== 148 && pokeData.id !== 149) {
-    return { tier: 3, scale: 2.0, label: "傳說王權" };
+    return { tier: 3, scale: 1.50, label: "傳說王權" };
   }
   const hasParent = POKEMON_DB.some(parent => parent.evo_to === pokeData.id || ([134, 135, 136].includes(pokeData.id) && parent.id === 133));
   const hasGrandParent = POKEMON_DB.some(parent => parent.evo_to === pokeData.id && POKEMON_DB.some(gp => gp.evo_to === parent.id));
-  if (hasGrandParent) return { tier: 3, scale: 2.0, label: "三階完全體" };
-  if (hasParent && !pokeData.evo_to) return { tier: 3, scale: 1.85, label: "最終完全體" };
-  if (hasParent && pokeData.evo_to) return { tier: 2, scale: 1.4, label: "二階進化" };
+  if (hasGrandParent) return { tier: 3, scale: 1.50, label: "三階完全體" };
+  if (hasParent && !pokeData.evo_to) return { tier: 3, scale: 1.50, label: "最終完全體" };
+  if (hasParent && pokeData.evo_to) return { tier: 2, scale: 1.25, label: "二階進化" };
   if (!hasParent && !pokeData.evo_to) {
     return currentLevel >= 18
-      ? { tier: 3, scale: 1.9, label: "潛能突破" }
-      : { tier: 2, scale: 1.35, label: "單階精銳" };
+      ? { tier: 3, scale: 1.50, label: "潛能突破" }
+      : { tier: 2, scale: 1.25, label: "單階精銳" };
   }
   return { tier: 1, scale: 1.0, label: "一階幼體" };
 }
@@ -2224,22 +2224,22 @@ function getPokemonInnateTrait(pokeData, currentLevel = 1) {
     // 具體物理與戰鬥調用數值 (加法安全邊界)
     tackleQuakeAreaBonus: traitKey === "heavy_slam" ? 0.18 * t : (traitKey === "legendary_pressure" ? 0.25 : 0),
     tackleQuakeKbBonus: traitKey === "heavy_slam" ? 0.30 * t : 0,
-    meleeDmgReduction: traitKey === "heavy_slam" ? 0.10 * t : 0,
+    meleeDmgReduction: traitKey === "heavy_slam" ? Math.min(0.12, 0.08 * t) : 0,
     quickAttackCdMult: traitKey === "quick_attack" ? (1 - 0.10 * t) : (traitKey === "legendary_pressure" ? 0.88 : 1.0),
     quickAttackLungeBonus: traitKey === "quick_attack" ? 0.25 : 0,
     ironFistCritBonus: traitKey === "iron_fist" ? 0.08 * t : 0,
     ironFistAreaBonus: traitKey === "iron_fist" ? 0.12 * t : 0,
-    ironFistExtraStrike: (traitKey === "iron_fist" && t >= 1.8) ? 1 : 0,
+    ironFistExtraStrike: (traitKey === "iron_fist" && t >= 1.45) ? 1 : 0,
     megaLauncherSizeBonus: traitKey === "mega_launcher" ? 0.18 * t : 0,
     megaLauncherKbBonus: traitKey === "mega_launcher" ? 0.25 * t : 0,
     overgrowAreaBonus: traitKey === "overgrow_thorn" ? 0.15 * t : 0,
     overgrowHealMult: traitKey === "overgrow_thorn" ? (1 + 0.30 * t) : 1.0,
     dragonMawAreaBonus: traitKey === "dragon_maw" ? 0.15 * t : 0,
     dragonMawBurnAmp: traitKey === "dragon_maw" ? 0.15 * t : 0,
-    psychicExtraPierce: traitKey === "psychic_surge" ? (t >= 1.8 ? 2 : 1) : 0,
+    psychicExtraPierce: traitKey === "psychic_surge" ? (t >= 1.45 ? 2 : 1) : 0,
     psychicHazardDurMult: traitKey === "psychic_surge" ? (1 + 0.15 * t) : 1.0,
     psychicStatusCritBonus: traitKey === "psychic_surge" ? 0.12 : 0,
-    legendaryAreaBonus: traitKey === "legendary_pressure" ? 0.25 : 0
+    legendaryAreaBonus: traitKey === "legendary_pressure" ? 0.20 : 0
   };
 }
 

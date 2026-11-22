@@ -2353,8 +2353,9 @@ window.GameApp = {
               const actualReach = 16 + reach * 0.82 + Math.min(58, Math.max(34, reach * 0.44));
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "quake_wave") {
-              // 地震 (Earthquake)：真實距離 (85 + lv * 4) * meleeAreaScale
-              const actualReach = (85 + lv * 4) * meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0));
+              // 地震 (Earthquake)：對齊軟上限（基礎波 125px、終結重踏 150px）
+              const rawReach = (80 + lv * 3.5) * Math.min(1.45, meleeAreaScale * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75));
+              const actualReach = Math.min(lv >= 4 ? 150 : 125, rawReach);
               triggerRange = actualReach * 0.88;
             } else if (meta.meleeStyle === "vine_whip") {
               const whipReach = (typeof SkillsEngine !== "undefined" && SkillsEngine.getVineWhipReach)
@@ -2404,7 +2405,10 @@ window.GameApp = {
         const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
           ? (p.innateTrait.quickAttackCdMult || 1.0)
           : 1.0;
-        skSlot.timer = Math.max(0.35, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
+        const minSkillCd = (skSlot.id === "Tackle")
+          ? (skSlot.level >= 8 ? 0.88 : (skSlot.level >= 4 ? 0.56 : 0.35))
+          : 0.35;
+        skSlot.timer = Math.max(minSkillCd, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
         p.castStaggerTimer = 0.085;
       }
     });
@@ -6434,8 +6438,10 @@ window.GameApp = {
       const lungeOffsetY = Math.sin(p.lungeAngle || 0) * (p.lungeDist || 0) * lungePhase;
 
       const visOffsetX = (p.recoilX || 0) * recScale + lungeOffsetX;
-      const slamProg = (p.slamHopTimer > 0) ? (1 - p.slamHopTimer / 0.24) : 0;
-      const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.55 ? -Math.sin((slamProg / 0.55) * Math.PI) * 14 : Math.sin(((slamProg - 0.55) / 0.45) * Math.PI) * 5) : 0;
+      const slamMaxT = p.slamHopMaxTime || 0.24;
+      const slamH = p.slamHopHeight || 14;
+      const slamProg = (p.slamHopTimer > 0) ? Math.max(0, Math.min(1, 1 - p.slamHopTimer / slamMaxT)) : 0;
+      const slamHopY = (p.slamHopTimer > 0) ? (slamProg < 0.58 ? -Math.sin((slamProg / 0.58) * Math.PI) * slamH : Math.sin(((slamProg - 0.58) / 0.42) * Math.PI) * Math.min(8, slamH * 0.34)) : 0;
       const visOffsetY = (p.recoilY || 0) * recScale + slamHopY + lungeOffsetY;
 
       const stretchX = 1 + lungePhase * 0.16;
