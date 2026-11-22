@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.8');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.9');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -679,13 +679,26 @@
     </div>
 
     <!-- 頂部中央：Boss 血條容器 (下移至 top-[96px] sm:top-24 避開地形與狀態列，且 z-20 置頂絕不被擋) -->
-    <div id="bossHudContainer" class="absolute top-[96px] sm:top-24 left-1/2 -translate-x-1/2 w-11/12 max-w-md hidden bg-slate-900/95 px-2.5 py-1.5 rounded-2xl border-2 border-red-500 shadow-2xl pointer-events-auto z-20">
-      <div class="flex items-center justify-between text-xs font-black text-white mb-1 px-1">
-        <span id="bossHudName" class="text-red-400 flex items-center gap-1"><i class="fa-solid fa-dragon"></i> 王者超夢 (#150)</span>
-        <span id="bossHudHpText" class="font-pixel text-[10px] text-amber-300">14000/14000</span>
-      </div>
-      <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
-        <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+    <div id="bossHudContainer" class="absolute top-[96px] sm:top-24 left-1/2 -translate-x-1/2 w-11/12 max-w-lg hidden bg-slate-900/95 px-2.5 py-1.5 rounded-2xl border-2 border-red-500 shadow-2xl pointer-events-auto z-20">
+      <div id="bossHudGrid" class="grid grid-cols-1 gap-2">
+        <div>
+          <div class="flex items-center justify-between text-[11px] sm:text-xs font-black text-white mb-1 px-0.5 gap-1">
+            <span id="bossHudName" class="text-red-400 truncate"><i class="fa-solid fa-dragon mr-1"></i>王者超夢 (#150)</span>
+            <span id="bossHudHpText" class="font-pixel text-[9px] sm:text-[10px] text-amber-300 shrink-0">14000/14000</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
+            <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+          </div>
+        </div>
+        <div id="bossHudSlot2" class="hidden">
+          <div class="flex items-center justify-between text-[11px] sm:text-xs font-black text-white mb-1 px-0.5 gap-1">
+            <span id="bossHudName2" class="text-purple-300 truncate"><i class="fa-solid fa-dragon mr-1"></i>始祖夢幻 (#151)</span>
+            <span id="bossHudHpText2" class="font-pixel text-[9px] sm:text-[10px] text-amber-300 shrink-0">7500/7500</span>
+          </div>
+          <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
+            <div id="bossHudBar2" class="h-full bg-gradient-to-r from-purple-600 via-pink-500 to-amber-300 rounded-full transition-all duration-100" style="width: 100%;"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1222,10 +1235,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.8"></script>
-  <script src="map_v11_engine.js?v=6.9.8"></script>
-  <script src="skills_engine.js?v=6.9.8"></script>
-  <script src="battle_core_2.js?v=6.9.8"></script>
-  <script src="game_ui.js?v=6.9.8"></script>
+  <script src="pokedex_data.js?v=6.9.9"></script>
+  <script src="map_v11_engine.js?v=6.9.9"></script>
+  <script src="skills_engine.js?v=6.9.9"></script>
+  <script src="battle_core_2.js?v=6.9.9"></script>
+  <script src="game_ui.js?v=6.9.9"></script>
 </body>
 </html>

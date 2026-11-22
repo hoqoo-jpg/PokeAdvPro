@@ -14,8 +14,12 @@ window.GameApp = {
   state: "LOADING",
   timeScale: 1,
 
-  // 天氣測試鎖定開關、瞄準模式、壓力測試與 FPS 監控
+  // 天氣測試鎖定開關、Boss 專屬天候鎖、瞄準模式、壓力測試與 FPS 監控
   debugWeatherLock: false,
+  bossWeatherLock: false,
+  bossDeathAnims: [],
+  victoryCeremony: null,
+  pendingMewTimer: 0,
   manualAimMode: false,
   currentFps: 60,
   showFpsHud: false,
@@ -867,8 +871,8 @@ window.GameApp = {
     this.showCutsceneBanner(`[當前天候: ${w}]`, descMap[w] || "標準環境", 2500);
   },
 
-  // Boss 降臨前奏系統 (Warning 預警序列)
-  triggerBossWarningSequence(bossId, isFinalMewtwo = false) {
+  // Boss 降臨前奏系統 (Warning 預警序列，支援無盡深淵對角雙神降臨)
+  triggerBossWarningSequence(bossId, isFinalMewtwo = false, opts = {}) {
     const bData = POKEMON_MAP.get(bossId);
     if (!bData) return;
 
@@ -876,47 +880,54 @@ window.GameApp = {
     const wType = weatherMap[bossId] || "THUNDER";
     const wNames = { BLIZZARD: "極寒暴雪", THUNDER: "狂暴雷暴", HEATWAVE: "烈日熱浪", PSYCHIC: "超能極光" };
 
-    // 關鍵鎖定：防止被 updateCombat 的時間軸常規天氣在 16ms 內覆蓋回來！
-    this.debugWeatherLock = true;
-    MapEngine.setWeather(wType);
-    this.updateWeatherUI(wType);
+    // 使用獨立 bossWeatherLock（不再誤鎖 debugWeatherLock），確保 Boss 討伐後恢復常規動態天候輪替
+    this.bossWeatherLock = true;
+    if (!opts.skipWeather) {
+      MapEngine.setWeather(wType);
+      this.updateWeatherUI(wType);
+    }
 
-    SoundFX.play("boss");
-    this.showCutsceneBanner(
-      "【⚠️ WARNING!! 神獸降臨預警】",
-      `天地異變！氣候轉為【${wNames[wType] || wType}】！傳說精靈【${bData.name_zh}】即將在預警點降臨！`,
-      2400
-    );
+    if (!opts.skipBanner) {
+      SoundFX.play("boss");
+      this.showCutsceneBanner(
+        "【⚠️ WARNING!! 神獸降臨預警】",
+        `天地異變！氣候轉為【${wNames[wType] || wType}】！傳說精靈【${bData.name_zh}】即將在預警點降臨！`,
+        2400
+      );
+    }
 
-    const ang = Math.random() * Math.PI * 2;
-    const dropX = this.player.x + Math.cos(ang) * 280;
-    const dropY = this.player.y + Math.sin(ang) * 280;
+    const ang = (opts.angle !== undefined) ? opts.angle : (Math.random() * Math.PI * 2);
+    const dropDist = opts.isDualBoss ? 255 : 280;
+    const dropX = this.player.x + Math.cos(ang) * dropDist;
+    const dropY = this.player.y + Math.sin(ang) * dropDist;
 
     this.telegraphs.push({
       shape: "circle",
       isBossWarning: true,
       bossId: bossId,
       isFinalMewtwo: isFinalMewtwo,
+      isDualBoss: !!opts.isDualBoss,
       x: dropX,
       y: dropY,
       radius: 95,
       timer: 1.8,
       maxTime: 1.8,
       dmg: 0,
-      color: "#EF4444"
+      color: opts.isDualBoss ? "#F59E0B" : "#EF4444"
     });
   },
 
-  spawnBoss(bossId, isFinalMewtwo = false) {
-    this.triggerBossWarningSequence(bossId, isFinalMewtwo);
+  spawnBoss(bossId, isFinalMewtwo = false, opts = {}) {
+    this.triggerBossWarningSequence(bossId, isFinalMewtwo, opts);
   },
 
-  spawnBossAt(bossId, bx, by, isFinalMewtwo = false) {
+  spawnBossAt(bossId, bx, by, isFinalMewtwo = false, isDualBoss = false) {
     const bData = POKEMON_MAP.get(bossId);
     const diff = this.selectedDifficulty;
     const endlessWave = (this.isEndlessMode && this.runTime >= 480) ? Math.max(1, Math.floor((this.runTime - 480) / 120) + 1) : 0;
     const endlessHpScale = 1 + endlessWave * 0.45;
-    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult * endlessHpScale);
+    const dualHpMod = isDualBoss ? 0.72 : 1.0;
+    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult * endlessHpScale * dualHpMod);
 
     SoundFX.startBgm("boss");
     this.camera.shakeTime = 0.65;
@@ -928,11 +939,31 @@ window.GameApp = {
       style: "slam_wave",
       x: bx,
       y: by,
-      radius: 140,
-      timer: 0.45,
-      maxTime: 0.45,
+      radius: 165,
+      timer: 0.48,
+      maxTime: 0.48,
       color: "#EF4444"
     });
+
+    // 神獸降臨霸王氣場清場：保留最多 20 隻常規小怪，超出的常規怪化為經驗水晶，瞬間清出決鬥舞台
+    const regularMobs = this.enemies.filter(en => !en.isBoss && !en.isElite && !en.treasureType);
+    if (regularMobs.length > 20) {
+      let toClear = regularMobs.length - 20;
+      for (let i = this.enemies.length - 1; i >= 0 && toClear > 0; i--) {
+        const en = this.enemies[i];
+        if (!en.isBoss && !en.isElite && !en.treasureType) {
+          if (this.gems.length < 110) {
+            this.gems.push({ x: en.x, y: en.y, val: 18, tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
+          }
+          this.enemies[i] = this.enemies[this.enemies.length - 1];
+          this.enemies.pop();
+          toClear--;
+        }
+      }
+      if (this.player) {
+        this.spawnFloatingText(this.player.x, this.player.y - 36, "⚡ 神獸威壓震散怪潮！決鬥舞台開啟！", "#FACC15", 13);
+      }
+    }
 
     this.saveData.pokedexSeen[bossId] = true;
     const boss = {
@@ -1166,6 +1197,10 @@ window.GameApp = {
     this.enemyProjectiles = [];
     this.activeBoss = null;
     this.debugWeatherLock = false;
+    this.bossWeatherLock = false;
+    this.bossDeathAnims = [];
+    this.victoryCeremony = null;
+    this.pendingMewTimer = 0;
     this.skillDamageStats = {};
     this._lastHudIdentityKey = null;
     this._lastHudHpTier = null;
@@ -2412,7 +2447,7 @@ window.GameApp = {
       }
     });
 
-    if (!this.debugWeatherLock && !this.activeBoss) {
+    if (!this.debugWeatherLock && !this.bossWeatherLock && !this.activeBoss) {
       this.weatherCycleTimer = (this.weatherCycleTimer || 80) - dt;
       if (this.weatherCycleTimer <= 0) {
         this.weatherCycleTimer = 80; // 每 80 秒隨機輪替一次，錯開吉利蛋 38s 刷新
@@ -2442,7 +2477,12 @@ window.GameApp = {
 
     MapEngine.updateWeather(dt, this.width, this.height);
     SkillsEngine.update(dt);
-    this.updateSpawners(dt);
+    this.updateBossDeathAnims(dt);
+    if (this.victoryCeremony && this.victoryCeremony.active) {
+      this.updateVictoryCeremony(dt);
+    } else {
+      this.updateSpawners(dt);
+    }
     this.updateTelegraphs(dt);
     this.updateEnemyProjectiles(dt);
     this.updateEnemies(dt);
@@ -2554,7 +2594,7 @@ window.GameApp = {
 
   getEffectiveMobCap(minutes) {
     if (this.debugMobCap > 0) return this.debugMobCap;
-    if (this.activeBoss && this.activeBoss.hp > 0) return 85;
+    if (this.activeBoss && this.activeBoss.hp > 0) return 35;
     const prof = (this.saveData && this.saveData.settings && this.saveData.settings.mobCapProfile) || "auto";
     if (prof === "low") return 100;
     if (prof === "standard") return 160;
@@ -2637,19 +2677,59 @@ window.GameApp = {
       this.spawnBoss(150, true);
     }
 
-    // 【♾️ 無盡深淵試煉模式】8:00 (480s) 後每 120 秒輪迴降臨強化神獸 Boss 並切換極端天象！
-    if (this.isEndlessMode && this.runTime >= (this.endlessNextBossTime || 480) && !this.activeBoss) {
+    // 【超夢 ➔ 夢幻 4.5 秒喘息與戰利品回收緩衝】
+    if (this.pendingMewTimer > 0) {
+      this.pendingMewTimer -= dt;
+      if (this.pendingMewTimer <= 0) {
+        this.pendingMewTimer = 0;
+        this.spawnBoss(151, false);
+        this.showCutsceneBanner(
+          "[終極試煉] 始祖之影降臨！【夢幻 #151】甦醒！",
+          "關都最後的傳說考驗展開，擊破始祖夢幻登頂冠軍寶座！",
+          3600
+        );
+      }
+    }
+
+    // 【♾️ 無盡深淵試煉模式】8:00 (480s) 後每 120 秒輪迴降臨：奇數輪單神、偶數輪「雙神同場對決」！
+    const hasPendingBossEvent = (this.pendingMewTimer > 0)
+      || this.telegraphs.some(t => t.isBossWarning)
+      || (this.bossDeathAnims && this.bossDeathAnims.length > 0);
+    if (this.isEndlessMode && this.runTime >= (this.endlessNextBossTime || 480) && !this.activeBoss && !hasPendingBossEvent) {
       this.endlessNextBossTime = Math.floor(this.runTime) + 120;
-      const cycleList = [144, 145, 146, 150, 151];
-      const nextBossId = cycleList[(this.endlessCycleIdx || 0) % cycleList.length];
       this.endlessCycleIdx = (this.endlessCycleIdx || 0) + 1;
-      const cycleWave = Math.floor((this.runTime - 480) / 120) + 1;
-      this.showCutsceneBanner(
-        `【♾️ 無盡深淵・第 ${cycleWave} 輪天災】`,
-        `深淵裂隙擴張！神獸【${POKEMON_MAP.get(nextBossId)?.name_zh || '傳說神獸'}】降臨，賞金倍率持續飆升！`,
-        3400
-      );
-      this.spawnBoss(nextBossId, nextBossId === 150);
+      const cycleWave = this.endlessCycleIdx;
+
+      if (cycleWave % 2 === 0) {
+        // 偶數輪：無盡深淵專屬「雙神對角降臨」
+        const dualPairs = [
+          [144, 145], // 急凍鳥 ＋ 閃電鳥
+          [145, 146], // 閃電鳥 ＋ 火焰鳥
+          [150, 151]  // 超夢 ＋ 夢幻
+        ];
+        const pair = dualPairs[(Math.floor(cycleWave / 2) - 1) % dualPairs.length];
+        const n1 = POKEMON_MAP.get(pair[0])?.name_zh || "傳說神獸";
+        const n2 = POKEMON_MAP.get(pair[1])?.name_zh || "傳說神獸";
+        const baseAng = Math.random() * Math.PI * 2;
+
+        SoundFX.play("boss");
+        this.showCutsceneBanner(
+          `【♾️ 無盡雙神降臨・第 ${cycleWave} 輪天災】`,
+          `深淵裂隙雙重崩壞！【${n1}】與【${n2}】自對角同時降臨戰場！`,
+          3600
+        );
+        this.spawnBoss(pair[0], pair[0] === 150, { angle: baseAng, isDualBoss: true, skipBanner: true });
+        this.spawnBoss(pair[1], pair[1] === 150, { angle: baseAng + Math.PI, isDualBoss: true, skipBanner: true, skipWeather: true });
+      } else {
+        const singleList = [144, 145, 146, 150, 151];
+        const nextBossId = singleList[Math.floor(cycleWave / 2) % singleList.length];
+        this.showCutsceneBanner(
+          `【♾️ 無盡深淵・第 ${cycleWave} 輪天災】`,
+          `深淵裂隙擴張！神獸【${POKEMON_MAP.get(nextBossId)?.name_zh || '傳說神獸'}】降臨，賞金倍率持續飆升！`,
+          3400
+        );
+        this.spawnBoss(nextBossId, nextBossId === 150);
+      }
     }
 
     // 經驗磁鐵改為「戰鬥掉落 ＋ 場上散落水晶累積超過 45 顆時動態補給」，場上最多只存在 1 顆，不再定時憑空空投
@@ -3217,153 +3297,193 @@ window.GameApp = {
       }
 
       const cdDt = e.status === "Paralysis" ? dt * 0.5 : dt;
-      // 1. 神獸 Boss 彈幕與地毯技能（加快出招節奏 1.35s~1.85s、擴充扇形與環形彈幕數量，視覺華麗且走位可躲）
+      // 1. 神獸 Boss 彈幕與紅圈交替出招節奏（彈幕輪 ⇄ 紅圈大招輪，避免同幀傾倒；雙神同場自動放緩 18%）
       if (inView && e.isBoss && !e.treasureType) {
         e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.9) - cdDt;
         if (e.rangedCd <= 0) {
           const isEnraged = (e.hp / e.maxHp) <= 0.5;
-          e.rangedCd = isEnraged ? (1.15 + Math.random() * 0.35) : (1.45 + Math.random() * 0.40);
-          e.bossVolleyCount = (e.bossVolleyCount || 0) + 1;
+          const aliveBossCount = this.enemies.filter(b => b.isBoss && b.hp > 0).length;
+          const dualPaceMod = aliveBossCount >= 2 ? 1.18 : 1.0;
+          e.bossCycleStep = (e.bossCycleStep || 0) + 1;
+          const isTelegraphTurn = (e.bossCycleStep % 2 === 0);
+          e.rangedCd = (isEnraged ? (1.32 + Math.random() * 0.34) : (1.58 + Math.random() * 0.38)) * dualPaceMod;
 
-          const baseAng = Math.atan2(p.y - e.y, p.x - e.x);
+          if (isTelegraphTurn) {
+            // 紅圈大招輪：清晰預警走位解題
+            this.spawnEnemyTelegraphAttack(e);
+          } else {
+            // 彈幕攻勢輪：統一從 Boss 身體外緣 (e.radius + 12) 釋放，杜絕原點重疊黏球
+            e.bossVolleyCount = (e.bossVolleyCount || 0) + 1;
+            const baseAng = Math.atan2(p.y - e.y, p.x - e.x);
+            const rim = e.radius + 12;
 
-          // 1. 急凍鳥 (#144) —— 扇形 5 叉極寒冰錐 + 隔輪 8 向暴風雪冰環
-          if (e.id === 144) {
-            const spreadAngles = [-0.42, -0.21, 0, 0.21, 0.42];
-            spreadAngles.forEach(angOffset => {
-              const ang = baseAng + angOffset;
-              this.enemyProjectiles.push({
-                x: e.x + Math.cos(ang) * (e.radius + 10),
-                y: e.y + Math.sin(ang) * (e.radius + 10),
-                vx: Math.cos(ang) * 235,
-                vy: Math.sin(ang) * 235,
-                angle: ang, radius: 10,
-                dmg: Math.round(e.atk * 0.72),
-                color: "#38BDF8", vfx: "frost_lance",
-                statusEffect: "Freeze", statusChance: 0.32,
-                life: 3.4, rot: 0
-              });
-            });
-
-            if (isEnraged || e.bossVolleyCount % 2 === 0) {
-              const ringCount = isEnraged ? 10 : 6;
-              for (let k = 0; k < ringCount; k++) {
-                const ringAng = (k * Math.PI * 2) / ringCount + e.bossVolleyCount * 0.25;
+            // 1. 急凍鳥 (#144) —— 扇形 5 叉極寒冰錐 ＋ 隔輪 6～8 向暴風雪冰環
+            if (e.id === 144) {
+              const spreadAngles = [-0.42, -0.21, 0, 0.21, 0.42];
+              spreadAngles.forEach(angOffset => {
+                const ang = baseAng + angOffset;
                 this.enemyProjectiles.push({
-                  x: e.x, y: e.y,
-                  vx: Math.cos(ringAng) * 185,
-                  vy: Math.sin(ringAng) * 185,
-                  angle: ringAng, radius: 9,
-                  dmg: Math.round(e.atk * 0.65),
-                  color: "#BAE6FD", vfx: "frost_lance",
-                  statusEffect: "Freeze", statusChance: 0.25,
+                  x: e.x + Math.cos(ang) * rim,
+                  y: e.y + Math.sin(ang) * rim,
+                  vx: Math.cos(ang) * 230,
+                  vy: Math.sin(ang) * 230,
+                  angle: ang, radius: 10,
+                  dmg: Math.round(e.atk * 0.72),
+                  color: "#38BDF8", vfx: "frost_lance",
+                  statusEffect: "Freeze", statusChance: 0.30,
+                  life: 3.4, rot: 0
+                });
+              });
+
+              if (e.bossVolleyCount % 2 === 0) {
+                const ringCount = isEnraged ? 8 : 6;
+                for (let k = 0; k < ringCount; k++) {
+                  const ringAng = (k * Math.PI * 2) / ringCount + e.bossVolleyCount * 0.28;
+                  this.enemyProjectiles.push({
+                    x: e.x + Math.cos(ringAng) * rim,
+                    y: e.y + Math.sin(ringAng) * rim,
+                    vx: Math.cos(ringAng) * 180,
+                    vy: Math.sin(ringAng) * 180,
+                    angle: ringAng, radius: 9,
+                    dmg: Math.round(e.atk * 0.65),
+                    color: "#BAE6FD", vfx: "frost_lance",
+                    statusEffect: "Freeze", statusChance: 0.24,
+                    life: 3.0, rot: 0
+                  });
+                }
+                this.spawnParticleCluster(e.x, e.y, "#BAE6FD", "#38BDF8", 14, "star", 1.1);
+              }
+            }
+
+            // 2. 閃電鳥 (#145) —— 4 連扇形高速雷羽 ＋ 恆速左右分流追蹤電磁球 (徹底消除黏團卡死)
+            else if (e.id === 145) {
+              [-0.28, -0.09, 0.09, 0.28].forEach(angOffset => {
+                const ang = baseAng + angOffset;
+                this.enemyProjectiles.push({
+                  x: e.x + Math.cos(ang) * rim,
+                  y: e.y + Math.sin(ang) * rim,
+                  vx: Math.cos(ang) * 260, vy: Math.sin(ang) * 260,
+                  angle: ang, radius: 9,
+                  dmg: Math.round(e.atk * 0.68),
+                  color: "#FACC15", vfx: "swift_star",
+                  statusEffect: "Paralysis", statusChance: 0.28,
+                  life: 3.0, rot: 0
+                });
+              });
+
+              const homingCount = isEnraged ? 3 : 2;
+              const perpAng = baseAng + Math.PI * 0.5;
+              for (let h = 0; h < homingCount; h++) {
+                const sideFrac = homingCount > 1 ? (h - (homingCount - 1) / 2) : 0;
+                const hAng = baseAng + sideFrac * 0.68;
+                const latShift = sideFrac * 26;
+                const orbSpd = 148;
+                this.enemyProjectiles.push({
+                  x: e.x + Math.cos(hAng) * (rim + 4) + Math.cos(perpAng) * latShift,
+                  y: e.y + Math.sin(hAng) * (rim + 4) + Math.sin(perpAng) * latShift,
+                  vx: Math.cos(hAng) * orbSpd, vy: Math.sin(hAng) * orbSpd,
+                  initSpeed: orbSpd,
+                  turnRate: 2.1,
+                  angle: hAng, radius: 12.5,
+                  dmg: Math.round(e.atk * 0.78),
+                  color: "#FDE047", vfx: "storm_orb",
+                  homing: true, statusEffect: "Paralysis", statusChance: 0.40,
+                  life: 3.8, rot: 0
+                });
+              }
+            }
+
+            // 3. 火焰鳥 (#146) —— 三～四向大字爆裂炎彈（飛行至終點或命中皆會爆裂散射十字火星）
+            else if (e.id === 146) {
+              const fireAngles = isEnraged ? [-0.36, -0.12, 0.12, 0.36] : [-0.26, 0, 0.26];
+              fireAngles.forEach(off => {
+                const fAng = baseAng + off;
+                this.enemyProjectiles.push({
+                  x: e.x + Math.cos(fAng) * rim,
+                  y: e.y + Math.sin(fAng) * rim,
+                  vx: Math.cos(fAng) * 215, vy: Math.sin(fAng) * 215,
+                  angle: fAng, radius: 14,
+                  dmg: Math.round(e.atk * 0.85),
+                  color: "#EF4444", vfx: "fire_blast_orb",
+                  statusEffect: "Burn", statusChance: 0.40,
+                  canSplit: true, isEnragedSplit: isEnraged,
+                  life: 1.45, rot: 0
+                });
+              });
+            }
+
+            // 4. 超夢 (#150) —— 單發（狂暴大夾角雙發）引力黑核 ＋ 8～10 向暗影精神波
+            else if (e.id === 150) {
+              const coreOffsets = isEnraged ? [-0.52, 0.52] : [0];
+              coreOffsets.forEach(off => {
+                const cAng = baseAng + off;
+                this.enemyProjectiles.push({
+                  x: e.x + Math.cos(cAng) * rim,
+                  y: e.y + Math.sin(cAng) * rim,
+                  vx: Math.cos(cAng) * 168, vy: Math.sin(cAng) * 168,
+                  angle: cAng, radius: 17,
+                  dmg: Math.round(e.atk * 0.92),
+                  color: "#A855F7", vfx: "psychic_core",
+                  isSuction: true, statusEffect: "Confusion", statusChance: 0.30,
+                  life: 3.6, rot: 0
+                });
+              });
+
+              const waveCount = isEnraged ? 10 : 8;
+              for (let pIdx = 0; pIdx < waveCount; pIdx++) {
+                const pAng = (pIdx * Math.PI * 2) / waveCount + baseAng + e.bossVolleyCount * 0.24;
+                this.enemyProjectiles.push({
+                  x: e.x + Math.cos(pAng) * rim,
+                  y: e.y + Math.sin(pAng) * rim,
+                  vx: Math.cos(pAng) * 215, vy: Math.sin(pAng) * 215,
+                  angle: pAng, radius: 10,
+                  dmg: Math.round(e.atk * 0.68),
+                  color: "#C084FC", vfx: "psy_wave",
+                  statusEffect: "Confusion", statusChance: 0.22,
                   life: 3.0, rot: 0
                 });
               }
-              this.spawnParticleCluster(e.x, e.y, "#BAE6FD", "#38BDF8", 14, "star", 1.1);
             }
-          }
 
-          // 2. 閃電鳥 (#145) —— 4 連扇形高速雷羽 (265px/s) + 雙發追蹤電磁球
-          else if (e.id === 145) {
-            [-0.28, -0.09, 0.09, 0.28].forEach(angOffset => {
-              const ang = baseAng + angOffset;
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(ang) * 265, vy: Math.sin(ang) * 265,
-                angle: ang, radius: 9,
-                dmg: Math.round(e.atk * 0.68),
-                color: "#FACC15", vfx: "swift_star",
-                statusEffect: "Paralysis", statusChance: 0.28,
-                life: 3.0, rot: 0
-              });
-            });
-
-            const homingCount = isEnraged ? 3 : 2;
-            for (let h = 0; h < homingCount; h++) {
-              const hAng = baseAng + (h - (homingCount - 1) / 2) * 0.55;
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(hAng) * 125, vy: Math.sin(hAng) * 125,
-                angle: hAng, radius: 13,
-                dmg: Math.round(e.atk * 0.78),
-                color: "#FDE047", vfx: "storm_orb",
-                homing: true, statusEffect: "Paralysis", statusChance: 0.42,
-                life: 4.2, rot: 0
-              });
-            }
-          }
-
-          // 3. 火焰鳥 (#146) —— 三向扇形大字爆裂炎彈 (撞擊分裂火星) + 周身火環
-          else if (e.id === 146) {
-            const fireAngles = isEnraged ? [-0.34, -0.11, 0.11, 0.34] : [-0.24, 0, 0.24];
-            fireAngles.forEach(off => {
-              const fAng = baseAng + off;
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(fAng) * 210, vy: Math.sin(fAng) * 210,
-                angle: fAng, radius: 14,
-                dmg: Math.round(e.atk * 0.85),
-                color: "#EF4444", vfx: "fire_blast_orb",
-                statusEffect: "Burn", statusChance: 0.40,
-                canSplit: true, isEnragedSplit: isEnraged,
-                life: 2.6, rot: 0
-              });
-            });
-          }
-
-          // 4. 超夢 (#150) —— 雙發引力黑核 + 8向（狂暴12向）暗影精神波
-          else if (e.id === 150) {
-            [-0.22, 0.22].forEach(off => {
-              const cAng = baseAng + off;
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(cAng) * 170, vy: Math.sin(cAng) * 170,
-                angle: cAng, radius: 17,
-                dmg: Math.round(e.atk * 0.95),
-                color: "#A855F7", vfx: "psychic_core",
-                isSuction: true, statusEffect: "Confusion", statusChance: 0.32,
-                life: 3.8, rot: 0
-              });
-            });
-
-            const waveCount = isEnraged ? 12 : 8;
-            for (let pIdx = 0; pIdx < waveCount; pIdx++) {
-              const pAng = (pIdx * Math.PI * 2) / waveCount + baseAng + e.bossVolleyCount * 0.2;
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(pAng) * 220, vy: Math.sin(pAng) * 220,
-                angle: pAng, radius: 10,
-                dmg: Math.round(e.atk * 0.68),
-                color: "#C084FC", vfx: "psy_wave",
-                statusEffect: "Confusion", statusChance: 0.22,
-                life: 3.0, rot: 0
-              });
-            }
-          }
-
-          // 5. 夢幻 (#151) —— 7 連發（狂暴 12 連發）彩虹混色高速星彈陣
-          else if (e.id === 151) {
-            const mCount = isEnraged ? 12 : 7;
-            for (let m = 0; m < mCount; m++) {
-              const spread = ((m / (mCount - 1)) - 0.5) * 0.95 + (Math.random() - 0.5) * 0.12;
-              const mAng = baseAng + spread;
+            // 5. 夢幻 (#151) —— 交替釋放「旋轉八瓣彩虹星花環」與「七彩高速星彈扇」
+            else if (e.id === 151) {
               const rainbowColors = ["#EF4444", "#38BDF8", "#FACC15", "#22C55E", "#EC4899"];
-              const pickColor = rainbowColors[m % rainbowColors.length];
-              this.enemyProjectiles.push({
-                x: e.x, y: e.y,
-                vx: Math.cos(mAng) * 245, vy: Math.sin(mAng) * 245,
-                angle: mAng, radius: 9.5,
-                dmg: Math.round(e.atk * 0.62),
-                color: pickColor, vfx: "rainbow_star",
-                statusEffect: m % 2 === 0 ? "Paralysis" : "Burn", statusChance: 0.20,
-                life: 3.0, rot: 0
-              });
+              if (e.bossVolleyCount % 2 === 1) {
+                const petalCount = isEnraged ? 12 : 8;
+                const spinBase = e.bossVolleyCount * 0.42;
+                for (let m = 0; m < petalCount; m++) {
+                  const mAng = spinBase + (m * Math.PI * 2) / petalCount;
+                  const spd = 205 + (m % 2) * 35;
+                  this.enemyProjectiles.push({
+                    x: e.x + Math.cos(mAng) * rim,
+                    y: e.y + Math.sin(mAng) * rim,
+                    vx: Math.cos(mAng) * spd, vy: Math.sin(mAng) * spd,
+                    angle: mAng, radius: 9.5,
+                    dmg: Math.round(e.atk * 0.62),
+                    color: rainbowColors[m % rainbowColors.length], vfx: "rainbow_star",
+                    statusEffect: m % 2 === 0 ? "Paralysis" : "Burn", statusChance: 0.20,
+                    life: 3.2, rot: 0
+                  });
+                }
+              } else {
+                const mCount = isEnraged ? 9 : 7;
+                for (let m = 0; m < mCount; m++) {
+                  const spread = ((m / (mCount - 1)) - 0.5) * 0.92;
+                  const mAng = baseAng + spread;
+                  this.enemyProjectiles.push({
+                    x: e.x + Math.cos(mAng) * rim,
+                    y: e.y + Math.sin(mAng) * rim,
+                    vx: Math.cos(mAng) * 240, vy: Math.sin(mAng) * 240,
+                    angle: mAng, radius: 9.5,
+                    dmg: Math.round(e.atk * 0.62),
+                    color: rainbowColors[m % rainbowColors.length], vfx: "rainbow_star",
+                    statusEffect: m % 2 === 0 ? "Paralysis" : "Burn", statusChance: 0.20,
+                    life: 3.0, rot: 0
+                  });
+                }
+              }
             }
           }
-
-          // 保持觸發原本的地面大招
-          this.spawnEnemyTelegraphAttack(e);
         }
       }
 
@@ -3716,7 +3836,7 @@ window.GameApp = {
       tg.timer -= dt;
       if (tg.timer <= 0) {
         if (tg.isBossWarning) {
-          this.spawnBossAt(tg.bossId, tg.x, tg.y, tg.isFinalMewtwo);
+          this.spawnBossAt(tg.bossId, tg.x, tg.y, tg.isFinalMewtwo, !!tg.isDualBoss);
           this.telegraphs.splice(i, 1);
           continue;
         }
@@ -3811,13 +3931,18 @@ window.GameApp = {
     for (let i = this.enemyProjectiles.length - 1; i >= 0; i--) {
       const ep = this.enemyProjectiles[i];
 
-      // 追蹤彈微修正角度 (閃電鳥追蹤電磁核等)
+      // 追蹤彈恆速角速度轉向（與 dt 掛鉤並鎖定 initSpeed，徹底杜絕向量衰減卡死黏團！）
       if (ep.homing) {
-        const curDesired = Math.atan2(p.y - ep.y, p.x - ep.x);
-        const curSpd = Math.hypot(ep.vx, ep.vy);
-        ep.vx = ep.vx * 0.92 + Math.cos(curDesired) * curSpd * 0.08;
-        ep.vy = ep.vy * 0.92 + Math.sin(curDesired) * curSpd * 0.08;
-        ep.angle = Math.atan2(ep.vy, ep.vx);
+        const baseSpd = ep.initSpeed || Math.max(125, Math.hypot(ep.vx, ep.vy));
+        if (!ep.initSpeed) ep.initSpeed = baseSpd;
+        const curAng = (ep.angle !== undefined) ? ep.angle : Math.atan2(ep.vy, ep.vx);
+        const desired = Math.atan2(p.y - ep.y, p.x - ep.x);
+        const diff = Math.atan2(Math.sin(desired - curAng), Math.cos(desired - curAng));
+        const maxTurn = (ep.turnRate || 2.2) * dt;
+        const nextAng = curAng + Math.max(-maxTurn, Math.min(maxTurn, diff));
+        ep.angle = nextAng;
+        ep.vx = Math.cos(nextAng) * baseSpd;
+        ep.vy = Math.sin(nextAng) * baseSpd;
       }
 
       // 引力黑核微弱吸扯玩家 (超夢巨型黑核)
@@ -3946,6 +4071,21 @@ window.GameApp = {
       }
 
       if (ep.life <= 0) {
+        // 火焰鳥大字炎巨彈飛達射程終點自動爆裂散射十字火星
+        if (ep.canSplit) {
+          const splitAngles = ep.isEnragedSplit ? [0, 0.785, 1.57, 2.356, 3.14, 3.927, 4.71, 5.498] : [0, Math.PI / 2, Math.PI, Math.PI * 1.5];
+          splitAngles.forEach(sAng => {
+            this.enemyProjectiles.push({
+              x: ep.x, y: ep.y,
+              vx: Math.cos(sAng) * 165, vy: Math.sin(sAng) * 165,
+              angle: sAng, radius: 7, dmg: Math.round(ep.dmg * 0.45),
+              color: "#F97316", vfx: "fire_spark",
+              statusEffect: "Burn", statusChance: 0.25,
+              life: 1.15, rot: 0
+            });
+          });
+          this.spawnParticleCluster(ep.x, ep.y, "#EF4444", "#FEF08A", 8, "star", 0.9);
+        }
         this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
         this.enemyProjectiles.pop();
       }
@@ -4285,14 +4425,31 @@ window.GameApp = {
     }
 
     if (e.isBoss) {
-      // P3 神獸 Boss 擊破特寫慢動作 (Kill Cam Slow-Mo 0.65s) 與全屏星芒爆散
-      this.hitStopTimer = 0.07;
-      this.killSlowmoTimer = 0.65;
-      this.camera.shakeTime = 0.50;
+      // 神獸討伐儀式：立即淨空全場殘留敵彈與紅圈（杜絕贏王後被殘彈反殺）
+      this.enemyProjectiles = [];
+      this.telegraphs = this.telegraphs.filter(tg => tg.isBossWarning);
+      this.hitStopTimer = 0.08;
+      this.killSlowmoTimer = 0.60;
+      this.camera.shakeTime = 0.52;
       this.camera.shakeMagnitude = 14;
-      this.spawnParticleCluster(e.x, e.y, "#FACC15", "#FFFFFF", 42, "star", 1.75);
-      this.activeBoss = this.enemies.find(x => x.isBoss) || null;
+      SoundFX.play("ultimate");
+
+      // 啟動 0.85 秒神獸白光閃爍膨脹 ➔ 漫天金星炸裂討伐演出
+      if (!this.bossDeathAnims) this.bossDeathAnims = [];
+      this.bossDeathAnims.push({
+        id: e.id,
+        data: e.data,
+        x: e.x,
+        y: e.y,
+        facingX: e.facingX || -1,
+        color: TYPE_COLORS[e.data.type1] || "#FACC15",
+        timer: 0,
+        duration: 0.85
+      });
+
+      this.activeBoss = this.enemies.find(x => x.isBoss && x.hp > 0) || null;
       if (!this.activeBoss) {
+        this.bossWeatherLock = false;
         MapEngine.setWeather("CLEAR");
         this.updateWeatherUI("CLEAR");
         SoundFX.startBgm("battle");
@@ -4303,6 +4460,7 @@ window.GameApp = {
 
       if ([144, 145, 146].includes(e.id)) {
         this.saveData.stats.birdsDefeated += 1;
+        this.showCutsceneBanner(`【⚡ 傳說討伐：${e.data.name_zh} 敗退！】`, "天象恢復平靜！快拾取黃金進化寶箱與粉紅經驗晶群！", 2600);
         // 困難與地獄模式下，擊敗 5 分鐘三聖鳥額外保底贈予 1 件對應當前招式的超武攜帶物！
         if (this.selectedDifficulty && (this.selectedDifficulty.id === "hard" || this.selectedDifficulty.id === "hell")) {
           const p = this.player;
@@ -4324,14 +4482,18 @@ window.GameApp = {
         this.saveToStorage();
         if (!this.secretMewSpawned) {
           this.secretMewSpawned = true;
-          // 擊敗超夢迎接夢幻前，給予神聖祝福：回復 60% HP 並立即重置訓練家大招冷卻！
+          // 擊敗超夢後給予 4.5 秒喘息與回收寶箱期，再華麗降臨始祖夢幻 #151！
+          this.pendingMewTimer = 4.5;
           if (this.player) {
             this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.round(this.player.maxHp * 0.60));
             this.player.trainerSkillCd = 0;
             this.spawnFloatingText(this.player.x, this.player.y - 32, "✨ 冠軍祝福：HP +60% ＆ 大招重置！", "#34D399", 15);
           }
-          this.spawnBoss(151, false);
-          this.showCutsceneBanner("[終極試煉] 隱藏頭目【始祖夢幻 #151】甦醒！", "已為您回復 60% 生命並重置戰術大招，同時解鎖傳奇訓練家【赤紅 Red】！", 3800);
+          this.showCutsceneBanner(
+            "[超夢敗退] 解鎖冠軍【赤紅 Red】！",
+            "已回復 60% HP ＆ 大招重置！把握 4.5 秒回收寶箱，始祖氣息正在逼近……",
+            4000
+          );
         }
       } else if (e.id === 151) {
         this.saveData.stats.mewDefeated += 1;
@@ -4340,16 +4502,18 @@ window.GameApp = {
           const bonusCoins = Math.round(350 * diffCoinMult);
           this.runCoins += bonusCoins;
           this.saveData.coins += bonusCoins;
+          this.endlessNextBossTime = Math.max(this.endlessNextBossTime || 480, Math.floor(this.runTime) + 95);
           if (this.player) {
             this.player.hp = Math.min(this.player.maxHp, this.player.hp + Math.round(this.player.maxHp * 0.50));
           }
           this.showCutsceneBanner(
             "【♾️ 始祖夢幻討伐成功・無盡深淵繼續！】",
-            `獲得深淵賞金 +${bonusCoins} 代幣 ＆ 回復 50% HP！下一波深淵首領將於 2 分鐘後降臨！`,
+            `獲得深淵賞金 +${bonusCoins} 代幣 ＆ 回復 50% HP！下輪深淵天災即將來襲！`,
             3800
           );
         } else {
-          this.triggerGameOver(true);
+          // 標準模式：啟動 2.4 秒冠軍加冕勝利儀式（全屏淨化、無敵防反殺、煙火與歡呼），絕不秒跳結算！
+          this.startVictoryCeremony();
           return;
         }
       }
@@ -5433,6 +5597,169 @@ window.GameApp = {
     }
 
     this.state = "PLAYING";
+  },
+
+  updateBossDeathAnims(dt) {
+    if (!this.bossDeathAnims || this.bossDeathAnims.length === 0) return;
+    for (let i = this.bossDeathAnims.length - 1; i >= 0; i--) {
+      const ba = this.bossDeathAnims[i];
+      ba.timer += dt;
+      if (Math.random() < 0.55) {
+        const ang = Math.random() * Math.PI * 2;
+        const r = 20 + Math.random() * 44;
+        this.spawnParticleCluster(ba.x + Math.cos(ang) * r, ba.y + Math.sin(ang) * r, ba.color, "#FFFFFF", 3, "star", 1.1);
+      }
+      if (ba.timer >= ba.duration) {
+        this.spawnParticleCluster(ba.x, ba.y, "#FACC15", "#FFFFFF", 42, "star", 1.85);
+        this.spawnParticleCluster(ba.x, ba.y, ba.color, "#FEF08A", 24, "star", 1.45);
+        SkillsEngine.meleeEffects.push({
+          style: "slam_wave",
+          x: ba.x,
+          y: ba.y,
+          radius: 190,
+          timer: 0.45,
+          maxTime: 0.45,
+          color: ba.color
+        });
+        SoundFX.play("levelup");
+        this.bossDeathAnims.splice(i, 1);
+      }
+    }
+  },
+
+  renderBossDeathAnims(ctx, toSx, toSy) {
+    if (!this.bossDeathAnims || this.bossDeathAnims.length === 0) return;
+    this.bossDeathAnims.forEach(ba => {
+      const prog = Math.max(0, Math.min(1, ba.timer / ba.duration));
+      const sx = toSx(ba.x), sy = toSy(ba.y);
+      const jitterX = (Math.random() - 0.5) * (6 + prog * 14);
+      const jitterY = (Math.random() - 0.5) * (6 + prog * 14);
+      const scale = 1.0 + prog * 0.34;
+      const sz = 120;
+      const rec = ba.data ? SpriteCache.get(ba.data.forward_sprite) : null;
+
+      ctx.save();
+      ctx.translate(sx + jitterX, sy + jitterY);
+      ctx.scale((ba.facingX > 0 ? -1 : 1) * scale, scale);
+      ctx.globalAlpha = Math.max(0.15, 1 - prog * 0.72);
+      if (rec && rec.loaded) {
+        ctx.drawImage(rec.img, -sz / 2, -sz / 2, sz, sz);
+        const flashOn = Math.floor(prog * 18) % 2 === 0;
+        this.drawSilhouetteFlash(ctx, rec.img, -sz / 2, -sz / 2, sz, sz, flashOn ? "#FFFFFF" : "#FEF08A", 0.55 + prog * 0.45);
+      }
+      ctx.restore();
+
+      // 爆裂擴散光環
+      ctx.save();
+      ctx.strokeStyle = ba.color;
+      ctx.lineWidth = 4.5 * (1 - prog * 0.5);
+      ctx.globalAlpha = 1 - prog;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 38 + prog * 115, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    });
+  },
+
+  startVictoryCeremony() {
+    const p = this.player;
+    this.victoryCeremony = {
+      active: true,
+      timer: 0,
+      duration: 2.4,
+      fireworkTimer: 0.12
+    };
+    if (p) {
+      p.invulnTimer = 5.0;
+      p.status = null;
+      p.statusTimer = 0;
+      p.hp = p.maxHp;
+    }
+    // 全屏淨化：將場上殘留所有小怪化為金色星塵
+    this.enemies.forEach(en => {
+      this.spawnParticleCluster(en.x, en.y, "#FACC15", "#FFFFFF", 6, "star", 1.1);
+    });
+    this.enemies = [];
+    this.enemyProjectiles = [];
+    this.telegraphs = [];
+    this.activeBoss = null;
+    this.bossWeatherLock = false;
+    MapEngine.setWeather("CLEAR");
+    this.updateWeatherUI("CLEAR");
+    document.getElementById("bossHudContainer").classList.add("hidden");
+    SoundFX.play("levelup");
+    setTimeout(() => SoundFX.play("shiny"), 320);
+    this.showCutsceneBanner(
+      "🏆 關都傳說制霸！CHAMPION!",
+      "始祖夢幻已討伐！全場淨化，正在為關都新冠軍加冕……",
+      2400
+    );
+  },
+
+  updateVictoryCeremony(dt) {
+    const vc = this.victoryCeremony;
+    if (!vc || !vc.active) return;
+    vc.timer += dt;
+    vc.fireworkTimer -= dt;
+    const p = this.player;
+    if (p) {
+      p.invulnTimer = 5.0;
+      p.status = null;
+      p.jumpY = -Math.abs(Math.sin(vc.timer * 10.5)) * 12;
+    }
+    if (this.trainerCompanion) {
+      this.trainerCompanion.jumpY = -Math.abs(Math.sin(vc.timer * 10.5 + 0.6)) * 11;
+    }
+    if (vc.fireworkTimer <= 0 && p) {
+      vc.fireworkTimer = 0.30;
+      const rainbow = ["#FACC15", "#F472B6", "#38BDF8", "#4ADE80", "#C084FC"];
+      const ang = Math.random() * Math.PI * 2;
+      const dist = 65 + Math.random() * 115;
+      const c1 = rainbow[Math.floor(Math.random() * rainbow.length)];
+      const c2 = "#FFFFFF";
+      this.spawnParticleCluster(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist, c1, c2, 18, "star", 1.45);
+      SoundFX.play("gem");
+    }
+    if (vc.timer >= vc.duration) {
+      vc.active = false;
+      this.victoryCeremony = null;
+      if (p) p.jumpY = 0;
+      if (this.trainerCompanion) this.trainerCompanion.jumpY = 0;
+      this.triggerGameOver(true);
+    }
+  },
+
+  renderVictoryCeremonyOverlay(ctx, toSx, toSy) {
+    const vc = this.victoryCeremony;
+    if (!vc || !vc.active || !this.player) return;
+    const px = toSx(this.player.x), py = toSy(this.player.y);
+    const prog = Math.min(1, vc.timer / vc.duration);
+
+    ctx.save();
+    // 冠軍彩虹加冕光環
+    const ringR = 44 + Math.sin(vc.timer * 6) * 8;
+    const grad = ctx.createRadialGradient(px, py, 10, px, py, ringR + 48);
+    grad.addColorStop(0, "rgba(254, 240, 138, 0.35)");
+    grad.addColorStop(0.6, "rgba(244, 114, 182, 0.22)");
+    grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(px, py, ringR + 48, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = "#FACC15";
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.ellipse(px, py + 16, ringR, ringR * 0.36, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 結尾 0.4 秒優雅金白柔光過渡至勝利結算面板
+    if (prog > 0.82) {
+      const flashA = Math.min(0.45, ((prog - 0.82) / 0.18) * 0.45);
+      ctx.fillStyle = `rgba(254, 249, 195, ${flashA})`;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
+    ctx.restore();
   },
 
   updateParticlesAndTexts(dt) {
@@ -6957,6 +7284,9 @@ window.GameApp = {
       ctx.restore();
     });
 
+    this.renderBossDeathAnims(ctx, toSx, toSy);
+    this.renderVictoryCeremonyOverlay(ctx, toSx, toSy);
+
     this.particles.forEach(pt => {
       const sx = toSx(pt.x), sy = toSy(pt.y);
       ctx.save();
@@ -7383,10 +7713,30 @@ window.GameApp = {
       megaWrapEl.classList.toggle("hidden", !(p.megaReady && !p.megaEvolved));
     }
 
-    if (this.activeBoss && this.activeBoss.hp > 0) {
-      document.getElementById("bossHudName").textContent = `${this.activeBoss.data.name_zh} (#${this.activeBoss.id})`;
-      document.getElementById("bossHudHpText").textContent = `${Math.max(0, Math.ceil(this.activeBoss.hp))}/${this.activeBoss.maxHp}`;
-      document.getElementById("bossHudBar").style.width = `${Math.max(0, (this.activeBoss.hp / this.activeBoss.maxHp) * 100)}%`;
+    const aliveBosses = this.enemies ? this.enemies.filter(b => b.isBoss && b.hp > 0) : [];
+    const bossContainer = document.getElementById("bossHudContainer");
+    const bossGrid = document.getElementById("bossHudGrid");
+    const bossSlot2 = document.getElementById("bossHudSlot2");
+    if (aliveBosses.length > 0 && bossContainer) {
+      bossContainer.classList.remove("hidden");
+      const b1 = aliveBosses[0];
+      document.getElementById("bossHudName").textContent = `${b1.data.name_zh} (#${b1.id})`;
+      document.getElementById("bossHudHpText").textContent = `${Math.max(0, Math.ceil(b1.hp))}/${b1.maxHp}`;
+      document.getElementById("bossHudBar").style.width = `${Math.max(0, (b1.hp / b1.maxHp) * 100)}%`;
+
+      if (aliveBosses.length >= 2 && bossSlot2 && bossGrid) {
+        const b2 = aliveBosses[1];
+        bossGrid.className = "grid grid-cols-2 gap-2";
+        bossSlot2.classList.remove("hidden");
+        document.getElementById("bossHudName2").textContent = `${b2.data.name_zh} (#${b2.id})`;
+        document.getElementById("bossHudHpText2").textContent = `${Math.max(0, Math.ceil(b2.hp))}/${b2.maxHp}`;
+        document.getElementById("bossHudBar2").style.width = `${Math.max(0, (b2.hp / b2.maxHp) * 100)}%`;
+      } else if (bossSlot2 && bossGrid) {
+        bossGrid.className = "grid grid-cols-1";
+        bossSlot2.classList.add("hidden");
+      }
+    } else if (bossContainer) {
+      bossContainer.classList.add("hidden");
     }
   },
 

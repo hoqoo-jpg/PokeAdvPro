@@ -2384,6 +2384,10 @@ Object.assign(window.GameApp, {
   quitToTitle() {
     this.saveToStorage();
     this.evoSequence = null;
+    this.victoryCeremony = null;
+    this.bossDeathAnims = [];
+    this.pendingMewTimer = 0;
+    this.bossWeatherLock = false;
     this.battleCountdownTimer = 0;
     this._pendingEvolutionTarget = null;
     this._pauseFrameRendered = false;
