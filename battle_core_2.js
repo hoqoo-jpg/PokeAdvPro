@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.0",
+  APP_VERSION: "v7.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -42,13 +42,15 @@ window.GameApp = {
     shinyUnlocked: { 25: true },
     megaUnlocked: {},
     claimedAch: {},
+    lastSeenVersion: "",
     settings: {
       mobCapProfile: "auto",
       screenFilter: "none",
       dmgTextMode: "all",
       procNoticeMode: "icon",
       screenShake: "normal",
-      fourthSlotPoolMode: "affinity"
+      fourthSlotPoolMode: "affinity",
+      skillAlpha: "1.0"
     }
   },
   spatialGrid: null,
@@ -395,6 +397,7 @@ window.GameApp = {
   // 開發者測試工具全套實裝（預設隱藏，大廳右上角閃光計數 2 秒內連點 10 次後解鎖）
   isDevToolsGuardActive() {
     if (this.debugToolsUnlocked) return false;
+    if (this.isMobileDevice && this.isMobileDevice()) return false;
     try {
       const proto = window.location.protocol;
       const host = window.location.hostname;
@@ -447,8 +450,13 @@ window.GameApp = {
       } catch (e) {}
       if (document.hidden) return;
       const dt = performance.now() - t0;
-      if (dt > 120) {
-        this.triggerDevToolsPause();
+      if (dt > 260) {
+        this._devToolsStrikeCount = (this._devToolsStrikeCount || 0) + 1;
+        if (this._devToolsStrikeCount >= 3) {
+          this.triggerDevToolsPause();
+        }
+      } else {
+        this._devToolsStrikeCount = 0;
       }
     }, 1000);
   },
@@ -3338,6 +3346,9 @@ window.GameApp = {
       if (e.isBoss && e.dpsBucket > 0) {
         e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * 0.12 * dt);
       }
+      if (e.softCapShieldTimer > 0) {
+        e.softCapShieldTimer = Math.max(0, e.softCapShieldTimer - dt);
+      }
 
       if (e.treasureType) {
         e.escapeTimer -= dt;
@@ -3777,7 +3788,8 @@ window.GameApp = {
       const distToPoke = dist;
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
       const hitPoke = distToPoke < e.radius + 16;
-      const hitTrainer = tc && (distToTrainer < e.radius + 9);
+      const trainerGrazeSafe = (p.lungeTimer > 0 || p.dashTimer > 0);
+      const hitTrainer = !trainerGrazeSafe && tc && (distToTrainer < e.radius + 6);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -4207,7 +4219,8 @@ window.GameApp = {
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
-      const hitTrainer = tc && (distToTrainer < ep.radius + 9);
+      const trainerGrazeSafe = (p.lungeTimer > 0 || p.dashTimer > 0);
+      const hitTrainer = !trainerGrazeSafe && tc && (distToTrainer < ep.radius + 6);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -4402,6 +4415,7 @@ window.GameApp = {
         const overflow = cappedRaw - fullRoom;
         finalDmg = Math.max(1, Math.round(fullRoom + overflow * 0.30));
         enemy.dpsBucket = softLimit;
+        enemy.softCapShieldTimer = 0.28;
       }
     }
 
@@ -7663,6 +7677,32 @@ window.GameApp = {
 
       if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
+      }
+
+      if (e.isBoss && e.softCapShieldTimer > 0) {
+        const shAlpha = Math.min(1, e.softCapShieldTimer / 0.28);
+        const shR = sz * 0.46;
+        ctx.save();
+        ctx.globalAlpha = shAlpha * 0.85;
+        ctx.strokeStyle = "#38BDF8";
+        ctx.fillStyle = "rgba(56, 189, 248, 0.14)";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (k * Math.PI) / 3 - Math.PI / 6;
+          const hx = Math.cos(a) * shR, hy = Math.sin(a) * shR;
+          if (k === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, shR * 0.88, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       }
 
       if (e.status === "Poison") {

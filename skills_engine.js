@@ -18,6 +18,7 @@ const SkillsEngine = {
   lightningArcs: [],
   subParticles: [],
   groundHazards: [],
+  scheduledEvents: [],
 
   reset() {
     this.projectiles = [];
@@ -26,6 +27,23 @@ const SkillsEngine = {
     this.lightningArcs = [];
     this.subParticles = [];
     this.groundHazards = [];
+    this.scheduledEvents = [];
+  },
+
+  scheduleEvent(delaySec, fn) {
+    if (typeof fn !== "function") return;
+    if (!delaySec || delaySec <= 0) {
+      fn();
+      return;
+    }
+    this.scheduledEvents.push({ delay: delaySec, fn });
+  },
+
+  getSkillAlpha() {
+    const raw = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings)
+      ? parseFloat(GameApp.saveData.settings.skillAlpha)
+      : 1.0;
+    return (Number.isFinite(raw) && raw >= 0.2 && raw <= 1.0) ? raw : 1.0;
   },
 
   // 空間網格快速範圍索敵：利用 battle_core_2 每幀建立的 80x80 spatialGrid，將彈幕與領域碰撞由 O(N) 全陣列掃描降至 O(1) 鄰近格查詢
@@ -393,7 +411,7 @@ const SkillsEngine = {
       let lockedTarget = (!useManualAim) ? (target || GameApp.findNearestEnemyInViewport(caster.x, caster.y, 370)) : null;
 
       for (let b = 0; b < burstCount; b++) {
-        setTimeout(() => {
+        this.scheduleEvent((b * 38) / 1000, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
           if (!useManualAim) {
             const stillAlive = lockedTarget && lockedTarget.hp > 0 && GameApp.enemies.includes(lockedTarget) &&
@@ -438,7 +456,7 @@ const SkillsEngine = {
             trailTimer: 0
           });
           if (b % 2 === 0) SoundFX.play("hit", "Grass");
-        }, b * 38);
+        });
       }
       return;
     }
@@ -1128,7 +1146,7 @@ const SkillsEngine = {
         const punchKb = isFinisher ? (kb * 1.55) : Math.min(4, kb * 0.25);
         const punchDmg = rawDmg * (dmgMults[hitIdx] || 0.50);
         const extraCrit = isFinisher ? 0.20 : 0;
-        setTimeout(() => {
+        this.scheduleEvent(0.055, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
           const hitCandidates = this.getEnemiesInRadius(fx, fy, hitRad * 1.08);
           hitCandidates.forEach(e => {
@@ -1140,7 +1158,7 @@ const SkillsEngine = {
             GameApp.spawnParticleCluster(fx, fy, "#FFFFFF", "#FACC15", 8, "star", 1.05);
           }
           SoundFX.play("hit", "Fighting");
-        }, 55);
+        });
       };
 
       firePunch(0);
@@ -1148,7 +1166,7 @@ const SkillsEngine = {
       for (let h = 1; h < totalHits; h++) {
         const isLast = (h === totalHits - 1);
         accDelay += isLast ? 90 : 65;
-        setTimeout(() => firePunch(h), accDelay);
+        this.scheduleEvent(accDelay / 1000, () => firePunch(h));
       }
       return;
     }
@@ -1271,7 +1289,7 @@ const SkillsEngine = {
       for (let w = 1; w < totalWaves; w++) {
         const triggerMs = waveDelays[w] || (w * 280);
         const pauseCueMs = Math.max(40, triggerMs - 85);
-        setTimeout(() => {
+        this.scheduleEvent(pauseCueMs / 1000, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
           this.meleeEffects.push({
             style: "slam_wave",
@@ -1282,8 +1300,8 @@ const SkillsEngine = {
             maxTime: 0.10,
             color: w === totalWaves - 1 ? "#FEF08A" : "#7DD3FC"
           });
-        }, pauseCueMs);
-        setTimeout(() => fireTackleWave(w), triggerMs);
+        });
+        this.scheduleEvent(triggerMs / 1000, () => fireTackleWave(w));
       }
       return;
     }
@@ -1375,11 +1393,11 @@ const SkillsEngine = {
 
       plan.forEach((stepCfg, idx) => {
         if (stepCfg.hopStartMs === 0) triggerHop(stepCfg);
-        else setTimeout(() => triggerHop(stepCfg), stepCfg.hopStartMs);
+        else this.scheduleEvent(stepCfg.hopStartMs / 1000, () => triggerHop(stepCfg));
 
         const impactMs = (caster === GameApp.player) ? stepCfg.stompMs : stepCfg.hopStartMs;
         if (impactMs === 0) fireQuakeWave(idx, stepCfg);
-        else setTimeout(() => fireQuakeWave(idx, stepCfg), impactMs);
+        else this.scheduleEvent(impactMs / 1000, () => fireQuakeWave(idx, stepCfg));
       });
       return;
     }
@@ -1479,11 +1497,11 @@ const SkillsEngine = {
           if (idx === 0) {
             this.triggerUltimateSuperMove(pickMeta, skSlot, ultDmgScale * 0.72);
           } else {
-            setTimeout(() => {
+            this.scheduleEvent((idx * 180) / 1000, () => {
               if (GameApp.state === "PLAYING" && GameApp.player) {
                 this.triggerUltimateSuperMove(pickMeta, skSlot, ultDmgScale * 0.72);
               }
-            }, idx * 180);
+            });
           }
         }
       });
@@ -1677,7 +1695,7 @@ const SkillsEngine = {
         });
       }
 
-      setTimeout(() => {
+      this.scheduleEvent(0.26, () => {
         if (GameApp.state !== "PLAYING" || !GameApp.player) return;
         const pl = GameApp.player;
         const armLen = this.getUltRadius(148, 152, 188);
@@ -1717,7 +1735,7 @@ const SkillsEngine = {
             }
           }
         });
-      }, 260);
+      });
     } else if (meta.type === "Flying") {
       // 【全場控場型・暴風驟雨】：3 道緊湊聚怪龍捲風
       const torR = Math.round(this.getUltRadius(68, 72, 86));
@@ -1934,6 +1952,21 @@ const SkillsEngine = {
   },
 
   update(dt) {
+    if (this.scheduledEvents && this.scheduledEvents.length > 0) {
+      const readyFns = [];
+      for (let i = this.scheduledEvents.length - 1; i >= 0; i--) {
+        const ev = this.scheduledEvents[i];
+        ev.delay -= dt;
+        if (ev.delay <= 0) {
+          readyFns.push(ev.fn);
+          this.scheduledEvents.splice(i, 1);
+        }
+      }
+      for (let i = readyFns.length - 1; i >= 0; i--) {
+        try { readyFns[i](); } catch (err) {}
+      }
+    }
+
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const pr = this.projectiles[i];
 
@@ -1994,11 +2027,14 @@ const SkillsEngine = {
         pr.angle = (pr.angle || 0) + dt * 3.8;
 
         if (t >= 1) {
-          const puddleR = 64 * GameApp.player.areaMult;
-          for (let s = 0; s < 10; s++) {
+          const isCrimson = !!pr.isMegaGengarPuddle;
+          const puddleR = (isCrimson ? 74 : 64) * GameApp.player.areaMult;
+          const spCol1 = isCrimson ? "#E11D48" : "#9333EA";
+          const spCol2 = isCrimson ? "#C084FC" : "#4ADE80";
+          for (let s = 0; s < (isCrimson ? 14 : 10); s++) {
             const a = Math.random() * Math.PI * 2;
-            const spd = 25 + Math.random() * 55;
-            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? "#9333EA" : "#4ADE80", 4.5, 0.42, "circle");
+            const spd = 25 + Math.random() * 60;
+            this.spawnSubParticle(pr.targetX, pr.targetY, Math.cos(a) * spd, Math.sin(a) * spd, s % 2 === 0 ? spCol1 : spCol2, 4.5, 0.42, "circle");
           }
           [...this.getEnemiesInRadius(pr.targetX, pr.targetY, puddleR)].forEach(e => {
             if (e && e.hp > 0 && Math.hypot(e.x - pr.targetX, e.y - pr.targetY) <= puddleR + e.radius) {
@@ -2010,19 +2046,20 @@ const SkillsEngine = {
             const firstIdx = this.groundHazards.findIndex(h => h.kind === "poison_puddle");
             if (firstIdx !== -1) this.groundHazards.splice(firstIdx, 1);
           }
-          const puddleDur = 2.2 * (pr.hazardDurMult || 1.0);
+          const puddleDur = (isCrimson ? 2.8 : 2.2) * (pr.hazardDurMult || 1.0);
           this.groundHazards.push({
             kind: "poison_puddle",
+            isMegaGengarPuddle: isCrimson,
             x: pr.targetX,
             y: pr.targetY,
-            radius: Math.min(95, puddleR),
-            dmg: pr.dmg * 0.42,
+            radius: Math.min(102, puddleR),
+            dmg: pr.dmg * (isCrimson ? 0.50 : 0.42),
             type: "Poison",
             timer: puddleDur,
             maxTime: puddleDur,
-            tickTimer: 0.32,
-            tickInterval: 0.42,
-            color: "#9333EA"
+            tickTimer: 0.30,
+            tickInterval: 0.40,
+            color: isCrimson ? "#E11D48" : "#9333EA"
           });
           SoundFX.play("hit", "Poison");
           this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
@@ -2731,6 +2768,9 @@ const SkillsEngine = {
   // 圖層 1：地面底層渲染 (renderGroundLayer) — 繪製於所有精靈與訓練家腳底下，絕不遮擋人物
   // ==========================================================================
   renderGroundLayer(ctx, toSx, toSy) {
+    const _skAlpha = this.getSkillAlpha();
+    ctx.save();
+    ctx.globalAlpha = _skAlpha;
     const now = performance.now() * 0.004;
 
     this.groundHazards.forEach(hz => {
@@ -2741,41 +2781,59 @@ const SkillsEngine = {
 
       if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
         const isUltSwamp = (hz.kind === "toxic_swamp");
+        const isCrimson = !!hz.isMegaGengarPuddle || hz.color === "#E11D48";
+        const isMegaPink = !isCrimson && hz.color === "#EC4899";
         const alpha = Math.min(1, hz.timer * 1.2);
         const rx = hz.radius;
         const ry = hz.radius * (isUltSwamp ? 0.72 : 0.62);
 
-        // 1. 底層深紫黑腐蝕泥沼漸層底盤
+        // 1. 底層腐蝕泥沼漸層底盤（支援 Mega 耿鬼紫紅冥界毒沼 ＆ Mega 妙蛙花粉紅毒花孢子沼）
         const swampGrad = ctx.createRadialGradient(sx, sy, rx * 0.15, sx, sy, rx);
-        swampGrad.addColorStop(0, `rgba(20, 83, 45, ${alpha * 0.65})`);
-        swampGrad.addColorStop(0.55, `rgba(88, 28, 135, ${alpha * 0.58})`);
-        swampGrad.addColorStop(1, `rgba(59, 7, 100, 0)`);
+        if (isCrimson) {
+          swampGrad.addColorStop(0, `rgba(159, 18, 57, ${alpha * 0.76})`);
+          swampGrad.addColorStop(0.52, `rgba(107, 33, 168, ${alpha * 0.64})`);
+          swampGrad.addColorStop(1, `rgba(76, 5, 25, 0)`);
+        } else if (isMegaPink) {
+          swampGrad.addColorStop(0, `rgba(190, 24, 93, ${alpha * 0.68})`);
+          swampGrad.addColorStop(0.55, `rgba(134, 25, 143, ${alpha * 0.58})`);
+          swampGrad.addColorStop(1, `rgba(88, 28, 135, 0)`);
+        } else {
+          swampGrad.addColorStop(0, `rgba(20, 83, 45, ${alpha * 0.65})`);
+          swampGrad.addColorStop(0.55, `rgba(88, 28, 135, ${alpha * 0.58})`);
+          swampGrad.addColorStop(1, `rgba(59, 7, 100, 0)`);
+        }
         ctx.fillStyle = swampGrad;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. 雙層沸騰毒波外環與順逆旋轉劇毒漩渦紋 (超武專屬強化)
-        ctx.strokeStyle = `rgba(147, 51, 234, ${alpha * 0.9})`;
-        ctx.lineWidth = isUltSwamp ? 4.0 : 3.0;
+        // 2. 雙層沸騰毒波外環與旋轉渦流紋
+        ctx.strokeStyle = isCrimson
+          ? `rgba(225, 29, 72, ${alpha * 0.94})`
+          : (isMegaPink ? `rgba(236, 72, 153, ${alpha * 0.92})` : `rgba(147, 51, 234, ${alpha * 0.9})`);
+        ctx.lineWidth = isUltSwamp ? 4.0 : (isCrimson ? 3.4 : 3.0);
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx * 0.92, ry * 0.92, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = `rgba(74, 222, 128, ${alpha * 0.85})`;
+        ctx.strokeStyle = isCrimson
+          ? `rgba(251, 113, 133, ${alpha * 0.90})`
+          : (isMegaPink ? `rgba(244, 114, 182, ${alpha * 0.88})` : `rgba(74, 222, 128, ${alpha * 0.85})`);
         ctx.lineWidth = 2.0;
-        ctx.setLineDash(isUltSwamp ? [16, 10] : []);
+        ctx.setLineDash((isUltSwamp || isCrimson) ? [12, 8] : []);
         ctx.beginPath();
-        ctx.ellipse(sx, sy, rx * 0.76, ry * 0.76, now * 0.5, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, rx * 0.76, ry * 0.76, now * (isCrimson ? -0.8 : 0.5), 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (isUltSwamp) {
-          // 劇毒沼澤超武：內部 4 道螢光綠逆時針腐蝕渦流帶
-          for (let arm = 0; arm < 4; arm++) {
-            const a0 = -now * 1.6 + (arm * Math.PI * 2) / 4;
-            ctx.strokeStyle = `rgba(163, 230, 53, ${alpha * 0.65})`;
-            ctx.lineWidth = 5.5;
+        if (isUltSwamp || isCrimson) {
+          const armCount = isUltSwamp ? 4 : 3;
+          for (let arm = 0; arm < armCount; arm++) {
+            const a0 = -now * 1.6 + (arm * Math.PI * 2) / armCount;
+            ctx.strokeStyle = isCrimson
+              ? `rgba(192, 132, 252, ${alpha * 0.68})`
+              : `rgba(163, 230, 53, ${alpha * 0.65})`;
+            ctx.lineWidth = isUltSwamp ? 5.5 : 3.6;
             ctx.lineCap = "round";
             ctx.beginPath();
             ctx.ellipse(sx, sy, rx * 0.52, ry * 0.52, 0, a0, a0 + 0.95);
@@ -2783,18 +2841,26 @@ const SkillsEngine = {
           }
         }
 
-        // 3. 密集翻湧立體毒泡群（超武 16 顆大小錯落 + 破裂十字毒霧，普攻 6 顆）
-        const bubbleCount = isUltSwamp ? 16 : 6;
+        // 3. 密集翻湧立體毒泡群
+        const bubbleCount = isUltSwamp ? 16 : (isCrimson ? 9 : 6);
         for (let b = 0; b < bubbleCount; b++) {
           const bAng = now * (b % 2 === 0 ? 1.1 : -0.9) + (b * Math.PI * 2) / bubbleCount;
           const distR = 0.22 + ((b % 4) * 0.18);
           const bx = sx + Math.cos(bAng) * (rx * distR);
           const by = sy + Math.sin(bAng) * (ry * distR);
           const pulse = Math.sin(now * 4.2 + b * 1.3);
-          const br = Math.max(2.4, (isUltSwamp ? 5.2 : 4.0) + pulse * 2.2);
+          const br = Math.max(2.4, (isUltSwamp ? 5.2 : 4.2) + pulse * 2.2);
 
-          ctx.fillStyle = b % 2 === 0 ? `rgba(34, 197, 94, ${alpha * 0.88})` : `rgba(168, 85, 247, ${alpha * 0.88})`;
-          ctx.strokeStyle = `rgba(20, 83, 45, ${alpha * 0.95})`;
+          if (isCrimson) {
+            ctx.fillStyle = b % 2 === 0 ? `rgba(225, 29, 72, ${alpha * 0.92})` : `rgba(192, 132, 252, ${alpha * 0.90})`;
+            ctx.strokeStyle = `rgba(76, 5, 25, ${alpha * 0.95})`;
+          } else if (isMegaPink) {
+            ctx.fillStyle = b % 2 === 0 ? `rgba(244, 114, 182, ${alpha * 0.90})` : `rgba(168, 85, 247, ${alpha * 0.90})`;
+            ctx.strokeStyle = `rgba(131, 24, 67, ${alpha * 0.95})`;
+          } else {
+            ctx.fillStyle = b % 2 === 0 ? `rgba(34, 197, 94, ${alpha * 0.88})` : `rgba(168, 85, 247, ${alpha * 0.88})`;
+            ctx.strokeStyle = `rgba(20, 83, 45, ${alpha * 0.95})`;
+          }
           ctx.lineWidth = 1.4;
           ctx.beginPath();
           ctx.arc(bx, by, br, 0, Math.PI * 2);
@@ -2810,7 +2876,7 @@ const SkillsEngine = {
         // 【水箭龜超武・三層立體深海大漩渦】：底層深海暗湧 ＋ 中層順逆交錯激流與氣泡環 ＋ 外圈 8 道碎浪白沫海嘯巨浪
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.35);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const maxR = Math.max((hz.innerSafeRadius || 44) + 4, hz.radius * Math.min(1, prog * 2.4));
         const safeR = hz.innerSafeRadius || 44;
 
@@ -2910,7 +2976,7 @@ const SkillsEngine = {
       } else if (hz.kind === "frenzy_plant_roots") {
         // 【奇異種子超武・瘋狂植物】：地面底層裂開泥坑，破土竄出帶尖刺與紅花苞的巨型彎曲荊棘藤木
         const alpha = Math.min(0.80, hz.timer * 1.15);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const grow = Math.min(1, prog * 2.8);
 
         (hz.rootNodes || []).forEach((rn, idx) => {
@@ -3053,7 +3119,7 @@ const SkillsEngine = {
         ctx.save();
         const grinScale = Math.min(1.0, curR / 205);
         ctx.scale(grinScale, grinScale);
-        ctx.globalAlpha = alpha * 0.85;
+        ctx.globalAlpha = (alpha * 0.85) * _skAlpha;
         // 左眼三角形
         ctx.fillStyle = "#EF4444";
         ctx.beginPath();
@@ -3091,7 +3157,7 @@ const SkillsEngine = {
         // 【爆裂十字劈・巨型白熾 X 十字天譴裂地痕（底層）】
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.5);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const arm = hz.radius * Math.min(1, prog * 3.2);
 
         [-Math.PI / 4, Math.PI / 4].forEach(rot => {
@@ -3116,7 +3182,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.25);
         const curR = Math.max(36, hz.radius * Math.min(1, prog * 3.0));
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
 
         // 第 1 層：入木三分的暗紅焦黑武道石板底盤（凸顯上方金紅陣紋）
         const mGrad = ctx.createRadialGradient(0, 0, 28, 0, 0, curR);
@@ -3288,7 +3354,7 @@ const SkillsEngine = {
           ctx.save();
           ctx.translate(mx, my);
           ctx.rotate(ma + Math.PI / 2);
-          ctx.globalAlpha = alpha * 0.85;
+          ctx.globalAlpha = (alpha * 0.85) * _skAlpha;
           if (m % 4 === 0) {
             // 滿月銀白圓印
             ctx.fillStyle = "#FEF9C3";
@@ -3410,7 +3476,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy);
         if (!hz.cracks) hz.cracks = this.buildQuakeCrackTree(11, hz.radius, true);
         const alpha = Math.min(1, hz.timer * 1.35);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const elapsed = (hz.maxTime || 2.0) - hz.timer;
         const burstT = Math.min(1, elapsed / 0.22);
         const tearProg = 1 - Math.pow(1 - burstT, 3); // 0.22s 極速瞬爆撕裂至 100%
@@ -3650,7 +3716,7 @@ const SkillsEngine = {
         // 【精神強念領域（融合 V10 超夢次元崩解）】：空間重力坍縮環 ＋ 8 向次元切割光束 ＋ 終端四芒星與鏡面菱片
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.25);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const curR = Math.max(36, hz.radius * Math.min(1, prog * 1.8));
         const spin = -now * 1.6;
 
@@ -3721,7 +3787,7 @@ const SkillsEngine = {
       } else if (hz.kind === "psy_delayed_blast") {
         // 精神擊破終點輕量化微縮念力星環（視覺縮小 45% 並半透明化，不搶主畫面）
         ctx.translate(sx, sy);
-        ctx.globalAlpha = (1 - prog) * 0.55;
+        ctx.globalAlpha = ((1 - prog) * 0.55) * _skAlpha;
         const shrink = Math.max(0.15, (1 - prog) * 0.55);
         ctx.strokeStyle = "#EC4899";
         ctx.lineWidth = 2.0;
@@ -3731,7 +3797,7 @@ const SkillsEngine = {
       } else if (hz.kind === "dragon_wave") {
         ctx.translate(sx, sy + 15);
         ctx.rotate(hz.angle || 0);
-        ctx.globalAlpha = Math.max(0, (hz.timer / hz.maxTime) * 0.30);
+        ctx.globalAlpha = (Math.max(0, (hz.timer / hz.maxTime) * 0.30)) * _skAlpha;
         const isMegaD = !!hz.isMegaCharizardX;
         const isKingD = !!hz.isDragoniteKing;
         ctx.fillStyle = isMegaD ? "rgba(56, 189, 248, 0.45)" : (isKingD ? "rgba(250, 204, 21, 0.42)" : "rgba(99, 102, 241, 0.38)");
@@ -3743,7 +3809,7 @@ const SkillsEngine = {
         ctx.translate(sx, sy + 12);
         ctx.rotate(hz.angle || 0);
         const alpha = Math.min(1, hz.timer * 1.3);
-        ctx.globalAlpha = alpha * 0.62;
+        ctx.globalAlpha = (alpha * 0.62) * _skAlpha;
         const r = hz.radius * 0.88;
 
         const scorchGrad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.05);
@@ -3784,7 +3850,7 @@ const SkillsEngine = {
 
       ctx.save();
       ctx.translate(msx, msy);
-      ctx.globalAlpha = fadeAlpha;
+      ctx.globalAlpha = (fadeAlpha) * _skAlpha;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
 
@@ -3892,7 +3958,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy + 12);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog * 0.72) * 0.36);
+        ctx.globalAlpha = (Math.max(0, (1 - prog * 0.72) * 0.36)) * _skAlpha;
         const scGrad = ctx.createLinearGradient(0, 0, curLen, 0);
         scGrad.addColorStop(0, "rgba(185, 28, 28, 0.55)");
         scGrad.addColorStop(0.65, "rgba(234, 88, 12, 0.42)");
@@ -3919,7 +3985,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy + 12);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog * 0.75) * 0.34);
+        ctx.globalAlpha = (Math.max(0, (1 - prog * 0.75) * 0.34)) * _skAlpha;
         ctx.fillStyle = "rgba(56, 189, 248, 0.48)";
         ctx.beginPath();
         ctx.ellipse(curLen * 0.5, 0, curLen * 0.52, halfW * 1.15, 0, 0, Math.PI * 2);
@@ -3937,7 +4003,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy + 12);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog * 0.75) * 0.38);
+        ctx.globalAlpha = (Math.max(0, (1 - prog * 0.75) * 0.38)) * _skAlpha;
         ctx.fillStyle = "rgba(3, 105, 161, 0.52)";
         ctx.beginPath();
         ctx.ellipse(curLen * 0.5, 0, curLen * 0.52, halfW * 1.15, 0, 0, Math.PI * 2);
@@ -3958,7 +4024,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(curX, curY + 14);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog) * 0.42);
+        ctx.globalAlpha = (Math.max(0, (1 - prog) * 0.42)) * _skAlpha;
         ctx.fillStyle = "rgba(15, 23, 42, 0.52)";
         ctx.beginPath();
         ctx.ellipse(0, 0, m.radius * 0.55, m.radius * 0.30, 0, 0, Math.PI * 2);
@@ -3981,7 +4047,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(baseSx, baseSy + 12);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = Math.max(0, (1 - prog) * 0.42);
+        ctx.globalAlpha = (Math.max(0, (1 - prog) * 0.42)) * _skAlpha;
         ctx.fillStyle = "rgba(15, 23, 42, 0.50)";
         ctx.beginPath();
         ctx.ellipse(6, 0, curR * 0.46, curR * 0.28, 0, 0, Math.PI * 2);
@@ -3995,7 +4061,7 @@ const SkillsEngine = {
       ctx.save();
       ctx.translate(osx, osy + 11); // 向下偏移 11px 作為地面投射陰影，拉開 Z 軸立體高度差
       ctx.rotate(m.angle || 0);
-      ctx.globalAlpha = Math.max(0, 1 - prog * 0.62);
+      ctx.globalAlpha = (Math.max(0, 1 - prog * 0.62)) * _skAlpha;
 
       // 1. 外層地面犁地震波暗影
       ctx.fillStyle = "rgba(15, 23, 42, 0.46)";
@@ -4033,12 +4099,16 @@ const SkillsEngine = {
       }
       ctx.restore();
     });
+    ctx.restore();
   },
 
   // ==========================================================================
   // 圖層 2：空中與特效層渲染 (renderAerialLayer) — 具象化招式與超武，嚴守 30px 主角淨空區
   // ==========================================================================
   renderAerialLayer(ctx, toSx, toSy) {
+    const _skAlpha = this.getSkillAlpha();
+    ctx.save();
+    ctx.globalAlpha = _skAlpha;
     const now = performance.now() * 0.004;
 
     // 1. 空中持續特效 (龍捲風、月光聖柱、推進式立體大字爆炎、比卡超天罰雷柱風暴、下墜隕石、次元龍魂波)
@@ -4219,7 +4289,7 @@ const SkillsEngine = {
         const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.35), 2.5);
         const curR = Math.max(38, hz.radius * (0.20 + ease * 0.80));
         const fade = hz.timer < 0.32 ? Math.max(0, hz.timer / 0.32) : 1.0;
-        ctx.globalAlpha = fade * 0.82;
+        ctx.globalAlpha = (fade * 0.82) * _skAlpha;
         for (let k = 0; k < 8; k++) {
           const a = -now * 1.1 + (k * Math.PI * 2) / 8;
           const ix = Math.cos(a) * (curR * 0.92);
@@ -4240,7 +4310,7 @@ const SkillsEngine = {
       } else if (hz.kind === "tornado") {
         // 【暴風驟雨・3層立體流體龍捲風柱】：底層吸塵渦流 ＋ 錐形半透明流體風柱與交織S風帶 ＋ 環繞月牙風刃與飛葉
         ctx.translate(sx, sy);
-        ctx.globalAlpha = Math.min(1, hz.timer * 1.25);
+        ctx.globalAlpha = (Math.min(1, hz.timer * 1.25)) * _skAlpha;
 
         // 1. 地面風眼吸塵暗影與高速旋轉氣流圈
         ctx.fillStyle = "rgba(15, 23, 42, 0.42)";
@@ -4359,7 +4429,7 @@ const SkillsEngine = {
 
         ctx.save();
         ctx.rotate(hz.angle || 0);
-        ctx.globalAlpha = lifeAlpha;
+        ctx.globalAlpha = (lifeAlpha) * _skAlpha;
 
         const dWave = Math.sin(now * 16 + hz.x * 0.04) * 3.5;
         const gradMain = ctx.createLinearGradient(-r * 1.0, 0, r * 1.15, 0);
@@ -4734,7 +4804,7 @@ const SkillsEngine = {
           const cloudAlpha = Math.min(1, hz.timer * 1.6);
 
           ctx.save();
-          ctx.globalAlpha = cloudAlpha;
+          ctx.globalAlpha = (cloudAlpha) * _skAlpha;
 
           // 1. 地面烏雲投射暗影 (拉開高空與地面的 3D 空間距離)
           ctx.fillStyle = "rgba(15, 23, 42, 0.38)";
@@ -4746,7 +4816,7 @@ const SkillsEngine = {
           if (localAge >= 0 && localAge <= 0.65) {
             const boltAlpha = Math.max(0, 1 - localAge / 0.65);
             ctx.save();
-            ctx.globalAlpha = boltAlpha * cloudAlpha;
+            ctx.globalAlpha = (boltAlpha * cloudAlpha) * _skAlpha;
 
             // 地面焦黑電漿震波圈
             ctx.fillStyle = "rgba(15, 23, 42, 0.72)";
@@ -4851,7 +4921,7 @@ const SkillsEngine = {
         // 【爆裂十字劈・高空巨型白熾 X 十字天譴破甲斬（空中層）】
         ctx.translate(sx, sy);
         const alpha = Math.min(1, hz.timer * 1.45);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const arm = hz.radius * Math.min(1, prog * 3.2);
 
         [-Math.PI / 4, Math.PI / 4].forEach(rot => {
@@ -4900,7 +4970,7 @@ const SkillsEngine = {
       } else if (hz.kind === "drifting_daimonji") {
         // 【噴火龍超武・Z軸懸浮立體大字爆炎（空中層）】：懸空動態搖曳火舌筆畫 ＋ 交點升騰熱浪火星柱
         const alpha = Math.min(1, hz.timer * 1.3);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const r = hz.radius * 0.88;
         const hoverY = sy - 10 + Math.sin(now * 6) * 2.5;
 
@@ -5003,7 +5073,7 @@ const SkillsEngine = {
       } else if (hz.kind === "quake_fissure") {
         // 【地裂斷層破（空中層）】：7 顆破土升空、翻滾下墜的 3D 雙色切面飛石巨岩，100% 呼應「飛石對空重創飛行系」
         const alpha = Math.min(1, hz.timer * 1.25);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const curR = Math.max(30, hz.radius * Math.min(1, prog * 2.2));
 
         for (let b = 0; b < 7; b++) {
@@ -5102,7 +5172,7 @@ const SkillsEngine = {
       } else if (hz.kind === "psychic_blackhole") {
         // 【精神強念領域（空中層）】：被反重力念力托舉浮空的 7 塊碎石與次元鏡面菱片（外推 54px 以外公轉，視野通透且具空間扭曲威壓）
         const alpha = Math.min(1, hz.timer * 1.25);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         const curR = Math.max(36, hz.radius * Math.min(1, prog * 1.8));
         const spin = -now * 1.6;
 
@@ -5168,7 +5238,7 @@ const SkillsEngine = {
       if (m.style === "quake_wave") return; // 已在地面底層繪製
       const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.3))));
       ctx.save();
-      ctx.globalAlpha = Math.max(0, 1 - prog * 0.72);
+      ctx.globalAlpha = (Math.max(0, 1 - prog * 0.72)) * _skAlpha;
 
       if (m.style === "hydro_pump_beam") {
         // 【水炮（Hydro Pump）】：雙柱加粗高壓水柱 ＋ 水箭龜 (#009) 專屬金青【超級發射器】雙肩平行重炮 ＋ Lv.8+ 三股純白螺旋絞線
@@ -5182,7 +5252,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
 
         // 1. 炮口聚焦水霧環（水箭龜專屬追加金青色超級發射器氣爆環）
         ctx.strokeStyle = m.isBlastoiseCannon ? "#FEF08A" : "rgba(224, 242, 254, 0.88)";
@@ -5328,7 +5398,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
 
         // 1. 口部灼熱噴射火花環（噴火龍 #006 追加雙重熱浪氣爆環；Mega X 切換蒼藍冥炎）
         const isBlue = !!m.isMegaBlueFlame;
@@ -5469,7 +5539,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
         ctx.lineCap = "round";
         ctx.lineJoin = "miter";
 
@@ -5575,7 +5645,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(msx, msy);
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = fade * 0.92;
+        ctx.globalAlpha = (fade * 0.92) * _skAlpha;
 
         // 1. 雙層輕盈水花擴散弧（半透明亮青＋純白碎浪邊）
         ctx.strokeStyle = "#38BDF8";
@@ -5616,7 +5686,7 @@ const SkillsEngine = {
 
         ctx.save();
         ctx.translate(msx, msy);
-        ctx.globalAlpha = fade;
+        ctx.globalAlpha = (fade) * _skAlpha;
 
         ctx.fillStyle = "rgba(59, 7, 100, 0.55)";
         ctx.strokeStyle = "#A855F7";
@@ -5714,7 +5784,7 @@ const SkillsEngine = {
         const slashAlpha = Math.max(0, 1 - prog * 0.78);
         ctx.save();
         ctx.translate(reach, 0);
-        ctx.globalAlpha = slashAlpha;
+        ctx.globalAlpha = (slashAlpha) * _skAlpha;
 
         ctx.fillStyle = isVenu ? "rgba(244, 114, 182, 0.78)" : "rgba(34, 197, 94, 0.72)";
         ctx.beginPath();
@@ -5763,7 +5833,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(msx, msy);
         ctx.rotate(m.angle || 0); // +X 為出拳前進方向，-X 為拳頭後方
-        ctx.globalAlpha = fade;
+        ctx.globalAlpha = (fade) * _skAlpha;
 
         // 1. 半透明錐形拳風帶（前寬後尖，前端亮金➔尾端透明，完全不黏死角色身體）
         const coneLen = Math.min(isFin ? 66 : 48, baseR * (isFin ? 1.45 : 1.20));
@@ -5802,7 +5872,7 @@ const SkillsEngine = {
           ctx.translate(g.dx, 0);
           ctx.rotate(Math.PI * 0.5);
           ctx.scale(popScale * g.sc, popScale * g.sc);
-          ctx.globalAlpha = fade * g.al;
+          ctx.globalAlpha = (fade * g.al) * _skAlpha;
           ctx.fillStyle = isFin ? "#FACC15" : "#EA580C";
           ctx.beginPath();
           ctx.roundRect(-f * 0.66, -f * 0.70, f * 1.32, f * 1.24, f * 0.28);
@@ -5915,7 +5985,7 @@ const SkillsEngine = {
         if (isFin && prog < 0.68) {
           const cFade = 1 - prog / 0.68;
           ctx.save();
-          ctx.globalAlpha = cFade * 0.95;
+          ctx.globalAlpha = (cFade * 0.95) * _skAlpha;
           ctx.strokeStyle = "#FFFFFF";
           ctx.lineWidth = 3.8 * cFade;
           ctx.lineCap = "round";
@@ -5949,7 +6019,7 @@ const SkillsEngine = {
         // 1. 殘影衝刺拖尾速度線（沿衝擊軸向後拉開）
         ctx.save();
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = fade * 0.85;
+        ctx.globalAlpha = (fade * 0.85) * _skAlpha;
         ctx.strokeStyle = tintCol;
         ctx.lineWidth = 2.4;
         ctx.lineCap = "round";
@@ -5967,7 +6037,7 @@ const SkillsEngine = {
         if (sprRec && sprRec.loaded) {
           ctx.save();
           ctx.scale((m.facingX > 0 ? -1 : 1) * 1.12, 0.92);
-          ctx.globalAlpha = fade * 0.42;
+          ctx.globalAlpha = (fade * 0.42) * _skAlpha;
           ctx.drawImage(sprRec.img, -26, -24, 52, 52);
           GameApp.drawSilhouetteFlash(ctx, sprRec.img, -26, -24, 52, 52, tintCol, fade * 0.65);
           ctx.restore();
@@ -5976,7 +6046,7 @@ const SkillsEngine = {
         // 3. 1:1 等比貼合真實傷害半徑 m.radius 的寬幅動能月牙氣浪 (Shockwave Crescent)
         ctx.save();
         ctx.rotate(m.angle || 0);
-        ctx.globalAlpha = fade;
+        ctx.globalAlpha = (fade) * _skAlpha;
         const crescentGrad = ctx.createRadialGradient(8, 0, waveR * 0.30, 8, 0, waveR);
         crescentGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
         crescentGrad.addColorStop(0.55, m.waveIdx >= 2 ? "rgba(254, 240, 138, 0.32)" : "rgba(125, 211, 252, 0.32)");
@@ -6234,7 +6304,7 @@ const SkillsEngine = {
         const alpha = Math.sin(prog * Math.PI);
         ctx.save();
         ctx.translate(cx, cy);
-        ctx.globalAlpha = Math.max(0, alpha);
+        ctx.globalAlpha = (Math.max(0, alpha)) * _skAlpha;
 
         // 外圍黃金星輪光環
         ctx.strokeStyle = "#FACC15";
@@ -6287,7 +6357,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(msx, msy);
         ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = alpha * 0.92;
+        ctx.globalAlpha = (alpha * 0.92) * _skAlpha;
 
         // 1. 六角棱鏡碎裂外環
         ctx.strokeStyle = "#E0F2FE";
@@ -6325,7 +6395,7 @@ const SkillsEngine = {
         ctx.save();
         ctx.translate(msx, msy);
         ctx.globalCompositeOperation = "lighter";
-        ctx.globalAlpha = alpha;
+        ctx.globalAlpha = (alpha) * _skAlpha;
 
         // 細微坍縮念力環
         ctx.strokeStyle = "#F472B6";
@@ -6385,7 +6455,7 @@ const SkillsEngine = {
 
         ctx.save();
         ctx.translate(msx, msy);
-        ctx.globalAlpha = fade * 0.94;
+        ctx.globalAlpha = (fade * 0.94) * _skAlpha;
 
         // 上半圓：經典赤紅精靈球弧
         ctx.strokeStyle = "#EF4444";
@@ -6471,7 +6541,7 @@ const SkillsEngine = {
       const usx = toSx(u.x), usy = toSy(u.y);
       ctx.save();
       ctx.translate(usx, usy);
-      ctx.globalAlpha = Math.max(0, 1 - prog * 0.85);
+      ctx.globalAlpha = (Math.max(0, 1 - prog * 0.85)) * _skAlpha;
       const ringR = 32 + prog * 112;
       ctx.strokeStyle = u.color || "#FACC15";
       ctx.lineWidth = 4.5 * (1 - prog * 0.5);
@@ -6862,13 +6932,14 @@ const SkillsEngine = {
           ctx.scale(liftScale, liftScale);
         }
         ctx.rotate(pr.angle || 0);
-        ctx.fillStyle = "#3B0764";
+        const isCrimsonBlob = !!pr.isMegaGengarPuddle;
+        ctx.fillStyle = isCrimsonBlob ? "#4C0519" : "#3B0764";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.fill();
 
-        ctx.fillStyle = "#7E22CE";
+        ctx.fillStyle = isCrimsonBlob ? "#BE123C" : "#7E22CE";
         ctx.beginPath(); ctx.arc(0, 0, r * 0.76, 0, Math.PI * 2); ctx.fill();
 
-        ctx.fillStyle = "#4ADE80";
+        ctx.fillStyle = isCrimsonBlob ? "#FB7185" : "#4ADE80";
         ctx.beginPath();
         ctx.arc(-r * 0.25, -r * 0.2, r * 0.26, 0, Math.PI * 2);
         ctx.arc(r * 0.28, r * 0.15, r * 0.22, 0, Math.PI * 2);
@@ -7194,7 +7265,7 @@ const SkillsEngine = {
     this.subParticles.forEach(sp => {
       const sx = toSx(sp.x), sy = toSy(sp.y);
       ctx.save();
-      ctx.globalAlpha = Math.max(0, sp.life / sp.maxLife);
+      ctx.globalAlpha = (Math.max(0, sp.life / sp.maxLife)) * _skAlpha;
       ctx.translate(sx, sy);
       ctx.rotate(sp.rot || 0);
 
@@ -7238,6 +7309,7 @@ const SkillsEngine = {
       }
       ctx.restore();
     });
+    ctx.restore();
   },
 
   // 向後兼容總渲染入口
