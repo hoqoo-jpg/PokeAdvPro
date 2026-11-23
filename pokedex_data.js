@@ -890,7 +890,7 @@ const TRAINERS = [
     skillName: "岩石壁壘",
     skillCd: 30,
     skillDuration: 5.0,
-    desc: "引爆【地裂斷層破】震退周遭敵群並展開 5.5 秒岩石護盾（減傷 55% ＋ 觸碰反震）！",
+    desc: "震退身周敵群並展開 5.5 秒岩石壁壘（減傷 55% ＋ 6 塊環繞巨岩高速反震撞飛觸碰敵軍）！",
     bondName: "磐石守護",
     bondColor: "#D97706",
     bondPokemonIds: [74, 95, 111],
@@ -989,7 +989,7 @@ const CENTER_POKEMON_UPGRADES = [
 ];
 
 const CENTER_TRAINER_UPGRADES = [
-  { id: "megaRing", name: "超級手環 (MEGA RING)", maxLv: 1, baseCost: 500, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png", desc: "全訓練家永久解鎖局內【MEGA 超級進化】權限！達成等級與招式門檻後解鎖手動【💎 MEGA】覺醒鍵（羈絆訓練家提前至 Lv.23）！" },
+  { id: "megaRing", name: "超級手環 (MEGA RING)", maxLv: 1, baseCost: 500, isSpecialSlot: true, sprite: "images/mega_ring_icon.png", desc: "全訓練家永久解鎖局內【MEGA 超級進化】權限！達成等級與招式門檻後解鎖手動【💎 MEGA】覺醒鍵（羈絆訓練家提前至 Lv.23）！" },
   { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
   { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-doll.png", desc: "升級三選一免費重抽次數每級 +1 次（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },

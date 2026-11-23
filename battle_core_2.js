@@ -1318,18 +1318,15 @@ window.GameApp = {
     this.refreshHUD();
   },
 
-  checkMegaEvolutionReady() {
+  getMegaEvolutionStatus() {
     const p = this.player;
-    if (!p || p.megaEvolved || p.megaReady) return false;
-    const mf = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[p.id] : null;
-    if (!mf) return false;
+    if (!p || p.megaEvolved) return null;
+    const mf = (typeof getMegaFormForPokemon === "function") ? getMegaFormForPokemon(p.id) : null;
+    if (!mf) return null;
     const hasRing = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.megaRing >= 1);
-    if (!hasRing) return false;
-
+    const isFinalForm = (p.id === mf.baseId);
     const isBond = !!(this.selectedTrainer && (mf.bondTrainerIds || []).includes(this.selectedTrainer.id));
     const reqLv = isBond ? (mf.bondReqLevel || 23) : (mf.reqLevel || 24);
-    if (p.level < reqLv) return false;
-
     const reqList = mf.reqSkills || ["Flamethrower", "Dragon Rush"];
     const reqCleanSet = new Set(reqList.map(s => s.replace(/\s+/g, "")));
     let skillSum = 0;
@@ -1339,19 +1336,22 @@ window.GameApp = {
       }
     });
     const reqSum = mf.reqSkillSum || 10;
-    if (skillSum < reqSum) return false;
+    const ready = hasRing && isFinalForm && p.level >= reqLv && skillSum >= reqSum;
+    return { mf, hasRing, isFinalForm, curLv: p.level, reqLv, skillSum, reqSum, ready };
+  },
+
+  checkMegaEvolutionReady() {
+    const p = this.player;
+    if (!p || p.megaEvolved || p.megaReady) return false;
+    const st = this.getMegaEvolutionStatus();
+    if (!st || !st.ready) return false;
 
     p.megaReady = true;
-    p.megaTargetId = mf.id;
-    const megaWrap = document.getElementById("btnManualMegaWrap");
-    const megaImg = document.getElementById("hudManualMegaImg");
-    if (megaImg && mf.stoneSprite) megaImg.src = mf.stoneSprite;
-    if (megaWrap) megaWrap.classList.remove("hidden");
-
+    p.megaTargetId = st.mf.id;
     SoundFX.play("shiny");
     this.showCutsceneBanner(
       "【💎 MEGA 鑰石共鳴就緒！】",
-      `點擊右下角【💎 MEGA】按鈕（或按 M 鍵），隨時釋放【${mf.name_zh}】覺醒！`,
+      `點擊右下角【💎 MEGA】按鈕（或按 M 鍵），隨時釋放【${st.mf.name_zh}】覺醒！`,
       3200
     );
     this.spawnFloatingText(p.x, p.y - 34, "💎 MEGA 覺醒就緒！", "#38BDF8", 15);
@@ -1362,7 +1362,20 @@ window.GameApp = {
     if (this.state !== "PLAYING" || !this.player) return;
     if (this.battleCountdownTimer > 0) return;
     const p = this.player;
-    if (!p.megaReady || p.megaEvolved) return;
+    if (p.megaEvolved) return;
+    if (!p.megaReady) {
+      const st = this.getMegaEvolutionStatus();
+      if (!st) return;
+      SoundFX.play("hit");
+      if (!st.hasRing) {
+        this.spawnFloatingText(p.x, p.y - 30, "🔒 需先於【研究所】研發超級手環！", "#CBD5E1", 13);
+      } else if (!st.isFinalForm || st.curLv < st.reqLv) {
+        this.spawnFloatingText(p.x, p.y - 30, `💎 需進化完全體並達 Lv.${st.reqLv} (目前 Lv.${st.curLv})`, "#38BDF8", 13);
+      } else {
+        this.spawnFloatingText(p.x, p.y - 30, `💎 招式條件未達：${st.skillSum}/${st.reqSum} 級`, "#38BDF8", 13);
+      }
+      return;
+    }
     const targetId = p.megaTargetId || 10034;
     p.megaReady = false;
     const megaWrap = document.getElementById("btnManualMegaWrap");
@@ -1498,33 +1511,29 @@ window.GameApp = {
       healPct = 0.26;
       p.shieldTimer = 5.5;
       p.maxShieldTimer = 5.5;
-      const rockDmg = (52 + p.baseAtk * 1.15) * p.dmgMult;
-      // 借用原生【地震】環形地裂波 + 【地裂斷層破】熔岩岩柱演繹小剛岩石壁壘！
+      p.brockRockOrbitAngle = 0;
+      const pushR = 165 * Math.min(1.3, p.areaMult);
+      const initDmg = (34 + p.baseAtk * 0.78) * p.dmgMult;
+      // 單發乾淨土黃震退衝擊波，不再借用地面超武地裂特效
       SkillsEngine.meleeEffects.push({
-        style: "quake_wave",
-        casterRef: p,
+        style: "slam_wave",
         x: p.x, y: p.y,
-        radius: 195 * p.areaMult,
-        dmg: rockDmg * 0.85,
-        type: "Ground",
-        kb: 32,
-        hitSet: new Set(),
-        timer: 0.55, maxTime: 0.55,
+        radius: pushR,
+        timer: 0.36, maxTime: 0.36,
         color: "#D97706"
       });
-      SkillsEngine.groundHazards.push({
-        kind: "quake_fissure",
-        x: p.x, y: p.y,
-        followPlayer: true,
-        radius: 185 * p.areaMult,
-        dmg: rockDmg * 0.32,
-        type: "Ground",
-        timer: 1.8, maxTime: 1.8,
-        tickTimer: 0.12, tickInterval: 0.45,
-        color: "#D97706"
+      [...SkillsEngine.getEnemiesInRadius(p.x, p.y, pushR)].forEach(e => {
+        if (e && e.hp > 0 && Math.hypot(e.x - p.x, e.y - p.y) <= pushR + e.radius) {
+          if (!e.isBoss) {
+            const ang = Math.atan2(e.y - p.y, e.x - p.x);
+            e.x += Math.cos(ang) * 90;
+            e.y += Math.sin(ang) * 90;
+          }
+          this.dealDamageToEnemy(e, initDmg, "Rock", 0.2, 24);
+        }
       });
-      this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE047", 32, "star", 1.2);
-      this.spawnFloatingText(p.x, p.y - 35, "🪨 岩石壁壘！地裂震退 ＆ 減傷55%！", "#F59E0B", 15);
+      this.spawnParticleCluster(p.x, p.y, "#B45309", "#FDE68A", 26, "circle", 1.15);
+      this.spawnFloatingText(p.x, p.y - 35, "🛡️ 岩石壁壘！6 巨岩護體反震 ＆ 減傷55%！", "#F59E0B", 15);
     } else if (tr.id === "serena") {
       healPct = 0.22;
       p.buffTimer = 5.5;
@@ -1809,9 +1818,44 @@ window.GameApp = {
     }
     if (p.shieldTimer > 0) {
       p.shieldTimer -= dt;
+      if (this.selectedTrainer && this.selectedTrainer.id === "brock") {
+        p.brockRockOrbitAngle = (p.brockRockOrbitAngle || 0) + dt * 4.2;
+        const nowMs = performance.now();
+        const orbitR = 56;
+        const reflectDmg = (24 + p.baseAtk * 0.58) * p.dmgMult;
+        const nearRocks = SkillsEngine.getEnemiesInRadius(p.x, p.y, orbitR + 24);
+        for (let ri = nearRocks.length - 1; ri >= 0; ri--) {
+          const en = nearRocks[ri];
+          if (!en || en.hp <= 0 || en.treasureType) continue;
+          if (en._brockReflectUntil && en._brockReflectUntil > nowMs) continue;
+          const d = Math.hypot(en.x - p.x, en.y - p.y);
+          if (d <= orbitR + 14 + en.radius * 0.85) {
+            en._brockReflectUntil = nowMs + 380;
+            if (!en.isBoss) {
+              const pushAng = Math.atan2(en.y - p.y, en.x - p.x);
+              const kbAmt = 46 * (1 - (en.kbResist || 0) * 0.5);
+              en.x += Math.cos(pushAng) * kbAmt;
+              en.y += Math.sin(pushAng) * kbAmt;
+            }
+            this.dealDamageToEnemy(en, reflectDmg, "Rock", 0.12, 16);
+            this.spawnParticleCluster(en.x, en.y, "#D97706", "#FDE68A", 6, "circle", 0.75);
+            SoundFX.play("hit", "Rock");
+          }
+        }
+      }
       if (p.shieldTimer <= 0) {
         p.shieldTimer = 0;
         p.trainerSkillCd = p.trainerSkillMaxCd;
+      }
+    }
+    if (p.heldItems && p.heldItems["never_melt_ice"]) {
+      p._frostRimTick = (p._frostRimTick || 0) - dt;
+      if (p._frostRimTick <= 0) {
+        p._frostRimTick = 0.24;
+        const fa = Math.random() * Math.PI * 2;
+        const fx = p.x + Math.cos(fa) * (120 + (Math.random() - 0.5) * 10);
+        const fy = p.y + Math.sin(fa) * (120 + (Math.random() - 0.5) * 10);
+        SkillsEngine.spawnSubParticle(fx, fy, (Math.random() - 0.5) * 16, -18 - Math.random() * 14, Math.random() < 0.5 ? "#E0F2FE" : "#67E8F9", 2.4, 0.42, "diamond");
       }
     }
     if (p.buffTimer <= 0 && p.shieldTimer <= 0 && p.trainerSkillCd > 0) {
@@ -4843,11 +4887,13 @@ window.GameApp = {
     if (joyBase) joyBase.style.display = "none";
     if (joyStick) joyStick.style.display = "none";
 
+    const megaFlag = !!isMega || !!(nextData && nextData.isMega);
     this.evoSequence = {
       active: true,
-      isMega: !!isMega || !!(nextData && nextData.isMega),
+      isMega: megaFlag,
       timer: 0,
-      duration: 1.85,
+      duration: megaFlag ? 2.10 : 1.85,
+      burstAt: megaFlag ? 1.50 : 1.35,
       oldData: p.data,
       nextData: nextData,
       targetId: targetId,
@@ -4868,7 +4914,7 @@ window.GameApp = {
     }
     seq.timer += dt;
 
-    const burstTime = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
+    const burstTime = seq.isAwakening ? (seq.burstAt || 0.72) : (seq.isMega ? (seq.burstAt || 1.50) : 1.35);
     // 在破殼／覺醒爆發瞬間正式套用數值並炸開漫天金星與震退波
     if (seq.timer >= burstTime && !seq.evolvedApplied) {
       seq.evolvedApplied = true;
@@ -4959,7 +5005,7 @@ window.GameApp = {
 
     ctx.save();
 
-    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
+    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : (seq.isMega ? (seq.burstAt || 1.50) : 1.35);
     const fadeStartT = dur - 0.30;
     // 1. 戰場聚光燈暗角遮罩 (以主角為圓心，周圍戰場壓暗 74%)
     const spotR = t < burstT ? Math.max(68, 125 - t * 28) : 95 + (t - burstT) * 420;
@@ -5004,9 +5050,174 @@ window.GameApp = {
     }
     ctx.restore();
 
-    // 3. 中央主角「雙重白光剪影加速交替變身」演出
+    // 3. 中央主角變身演出（Mega 專屬三段式：鑰石連線 ➔ 彩虹菱晶繭裂紋 ➔ 破繭降臨；一般進化維持掌機剪影閃爍）
     const oldRec = p.isShiny ? SpriteCache.getShiny(seq.oldData.forward_sprite) : SpriteCache.get(seq.oldData.forward_sprite);
     const nextRec = p.isShiny ? SpriteCache.getShiny(seq.nextData.forward_sprite) : SpriteCache.get(seq.nextData.forward_sprite);
+
+    if (seq.isMega) {
+      const mCol = (seq.nextData && seq.nextData.burstColor) || "#38BDF8";
+      // 階段 1 (0.0s ~ 0.85s)：訓練家手腕 ⇄ 精靈「彩虹 DNA 雙螺旋鑰石共鳴光束」＋ 頭頂 Mega 彩虹徽記
+      if (t < 0.90) {
+        const beamFade = t > 0.70 ? Math.max(0, 1 - (t - 0.70) / 0.20) : Math.min(1, t / 0.18);
+        const tc = this.trainerCompanion;
+        const tx = tc ? toSx(tc.x) : (px - 62);
+        const ty = tc ? (toSy(tc.y) - 6) : (py + 12);
+        const dx = px - tx, dy = py - ty;
+        const dist = Math.hypot(dx, dy) || 1;
+        const ux = dx / dist, uy = dy / dist;
+        const nx = -uy, ny = ux;
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        ctx.globalAlpha = beamFade;
+        const rainbowCols = ["#38BDF8", "#E879F9", "#FACC15"];
+        rainbowCols.forEach((col, sIdx) => {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = sIdx === 0 ? 3.2 : 2.2;
+          ctx.beginPath();
+          for (let step = 0; step <= 24; step++) {
+            const frac = step / 24;
+            const wave = Math.sin(frac * Math.PI * 3.5 - t * 18 + sIdx * 2.1) * (8 * Math.sin(frac * Math.PI));
+            const bx = tx + dx * frac + nx * wave;
+            const by = ty + dy * frac + ny * wave;
+            if (step === 0) ctx.moveTo(bx, by);
+            else ctx.lineTo(bx, by);
+          }
+          ctx.stroke();
+        });
+        // 訓練家手腕鑰石爆閃
+        ctx.fillStyle = "#FFFFFF";
+        ctx.beginPath(); ctx.arc(tx, ty, 6 + Math.sin(t * 24) * 2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+
+        // 頭頂浮現經典 Mega 彩虹雙螺旋徽記
+        ctx.save();
+        ctx.translate(px, py - 46 - Math.sin(t * 6) * 3);
+        ctx.globalAlpha = beamFade;
+        ctx.globalCompositeOperation = "lighter";
+        ctx.lineWidth = 3.2;
+        ctx.strokeStyle = "#38BDF8";
+        ctx.beginPath();
+        for (let k = -12; k <= 12; k += 2) {
+          const hy = Math.sin((k / 12) * Math.PI + t * 8) * 7;
+          if (k === -12) ctx.moveTo(k, hy); else ctx.lineTo(k, hy);
+        }
+        ctx.stroke();
+        ctx.strokeStyle = "#E879F9";
+        ctx.beginPath();
+        for (let k = -12; k <= 12; k += 2) {
+          const hy = -Math.sin((k / 12) * Math.PI + t * 8) * 7;
+          if (k === -12) ctx.moveTo(k, hy); else ctx.lineTo(k, hy);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.translate(px, py);
+      if (t < burstT) {
+        // 階段 2 (0.65s ~ 1.50s)：六角彩虹棱鏡結晶繭包覆 ➔ 裂紋擴散震動
+        const cocoonProg = Math.max(0, Math.min(1, (t - 0.55) / (burstT - 0.55)));
+        const shakeAmp = cocoonProg > 0.45 ? (cocoonProg - 0.45) * 9 : 0;
+        const jx = (Math.random() - 0.5) * shakeAmp;
+        const jy = (Math.random() - 0.5) * shakeAmp;
+        ctx.translate(jx, jy);
+
+        if (oldRec && oldRec.loaded) {
+          ctx.drawImage(oldRec.img, -28, -24, 56, 56);
+          if (cocoonProg > 0) {
+            this.drawSilhouetteFlash(ctx, oldRec.img, -28, -24, 56, 56, "#E0F2FE", Math.min(0.85, cocoonProg * 0.9));
+          }
+        }
+        if (cocoonProg > 0) {
+          const cr = 34 + cocoonProg * 8;
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          const cGrad = ctx.createRadialGradient(0, -2, 6, 0, -2, cr);
+          cGrad.addColorStop(0, `rgba(255, 255, 255, ${0.28 + cocoonProg * 0.45})`);
+          cGrad.addColorStop(0.55, `rgba(56, 189, 248, ${0.35 + cocoonProg * 0.35})`);
+          cGrad.addColorStop(1, `rgba(232, 121, 249, ${0.42 + cocoonProg * 0.30})`);
+          ctx.fillStyle = cGrad;
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 2.6;
+          ctx.beginPath();
+          for (let h = 0; h < 6; h++) {
+            const ha = (h * Math.PI) / 3 - Math.PI / 6;
+            const hx = Math.cos(ha) * cr * 0.88;
+            const hy = Math.sin(ha) * cr * 1.12;
+            if (h === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // 表面蔓延的彩虹裂紋
+          if (cocoonProg > 0.35) {
+            const crackAlpha = (cocoonProg - 0.35) / 0.65;
+            ctx.strokeStyle = `rgba(254, 240, 138, ${crackAlpha})`;
+            ctx.lineWidth = 2.2;
+            for (let cIdx = 0; cIdx < 5; cIdx++) {
+              const ca = cIdx * 1.25 + 0.3;
+              const len = cr * (0.35 + crackAlpha * 0.62);
+              ctx.beginPath();
+              ctx.moveTo(0, 0);
+              ctx.lineTo(Math.cos(ca + 0.18) * len * 0.5, Math.sin(ca + 0.18) * len * 0.5);
+              ctx.lineTo(Math.cos(ca) * len, Math.sin(ca) * len);
+              ctx.stroke();
+            }
+          }
+          ctx.restore();
+        }
+      } else {
+        // 階段 3 (1.50s ~ 2.10s)：棱鏡炸裂碎片 ＋ Mega 專屬色調放射光環霸氣降臨
+        const burstProg = Math.min(1, (t - burstT) / Math.max(0.1, dur - burstT));
+        const hopY = -Math.sin(burstProg * Math.PI) * 18;
+        const scalePop = 1.56 - burstProg * 0.22;
+
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        // 炸裂飛散的 10 枚彩虹棱鏡碎片
+        const shardCols = ["#38BDF8", "#E879F9", "#FACC15", "#FFFFFF", mCol];
+        for (let sh = 0; sh < 10; sh++) {
+          const sa = (sh * Math.PI * 2) / 10 + 0.2;
+          const dist = 26 + burstProg * 95;
+          const sx = Math.cos(sa) * dist;
+          const sy = Math.sin(sa) * dist;
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.rotate(sa + burstProg * 5);
+          ctx.globalAlpha = Math.max(0, 1 - burstProg * 1.15);
+          ctx.fillStyle = shardCols[sh % shardCols.length];
+          ctx.beginPath();
+          ctx.moveTo(0, -8); ctx.lineTo(5, 0); ctx.lineTo(0, 8); ctx.lineTo(-5, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        // 專屬 Mega 放射光束與衝擊環
+        if (burstProg < 0.8) {
+          const rA = (1 - burstProg / 0.8) * 0.9;
+          ctx.strokeStyle = mCol;
+          ctx.globalAlpha = rA;
+          ctx.lineWidth = 4.2;
+          ctx.beginPath(); ctx.arc(0, 0, 28 + burstProg * 88, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+
+        if (nextRec && nextRec.loaded) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.translate(0, hopY);
+          ctx.scale(scalePop, scalePop);
+          ctx.drawImage(nextRec.img, -28, -24, 56, 56);
+          if (burstProg < 0.32) {
+            this.drawSilhouetteFlash(ctx, nextRec.img, -28, -24, 56, 56, mCol, (1 - burstProg / 0.32) * 0.85);
+          }
+        }
+      }
+      ctx.restore();
+      ctx.restore();
+      return;
+    }
 
     ctx.save();
     ctx.translate(px, py);
@@ -5107,7 +5318,7 @@ window.GameApp = {
     ctx.roundRect(boxX + 4, boxY + 4, boxW - 8, boxH - 8, 10);
     ctx.stroke();
 
-    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : 1.35;
+    const burstT = seq.isAwakening ? (seq.burstAt || 0.72) : (seq.isMega ? (seq.burstAt || 1.50) : 1.35);
     ctx.textAlign = "center";
     if (seq.isAwakening) {
       const isLeg = seq.awakenKind === "legendary";
@@ -6392,15 +6603,63 @@ window.GameApp = {
     }
 
     if (p.heldItems && p.heldItems["never_melt_ice"]) {
+      const fNow = performance.now() * 0.0012;
       ctx.save();
-      ctx.strokeStyle = "rgba(130, 230, 255, 0.35)";
-      ctx.fillStyle = "rgba(100, 210, 255, 0.05)";
-      ctx.lineWidth = 1.8;
-      ctx.setLineDash([8, 6]);
+      // 1. 中空極寒冰霧邊暈（圓心 0~74% 完全透明，絕不遮擋主角與敵方彈幕）
+      const fGrad = ctx.createRadialGradient(px, py, 92, px, py, 127);
+      fGrad.addColorStop(0, "rgba(56, 189, 248, 0.0)");
+      fGrad.addColorStop(0.55, "rgba(103, 232, 249, 0.10)");
+      fGrad.addColorStop(0.88, "rgba(186, 230, 253, 0.24)");
+      fGrad.addColorStop(1, "rgba(224, 242, 254, 0.0)");
+      ctx.fillStyle = fGrad;
       ctx.beginPath();
-      ctx.arc(px, py, 125, 0, Math.PI * 2);
+      ctx.arc(px, py, 127, 0, Math.PI * 2);
       ctx.fill();
+
+      // 2. 外圈 12 邊形冰晶折射細框 ＋ 內圈逆向細微霜環
+      ctx.strokeStyle = "rgba(186, 230, 253, 0.56)";
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let k = 0; k < 12; k++) {
+        const a = fNow * 0.35 + (k * Math.PI * 2) / 12;
+        const rx = px + Math.cos(a) * 125;
+        const ry = py + Math.sin(a) * 125;
+        if (k === 0) ctx.moveTo(rx, ry); else ctx.lineTo(rx, ry);
+      }
+      ctx.closePath();
       ctx.stroke();
+
+      ctx.strokeStyle = "rgba(56, 189, 248, 0.34)";
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([12, 14]);
+      ctx.beginPath();
+      ctx.arc(px, py, 117, -fNow * 0.6, -fNow * 0.6 + Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 3. 6 枚雙色切面菱形冰晶沿 125px 邊界緩慢公轉
+      for (let c = 0; c < 6; c++) {
+        const ca = fNow * 0.75 + (c * Math.PI * 2) / 6;
+        const cx = px + Math.cos(ca) * 125;
+        const cy = py + Math.sin(ca) * 125;
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(ca + Math.PI / 2);
+        ctx.fillStyle = "#E0F2FE";
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5); ctx.lineTo(4.2, 0); ctx.lineTo(0, 6.5);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#0284C7";
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5); ctx.lineTo(-4.2, 0); ctx.lineTo(0, 6.5);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(0, -6.5); ctx.lineTo(4.2, 0); ctx.lineTo(0, 6.5); ctx.lineTo(-4.2, 0);
+        ctx.closePath(); ctx.stroke();
+        ctx.restore();
+      }
       ctx.restore();
     }
 
@@ -6748,12 +7007,76 @@ window.GameApp = {
       }
 
       if (p.shieldTimer > 0) {
-        const shieldPct = p.shieldTimer / p.maxShieldTimer;
-        ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
-        ctx.lineWidth = 3.5;
+        const shieldPct = p.shieldTimer / (p.maxShieldTimer || 5.5);
+        const blinkAlpha = p.shieldTimer < 1.2 ? (0.45 + Math.abs(Math.sin(performance.now() * 0.02)) * 0.55) : 1.0;
+        ctx.save();
+        ctx.globalAlpha = blinkAlpha;
+
+        // 1. 半透明六角蜂巢琥珀岩盾結界 + 剩餘時間倒數外環
+        ctx.fillStyle = "rgba(217, 119, 6, 0.14)";
+        ctx.strokeStyle = "rgba(245, 158, 11, 0.72)";
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
-        ctx.arc(px, py, 30, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldPct, false);
+        for (let h = 0; h < 6; h++) {
+          const ha = (h * Math.PI) / 3 - Math.PI / 6;
+          const hx = px + Math.cos(ha) * 34;
+          const hy = py + Math.sin(ha) * 34;
+          if (h === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.fill();
         ctx.stroke();
+
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.arc(px, py, 37, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shieldPct, false);
+        ctx.stroke();
+
+        // 2. 結界正上方像素盾牌徽記
+        const shX = px, shY = py - 42;
+        ctx.fillStyle = "#B45309";
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(shX, shY - 7);
+        ctx.lineTo(shX + 7, shY - 4);
+        ctx.lineTo(shX + 6, shY + 3);
+        ctx.lineTo(shX, shY + 8);
+        ctx.lineTo(shX - 6, shY + 3);
+        ctx.lineTo(shX - 7, shY - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // 3. 6 塊 3D 雙色切面像素巨岩高速公轉（半徑 56px）
+        const orbitA = p.brockRockOrbitAngle || (performance.now() * 0.0042);
+        const orbitR = 56;
+        for (let rIdx = 0; rIdx < 6; rIdx++) {
+          const a = orbitA + (rIdx * Math.PI * 2) / 6;
+          const rx = px + Math.cos(a) * orbitR;
+          const ry = py + Math.sin(a) * orbitR;
+          ctx.save();
+          ctx.translate(rx, ry);
+          ctx.rotate(a * 1.5);
+          // 右背光深褐岩面
+          ctx.fillStyle = "#78350F";
+          ctx.strokeStyle = "#1C0D06";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(0, -9); ctx.lineTo(8, -2); ctx.lineTo(5, 8); ctx.lineTo(-2, 7);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          // 左受光琥珀金岩面
+          ctx.fillStyle = "#D97706";
+          ctx.beginPath();
+          ctx.moveTo(0, -9); ctx.lineTo(-8, -2); ctx.lineTo(-6, 6); ctx.lineTo(-2, 7); ctx.lineTo(1, -1);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          // 岩稜微金高光
+          ctx.fillStyle = "#FDE68A";
+          ctx.fillRect(-3, -5, 3, 2);
+          ctx.restore();
+        }
+        ctx.restore();
       }
 
       if (p.buffTimer > 0) {
@@ -6836,9 +7159,10 @@ window.GameApp = {
         const submergeWater = inWater && !isFlyingPoke && !p.isJumpingLedge;
         const submergeGrass = inGrass && !isFlyingPoke && !p.isJumpingLedge;
 
-        const awakenScale = (p.megaEvolved || p.id >= 10000) ? 1.22 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
-        // 腳底錨點校準：放大體型時向上延伸身高，雙腳始終穩踩於腳底光環正中央不穿幫
-        const footAnchorLiftY = (awakenScale - 1.0) * 28;
+        const isMegaSprite = !!(p.megaEvolved || p.id >= 10000);
+        const awakenScale = isMegaSprite ? 1.38 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
+        // 腳底錨點校準：Mega 96x96 精靈圖留白較大，微調錨點使其與 GBA 64x64 精靈等比例且穩踩光環中央
+        const footAnchorLiftY = isMegaSprite ? 7 : (awakenScale - 1.0) * 28;
         ctx.translate(px + visOffsetX, py + visOffsetY - footAnchorLiftY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
@@ -7751,12 +8075,58 @@ window.GameApp = {
       }
     }
 
-    if (!p.megaEvolved && !p.megaReady && typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[p.id]) {
+    if (!p.megaEvolved && !p.megaReady) {
       this.checkMegaEvolutionReady();
     }
     const megaWrapEl = document.getElementById("btnManualMegaWrap");
     if (megaWrapEl) {
-      megaWrapEl.classList.toggle("hidden", !(p.megaReady && !p.megaEvolved));
+      const mSt = this.getMegaEvolutionStatus();
+      if (!mSt || p.megaEvolved) {
+        megaWrapEl.classList.add("hidden");
+      } else {
+        megaWrapEl.classList.remove("hidden");
+        const megaBtn = document.getElementById("btnManualMegaSkill");
+        const megaImg = document.getElementById("hudManualMegaImg");
+        const megaOv = document.getElementById("megaSkillCdOverlay");
+        const megaIcon = document.getElementById("megaSkillStatusIcon");
+        const megaSub = document.getElementById("megaSkillStatusSub");
+        const megaLbl = document.getElementById("hudManualMegaLabel");
+        const mKey = `${mSt.mf.id}_${mSt.hasRing ? 1 : 0}_${p.megaReady ? 1 : 0}_${mSt.curLv}_${mSt.skillSum}`;
+        if (this._lastMegaHudKey !== mKey) {
+          this._lastMegaHudKey = mKey;
+          if (megaImg && mSt.mf.stoneSprite) megaImg.src = SpriteCache.resolveUrl(mSt.mf.stoneSprite);
+          if (p.megaReady) {
+            if (megaBtn) megaBtn.className = "mega-btn-ready relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-cyan-400 via-blue-600 to-purple-700 border-[3px] border-cyan-200 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-2xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.95)]";
+            if (megaOv) megaOv.classList.add("hidden");
+            if (megaLbl) {
+              megaLbl.textContent = "💎 MEGA";
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/95 border border-cyan-400 text-cyan-200 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          } else if (!mSt.hasRing) {
+            if (megaBtn) megaBtn.className = "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900/90 border-[3px] border-slate-700 flex items-center justify-center overflow-hidden opacity-75 shadow-xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain grayscale opacity-55";
+            if (megaOv) megaOv.classList.remove("hidden");
+            if (megaIcon) megaIcon.textContent = "🔒";
+            if (megaSub) megaSub.textContent = "手環";
+            if (megaLbl) {
+              megaLbl.textContent = "🔒 需手環";
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-slate-600 text-slate-400 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          } else {
+            if (megaBtn) megaBtn.className = "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-800/90 border-[3px] border-slate-600 flex items-center justify-center overflow-hidden opacity-85 shadow-xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain grayscale opacity-65";
+            if (megaOv) megaOv.classList.remove("hidden");
+            const lvDone = mSt.isFinalForm && mSt.curLv >= mSt.reqLv;
+            if (megaIcon) megaIcon.textContent = "💎";
+            if (megaSub) megaSub.textContent = lvDone ? `技${mSt.skillSum}/${mSt.reqSum}` : `L${mSt.curLv}/${mSt.reqLv}`;
+            if (megaLbl) {
+              megaLbl.textContent = lvDone ? `招式 ${mSt.skillSum}/${mSt.reqSum}` : `Lv.${mSt.curLv}/${mSt.reqLv}`;
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-slate-500 text-sky-300 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          }
+        }
+      }
     }
 
     const aliveBosses = this.enemies ? this.enemies.filter(b => b.isBoss && b.hp > 0) : [];

@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.10');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.11');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -723,12 +723,16 @@
 
     <!-- 右下角：手動 MEGA 覺醒按鈕 ＋ 隨行訓練家三態戰術大招按鈕 -->
     <div class="absolute hud-bottom-safe right-3 sm:right-4 pointer-events-auto flex items-end gap-2.5 sm:gap-3">
-      <!-- 手動 MEGA 進化按鍵 (達成等級與招式門檻後浮現) -->
+      <!-- 三態常駐 MEGA 進化按鍵 (支援 Mega 進化線即常駐：未購手環鎖定 / 蓄能進度 / 就緒脈動) -->
       <div id="btnManualMegaWrap" class="hidden flex flex-col items-center">
-        <button id="btnManualMegaSkill" onclick="GameApp.triggerManualMegaEvolution()" class="mega-btn-ready relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-cyan-400 via-blue-600 to-purple-700 border-[3px] border-cyan-200 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-2xl">
-          <img id="hudManualMegaImg" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.95)]" alt="MEGA" />
+        <button id="btnManualMegaSkill" onclick="GameApp.triggerManualMegaEvolution()" class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-800 border-[3px] border-slate-600 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-2xl">
+          <img id="hudManualMegaImg" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charizardite-x.png" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="MEGA" />
+          <div id="megaSkillCdOverlay" class="hidden absolute inset-0 bg-slate-950/70 flex flex-col items-center justify-center text-white">
+            <span id="megaSkillStatusIcon" class="text-xs leading-none">🔒</span>
+            <span id="megaSkillStatusSub" class="font-pixel text-[7px] text-slate-200 mt-0.5 leading-none">Lv.24</span>
+          </div>
         </button>
-        <span class="mt-1 px-2 py-0.5 rounded-full bg-slate-950/95 border border-cyan-400 text-cyan-200 font-black text-[10px] whitespace-nowrap shadow-md leading-tight">💎 MEGA</span>
+        <span id="hudManualMegaLabel" class="mt-1 px-2 py-0.5 rounded-full bg-slate-950/95 border border-slate-500 text-slate-300 font-black text-[9px] whitespace-nowrap shadow-md leading-tight">💎 MEGA</span>
         <span class="pc-only-hotkey font-pixel text-[7px] text-cyan-200 bg-slate-900/85 px-1.5 py-0.2 rounded mt-0.5">[M]</span>
       </div>
 
@@ -1235,10 +1239,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.10"></script>
-  <script src="map_v11_engine.js?v=6.9.10"></script>
-  <script src="skills_engine.js?v=6.9.10"></script>
-  <script src="battle_core_2.js?v=6.9.10"></script>
-  <script src="game_ui.js?v=6.9.10"></script>
+  <script src="pokedex_data.js?v=6.9.11"></script>
+  <script src="map_v11_engine.js?v=6.9.11"></script>
+  <script src="skills_engine.js?v=6.9.11"></script>
+  <script src="battle_core_2.js?v=6.9.11"></script>
+  <script src="game_ui.js?v=6.9.11"></script>
 </body>
 </html>
