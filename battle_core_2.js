@@ -7,6 +7,7 @@
  */
 
 window.GameApp = {
+  APP_VERSION: "v6.9.15",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -118,6 +119,10 @@ window.GameApp = {
     this.bindTouchJoystick();
     this.initDevToolsGuard();
 
+    const svEl = document.getElementById("splashVersionBadge");
+    if (svEl) svEl.textContent = this.APP_VERSION;
+    const setvEl = document.getElementById("settingsVersionBadge");
+    if (setvEl) setvEl.textContent = this.APP_VERSION;
     if (this.updateTitleUI) this.updateTitleUI();
     this.lastFrameTime = performance.now();
     requestAnimationFrame((t) => this.loop(t));
@@ -229,28 +234,41 @@ window.GameApp = {
     const skillBtn = document.getElementById("btnTrainerActiveSkill");
     const megaBtn = document.getElementById("btnManualMegaSkill");
 
+    const martPrompt = document.getElementById("hudEnterMartPrompt");
     const onTouchStart = (e) => {
       if (this.state !== "PLAYING") return;
       SoundFX.init();
 
       for (let i = 0; i < e.changedTouches.length; i++) {
         const t = e.changedTouches[i];
+        // 1. 精準排除所有按鈕元件與頂部 HUD 條
+        if (t.target && t.target.closest && t.target.closest("button")) continue;
+        if (t.clientY < 76) continue;
+
+        // 2. 僅保留右下角大招、MEGA 與商店按鈕各自 12px 防誤觸外框，其餘全屏空白處（含大招正上方）皆可自由喚出搖桿
         if (skillBtn) {
           const rect = skillBtn.getBoundingClientRect();
-          if (t.clientX >= rect.left - 20 && t.clientX <= rect.right + 20 &&
-              t.clientY >= rect.top - 20 && t.clientY <= rect.bottom + 20) {
+          if (t.clientX >= rect.left - 12 && t.clientX <= rect.right + 12 &&
+              t.clientY >= rect.top - 12 && t.clientY <= rect.bottom + 12) {
             continue;
           }
         }
         if (megaBtn && megaBtn.offsetParent !== null) {
           const mRect = megaBtn.getBoundingClientRect();
-          if (t.clientX >= mRect.left - 18 && t.clientX <= mRect.right + 18 &&
-              t.clientY >= mRect.top - 18 && t.clientY <= mRect.bottom + 18) {
+          if (t.clientX >= mRect.left - 12 && t.clientX <= mRect.right + 12 &&
+              t.clientY >= mRect.top - 12 && t.clientY <= mRect.bottom + 12) {
+            continue;
+          }
+        }
+        if (martPrompt && martPrompt.offsetParent !== null) {
+          const pRect = martPrompt.getBoundingClientRect();
+          if (t.clientX >= pRect.left - 10 && t.clientX <= pRect.right + 10 &&
+              t.clientY >= pRect.top - 10 && t.clientY <= pRect.bottom + 10) {
             continue;
           }
         }
 
-        if (t.clientX < this.width * 0.70 && !this.touchJoy.active) {
+        if (!this.touchJoy.active) {
           this.touchJoy.active = true;
           this.touchJoy.touchId = t.identifier;
           this.touchJoy.startX = t.clientX;
@@ -1450,21 +1468,52 @@ window.GameApp = {
         showFallbackStrip();
       }
 
+      // 0.80s 時空凍結：立即重置搖桿避免殘留滑動，播放語音與 Cut-in；結束瞬間才解凍並正式發動技能效果與倒數！
+      this.touchJoy.active = false;
+      this.touchJoy.touchId = null;
+      this.touchJoy.dx = 0;
+      this.touchJoy.dy = 0;
+      const joyBase = document.getElementById("touchJoyBase");
+      const joyStick = document.getElementById("touchJoyStick");
+      if (joyBase) joyBase.style.display = "none";
+      if (joyStick) joyStick.style.display = "none";
+
+      this.state = "CUTIN";
+      this._pauseFrameRendered = false;
+      SoundFX.play("ultimate");
+      if (typeof SoundFX.playTrainerVoice === "function") {
+        SoundFX.playTrainerVoice(tr.id);
+      }
+
       clearTimeout(this._cutInHideTimer);
       this._cutInHideTimer = setTimeout(() => {
         cutLayer.classList.add("hidden");
         cutLayer.style.display = "none";
-      }, 1200);
+        if (this.state !== "CUTIN" || !this.player) return;
+        this.state = "PLAYING";
+        this.lastFrameTime = performance.now();
+        this._pauseFrameRendered = false;
+        this.executeTrainerActiveSkillEffect(tr);
+      }, 800);
+      return;
     }
 
-    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.85);
-    this.hitStopTimer = 0.08;
-    this.camera.shakeTime = 0.28;
-    this.camera.shakeMagnitude = 8;
     SoundFX.play("ultimate");
     if (typeof SoundFX.playTrainerVoice === "function") {
       SoundFX.playTrainerVoice(tr.id);
     }
+    this.executeTrainerActiveSkillEffect(tr);
+  },
+
+  executeTrainerActiveSkillEffect(tr) {
+    const p = this.player;
+    if (!p || !tr) return;
+    p.status = null;
+    p.statusTimer = 0;
+    // 解凍落地給予 0.65s 安全無敵幀（莉莉艾另設 2.0s），杜絕恢復畫面瞬間被貼臉彈幕偷襲
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.65);
+    this.camera.shakeTime = 0.26;
+    this.camera.shakeMagnitude = 7.5;
 
     let healPct = 0.20;
     if (tr.id === "ash") {
@@ -5504,8 +5553,10 @@ window.GameApp = {
     this.showCutsceneBanner(`[進化之光] ${oldName} 進化成了【${nextData.name_zh}】！`, evoBannerSub, 3400);
   },
 
-  openLevelUpModal() {
+  openLevelUpModal(isFromReroll = false) {
     this.state = "PAUSED";
+    // 0.45s 防誤觸鎖定期（重抽後 0.18s 短防連點），杜絕戰鬥換手或滑動時秒按錯選項或重抽
+    this._levelUpUnlockAt = performance.now() + (isFromReroll ? 180 : 450);
     // 強制重置搖桿與輸入，防止多點觸控狀態殘留死鎖
     this.touchJoy.active = false;
     this.touchJoy.dx = 0;
@@ -5753,15 +5804,15 @@ window.GameApp = {
     ` : "");
 
     const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
-      <div onclick="GameApp.selectUpgradeChoice(${idx})" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-3 sm:p-3.5 flex items-center justify-between gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
         ${c.isNew ? `
           <div class="absolute top-0 left-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-pixel text-[9px] px-2.5 py-0.5 rounded-tl-[13px] rounded-br-lg border-b border-r border-white/80 shadow-md flex items-center gap-1 z-10 animate-pulse">
             <i class="fa-solid fa-sparkles text-[8px] text-amber-200"></i>NEW!
           </div>
         ` : ''}
-        <div class="flex items-center gap-3 min-w-0">
-          <div class="w-12 h-12 rounded-2xl bg-slate-900/40 border-2 border-slate-700 flex items-center justify-center shrink-0">
-            ${c.skillIconMeta && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(c.skillIconMeta, "w-9 h-9") : `<img src="${c.sprite}" class="w-9 h-9 pixel-sprite object-contain" alt="${c.title}" />`}
+        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-slate-900/40 border-2 border-slate-700 flex items-center justify-center shrink-0">
+            ${c.skillIconMeta && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(c.skillIconMeta, "w-8 h-8 sm:w-9 sm:h-9") : `<img src="${c.sprite}" class="w-8 h-8 sm:w-9 sm:h-9 pixel-sprite object-contain" alt="${c.title}" />`}
           </div>
           <div class="min-w-0">
             <div class="flex items-center gap-1.5 flex-wrap">
@@ -5769,13 +5820,13 @@ window.GameApp = {
               ${c.typeBadge || ''}
               <span class="px-2 py-0.5 rounded-full text-[9px] ${c.badgeBg} whitespace-nowrap">${c.badge}</span>
             </div>
-            <p class="text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
+            <p class="text-[11px] sm:text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
           </div>
         </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button class="poke-btn-red px-3 sm:px-4 py-2 text-xs font-black min-h-[38px] flex items-center gap-1">
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" class="poke-btn-red px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-black min-h-[36px] flex items-center gap-1 pointer-events-none">
             <span>選擇</span>
-            <span class="font-pixel text-[10px] text-amber-200 opacity-90">[${idx + 1}]</span>
+            <span class="pc-only-hotkey font-pixel text-[10px] text-amber-200 opacity-90">[${idx + 1}]</span>
           </button>
         </div>
       </div>
@@ -5791,29 +5842,36 @@ window.GameApp = {
 
     let rerollLabelHtml = "";
     if (canFreeReroll) {
-      rerollLabelHtml = `<i class="fa-solid fa-dice text-xs"></i><span>免費重抽 (剩餘 ${freeRerolls} 次) [R]</span>`;
+      rerollLabelHtml = `<i class="fa-solid fa-dice text-xs"></i><span>重抽 (${freeRerolls})</span><span class="pc-only-hotkey font-pixel text-[9px] opacity-85">[R]</span>`;
     } else {
-      rerollLabelHtml = `<img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/><span>代幣重抽 (${coinCost} 金 / 持有 ${availableCoins}) [R]</span>`;
+      rerollLabelHtml = `<img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/><span>${coinCost}金重抽</span><span class="pc-only-hotkey font-pixel text-[9px] opacity-85">[R]</span>`;
     }
 
-    const rerollBarHtml = `
-      <div class="mt-3 pt-2.5 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span id="levelUpRerollHint" class="text-[11px] font-bold text-slate-400">鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用代幣重抽）</span>
-        <button onclick="GameApp.rerollUpgradeChoices()" ontouchstart="event.preventDefault(); event.stopPropagation(); GameApp.rerollUpgradeChoices()" ${!canReroll ? 'disabled' : ''} class="${canFreeReroll ? 'poke-btn-yellow' : (canCoinReroll ? 'poke-btn-blue' : 'poke-btn-white opacity-50 cursor-not-allowed')} px-3.5 py-1.5 text-xs font-black flex items-center gap-1.5 shrink-0">
+    const headerRerollSlot = document.getElementById("levelUpHeaderRerollSlot");
+    if (headerRerollSlot) {
+      headerRerollSlot.innerHTML = `
+        <button type="button" onclick="GameApp.rerollUpgradeChoices()" ${!canReroll ? 'disabled' : ''} class="${canFreeReroll ? 'poke-btn-yellow' : (canCoinReroll ? 'poke-btn-blue' : 'poke-btn-white opacity-50 cursor-not-allowed')} px-2.5 py-1.5 text-[11px] font-black flex items-center gap-1 whitespace-nowrap shadow">
           ${rerollLabelHtml}
         </button>
+      `;
+    }
+
+    const rerollHintHtml = `
+      <div id="levelUpRerollHint" class="pc-only-hotkey mt-2 pt-1.5 border-t border-slate-800/80 text-center text-[10px] font-bold text-slate-400">
+        鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用代幣重抽）
       </div>
     `;
 
-    box.innerHTML = recipeBarHtml + choicesHtml + rerollBarHtml;
+    box.innerHTML = recipeBarHtml + choicesHtml + rerollHintHtml;
   },
 
   rerollUpgradeChoices() {
+    if (this._levelUpUnlockAt && performance.now() < this._levelUpUnlockAt) return;
     const freeRerolls = this.levelUpRerolls || 0;
     if (freeRerolls > 0) {
       this.levelUpRerolls -= 1;
       SoundFX.play("super");
-      this.openLevelUpModal();
+      this.openLevelUpModal(true);
       return;
     }
 
@@ -5838,10 +5896,11 @@ window.GameApp = {
     this.paidRerollCount = paidCount + 1;
     SoundFX.play("super");
     this.refreshHUD();
-    this.openLevelUpModal();
+    this.openLevelUpModal(true);
   },
 
   selectUpgradeChoice(idx) {
+    if (this._levelUpUnlockAt && performance.now() < this._levelUpUnlockAt) return;
     const c = this._currentUpgradeChoices && this._currentUpgradeChoices[idx];
     if (c && c.apply) c.apply();
     const lvlModal = document.getElementById("levelUpModal");

@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.14');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.15');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -288,26 +288,26 @@
       animation: heldItemProcPulse 0.30s cubic-bezier(0.22, 1, 0.36, 1);
     }
 
-    /* 二次元 Cut-in 特寫動畫 (1.20s 清晰定格展示) */
+    /* 二次元 Cut-in 特寫動畫 (黃金 0.80s：0.12s 切入 -> 0.50s 定格 -> 0.18s 劃出) */
     @keyframes cutInSlide {
       0% { transform: translateY(-50%) rotate(-6deg) translateX(-140%); opacity: 0; }
-      14% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
-      84% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
+      15% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
+      78% { transform: translateY(-50%) rotate(-6deg) translateX(0%); opacity: 1; }
       100% { transform: translateY(-50%) rotate(-6deg) translateX(140%); opacity: 0; }
     }
     .cut-in-active {
-      animation: cutInSlide 1.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: cutInSlide 0.80s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
-    /* 專屬滿版大招橫幅特寫動畫 (1.20s 定格 0.84s 清楚閱讀文字) */
+    /* 專屬滿版大招橫幅特寫動畫 (黃金 0.80s 時空凍結特寫) */
     @keyframes bannerSlideAnim {
       0% { transform: scale(1.14) translateX(-120%); opacity: 0; }
-      14% { transform: scale(1.0) translateX(0%); opacity: 1; }
-      84% { transform: scale(1.0) translateX(0%); opacity: 1; }
+      15% { transform: scale(1.0) translateX(0%); opacity: 1; }
+      78% { transform: scale(1.0) translateX(0%); opacity: 1; }
       100% { transform: scale(0.94) translateX(120%); opacity: 0; }
     }
     .cut-in-banner-active {
-      animation: bannerSlideAnim 1.20s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      animation: bannerSlideAnim 0.80s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     /* 封面進入大廳：0.65s 經典 GBA 精靈球橫向快門閃白轉場儀式 */
@@ -507,6 +507,11 @@
       <div class="inline-block px-6 py-2.5 bg-white/95 text-slate-900 rounded-full font-black text-xs sm:text-sm border-2 border-slate-900 shadow-2xl animate-pulse">
         - 按任意鍵或點擊螢幕進入大廳 -
       </div>
+    </div>
+
+    <!-- 封面右下角版本辨識標籤 -->
+    <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
+      v6.9.15
     </div>
   </div>
 
@@ -993,15 +998,21 @@
     </div>
   </div>
 
-  <!-- 12. 升級三選一視窗 (Level Up Modal) -->
-  <div id="levelUpModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-    <div class="w-full max-w-lg bg-slate-900 border-3 border-amber-400 rounded-3xl p-4 sm:p-6 shadow-2xl text-white">
-      <div class="text-center mb-4">
-        <span class="px-3 py-1 bg-red-600 text-white font-pixel text-[10px] rounded-full border border-white tracking-widest uppercase">LEVEL UP!</span>
-        <h2 class="text-xl sm:text-2xl font-black text-amber-300 mt-1">能力突破與招式進階</h2>
-        <p class="text-xs text-slate-400 mt-0.5">選擇一項專屬招式升級、超武進化或營養藥劑</p>
+  <!-- 12. 升級三選一視窗 (Level Up Modal - 偏上排版避開下方搖桿熱區 ＋ 重抽鍵獨立移至右上角) -->
+  <div id="levelUpModal" class="absolute inset-0 z-50 hidden flex items-start justify-center pt-5 sm:pt-10 px-3 sm:px-4 pb-[18vh] overflow-y-auto bg-slate-950/80 backdrop-blur-sm">
+    <div class="w-full max-w-lg bg-slate-900 border-3 border-amber-400 rounded-3xl p-3.5 sm:p-5 shadow-2xl text-white">
+      <div class="flex items-start justify-between gap-2 mb-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="px-2.5 py-0.5 bg-red-600 text-white font-pixel text-[9px] rounded-full border border-white tracking-widest uppercase">LEVEL UP!</span>
+            <h2 class="text-base sm:text-xl font-black text-amber-300 truncate">能力突破與招式進階</h2>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5">選擇一項招式升級、超武突破或營養藥劑</p>
+        </div>
+        <!-- 重抽按鈕獨立置於右上角，與下方卡片物理隔離防誤觸 -->
+        <div id="levelUpHeaderRerollSlot" class="shrink-0"></div>
       </div>
-      <div id="upgradeChoicesContainer" class="space-y-3"></div>
+      <div id="upgradeChoicesContainer" class="space-y-2.5"></div>
     </div>
   </div>
 
@@ -1215,7 +1226,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v6.9.15</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1257,10 +1268,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.14"></script>
-  <script src="map_v11_engine.js?v=6.9.14"></script>
-  <script src="skills_engine.js?v=6.9.14"></script>
-  <script src="battle_core_2.js?v=6.9.14"></script>
-  <script src="game_ui.js?v=6.9.14"></script>
+  <script src="pokedex_data.js?v=6.9.15"></script>
+  <script src="map_v11_engine.js?v=6.9.15"></script>
+  <script src="skills_engine.js?v=6.9.15"></script>
+  <script src="battle_core_2.js?v=6.9.15"></script>
+  <script src="game_ui.js?v=6.9.15"></script>
 </body>
 </html>
