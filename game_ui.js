@@ -64,8 +64,8 @@ Object.assign(window.GameApp, {
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
           megaUnlocked: { ...(this.saveData.megaUnlocked || {}), ...(parsed.megaUnlocked || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
-          lastSeenVersion: parsed.lastSeenVersion || "",
           lastSetup: parsed.lastSetup ? { ...parsed.lastSetup } : (this.saveData.lastSetup || null),
+          lastSeenVersion: parsed.lastSeenVersion || "",
           settings: {
             mobCapProfile: "auto",
             screenFilter: "none",
@@ -73,7 +73,7 @@ Object.assign(window.GameApp, {
             procNoticeMode: "icon",
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
-            skillAlpha: "1.0",
+            skillAlpha: "100",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
@@ -292,14 +292,13 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const isReturning = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
-        if (isReturning && this.saveData.lastSeenVersion !== this.APP_VERSION && !this._autoChangelogShown) {
+        const ver = this.APP_VERSION || "v7.1.1";
+        const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
+        if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
           setTimeout(() => {
-            if (this.state === "TITLE" && this.openChangelogModal) {
-              this.openChangelogModal();
-            }
-          }, 360);
+            if (this.state === "TITLE") this.openChangelogModal();
+          }, 420);
         }
       } catch (e) {
         console.error("updateTitleUI error:", e);
@@ -354,12 +353,9 @@ Object.assign(window.GameApp, {
         box.classList.add("ring-2", "ring-amber-400");
         setTimeout(() => box.classList.remove("ring-2", "ring-amber-400"), 800);
       }
-      this.pixelAlert(
-        this.debugToolsUnlocked ? "🔧 測試工具已解鎖" : "🔒 測試工具已隱藏",
-        this.debugToolsUnlocked
-          ? "開發者測試齒輪已啟用（防 F12 保護亦已暫時解除），進入戰鬥後將顯示於右上方。"
-          : "測試工具已重新隱藏，安全防護已恢復。"
-      );
+      this.pixelAlert(this.debugToolsUnlocked
+        ? "🔧 測試工具已解鎖（防 F12 保護亦已暫時解除）！後續進入遊戲後，右上方將顯示測試齒輪按鈕。"
+        : "🔒 測試工具已重新隱藏，防 F12 保護已恢復。", "開發者工具");
     }
   },
 
@@ -535,9 +531,11 @@ Object.assign(window.GameApp, {
     const dexBadge = document.getElementById("pokedexRewardBadge");
     if (dexBadge) dexBadge.classList.toggle("hidden", !hasDexReward);
 
-    const hasNewChangelog = !!(this.saveData && this.saveData.lastSeenVersion !== this.APP_VERSION);
     const clBadge = document.getElementById("changelogBadge");
-    if (clBadge) clBadge.classList.toggle("hidden", !hasNewChangelog);
+    if (clBadge) {
+      const curVer = this.APP_VERSION || "v7.1.1";
+      clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
+    }
   },
 
   openSetupFlow(startStep = 3) {
@@ -1113,7 +1111,7 @@ Object.assign(window.GameApp, {
       return;
     }
     if (t.isHiddenRed) {
-      this.pixelAlert("傳奇訓練家・赤紅", "解鎖條件：在任意難度下擊敗 7.5 分鐘最終 Boss【超夢 #150】即可永久解鎖！");
+      this.pixelAlert("在任意難度下擊敗 7.5 分鐘最終 Boss【超夢 #150】即可永久解鎖！", "傳奇訓練家・赤紅 解鎖條件");
       return;
     }
     this.openUnlockConfirmModal("trainer", t.id, t.cost);
@@ -1130,7 +1128,7 @@ Object.assign(window.GameApp, {
     }
     // 要求：必須先在圖鑑中見過（在關卡中遭遇或登錄）才能購買解鎖
     if (!this.saveData.pokedexSeen[pokeId]) {
-      this.pixelToast("圖鑑未登錄：請先在冒險地圖中遭遇此寶可夢！", "warn");
+      this.pixelAlert("此寶可夢尚未在野外遭遇！請先在冒險地圖中發現它後方可收服！", "圖鑑未登錄");
       return;
     }
     this.openUnlockConfirmModal("pokemon", pokeId, cost);
@@ -1156,20 +1154,20 @@ Object.assign(window.GameApp, {
       const code = btoa(encodeURIComponent(jsonStr));
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(code).then(() => {
-          this.pixelAlert("✅ 存檔匯出成功", "存檔引繼碼已自動複製到剪貼簿！可在其他裝置點擊「匯入」貼上還原進度。");
+          this.pixelAlert("✅ 存檔引繼碼已自動複製到剪貼簿！可在其他裝置點擊「匯入」貼上還原進度。", "匯出存檔成功");
         }).catch(() => {
-          this.pixelPrompt("📤 複製存檔引繼碼", "請長按或全選複製以下存檔引繼碼：", code, null, true);
+          this.pixelPrompt("請全選複製以下存檔引繼碼：", "匯出存檔引繼碼", code);
         });
       } else {
-        this.pixelPrompt("📤 複製存檔引繼碼", "請長按或全選複製以下存檔引繼碼：", code, null, true);
+        this.pixelPrompt("請全選複製以下存檔引繼碼：", "匯出存檔引繼碼", code);
       }
     } catch (e) {
-      this.pixelAlert("❌ 匯出失敗", "匯出過程發生錯誤：" + e.message);
+      this.pixelAlert("匯出失敗：" + e.message, "匯出異常");
     }
   },
 
   importSaveDataCode() {
-    this.pixelPrompt("📥 匯入存檔引繼碼", "請貼上您先前匯出的【存檔引繼碼】：", "", (code) => {
+    this.pixelPrompt("請貼上您先前匯出的【存檔引繼碼】：", "匯入存檔進度", "", (code) => {
       if (!code || !code.trim()) return;
       try {
         const jsonStr = decodeURIComponent(atob(code.trim()));
@@ -1200,9 +1198,9 @@ Object.assign(window.GameApp, {
         this.pokedexShowShiny = {};
         this.saveToStorage();
         this.renderAchievements();
-        this.pixelAlert("🎉 匯入成功", "所有圖鑑、代幣、閃光與 Mega 進度已完整同步！");
+        this.pixelAlert("🎉 存檔引繼碼匯入成功！所有圖鑑、代幣、閃光與 Mega 進度已同步！", "匯入成功");
       } catch (e) {
-        this.pixelAlert("❌ 匯入失敗", "引繼碼無效或格式損毀，請確認已完整複製字串！");
+        this.pixelAlert("❌ 引繼碼無效或格式損毀，請確認複製完整字串！", "匯入失敗");
       }
     });
   },
@@ -1221,7 +1219,7 @@ Object.assign(window.GameApp, {
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.1",
+      lastSeenVersion: this.APP_VERSION || "v7.1.1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1229,15 +1227,15 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "1.0"
+        skillAlpha: "100"
       }
     };
   },
 
   resetToNewbieSave() {
     this.pixelConfirm(
-      "⚠️ 重置新手存檔確認",
-      "確定要重置為【純淨新手開局存檔】嗎？建議先點擊「匯出」備份目前進度！",
+      "⚠️ 確定要重置為【純淨新手開局存檔】嗎？\n\n建議先點擊「匯出」備份你目前的進度！確定繼續重置？",
+      "重置存檔確認",
       () => {
         this.saveData = this.getFreshNewbieSaveData();
         this.selectedTrainer = TRAINERS[0];
@@ -1247,7 +1245,7 @@ Object.assign(window.GameApp, {
         this.pokedexShowShiny = {};
         this.saveToStorage();
         this.renderAchievements();
-        this.pixelAlert("✅ 重置完成", "已回復為純淨新手開局狀態（800 代幣、初始御三家與皮卡丘、研究所全 Lv.0）。");
+        this.pixelAlert("✅ 已成功回復為純淨新手開局狀態（800 代幣、初始御三家與皮卡丘、研究所全 Lv.0、Mega 未解鎖）！", "重置完成");
       }
     );
   },
@@ -1442,7 +1440,7 @@ Object.assign(window.GameApp, {
       const effectiveCost = (hasFirstFree && this.selectedLoadouts.length === 0) ? 0 : cost;
       const newTotal = this.getSelectedLoadoutsTotalCost() + effectiveCost;
       if ((this.saveData.coins || 0) < newTotal) {
-        this.pixelToast(`代幣不足！共需 ${newTotal} 金（目前持有 ${this.saveData.coins || 0} 金）`, "warn");
+        this.pixelToast(`⚠️ 代幣不足！此組合共需 ${newTotal} 金（目前持有 ${this.saveData.coins || 0} 金）`, "warn");
         return;
       }
       this.selectedLoadouts.push(id);
@@ -1748,7 +1746,7 @@ Object.assign(window.GameApp, {
       this.saveToStorage();
       this.renderPokedexGrid();
       this.updateTitleUI();
-      this.pixelToast(`🎉 領取 ${count} 隻圖鑑賞金：+${count * 50} 代幣！`, "success");
+      this.pixelToast(`🎉 成功領取 ${count} 隻圖鑑賞金，獲得 +${count * 50} 代幣！`, "success");
     } else {
       this.pixelToast("目前沒有可領取的圖鑑賞金！", "info");
     }
@@ -1876,7 +1874,7 @@ Object.assign(window.GameApp, {
     if (lv >= maxLv) return;
     const cost = Math.round(baseCost * Math.pow(1.45, lv));
     if (this.saveData.coins < cost) {
-      this.pixelToast("代幣不足！可至 151 圖鑑或道館榮譽領取賞金！", "warn");
+      this.pixelToast("⚠️ 代幣不足！可至 151 圖鑑或道館榮譽領取賞金！", "warn");
       return;
     }
     this.saveData.coins -= cost;
@@ -2429,10 +2427,12 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "1.0"
+        skillAlpha: "100"
       };
     }
-    if (!this.saveData.settings.skillAlpha) this.saveData.settings.skillAlpha = "1.0";
+    if (!this.saveData.settings.skillAlpha) {
+      this.saveData.settings.skillAlpha = "100";
+    }
     return this.saveData.settings;
   },
 
@@ -2498,7 +2498,7 @@ Object.assign(window.GameApp, {
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "1.0"
+      skillAlpha: "100"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2556,15 +2556,15 @@ Object.assign(window.GameApp, {
         </div>
       </div>
 
-      <!-- 2B. 我方技能特效透明度 (高難度與無盡深淵清晰躲彈專用) -->
+      <!-- 2B. 我方技能特效透明度 (無盡深淵閃彈視野神器) -->
       <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-wand-sparkles"></i> 我方技能特效透明度 (躲彈清晰度)</span>
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-eye"></i> 我方技能特效透明度 (不影響敵彈顯示)</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("skillAlpha", "1.0", "100% 完整", "最華麗滿屏特效")}
-          ${renderOptionBtn("skillAlpha", "0.65", "65% 清晰", "兼顧美感與紅彈")}
-          ${renderOptionBtn("skillAlpha", "0.4", "40% 極簡", "深淵高壓專注躲彈")}
+          ${renderOptionBtn("skillAlpha", "100", "🔥 100% 華麗", "完整視覺爆發")}
+          ${renderOptionBtn("skillAlpha", "65", "✨ 65% 清爽", "平衡特效與走位")}
+          ${renderOptionBtn("skillAlpha", "40", "🎯 40% 極淨", "無盡躲彈專用")}
         </div>
       </div>
 
@@ -2625,86 +2625,58 @@ Object.assign(window.GameApp, {
   },
 
   // ==========================================================================
-  // v7.1 大廳版本更新日誌 ＆ GBA 像素風對話框 / 提示條系統
+  // v7.1 版本更新日誌彈窗 ＆ GBA 像素風系統對話框 / Toast 提示系統
   // ==========================================================================
-  CHANGELOG_ENTRIES: [
-    {
-      version: "v7.1",
-      date: "2026-11-24",
-      tag: "最新精修版",
-      sections: [
-        {
-          title: "✨ 新功能與體驗升級",
-          color: "text-amber-300",
-          items: [
-            "大廳新增【版本更新日誌】公告與未讀紅點，隨時掌握最新改動。",
-            "系統設定新增【我方技能特效透明度 (100% / 65% / 40%)】，無盡深淵躲彈更清晰。",
-            "全面將瀏覽器原生彈窗升級為 GBA 像素風對話框與輕量頂部提示條。"
-          ]
-        },
-        {
-          title: "⚖️ 戰鬥手感與穩定度優化",
-          color: "text-sky-300",
-          items: [
-            "全面重構技能連段計時器為引擎時間軸驅動，2x 倍速與暫停／進化絕不吃招錯拍。",
-            "收緊隨行訓練家受擊判定，並於主角近戰前撲瞬間給予訓練家擦彈免傷。",
-            "Boss 觸發滾動秒傷護甲時新增六角微盾閃光提示，減傷機制一目了然。",
-            "安全防護改為僅桌面端啟用並放寬容錯，徹底杜絕手機怪潮卡頓誤鎖。"
-          ]
-        },
-        {
-          title: "🛠️ 問題修復",
-          color: "text-emerald-300",
-          items: [
-            "修復【超級耿鬼】污泥炸彈落地未正確渲染紫紅冥界腐蝕毒沼的問題。",
-            "同步修復【超級妙蛙花】種子炸彈粉紅毒花孢子沼顏色被預設綠沼覆蓋的問題。"
-          ]
-        }
-      ]
-    },
-    {
-      version: "v7.0",
-      date: "2026-11-21",
-      tag: "大型改版",
-      sections: [
-        {
-          title: "💎 關都六大 MEGA 超級進化＆行走圖集",
-          color: "text-purple-300",
-          items: [
-            "實裝超級噴火龍X、水箭龜、妙蛙花、耿鬼、暴鯉龍、化石翼龍與手動【💎 MEGA】按鍵。",
-            "6 位隨行訓練家全面升級 3×4 GBA 像素行走圖集與專屬戰術語音 Cut-in。"
-          ]
-        }
-      ]
-    }
-  ],
-
   openChangelogModal() {
     if (typeof SoundFX !== "undefined") SoundFX.play("hit");
     const box = document.getElementById("changelogContentBox");
     if (box) {
-      box.innerHTML = this.CHANGELOG_ENTRIES.map((entry, idx) => `
-        <div class="bg-slate-950/80 border ${idx === 0 ? 'border-amber-400/80' : 'border-slate-700'} rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between border-b border-slate-800 pb-1.5">
-            <div class="flex items-center gap-2">
-              <span class="font-pixel text-xs ${idx === 0 ? 'text-amber-300' : 'text-slate-300'}">${entry.version}</span>
-              <span class="px-2 py-0.5 rounded-full text-[9px] font-black ${idx === 0 ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'}">${entry.tag}</span>
-            </div>
-            <span class="text-[10px] font-bold text-slate-400">${entry.date}</span>
+      box.innerHTML = `
+        <div class="bg-slate-950/85 border border-cyan-400/70 rounded-2xl p-3 space-y-2 shadow-[0_0_14px_rgba(56,189,248,0.18)]">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-sm text-cyan-300">v7.1.1 視覺演出精修版</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-pixel text-[8px]">LATEST</span>
           </div>
-          ${entry.sections.map(sec => `
-            <div class="space-y-1">
-              <div class="font-black text-[11px] ${sec.color}">${sec.title}</div>
-              <ul class="space-y-1 pl-3 text-[11px] font-bold text-slate-200 list-disc leading-snug">
-                ${sec.items.map(it => `<li>${it}</li>`).join("")}
-              </ul>
-            </div>
-          `).join("")}
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-cyan-300 font-black pt-0.5">💎 MEGA 尊榮名牌升級</div>
+            <div>• 左上角玩家名牌於 Mega 進化後解鎖【慢速流動虹彩鑰石框】、💎MEGA 徽章、6 隻 Mega 專屬主題漸層名字、變身瞬間白金掃光與霸體血條微紋。</div>
+            <div class="text-amber-300 font-black pt-1">⚡ 訓練家演出強化</div>
+            <div>• 重做小智大招起手為【三拍實心精靈球】（彈出微晃 ➔ 咔噠裂開閃金光 ➔ 紅金中空氣浪），辨識度全面升級。</div>
+            <div>• 優化莎莉娜 Cut-in 必殺技字幕位置至左下角，不再遮擋右下方的仙子伊布。</div>
+            <div>• 搭配最新莉莉艾（阿羅拉全力姿態）與莎莉娜（短髮後期版）行走圖集，戰場與大招立繪 100% 統一。</div>
+          </div>
         </div>
-      `).join("");
+        <div class="bg-slate-950/75 border border-amber-400/40 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.1 體驗精修與底層強化版</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-1">✨ 全新功能</div>
+            <div>• 大廳新增【更新日誌】公告視窗，隨時掌握最新改動。</div>
+            <div>• 系統設定新增【我方技能透明度（100% / 65% / 40%）】，雙超武與無盡深淵閃彈視野更清晰。</div>
+            <div>• 全面汰換瀏覽器原生彈窗，升級統一 GBA 像素風對話框與浮動提示條。</div>
+
+            <div class="text-amber-300 font-black pt-1.5">⚖️ 戰鬥手感與穩定度</div>
+            <div>• 全面重構技能連段計時器為引擎時間驅動，完美同步 2x 倍速、暫停與進化凍結（不再吃招）。</div>
+            <div>• 優化隨行訓練家受擊寬容度，主角近戰前撲期間訓練家享有擦彈免傷保護。</div>
+            <div>• Boss 觸發高秒傷減傷軟上限時，新增六角微盾閃光視覺提示。</div>
+            <div>• 優化安全防護機制為僅桌面端啟用並提高容錯，徹底避免手機怪潮卡頓誤鎖。</div>
+
+            <div class="text-rose-300 font-black pt-1.5">🛠️ 問題修復</div>
+            <div>• 修復【超級耿鬼】污泥炸彈未正確顯示「紫紅冥界腐蝕毒沼」與【超級妙蛙花】粉紅毒沼顏色被覆蓋的問題。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 space-y-1 text-[11px] font-bold text-slate-400">
+          <div class="font-black text-slate-300">v7.0 里程碑回顧</div>
+          <div>• 6 大隨行訓練家 3×4 GBA 像素行走圖集全面實裝。</div>
+          <div>• 6 隻關都 MEGA 超級進化（含手動鑰石覺醒與專屬技能質變）上線。</div>
+          <div>• 20 招統一像素風技能圖集與全屬性濾波音效引擎上線。</div>
+        </div>
+      `;
     }
-    if (this.saveData) {
-      this.saveData.lastSeenVersion = this.APP_VERSION || "v7.1";
+    const curVer = this.APP_VERSION || "v7.1.1";
+    if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
+      this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
     }
     const modal = document.getElementById("changelogModal");
@@ -2724,22 +2696,19 @@ Object.assign(window.GameApp, {
   },
 
   pixelToast(message, tone = "info") {
-    const container = document.getElementById("pixelToastContainer");
-    if (!container) return;
-    const toneStyles = {
-      success: "bg-emerald-950/95 border-emerald-400 text-emerald-200",
-      warn: "bg-amber-950/95 border-amber-400 text-amber-200",
-      error: "bg-rose-950/95 border-rose-400 text-rose-200",
-      info: "bg-slate-900/95 border-sky-400 text-sky-200"
-    };
-    const el = document.createElement("div");
-    el.className = `px-3.5 py-2 rounded-2xl border-2 shadow-2xl text-xs font-black text-center max-w-[90vw] sm:max-w-md transition-all duration-300 ${toneStyles[tone] || toneStyles.info}`;
-    el.textContent = message;
-    container.appendChild(el);
+    const host = document.getElementById("pixelToastContainer");
+    if (!host) return;
+    const toneCls = tone === "success"
+      ? "border-emerald-400 text-emerald-200"
+      : (tone === "warn" ? "border-rose-400 text-rose-200" : "border-amber-400 text-amber-200");
+    const toast = document.createElement("div");
+    toast.className = `px-3.5 py-2 rounded-2xl bg-slate-900/95 border-2 ${toneCls} text-xs font-black shadow-2xl text-center transition-all duration-200`;
+    toast.textContent = message;
+    host.appendChild(toast);
     setTimeout(() => {
-      el.style.opacity = "0";
-      el.style.transform = "translateY(-8px)";
-      setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(-8px)";
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 220);
     }, 2400);
   },
 
@@ -2748,83 +2717,70 @@ Object.assign(window.GameApp, {
     if (!modal) return;
     const titleEl = document.getElementById("pixelDialogTitle");
     const msgEl = document.getElementById("pixelDialogMessage");
-    const inputWrap = document.getElementById("pixelDialogInputWrap");
     const inputEl = document.getElementById("pixelDialogInput");
     const cancelBtn = document.getElementById("pixelDialogCancelBtn");
-    const okBtn = document.getElementById("pixelDialogOkBtn");
+    const okBtn = document.getElementById("pixelDialogConfirmBtn");
+    const iconEl = document.getElementById("pixelDialogIcon");
 
     if (titleEl) titleEl.textContent = opts.title || "系統提示";
     if (msgEl) msgEl.textContent = opts.message || "";
-    if (inputWrap && inputEl) {
-      const showInput = !!opts.showInput;
-      inputWrap.classList.toggle("hidden", !showInput);
-      inputEl.value = opts.defaultValue || "";
-      inputEl.readOnly = !!opts.readOnly;
-      if (showInput) {
+    if (iconEl) {
+      iconEl.className = opts.mode === "confirm"
+        ? "fa-solid fa-triangle-exclamation text-rose-400 text-sm"
+        : (opts.mode === "prompt" ? "fa-solid fa-key text-sky-400 text-sm" : "fa-solid fa-circle-info text-amber-400 text-sm");
+    }
+    if (inputEl) {
+      if (opts.mode === "prompt") {
+        inputEl.classList.remove("hidden");
+        inputEl.value = opts.defaultValue || "";
         setTimeout(() => {
-          inputEl.focus();
-          if (opts.readOnly) inputEl.select();
-        }, 60);
+          try { inputEl.focus(); inputEl.select(); } catch (e) {}
+        }, 40);
+      } else {
+        inputEl.classList.add("hidden");
+        inputEl.value = "";
       }
     }
-    if (cancelBtn) {
-      cancelBtn.classList.toggle("hidden", !opts.showCancel);
-      cancelBtn.textContent = opts.cancelText || "取消";
-    }
-    if (okBtn) {
-      okBtn.textContent = opts.okText || "確定";
-    }
+    if (cancelBtn) cancelBtn.classList.toggle("hidden", opts.mode === "alert");
+    if (okBtn) okBtn.textContent = opts.okText || (opts.mode === "confirm" ? "確定執行" : "確定");
 
-    this._pixelDialogConfirmCb = opts.onConfirm || null;
-    this._pixelDialogCancelCb = opts.onCancel || null;
-
+    this._pixelDialogState = opts;
     modal.classList.remove("hidden");
     modal.style.display = "flex";
   },
 
-  confirmPixelDialog() {
+  resolvePixelDialog(confirmed) {
     const modal = document.getElementById("pixelDialogModal");
     const inputEl = document.getElementById("pixelDialogInput");
-    const val = inputEl ? inputEl.value : "";
-    const cb = this._pixelDialogConfirmCb;
-    this._pixelDialogConfirmCb = null;
-    this._pixelDialogCancelCb = null;
+    const st = this._pixelDialogState;
+    this._pixelDialogState = null;
     if (modal) {
       modal.classList.add("hidden");
       modal.style.display = "none";
     }
-    if (typeof cb === "function") cb(val);
-  },
-
-  cancelPixelDialog() {
-    const modal = document.getElementById("pixelDialogModal");
-    const cb = this._pixelDialogCancelCb;
-    this._pixelDialogConfirmCb = null;
-    this._pixelDialogCancelCb = null;
-    if (modal) {
-      modal.classList.add("hidden");
-      modal.style.display = "none";
+    if (!st) return;
+    if (confirmed) {
+      if (st.mode === "prompt") {
+        const val = inputEl ? inputEl.value : "";
+        if (typeof st.onConfirm === "function") st.onConfirm(val);
+      } else if (typeof st.onConfirm === "function") {
+        st.onConfirm();
+      }
+    } else if (typeof st.onCancel === "function") {
+      st.onCancel();
     }
-    if (typeof cb === "function") cb();
   },
 
-  pixelAlert(title, message, onOk = null) {
-    this._openPixelDialog({ title, message, showCancel: false, showInput: false, okText: "知道了", onConfirm: onOk });
+  pixelAlert(message, title = "系統提示", onOk = null) {
+    this._openPixelDialog({ mode: "alert", title, message, onConfirm: onOk });
   },
 
-  pixelConfirm(title, message, onConfirm, onCancel = null) {
-    this._openPixelDialog({ title, message, showCancel: true, showInput: false, okText: "確定執行", cancelText: "取消", onConfirm, onCancel });
+  pixelConfirm(message, title = "操作確認", onConfirm = null, onCancel = null) {
+    this._openPixelDialog({ mode: "confirm", title, message, onConfirm, onCancel });
   },
 
-  pixelPrompt(title, message, defaultValue = "", onConfirm = null, readOnly = false) {
-    this._openPixelDialog({
-      title, message, defaultValue, readOnly,
-      showCancel: !readOnly,
-      showInput: true,
-      okText: readOnly ? "關閉" : "確認匯入",
-      cancelText: "取消",
-      onConfirm
-    });
+  pixelPrompt(message, title = "請輸入內容", defaultValue = "", onConfirm = null) {
+    this._openPixelDialog({ mode: "prompt", title, message, defaultValue, onConfirm });
   },
 
   quitToTitle() {

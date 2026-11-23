@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.1",
+  APP_VERSION: "v7.1.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -50,7 +50,7 @@ window.GameApp = {
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "1.0"
+      skillAlpha: "100"
     }
   },
   spatialGrid: null,
@@ -397,6 +397,7 @@ window.GameApp = {
   // 開發者測試工具全套實裝（預設隱藏，大廳右上角閃光計數 2 秒內連點 10 次後解鎖）
   isDevToolsGuardActive() {
     if (this.debugToolsUnlocked) return false;
+    // 手機與觸控裝置停用 DevTools 輪詢偵測，徹底避免怪潮 GC 卡頓誤觸鎖屏
     if (this.isMobileDevice && this.isMobileDevice()) return false;
     try {
       const proto = window.location.protocol;
@@ -437,13 +438,18 @@ window.GameApp = {
       }
     }, true);
 
-    // 3. 輕量級 debugger 斷點陷阱 + 耗時偵測（每 1 秒檢查一次，0 FPS 損耗，切換分頁或鎖屏自動跳過防誤判）
+    // 3. 僅桌面端啟用輕量級 debugger 斷點陷阱 + 連續 3 次超時防誤判機制
+    this._devToolsStrikeCount = 0;
     setInterval(() => {
       if (!this.isDevToolsGuardActive()) {
+        this._devToolsStrikeCount = 0;
         if (this._devToolsLocked) this.releaseDevToolsGuard();
         return;
       }
-      if (document.hidden) return;
+      if (document.hidden) {
+        this._devToolsStrikeCount = 0;
+        return;
+      }
       const t0 = performance.now();
       try {
         (function(){}).constructor("debugger")();
@@ -458,7 +464,7 @@ window.GameApp = {
       } else {
         this._devToolsStrikeCount = 0;
       }
-    }, 1000);
+    }, 1200);
   },
 
   triggerDevToolsPause() {
@@ -511,7 +517,8 @@ window.GameApp = {
       (function(){}).constructor("debugger")();
     } catch (e) {}
     const dt = performance.now() - t0;
-    if (dt <= 120) {
+    if (dt <= 260) {
+      this._devToolsStrikeCount = 0;
       this.releaseDevToolsGuard();
     }
   },
@@ -1283,6 +1290,7 @@ window.GameApp = {
     this.pendingMewTimer = 0;
     this.skillDamageStats = {};
     this._lastHudIdentityKey = null;
+    this._lastWasMegaHud = false;
     this._lastHudHpTier = null;
     this._lastHudPartnerKey = null;
     this._lastHudHeldKey = null;
@@ -1522,6 +1530,11 @@ window.GameApp = {
         if (bBoxEl) {
           bBoxEl.style.borderColor = tr.bondColor || "#FBBF24";
           cutBannerImg.style.borderColor = tr.bondColor || "#FBBF24";
+          if (tr.id === "serena") {
+            bBoxEl.className = "absolute bottom-2 left-3 sm:bottom-3 sm:left-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-pink-950/95 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border-2 shadow-[0_8px_24px_rgba(0,0,0,0.95)] transform -skew-x-12 flex flex-col items-start pointer-events-none";
+          } else {
+            bBoxEl.className = "absolute bottom-2 right-3 sm:bottom-3 sm:right-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-red-950/95 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border-2 shadow-[0_8px_24px_rgba(0,0,0,0.95)] transform -skew-x-12 flex flex-col items-end pointer-events-none";
+          }
         }
         cutBannerWrap.classList.remove("cut-in-banner-active");
         void cutBannerWrap.offsetWidth;
@@ -1586,7 +1599,7 @@ window.GameApp = {
         style: "ash_pokeball_wave",
         x: p.x, y: p.y,
         radius: 155 * Math.min(1.25, p.areaMult),
-        timer: 0.48, maxTime: 0.48,
+        timer: 0.70, maxTime: 0.70,
         color: "#EF4444"
       });
       this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 28, "star");
@@ -3346,8 +3359,8 @@ window.GameApp = {
       if (e.isBoss && e.dpsBucket > 0) {
         e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * 0.12 * dt);
       }
-      if (e.softCapShieldTimer > 0) {
-        e.softCapShieldTimer = Math.max(0, e.softCapShieldTimer - dt);
+      if (e.dpsShieldFlashTimer > 0) {
+        e.dpsShieldFlashTimer = Math.max(0, e.dpsShieldFlashTimer - dt);
       }
 
       if (e.treasureType) {
@@ -3788,8 +3801,7 @@ window.GameApp = {
       const distToPoke = dist;
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
       const hitPoke = distToPoke < e.radius + 16;
-      const trainerGrazeSafe = (p.lungeTimer > 0 || p.dashTimer > 0);
-      const hitTrainer = !trainerGrazeSafe && tc && (distToTrainer < e.radius + 6);
+      const hitTrainer = tc && !(p.lungeTimer > 0) && (distToTrainer < e.radius + 5);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -4219,8 +4231,7 @@ window.GameApp = {
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
-      const trainerGrazeSafe = (p.lungeTimer > 0 || p.dashTimer > 0);
-      const hitTrainer = !trainerGrazeSafe && tc && (distToTrainer < ep.radius + 6);
+      const hitTrainer = tc && !(p.lungeTimer > 0) && (distToTrainer < ep.radius + 5);
 
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (p.multiscaleReady) {
@@ -4415,7 +4426,7 @@ window.GameApp = {
         const overflow = cappedRaw - fullRoom;
         finalDmg = Math.max(1, Math.round(fullRoom + overflow * 0.30));
         enemy.dpsBucket = softLimit;
-        enemy.softCapShieldTimer = 0.28;
+        enemy.dpsShieldFlashTimer = 0.28;
       }
     }
 
@@ -7679,28 +7690,25 @@ window.GameApp = {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
       }
 
-      if (e.isBoss && e.softCapShieldTimer > 0) {
-        const shAlpha = Math.min(1, e.softCapShieldTimer / 0.28);
-        const shR = sz * 0.46;
+      if (e.isBoss && e.dpsShieldFlashTimer > 0) {
+        const shAlpha = Math.min(0.85, (e.dpsShieldFlashTimer / 0.28) * 0.85);
+        const shR = sz * 0.52;
         ctx.save();
-        ctx.globalAlpha = shAlpha * 0.85;
+        ctx.globalAlpha = shAlpha;
         ctx.strokeStyle = "#38BDF8";
-        ctx.fillStyle = "rgba(56, 189, 248, 0.14)";
-        ctx.lineWidth = 2.6;
+        ctx.lineWidth = 3.0;
         ctx.beginPath();
-        for (let k = 0; k < 6; k++) {
-          const a = (k * Math.PI) / 3 - Math.PI / 6;
-          const hx = Math.cos(a) * shR, hy = Math.sin(a) * shR;
-          if (k === 0) ctx.moveTo(hx, hy);
-          else ctx.lineTo(hx, hy);
+        for (let h = 0; h < 6; h++) {
+          const ha = (h * Math.PI) / 3 - Math.PI / 6;
+          const hx = Math.cos(ha) * shR, hy = Math.sin(ha) * shR;
+          if (h === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
         }
         ctx.closePath();
-        ctx.fill();
         ctx.stroke();
         ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(0, 0, shR * 0.88, 0, Math.PI * 2);
+        ctx.arc(0, 0, shR * 0.88, -Math.PI * 0.75, Math.PI * 0.25);
         ctx.stroke();
         ctx.restore();
       }
@@ -8442,14 +8450,59 @@ window.GameApp = {
     if (this._lastHudIdentityKey !== identityKey) {
       this._lastHudIdentityKey = identityKey;
       document.getElementById("hudAvatar").src = SpriteCache.resolveUrl((p.isShiny && p.data.shiny_forward_sprite) ? p.data.shiny_forward_sprite : p.data.forward_sprite);
+      const isMegaHud = !!(p.megaEvolved || p.id >= 10000);
+      const wasMegaHud = !!this._lastWasMegaHud;
+      this._lastWasMegaHud = isMegaHud;
+
+      const playerCardEl = document.getElementById("hudPlayerCard");
+      if (playerCardEl) {
+        playerCardEl.classList.toggle("mega-hud-card", isMegaHud);
+        if (isMegaHud && !wasMegaHud) {
+          playerCardEl.classList.remove("mega-hud-sheen");
+          void playerCardEl.offsetWidth;
+          playerCardEl.classList.add("mega-hud-sheen");
+          setTimeout(() => playerCardEl.classList.remove("mega-hud-sheen"), 680);
+        } else if (!isMegaHud) {
+          playerCardEl.classList.remove("mega-hud-sheen");
+        }
+      }
+
       const avatarFrame = document.getElementById("hudAvatarFrame");
       if (avatarFrame) {
-        const isMegaHud = !!(p.megaEvolved || p.id >= 10000);
         avatarFrame.className = isMegaHud
           ? "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-950 rounded-xl border-2 border-cyan-400 shadow-[0_0_12px_rgba(56,189,248,0.85)] flex items-center justify-center shrink-0"
           : "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0";
       }
-      document.getElementById("hudPartnerName").textContent = p.data.name_zh;
+
+      const megaBadgeEl = document.getElementById("hudMegaBadge");
+      if (megaBadgeEl) megaBadgeEl.classList.toggle("hidden", !isMegaHud);
+
+      const partnerNameEl = document.getElementById("hudPartnerName");
+      if (partnerNameEl) {
+        partnerNameEl.textContent = p.data.name_zh;
+        if (isMegaHud) {
+          const megaThemeGrads = {
+            10034: "linear-gradient(90deg, #38BDF8 0%, #E0F2FE 55%, #67E8F9 100%)",
+            10036: "linear-gradient(90deg, #38BDF8 0%, #FEF08A 55%, #7DD3FC 100%)",
+            10033: "linear-gradient(90deg, #4ADE80 0%, #F472B6 55%, #FEF08A 100%)",
+            10038: "linear-gradient(90deg, #FB7185 0%, #C084FC 55%, #F43F5E 100%)",
+            10041: "linear-gradient(90deg, #F43F5E 0%, #38BDF8 55%, #FDA4AF 100%)",
+            10042: "linear-gradient(90deg, #FACC15 0%, #C084FC 55%, #FDE047 100%)"
+          };
+          partnerNameEl.style.backgroundImage = megaThemeGrads[p.id] || "linear-gradient(90deg, #38BDF8 0%, #C084FC 55%, #FACC15 100%)";
+          partnerNameEl.style.webkitBackgroundClip = "text";
+          partnerNameEl.style.backgroundClip = "text";
+          partnerNameEl.style.color = "transparent";
+        } else {
+          partnerNameEl.style.backgroundImage = "";
+          partnerNameEl.style.webkitBackgroundClip = "";
+          partnerNameEl.style.backgroundClip = "";
+          partnerNameEl.style.color = "#FFFFFF";
+        }
+      }
+
+      const hpBarMegaEl = document.getElementById("hudHpBar");
+      if (hpBarMegaEl) hpBarMegaEl.classList.toggle("mega-hp-bar", isMegaHud);
       const tb = document.getElementById("hudTypeBadges");
       if (tb && typeof renderTypeBadgeHTML === "function") {
         tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
