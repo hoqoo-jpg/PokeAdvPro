@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v6.9.16",
+  APP_VERSION: "v6.9.17",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -5686,13 +5686,13 @@ window.GameApp = {
           // 2. 天生三招已學齊：依「第 4 招式槽抽卡偏好」決定本系與特性優先（軟鎖保底）或全系自由混搭
           const poolMode = (this.saveData && this.saveData.settings && this.saveData.settings.fourthSlotPoolMode) || "affinity";
           const traitAffinityMap = {
-            heavy_slam:         ["Ground", "Rock", "Normal", "Fighting"],
-            quick_attack:       ["Electric", "Flying", "Normal"],
-            iron_fist:          ["Fighting", "Normal", "Ground", "Rock"],
-            mega_launcher:      ["Water", "Ice"],
+            heavy_slam:         ["Ground", "Rock", "Normal", "Fighting", "Fire", "Dragon"],
+            quick_attack:       ["Electric", "Flying", "Normal", "Fighting", "Psychic"],
+            iron_fist:          ["Fighting", "Normal", "Ground", "Rock", "Fire", "Electric"],
+            mega_launcher:      ["Water", "Ice", "Dragon", "Psychic"],
             overgrow_thorn:     ["Grass", "Poison", "Bug"],
-            dragon_maw:         ["Fire", "Dragon", "Flying"],
-            psychic_surge:      ["Psychic", "Ghost", "Poison"],
+            dragon_maw:         ["Fire", "Dragon", "Flying", "Ground"],
+            psychic_surge:      ["Psychic", "Ghost", "Poison", "Electric"],
             legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying"]
           };
           const traitId = p.innateTrait ? p.innateTrait.id : "";
@@ -5822,12 +5822,13 @@ window.GameApp = {
     const curSlots = p ? Object.keys(p.skills).length : 0;
     const maxSlots = p ? (p.maxSkillSlots || 3) : 3;
     const heldCount = p ? Object.keys(p.heldItems || {}).length : 0;
+    const totalCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
     const statusHeaderBar = p ? `
       <div class="flex items-center justify-between gap-1 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl mb-2 text-[10px] font-black">
         <span class="text-emerald-400"><i class="fa-solid fa-heart-pulse"></i> HP: ${Math.ceil(p.hp)}/${p.maxHp}</span>
-        <span class="text-sky-300"><i class="fa-solid fa-bolt"></i> 招式槽: ${curSlots}/${maxSlots}</span>
-        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶物: ${heldCount}件</span>
-        <span class="text-amber-300"><i class="fa-solid fa-coins"></i> ${this.runCoins}金</span>
+        <span class="text-sky-300"><i class="fa-solid fa-bolt"></i> 槽: ${curSlots}/${maxSlots}</span>
+        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶: ${heldCount}</span>
+        <span class="text-amber-300" title="本局獲得 ${this.runCoins} 金｜帳號總代幣 ${totalCoins.toLocaleString()} 金"><i class="fa-solid fa-coins"></i> 總 ${totalCoins.toLocaleString()}金</span>
       </div>
     ` : "";
 
@@ -5894,13 +5895,19 @@ window.GameApp = {
       `;
     }
 
-    const rerollHintHtml = `
-      <div id="levelUpRerollHint" class="pc-only-hotkey mt-2 pt-1.5 border-t border-slate-800/80 text-center text-[10px] font-bold text-slate-400">
-        鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用代幣重抽）
+    const rerollErrorHtml = `
+      <div id="levelUpRerollError" class="${!canReroll ? '' : 'hidden'} mt-2 px-2.5 py-1 rounded-xl bg-rose-950/80 border border-rose-500/60 text-center text-[10px] font-black text-rose-300">
+        ⚠️ 總代幣不足：本次重抽需 ${coinCost} 金（目前總計 ${availableCoins.toLocaleString()} 金）
       </div>
     `;
 
-    box.innerHTML = recipeBarHtml + choicesHtml + rerollHintHtml;
+    const rerollHintHtml = `
+      <div id="levelUpRerollHint" class="pc-only-hotkey mt-2 pt-1.5 border-t border-slate-800/80 text-center text-[10px] font-bold text-slate-400">
+        鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用總代幣重抽）
+      </div>
+    `;
+
+    box.innerHTML = recipeBarHtml + choicesHtml + rerollErrorHtml + rerollHintHtml;
   },
 
   rerollUpgradeChoices() {
@@ -5918,17 +5925,18 @@ window.GameApp = {
     const availableCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
 
     if (availableCoins < coinCost) {
-      const hintEl = document.getElementById("levelUpRerollHint");
-      if (hintEl) {
-        hintEl.textContent = `⚠️ 代幣不足！需要 ${coinCost} 代幣才能繼續重抽！`;
-        hintEl.classList.remove("text-slate-400");
-        hintEl.classList.add("text-rose-400", "animate-pulse");
+      const errEl = document.getElementById("levelUpRerollError");
+      if (errEl) {
+        errEl.textContent = `⚠️ 總代幣不足：本次重抽需 ${coinCost} 金（目前總計 ${availableCoins.toLocaleString()} 金）`;
+        errEl.classList.remove("hidden");
+        errEl.classList.add("animate-pulse");
       }
       return;
     }
 
     if (this.saveData) {
       this.saveData.coins = Math.max(0, (this.saveData.coins || 0) - coinCost);
+      if (this.saveToStorage) this.saveToStorage();
     }
     this.runCoins = Math.max(0, (this.runCoins || 0) - coinCost);
     this.paidRerollCount = paidCount + 1;
