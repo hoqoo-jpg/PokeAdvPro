@@ -71,6 +71,7 @@ Object.assign(window.GameApp, {
             procNoticeMode: "icon",
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
+            dragonRushStyle: "A",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
@@ -347,13 +348,31 @@ Object.assign(window.GameApp, {
     const lTrImg = document.getElementById("lobbyTrainerPreview");
     const lPkImg = document.getElementById("lobbyPokemonPreview");
     if (lTrImg && t) {
-      lTrImg.src = t.sprite;
+      const trHdUrl = t.cutin || t.sprite;
+      lTrImg.onerror = () => {
+        lTrImg.onerror = null;
+        lTrImg.src = t.sprite;
+        lTrImg.className = "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
+      };
+      lTrImg.src = SpriteCache.resolveUrl(trHdUrl);
+      lTrImg.className = t.cutin
+        ? "w-full h-full object-cover object-top"
+        : "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
       const tNameEl = document.getElementById("lobbyTrainerName");
       if (tNameEl) tNameEl.textContent = t.name;
     }
     if (lPkImg && p) {
-      lPkImg.src = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
-      lPkImg.className = "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
+      const fallbackPxUrl = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
+      const hdArtUrl = (typeof getPokemonOfficialArtworkUrl === "function")
+        ? getPokemonOfficialArtworkUrl(p.id, useShiny)
+        : fallbackPxUrl;
+      lPkImg.onerror = () => {
+        lPkImg.onerror = null;
+        lPkImg.src = fallbackPxUrl;
+        lPkImg.className = "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
+      };
+      lPkImg.src = hdArtUrl;
+      lPkImg.className = "w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.28)]";
       const pNameEl = document.getElementById("lobbyPokemonName");
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
       const starStr = starLv > 0 ? ` ${'★'.repeat(starLv)}` : '';
@@ -663,20 +682,20 @@ Object.assign(window.GameApp, {
       return `
         <div onclick="GameApp.handleTrainerCardClick('${t.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between gap-2 ${selected ? 'selected' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''}">
           <div class="space-y-2">
-            <!-- 1. 角色身分與常駐被動區 -->
-            <div class="flex items-center gap-2.5">
-              <div class="w-13 h-13 rounded-2xl bg-amber-50 border-2 border-slate-800 flex items-center justify-center shrink-0 shadow-inner">
-                <img src="${t.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-11 h-11 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="${t.name}" />
+            <!-- 1. 高清動漫特寫橫幅 ＋ 右下角局內像素預覽 ＋ 身分標籤 -->
+            <div class="relative h-24 sm:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border-2 border-slate-800 shadow-inner">
+              <img src="${t.cutin || t.sprite}" onerror="this.onerror=null;this.src='${t.sprite}';this.className='w-16 h-16 pixel-sprite object-contain mx-auto my-auto';" class="w-full h-full object-cover object-top ${!unlocked && t.isHiddenRed ? 'brightness-0 opacity-60' : ''}" alt="${t.name}" />
+              <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/95 via-slate-950/45 to-transparent pointer-events-none"></div>
+              ${selected ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full border border-white/80 shadow">✓ 出戰中</span>` : ''}
+              <div class="absolute bottom-1.5 left-2 right-12 min-w-0">
+                <div class="font-black text-xs sm:text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</div>
+                <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${t.title}</div>
               </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-1">
-                  <span class="font-black text-sm text-slate-900 truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</span>
-                  ${selected ? `<span class="px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full shrink-0">出戰中</span>` : ''}
-                </div>
-                <div class="text-[10px] font-bold text-blue-700">${t.title}</div>
-                <div class="flex flex-wrap gap-1 mt-1">${passiveHtml}</div>
+              <div class="absolute bottom-1 right-1.5 w-10 h-10 rounded-xl bg-white/95 border-2 border-slate-900 flex items-center justify-center shadow-md" title="局內像素造型預覽">
+                <img src="${t.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-8 h-8 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="Pixel" />
               </div>
             </div>
+            <div class="flex flex-wrap gap-1">${passiveHtml}</div>
 
             <!-- 2. 主動大招獨立框（名稱、CD 與效果說明整合呈現，不再斷層） -->
             <div class="rounded-xl bg-slate-900 text-white p-2 border border-slate-700 shadow-inner" style="border-left: 4px solid ${accentColor};">
@@ -1123,7 +1142,8 @@ Object.assign(window.GameApp, {
         dmgTextMode: "all",
         procNoticeMode: "icon",
         screenShake: "normal",
-        fourthSlotPoolMode: "affinity"
+        fourthSlotPoolMode: "affinity",
+            dragonRushStyle: "A"
       }
     };
   },
@@ -2314,7 +2334,8 @@ Object.assign(window.GameApp, {
         dmgTextMode: "all",
         procNoticeMode: "icon",
         screenShake: "normal",
-        fourthSlotPoolMode: "affinity"
+        fourthSlotPoolMode: "affinity",
+            dragonRushStyle: "A"
       };
     }
     return this.saveData.settings;
@@ -2381,7 +2402,8 @@ Object.assign(window.GameApp, {
       dmgTextMode: "all",
       procNoticeMode: "icon",
       screenShake: "normal",
-      fourthSlotPoolMode: "affinity"
+      fourthSlotPoolMode: "affinity",
+            dragonRushStyle: "A"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2472,6 +2494,18 @@ Object.assign(window.GameApp, {
         <div class="grid grid-cols-2 gap-1.5">
           ${renderOptionBtn("fourthSlotPoolMode", "affinity", "🎯 本系與特性優先", "優先抽本系/相性，防稀釋")}
           ${renderOptionBtn("fourthSlotPoolMode", "all", "🎲 全系自由混搭", "全屬性招式平等隨機")}
+        </div>
+      </div>
+
+      <!-- 3D. 龍之俯衝外觀實機對比開關 (方案 A vs 方案 B) -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between gap-1">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-dragon"></i> 龍之俯衝外觀對比 (A / B)</span>
+          <span class="text-[10px] font-bold text-sky-400">局內即時生效</span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${renderOptionBtn("dragonRushStyle", "A", "👻 方案 A：龍魂殘影", "精靈三連靈體殘影＋龍首")}
+          ${renderOptionBtn("dragonRushStyle", "B", "🐉 方案 B：實質巨龍", "多節扭動龍軀鱗片尾焰")}
         </div>
       </div>
 

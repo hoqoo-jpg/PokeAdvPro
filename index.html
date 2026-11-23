@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.17');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.18');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -511,7 +511,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v6.9.17
+      v6.9.18
     </div>
   </div>
 
@@ -559,11 +559,11 @@
       <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex flex-col gap-2">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
-            <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-              <img id="lobbyTrainerPreview" src="images/Ash_01.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Trainer" />
+            <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
+              <img id="lobbyTrainerPreview" src="images/cutin_ash.png" class="w-full h-full object-cover object-top" alt="Trainer" />
             </div>
-            <div class="relative w-13 h-13 sm:w-15 sm:h-15 rounded-xl bg-sky-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-              <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-11 h-11 sm:w-13 sm:h-13 pixel-sprite object-contain" alt="Pokemon" />
+            <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-sky-50 via-white to-amber-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-1">
+              <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" class="w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.28)]" alt="Pokemon" />
             </div>
           </div>
           <div class="min-w-0 flex-1">
@@ -1186,6 +1186,7 @@
         <button onclick="GameApp.debugTriggerMegaCharizardX()" class="px-1.5 py-1 bg-gradient-to-r from-sky-700 to-blue-800 border border-cyan-300 rounded text-[9px] font-black text-cyan-100 col-span-2">🔥 Mega 超級噴火龍X（蒼藍黑龍）</button>
         <button onclick="GameApp.debugTriggerMegaBlastoise()" class="px-1.5 py-1 bg-gradient-to-r from-cyan-700 to-sky-800 border border-sky-300 rounded text-[9px] font-black text-sky-100">🌊 Mega 水箭龜</button>
         <button onclick="GameApp.debugTriggerMegaVenusaur()" class="px-1.5 py-1 bg-gradient-to-r from-emerald-700 to-pink-700 border border-emerald-300 rounded text-[9px] font-black text-emerald-100">🌺 Mega 妙蛙花</button>
+        <button id="btnDebugDragonRushStyle" onclick="GameApp.debugToggleDragonRushStyle()" class="px-1.5 py-1 bg-indigo-900 border border-sky-400 rounded text-[9px] font-black text-sky-200 col-span-2">🐉 龍之俯衝外觀：方案 A（殘影）</button>
       </div>
     </div>
 
@@ -1226,7 +1227,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v6.9.17</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v6.9.18</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1268,10 +1269,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.17"></script>
-  <script src="map_v11_engine.js?v=6.9.17"></script>
-  <script src="skills_engine.js?v=6.9.17"></script>
-  <script src="battle_core_2.js?v=6.9.17"></script>
-  <script src="game_ui.js?v=6.9.17"></script>
+  <script src="pokedex_data.js?v=6.9.18"></script>
+  <script src="map_v11_engine.js?v=6.9.18"></script>
+  <script src="skills_engine.js?v=6.9.18"></script>
+  <script src="battle_core_2.js?v=6.9.18"></script>
+  <script src="game_ui.js?v=6.9.18"></script>
 </body>
 </html>

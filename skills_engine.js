@@ -4335,16 +4335,18 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.restore();
       } else if (hz.kind === "dragon_wave") {
-        // 【龍之俯衝（龍魂附身・三段階梯殘影）】：3 連階梯精靈殘像 ＋ 龍首內嵌前撲剪影 ＋ 快龍金焰 / Mega X 蒼藍冥炎
+        // 【龍之俯衝（支援 A/B 即時切換）】：方案 A = 龍魂附身三連殘影；方案 B = 實質多節扭動巨龍衝鋒
+        const rushStyle = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.dragonRushStyle) || "A";
+        const isPlanB = (rushStyle === "B");
         const lifeAlpha = Math.max(0, hz.timer / hz.maxTime);
-        const r = hz.radius;
+        const r = hz.radius * (isPlanB ? 1.12 : 1.0);
         const isKing = !!hz.isDragoniteKing;
         const isMegaX = !!hz.isMegaCharizardX;
-        const sprRec = hz.spriteUrl ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
+        const sprRec = (!isPlanB && hz.spriteUrl) ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
         const trailTint = isMegaX ? "#00F0FF" : (isKing ? "#FACC15" : "#38BDF8");
 
-        // 0. 方案 A：加法發光混合 (lighter) 3 連純能量靈體殘影（徹底消除棕色木橋上的灰褐泥印）
-        if (sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
+        // 0. 方案 A：加法發光混合 (lighter) 3 連純能量靈體殘影（方案 B 關閉殘影，改由多節實質龍軀呈現）
+        if (!isPlanB && sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
           const alphas = [0.18, 0.32, 0.48];
           const scales = [0.82, 0.92, 1.02];
           const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
@@ -4390,6 +4392,92 @@ const SkillsEngine = {
         const edgeCol = isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#7DD3FC");
         const hornCol = isMegaX ? "#0F172A" : (isKing ? "#9A3412" : "#1E1B4B");
         const eyeCol  = isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15");
+
+        // 1B. 方案 B 專屬：多節動態扭動實質巨龍軀幹 ＋ 雙層裝甲龍鱗 ＋ 背脊能量鰭刺 ＋ 烈焰龍尾鞭
+        if (isPlanB) {
+          ctx.save();
+          const segCount = 7;
+          const bodyBaseCol = isMegaX ? "#0F172A" : (isKing ? "#B45309" : "#1E1B4B");
+          const scaleMidCol = isMegaX ? "#0284C7" : (isKing ? "#F59E0B" : "#4338CA");
+          const finGlowCol  = isMegaX ? "#38BDF8" : (isKing ? "#FEF08A" : "#7DD3FC");
+          const pts = [];
+          for (let s = 0; s < segCount; s++) {
+            const frac = s / (segCount - 1);
+            const bx = -r * (0.36 + frac * 1.65);
+            const sway = Math.sin(now * 16 - s * 0.92 + hz.x * 0.02) * (r * (0.14 + frac * 0.22));
+            const segR = r * (0.42 * (1 - frac * 0.68));
+            pts.push({ x: bx, y: sway, r: segR, frac });
+          }
+
+          // 尾端尖銳流體龍焰尾鞭
+          const tailEnd = pts[pts.length - 1];
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.fillStyle = finGlowCol;
+          ctx.beginPath();
+          ctx.moveTo(tailEnd.x + 4, tailEnd.y - tailEnd.r * 0.85);
+          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y + Math.sin(now * 20) * 8, tailEnd.x - r * 0.78, tailEnd.y);
+          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y - Math.sin(now * 20) * 8, tailEnd.x + 4, tailEnd.y + tailEnd.r * 0.85);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+
+          // 由尾到頭疊繪 7 節實質龍軀鱗甲，呈現強烈 3D 前後遮擋立體感
+          for (let s = segCount - 1; s >= 0; s--) {
+            const pt = pts[s];
+            const prev = s > 0 ? pts[s - 1] : { x: r * 0.1, y: 0 };
+            const segAng = Math.atan2(prev.y - pt.y, prev.x - pt.x);
+            ctx.save();
+            ctx.translate(pt.x, pt.y);
+            ctx.rotate(segAng);
+
+            // 深色裝甲外鱗
+            ctx.fillStyle = bodyBaseCol;
+            ctx.strokeStyle = finGlowCol;
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, pt.r * 1.18, pt.r * 0.88, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // 亮色核心龍鱗切面
+            ctx.fillStyle = scaleMidCol;
+            ctx.beginPath();
+            ctx.moveTo(pt.r * 0.95, 0);
+            ctx.lineTo(-pt.r * 0.25, -pt.r * 0.62);
+            ctx.lineTo(-pt.r * 0.78, 0);
+            ctx.lineTo(-pt.r * 0.25, pt.r * 0.62);
+            ctx.closePath();
+            ctx.fill();
+
+            // 背脊雙側外掠能量鰭刺
+            if (s < segCount - 1) {
+              ctx.fillStyle = finGlowCol;
+              [-1, 1].forEach(side => {
+                ctx.beginPath();
+                ctx.moveTo(pt.r * 0.35, side * pt.r * 0.55);
+                ctx.lineTo(-pt.r * 0.65, side * pt.r * 1.25);
+                ctx.lineTo(-pt.r * 0.30, side * pt.r * 0.45);
+                ctx.closePath();
+                ctx.fill();
+              });
+            }
+            ctx.restore();
+          }
+
+          // 沿龍脊貫穿的高亮龍脈能量線
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(r * 0.10, 0);
+          pts.forEach(pt => ctx.lineTo(pt.x, pt.y));
+          ctx.stroke();
+          ctx.restore();
+          ctx.restore();
+        }
 
         // 1. 飄逸龍鬃焰尾（3 股貝茲流動龍氣鬃毛向後翻捲）
         ctx.save();
@@ -4561,7 +4649,7 @@ const SkillsEngine = {
         ctx.restore();
 
         // 5. 方案 A：移除原色複製分身，改為「純能量發光靈體剪影（外層蒼藍/金焰 ＋ 內層純白熾核）」並前傾俯衝
-        if (sprRec && sprRec.loaded) {
+        if (!isPlanB && sprRec && sprRec.loaded) {
           const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
           ctx.save();
           ctx.globalCompositeOperation = "lighter";
@@ -6307,6 +6395,52 @@ const SkillsEngine = {
         ctx.beginPath();
         ctx.arc(0, 0, s * 0.28, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
+      } else if (m.style === "ash_pokeball_wave") {
+        // 【小智大招起手・紅白精靈球光環波紋】：致敬擲球喊出「就決定是你了！」的瞬間（中空不擋敵彈）
+        const msx = toSx(m.x), msy = toSy(m.y);
+        const ease = 1 - Math.pow(1 - prog, 2.4);
+        const curR = 24 + (m.radius - 24) * ease;
+        const fade = Math.max(0, 1 - prog);
+
+        ctx.save();
+        ctx.translate(msx, msy);
+        ctx.globalAlpha = fade * 0.94;
+
+        // 上半圓：經典赤紅精靈球弧
+        ctx.strokeStyle = "#EF4444";
+        ctx.lineWidth = Math.max(2.0, 7.5 * (1 - prog * 0.45));
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, Math.PI + 0.08, -0.08);
+        ctx.stroke();
+
+        // 下半圓：純白精靈球弧
+        ctx.strokeStyle = "#F8FAFC";
+        ctx.lineWidth = Math.max(2.0, 7.5 * (1 - prog * 0.45));
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0.08, Math.PI - 0.08);
+        ctx.stroke();
+
+        // 中央深黑腰帶與發光按鈕環（隨波紋微微放大淡出）
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.lineWidth = Math.max(1.5, 4.0 * fade);
+        ctx.beginPath();
+        ctx.moveTo(-curR, 0); ctx.lineTo(-14 - ease * 10, 0);
+        ctx.moveTo(14 + ease * 10, 0); ctx.lineTo(curR, 0);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = Math.max(1.6, 3.2 * fade);
+        ctx.beginPath();
+        ctx.arc(0, 0, 12 + ease * 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 外緣耀金熱血衝擊細環
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.78)";
+        ctx.lineWidth = 2.2 * fade;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 1.12, 0, Math.PI * 2);
+        ctx.stroke();
         ctx.restore();
       } else if (m.style === "slam_wave") {
         const msx = toSx(m.x), msy = toSy(m.y);

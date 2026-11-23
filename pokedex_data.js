@@ -669,6 +669,13 @@ const POKEMON_DB = [
   { id: 151, name_zh: "夢幻", type1: "Psychic", type2: "None", hp: 220, atk: 100, speed: 100, skill: "Metronome", weightTier: "boss", kbResist: 1.0, evo_level: "None", evo_to: null }
 ];
 
+function getPokemonOfficialArtworkUrl(pokeId, isShiny = false) {
+  if (!pokeId) return "";
+  return isShiny
+    ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/shiny/${pokeId}.png`
+    : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokeId}.png`;
+}
+
 POKEMON_DB.forEach(p => {
   p.forward_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/${p.id}.png`;
   p.back_sprite = `https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/back/${p.id}.png`;

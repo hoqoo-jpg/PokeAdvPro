@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v6.9.17",
+  APP_VERSION: "v6.9.18",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -48,7 +48,8 @@ window.GameApp = {
       dmgTextMode: "all",
       procNoticeMode: "icon",
       screenShake: "normal",
-      fourthSlotPoolMode: "affinity"
+      fourthSlotPoolMode: "affinity",
+      dragonRushStyle: "A"
     }
   },
   spatialGrid: null,
@@ -720,6 +721,21 @@ window.GameApp = {
     this.startEvolutionMoment(10033, false, null, true);
   },
 
+  debugToggleDragonRushStyle() {
+    const s = this.ensureSettingsObject ? this.ensureSettingsObject() : (this.saveData.settings || (this.saveData.settings = {}));
+    s.dragonRushStyle = (s.dragonRushStyle === "B") ? "A" : "B";
+    const isB = s.dragonRushStyle === "B";
+    const btn = document.getElementById("btnDebugDragonRushStyle");
+    if (btn) {
+      btn.textContent = isB ? "🐉 龍之俯衝外觀：方案 B（實質巨龍）" : "🐉 龍之俯衝外觀：方案 A（殘影）";
+    }
+    if (this.saveToStorage) this.saveToStorage();
+    if (this.player) {
+      this.spawnFloatingText(this.player.x, this.player.y - 30, isB ? "🐉 龍之俯衝切換：方案 B（多節實質巨龍）" : "👻 龍之俯衝切換：方案 A（龍魂殘影）", "#38BDF8", 13);
+    }
+    SoundFX.play("hit");
+  },
+
   debugSpawnTreasureMob(kind) {
     if (!this.player) return;
     this.spawnTreasureMonster(kind);
@@ -1324,6 +1340,10 @@ window.GameApp = {
     this.secretMewSpawned = false;
     this.kills = 0;
     this.runCoins = 0;
+    this.runGemsCollected = 0;
+    this.lastGemCollectTime = 0;
+    this.gemGuideRemindCount = 0;
+    this.gemGuideActive = false;
     this.timeScale = 1;
 
     document.getElementById("speedToggleText").textContent = "1x";
@@ -1521,8 +1541,15 @@ window.GameApp = {
       healPct = 0.18;
       p.buffTimer = 6.0;
       p.maxBuffTimer = 6.0;
+      SkillsEngine.meleeEffects.push({
+        style: "ash_pokeball_wave",
+        x: p.x, y: p.y,
+        radius: 155 * Math.min(1.25, p.areaMult),
+        timer: 0.48, maxTime: 0.48,
+        color: "#EF4444"
+      });
       this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 28, "star");
-      this.spawnFloatingText(p.x, p.y - 35, "就決定是你了! 全攻速暴擊UP!", "#F59E0B", 15);
+      this.spawnFloatingText(p.x, p.y - 35, "⚡ 就決定是你了! 命運羈絆全開!", "#FACC15", 15);
     } else if (tr.id === "misty") {
       healPct = 0.24;
       const waveDmg = (48 + p.baseAtk * 1.1) * p.dmgMult;
@@ -1888,7 +1915,21 @@ window.GameApp = {
     }
     if (p.buffTimer > 0) {
       p.buffTimer -= dt;
-      if (this.selectedTrainer && this.selectedTrainer.id === "red") {
+      if (this.selectedTrainer && this.selectedTrainer.id === "ash") {
+        p._ashSparkTick = (p._ashSparkTick || 0) - dt;
+        if (p._ashSparkTick <= 0) {
+          p._ashSparkTick = 0.15;
+          const aa = Math.random() * Math.PI * 2;
+          const ax = p.x + Math.cos(aa) * (18 + Math.random() * 10);
+          const ay = p.y + 10 + Math.sin(aa) * 6;
+          SkillsEngine.spawnSubParticle(
+            ax, ay,
+            (Math.random() - 0.5) * 18, -48 - Math.random() * 24,
+            Math.random() < 0.5 ? "#FACC15" : (Math.random() < 0.5 ? "#FFFFFF" : "#FB923C"),
+            2.8, 0.36, "star"
+          );
+        }
+      } else if (this.selectedTrainer && this.selectedTrainer.id === "red") {
         p._redChampSparkTick = (p._redChampSparkTick || 0) - dt;
         if (p._redChampSparkTick <= 0) {
           p._redChampSparkTick = 0.16;
@@ -4754,6 +4795,9 @@ window.GameApp = {
         if (this.saveData && this.saveData.stats) {
           this.saveData.stats.gemsCollected = (this.saveData.stats.gemsCollected || 0) + 1;
         }
+        this.runGemsCollected = (this.runGemsCollected || 0) + 1;
+        this.lastGemCollectTime = this.runTime || 0;
+        this.gemGuideActive = false;
         SoundFX.play("gem");
         this.gainExp(g.val);
       }
@@ -6489,7 +6533,7 @@ window.GameApp = {
     });
 
     const gemNow = performance.now() * 0.0052;
-    const needGemGuide = !!(this.saveData && this.saveData.stats && (this.saveData.stats.gemsCollected || 0) < 3);
+    let visibleUnmagGems = 0;
     let nearestGuideGem = null;
     let nearestGuideDistSq = Infinity;
 
@@ -6501,7 +6545,8 @@ window.GameApp = {
       const bobY = Math.sin(phase) * 2.4;
       const shScale = 1 - Math.max(0, -bobY) * 0.05;
 
-      if (needGemGuide && this.player && sx > 36 && sx < this.width - 36 && sy > 76 && sy < this.height - 80) {
+      if (this.player && sx > 36 && sx < this.width - 36 && sy > 76 && sy < this.height - 80) {
+        if (!g.magnetized) visibleUnmagGems += 1;
         const dSq = (g.x - this.player.x) ** 2 + (g.y - this.player.y) ** 2;
         if (dSq < nearestGuideDistSq) {
           nearestGuideDistSq = dSq;
@@ -6990,19 +7035,28 @@ window.GameApp = {
         else if (tc.facingX < 0) row = 1;
         else if (tc.facingX > 0) row = 2;
 
-        // GBA 經典 4 拍 3 幀步態循環：站立(1) -> 左步(0) -> 站立(1) -> 右步(2)
-        const col = isMoving ? [1, 0, 1, 2][Math.floor(tc.walkBob * 0.52) % 4] : 1;
+        // GBA 經典 4 拍 3 幀步態循環：略微加快節奏，並為正面(下)/背面(上)補上同步踏步起伏與左右輕擺，消除滑步感
+        const isVerticalWalk = (row === 0 || row === 3);
+        const stepPhase = Math.floor(tc.walkBob * 0.64) % 4;
+        const col = isMoving ? [1, 0, 1, 2][stepPhase] : 1;
         const sx = col * cellW;
         const sy = row * cellH;
         const drawW = 56, drawH = 56;
+
+        const isStriding = isMoving && (col === 0 || col === 2);
+        const stepLift = isStriding ? (isVerticalWalk ? -2.8 : -1.6) : 0;
+        const stepTilt = (isMoving && isVerticalWalk) ? (col === 0 ? -0.055 : (col === 2 ? 0.055 : 0)) : 0;
+        const landSquashX = (isMoving && !isStriding && isVerticalWalk) ? 1.035 : 1.0;
+        const landSquashY = (isMoving && !isStriding && isVerticalWalk) ? 0.965 : 1.0;
 
         ctx.save();
         ctx.imageSmoothingEnabled = false;
 
         if (tInWater) {
-          const waterBob = isMoving ? Math.abs(Math.sin(tc.walkBob)) * 1.2 : 0;
+          const waterBob = isMoving ? Math.abs(Math.sin(tc.walkBob * 1.15)) * 1.6 : 0;
           ctx.translate(tsx, tsy - waterBob + (tc.jumpY || 0) + 14);
           ctx.save();
+          if (stepTilt !== 0) ctx.rotate(stepTilt * 0.6);
           ctx.beginPath();
           ctx.rect(-28, -32, 56, 37);
           ctx.clip();
@@ -7013,13 +7067,17 @@ window.GameApp = {
           ctx.restore();
           drawPixelWaterlineFoam(5, 17, 1.2);
         } else {
-          ctx.translate(tsx, tsy + 20 + (tc.jumpY || 0));
+          ctx.translate(tsx, tsy + 20 + stepLift + (tc.jumpY || 0));
+          ctx.save();
+          if (stepTilt !== 0) ctx.rotate(stepTilt);
+          if (landSquashX !== 1.0) ctx.scale(landSquashX, landSquashY);
           ctx.drawImage(img, sx, sy, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
           if (tc.whiteFlashTimer > 0) {
             this.drawSilhouetteFlash(ctx, img, -drawW / 2, -drawH, drawW, drawH, "#FF6B4A", 0.70, sx, sy, cellW, cellH);
           }
+          ctx.restore();
           if (tInGrass) {
-            drawPixelGrassOverlay(tc.x, tc.y, 2, [-12, 0, 12]);
+            drawPixelGrassOverlay(tc.x, tc.y, 2 - stepLift, [-12, 0, 12]);
           }
         }
         ctx.restore();
@@ -7323,6 +7381,78 @@ window.GameApp = {
           ctx.lineDashOffset = -rNow * 14;
           ctx.beginPath();
           ctx.ellipse(px, py + 15, 29, 10.5, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else if (this.selectedTrainer && this.selectedTrainer.id === "ash") {
+          // 【小智・就決定是你了！6秒命運羈絆雙層金紅疾風環 ＋ 訓練家⇄精靈羈絆電光連線（中空不遮敵彈）】
+          const aNow = performance.now() * 0.007;
+          ctx.save();
+
+          // 1. 訓練家 ⇄ 寶可夢「命運羈絆電光連線」
+          if (this.trainerCompanion) {
+            const tc = this.trainerCompanion;
+            const tx = toSx(tc.x), ty = toSy(tc.y) - 2;
+            const dx = px - tx, dy = py - ty;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 14 && dist < 340) {
+              const ux = dx / dist, uy = dy / dist;
+              const nx = -uy, ny = ux;
+              ctx.save();
+              ctx.globalCompositeOperation = "lighter";
+              // 外層暖橘羈絆光流
+              ctx.strokeStyle = "rgba(245, 158, 11, 0.58)";
+              ctx.lineWidth = 4.2;
+              ctx.lineCap = "round";
+              ctx.beginPath();
+              for (let s = 0; s <= 10; s++) {
+                const frac = s / 10;
+                const jag = (s === 0 || s === 10) ? 0 : Math.sin(aNow * 5 + s * 2.3) * 5.5;
+                const bx = tx + dx * frac + nx * jag;
+                const by = ty + dy * frac + ny * jag;
+                if (s === 0) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
+              }
+              ctx.stroke();
+              // 內層耀金純白電光芯
+              ctx.strokeStyle = "#FEF08A";
+              ctx.lineWidth = 1.8;
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+
+          // 2. 腳底中空金紅熱血微暈
+          const aGrad = ctx.createRadialGradient(px, py + 15, 14, px, py + 15, 34);
+          aGrad.addColorStop(0, "rgba(245, 158, 11, 0.0)");
+          aGrad.addColorStop(0.62, "rgba(239, 68, 68, 0.18)");
+          aGrad.addColorStop(0.92, "rgba(250, 204, 21, 0.28)");
+          aGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
+          ctx.fillStyle = aGrad;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 15, 34, 12.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 3. 外圈耀金剩餘時間倒數環
+          ctx.strokeStyle = "rgba(250, 204, 21, 0.92)";
+          ctx.lineWidth = 3.4;
+          ctx.beginPath();
+          ctx.arc(px, py + 12, 27, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
+          ctx.stroke();
+
+          // 4. 雙層交錯逆向旋轉金紅疾風虛線環
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.88)";
+          ctx.lineWidth = 2.0;
+          ctx.setLineDash([8, 6]);
+          ctx.lineDashOffset = -aNow * 18;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 16, 30, 11, 0, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = "rgba(254, 240, 138, 0.88)";
+          ctx.lineWidth = 1.6;
+          ctx.setLineDash([6, 8]);
+          ctx.lineDashOffset = aNow * 22;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 16, 23, 8.2, 0, 0, Math.PI * 2);
           ctx.stroke();
           ctx.restore();
         } else {
@@ -7948,8 +8078,18 @@ window.GameApp = {
       ctx.restore();
     });
 
-    // 新手首 3 顆經驗寶石場內引導：於最近可見寶石上方顯示彈跳「▼ 撿取升級!」，撿滿 3 顆自動永久消失
-    if (nearestGuideGem) {
+    // 智慧防遺忘經驗水晶引導：新手首 3 顆必顯示；老玩家每局開局滿 10 秒未撿或局中 20 秒未撿且場上累積 ≥ 5 顆時喚醒（單局上限 2 次）
+    if (!this.gemGuideActive && (this.gemGuideRemindCount || 0) < 2 && visibleUnmagGems > 0) {
+      const openingMissed = ((this.runGemsCollected || 0) === 0 && (this.runTime || 0) >= 10);
+      const midRunIdle = ((this.runGemsCollected || 0) > 0 && ((this.runTime || 0) - (this.lastGemCollectTime || 0)) >= 20 && visibleUnmagGems >= 5);
+      if (openingMissed || midRunIdle) {
+        this.gemGuideActive = true;
+        this.gemGuideRemindCount = (this.gemGuideRemindCount || 0) + 1;
+      }
+    }
+    const isNewbieGemGuide = !!(this.saveData && this.saveData.stats && (this.saveData.stats.gemsCollected || 0) < 3);
+    const shouldShowGemGuide = !!nearestGuideGem && (isNewbieGemGuide || !!this.gemGuideActive);
+    if (shouldShowGemGuide) {
       const bounce = Math.abs(Math.sin(performance.now() * 0.0075)) * 6;
       const gx = nearestGuideGem.sx;
       const gy = nearestGuideGem.sy - nearestGuideGem.s - 12 - bounce;
