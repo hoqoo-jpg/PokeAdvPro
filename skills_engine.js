@@ -539,7 +539,8 @@ const SkillsEngine = {
           hazardDurMult: trait.psychicHazardDurMult || 1.0,
           dmg: rawDmg * 0.85,
           type: "Poison", skillId: "Sludge Bomb", vfx: "sludge_lob",
-          color: "#9333EA", pierce: 99, knockback: 4,
+          isMegaGengarPuddle: !!(caster && caster.id === 10038),
+          color: (caster && caster.id === 10038) ? "#E11D48" : "#9333EA", pierce: 99, knockback: 4,
           life: flightTime, maxLife: flightTime,
           statusBonus: level >= 5 ? 0.45 : 0.25,
           hitSet: new Set(), trailTimer: 0
@@ -650,6 +651,7 @@ const SkillsEngine = {
           type: "Fire",
           skillId: "Ember",
           vfx: "ember_spark",
+          isMegaBlueFlame: !!(caster && caster.id === 10034),
           homing: false,
           color: "#F97316",
           pierce: level >= 6 ? 3 : 2,
@@ -748,9 +750,10 @@ const SkillsEngine = {
     // 2F. 水炮 (Hydro Pump) — 水箭龜 (#009) 雙肩平行重炮 ／ 超級水箭龜 (#10036) 背甲巨型主炮＋雙腕副炮三管齊射
     if (cleanSkillId === "HydroPump") {
       const isMegaBlastoise = !!(caster && caster.id === 10036);
-      const isBlastoise = !!(caster && (caster.id === 9 || caster.id === 10036));
-      const isOverpressure = (level >= 8) || isMegaBlastoise;
-      const beamCount = isMegaBlastoise ? 3 : (isBlastoise ? 2 : Math.min(2, count));
+      const isMegaGyarados = !!(caster && caster.id === 10041);
+      const isBlastoise = !!(caster && (caster.id === 9 || caster.id === 10036 || caster.id === 10041));
+      const isOverpressure = (level >= 8) || isMegaBlastoise || isMegaGyarados;
+      const beamCount = isMegaBlastoise ? 3 : ((isBlastoise || isMegaGyarados) ? 2 : Math.min(2, count));
       const traitSizeMult = 1 + (trait.megaLauncherSizeBonus || 0) + (trait.legendaryAreaBonus || 0);
       const traitKbMult = 1 + (trait.megaLauncherKbBonus || 0);
       const beamLength = Math.min(this.getBeamLengthCap("HydroPump") + (isMegaBlastoise ? 22 : 0), (205 + level * 8) * Math.min(1.52, GameApp.player.areaMult * (isOverpressure ? 1.18 : 1.0) * (1 + (trait.megaLauncherSizeBonus || 0) * 0.5)));
@@ -904,7 +907,9 @@ const SkillsEngine = {
     const isCloseQuarters = targetDist < 75;
 
     const isMegaWaterGun = !!(cleanSkillId === "WaterGun" && caster && caster.id === 10036);
-    const loopCount = isMegaWaterGun ? Math.max(3, count + 1) : count;
+    const isMegaGengarShadow = !!(cleanSkillId === "ShadowBall" && caster && caster.id === 10038);
+    const isMegaAeroBlade = !!(cleanSkillId === "AirSlash" && caster && caster.id === 10042);
+    const loopCount = (isMegaWaterGun || isMegaGengarShadow || isMegaAeroBlade) ? Math.max(3, count + 1) : count;
     for (let i = 0; i < loopCount; i++) {
       const spread = loopCount > 1 ? (i - (loopCount - 1) / 2) * (isMegaWaterGun ? 0.14 : 0.16) : (cleanSkillId === "Ember" ? (Math.random() - 0.5) * 0.14 : 0);
       const ang = baseAngle + spread;
@@ -946,8 +951,11 @@ const SkillsEngine = {
         type: meta.type,
         skillId,
         vfx: meta.vfx || "star_shot",
+        isMegaGengarShadow,
+        isMegaAeroBlade,
+        extraCritBonus: (isMegaGengarShadow || isMegaAeroBlade) ? 0.20 : 0,
         homing: isHoming,
-        color: meta.color,
+        color: isMegaGengarShadow ? "#E11D48" : (isMegaAeroBlade ? "#F59E0B" : meta.color),
         pierce: (isBoomerang ? (level >= 6 ? 6 : 4) : ((level >= 6 ? 3 : 2) + (cleanSkillId === "IceBeam" ? 1 : 0))) + traitPierceBonus,
         knockback: (meta.knockback !== undefined ? meta.knockback : 0) * traitKbMult,
         life: isBoomerang ? 0.92 : 0.88,
@@ -1282,7 +1290,8 @@ const SkillsEngine = {
 
     // 2. 地震專屬：範圍軟上限（基礎 125px / 終結 150px）＋ 類空手劈「輕踏 ➔ 停頓高跳終結重踏」節奏
     if (style === "quake_wave") {
-      const quakeScale = Math.min(1.45, areaScale * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75));
+      const megaAeroQuakeMod = (caster && caster.id === 10042) ? 1.15 : 1.0;
+      const quakeScale = Math.min(1.55, areaScale * megaAeroQuakeMod * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75));
       const baseRad = Math.min(125, (80 + level * 3.5) * quakeScale);
       const quakeKb = kb * (1 + (trait.tackleQuakeKbBonus || 0));
       const totalWaves = Math.min(3, Math.max(1, count));
@@ -1383,25 +1392,23 @@ const SkillsEngine = {
       }
       const isDragonite = !!(caster && caster.id === 149);
       const isMegaX = !!(caster && caster.id === 10034);
-      const dSprUrl = (caster.data && (caster.facingY < 0 ? caster.data.back_sprite : caster.data.forward_sprite)) || null;
+      const isMegaGyara = !!(caster && caster.id === 10041);
+      const isEliteDragon = isDragonite || isMegaX || isMegaGyara;
       const isMob = typeof GameApp !== "undefined" && GameApp.isMobileDevice && GameApp.isMobileDevice();
       const maxVisualR = isMob ? 56 : 64;
-      const baseR = (isDragonite || isMegaX) ? 38 : 32;
+      const baseR = isEliteDragon ? 38 : 32;
       const lvGrow = 1 + (Math.max(1, level) - 1) * 0.042;
       const finalR = Math.min(maxVisualR, baseR * lvGrow * Math.min(1.28, GameApp.player.areaMult * (1 + (trait.dragonMawAreaBonus || 0) * 0.45)));
-      const speedVal = 275 + Math.max(1, level) * 9 + ((isDragonite || isMegaX) ? 32 : 0);
-      const durVal = 0.68 + Math.max(1, level) * 0.026 + ((isDragonite || isMegaX) ? 0.08 : 0);
-      const singleDmgMult = 0.96 + (level >= 6 ? 0.28 : 0) + ((isDragonite || isMegaX) ? 0.30 : 0);
+      const speedVal = 275 + Math.max(1, level) * 9 + (isEliteDragon ? 32 : 0);
+      const durVal = 0.68 + Math.max(1, level) * 0.026 + (isEliteDragon ? 0.08 : 0);
+      const singleDmgMult = 0.96 + (level >= 6 ? 0.28 : 0) + (isEliteDragon ? 0.30 : 0);
 
       this.groundHazards.push({
         kind: "dragon_wave",
         isDragoniteKing: isDragonite,
         isMegaCharizardX: isMegaX,
-        spriteUrl: dSprUrl,
-        isShiny: !!caster.isShiny,
+        isMegaGyarados: isMegaGyara,
         facingX: Math.cos(baseAngle) >= 0 ? 1 : -1,
-        afterimages: [],
-        afterimageTimer: 0.02,
         x: caster.x + Math.cos(baseAngle) * 18,
         y: caster.y + Math.sin(baseAngle) * 18,
         vx: Math.cos(baseAngle) * speedVal,
@@ -1414,7 +1421,7 @@ const SkillsEngine = {
         maxTime: durVal,
         tickTimer: 0.01,
         tickInterval: 0.14,
-        color: isMegaX ? "#0EA5E9" : (isDragonite ? "#F59E0B" : "#4338CA")
+        color: isMegaGyara ? "#F43F5E" : (isMegaX ? "#0EA5E9" : (isDragonite ? "#F59E0B" : "#4338CA"))
       });
       SoundFX.play("hit", "Dragon");
       return;
@@ -1783,6 +1790,7 @@ const SkillsEngine = {
         const ty = p.y + Math.sin(ang) * dist;
         this.groundHazards.push({
           kind: "meteor_strike",
+          isMegaBlueFlame: !!(p && p.id === 10034),
           x: tx, y: ty,
           startX: tx + 20, startY: ty - 185,
           radius: meteorR,
@@ -2109,7 +2117,8 @@ const SkillsEngine = {
       if (pr.trailTimer <= 0) {
         pr.trailTimer = 0.045;
         if (pr.vfx === "ember_spark") {
-          this.spawnSubParticle(pr.x + (Math.random() - 0.5) * 6, pr.y + (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 28, -22 - Math.random() * 24, Math.random() < 0.5 ? "#FEF08A" : "#F97316", 2.2, 0.22, "diamond");
+          const embTCol = pr.isMegaBlueFlame ? (Math.random() < 0.5 ? "#E0F2FE" : "#38BDF8") : (Math.random() < 0.5 ? "#FEF08A" : "#F97316");
+          this.spawnSubParticle(pr.x + (Math.random() - 0.5) * 6, pr.y + (Math.random() - 0.5) * 6, (Math.random() - 0.5) * 28, -22 - Math.random() * 24, embTCol, 2.2, 0.22, "diamond");
         } else if (pr.vfx === "water_gun") {
           this.spawnSubParticle(pr.x - pr.vx * 0.02, pr.y - pr.vy * 0.02, (Math.random() - 0.5) * 16, (Math.random() - 0.5) * 16, "#BAE6FD", 2.0, 0.18, "circle");
         } else if (pr.vfx === "fire_stream") {
@@ -2137,7 +2146,7 @@ const SkillsEngine = {
         const rSum = tightRadius + e.radius * 0.9;
         if (dx * dx + dy * dy <= rSum * rSum) {
           pr.hitSet.add(e);
-          GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0);
+          GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
           this.spawnElementalHitSpark(e.x, e.y, pr.type);
           if ((pr.vfx === "shadow_orb" || pr.skillId === "Shadow Ball") && !(GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.55)) {
             this.meleeEffects.push({
@@ -2154,7 +2163,8 @@ const SkillsEngine = {
             for (let cp = 0; cp < 5; cp++) {
               const ca = Math.random() * Math.PI * 2;
               const cs = 55 + Math.random() * 65;
-              this.spawnSubParticle(e.x, e.y, Math.cos(ca) * cs, Math.sin(ca) * cs - 18, cp % 2 === 0 ? "#FEF08A" : "#EF4444", 2.6 + Math.random() * 1.1, 0.22, "diamond");
+              const popCol = pr.isMegaBlueFlame ? (cp % 2 === 0 ? "#E0F2FE" : "#0EA5E9") : (cp % 2 === 0 ? "#FEF08A" : "#EF4444");
+              this.spawnSubParticle(e.x, e.y, Math.cos(ca) * cs, Math.sin(ca) * cs - 18, popCol, 2.6 + Math.random() * 1.1, 0.22, "diamond");
             }
           } else if (pr.vfx === "bullet_seed") {
             // 種子機關槍命中：補上細碎翠綠＋深褐爆殼微粒
@@ -2454,7 +2464,8 @@ const SkillsEngine = {
           });
           for (let k = 0; k < 6; k++) {
             const a = (k * Math.PI * 2) / 6;
-            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * 65, Math.sin(a) * 65, k % 2 === 0 ? "#38BDF8" : "#FDE047", 3.5, 0.32, "star");
+            const mc = hz.isMegaBlueFlame ? (k % 2 === 0 ? "#00F0FF" : "#E0F2FE") : (k % 2 === 0 ? "#38BDF8" : "#FDE047");
+            this.spawnSubParticle(hz.x, hz.y, Math.cos(a) * 65, Math.sin(a) * 65, mc, 3.5, 0.32, "star");
           }
           [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)].forEach(e => {
             if (e && e.hp > 0 && Math.hypot(e.x - hz.x, e.y - hz.y) <= hz.radius + e.radius) {
@@ -2694,7 +2705,7 @@ const SkillsEngine = {
                 }
               }
               const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora" || hz.kind === "serena_stage") ? -0.28 : -0.08);
-              const megaToughClawsCrit = (hz.kind === "dragon_wave" && hz.isMegaCharizardX) ? 0.25 : 0;
+              const megaToughClawsCrit = (hz.kind === "dragon_wave" && hz.isMegaCharizardX) ? 0.25 : ((hz.kind === "dragon_wave" && hz.isMegaGyarados) ? 0.20 : 0);
               GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2, megaToughClawsCrit);
               // 超級噴火龍X (#10034) 硬爪＋藍焰聯動：龍之俯衝命中必定掛上灼傷，完美觸發猛火龍威增傷
               if (hz.kind === "dragon_wave" && hz.isMegaCharizardX && e.hp > 0 && !checkStatusImmunity(e, "Burn")) {
@@ -4335,35 +4346,12 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.restore();
       } else if (hz.kind === "dragon_wave") {
-        // 【龍之俯衝（支援 A/B 即時切換）】：方案 A = 龍魂附身三連殘影；方案 B = 實質多節扭動巨龍衝鋒
-        const rushStyle = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.dragonRushStyle) || "A";
-        const isPlanB = (rushStyle === "B");
+        // 【龍之俯衝（v7.0 定案正式版）】：7 節動態扭動裝甲實質巨龍 ＋ 雙層龍鱗鰭刺 ＋ 烈焰龍尾鞭 ＋ 流線貝茲龍首 ＋ V 字破空音爆
         const lifeAlpha = Math.max(0, hz.timer / hz.maxTime);
-        const r = hz.radius * (isPlanB ? 1.12 : 1.0);
+        const r = hz.radius * 1.12;
         const isKing = !!hz.isDragoniteKing;
         const isMegaX = !!hz.isMegaCharizardX;
-        const sprRec = (!isPlanB && hz.spriteUrl) ? (hz.isShiny ? SpriteCache.getShiny(hz.spriteUrl) : SpriteCache.get(hz.spriteUrl)) : null;
-        const trailTint = isMegaX ? "#00F0FF" : (isKing ? "#FACC15" : "#38BDF8");
-
-        // 0. 方案 A：加法發光混合 (lighter) 3 連純能量靈體殘影（方案 B 關閉殘影，改由多節實質龍軀呈現）
-        if (!isPlanB && sprRec && sprRec.loaded && hz.afterimages && hz.afterimages.length > 0) {
-          const alphas = [0.18, 0.32, 0.48];
-          const scales = [0.82, 0.92, 1.02];
-          const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
-          const totalAI = hz.afterimages.length;
-          for (let ai = 0; ai < totalAI; ai++) {
-            const pt = hz.afterimages[ai];
-            const idxMap = Math.min(2, ai + (3 - totalAI));
-            const asx = toSx(pt.x), asy = toSy(pt.y) - 6;
-            ctx.save();
-            ctx.globalCompositeOperation = "lighter";
-            ctx.translate(asx, asy);
-            ctx.rotate(leanAngle);
-            ctx.scale((hz.facingX > 0 ? -1 : 1) * scales[idxMap] * 1.14, scales[idxMap] * 0.88);
-            GameApp.drawSilhouetteFlash(ctx, sprRec.img, -24, -22, 48, 48, trailTint, lifeAlpha * alphas[idxMap]);
-            ctx.restore();
-          }
-        }
+        const isMegaGyara = !!hz.isMegaGyarados;
 
         // 主體抬升 6px 與地面暗影拉開俯衝高度差
         ctx.save();
@@ -4373,10 +4361,13 @@ const SkillsEngine = {
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = lifeAlpha;
 
-        // 【方案一：流線貝茲真・龍首氣場 ＋ 破空 V 字音爆 ＋ 動態鋸齒電弧】
         const dWave = Math.sin(now * 16 + hz.x * 0.04) * 3.5;
         const gradMain = ctx.createLinearGradient(-r * 1.0, 0, r * 1.15, 0);
-        if (isMegaX) {
+        if (isMegaGyara) {
+          gradMain.addColorStop(0, "rgba(15, 23, 42, 0.25)");
+          gradMain.addColorStop(0.45, "rgba(190, 18, 60, 0.58)");
+          gradMain.addColorStop(1, "rgba(251, 113, 133, 0.88)");
+        } else if (isMegaX) {
           gradMain.addColorStop(0, "rgba(14, 116, 144, 0.18)");
           gradMain.addColorStop(0.45, "rgba(2, 132, 199, 0.52)");
           gradMain.addColorStop(1, "rgba(34, 211, 238, 0.85)");
@@ -4389,17 +4380,17 @@ const SkillsEngine = {
           gradMain.addColorStop(0.45, "rgba(56, 189, 248, 0.50)");
           gradMain.addColorStop(1, "rgba(103, 232, 249, 0.84)");
         }
-        const edgeCol = isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#7DD3FC");
-        const hornCol = isMegaX ? "#0F172A" : (isKing ? "#9A3412" : "#1E1B4B");
-        const eyeCol  = isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15");
+        const edgeCol = isMegaGyara ? "#FDA4AF" : (isMegaX ? "#67E8F9" : (isKing ? "#FEF08A" : "#7DD3FC"));
+        const hornCol = isMegaGyara ? "#0F172A" : (isMegaX ? "#0F172A" : (isKing ? "#9A3412" : "#1E1B4B"));
+        const eyeCol  = isMegaGyara ? "#FACC15" : (isMegaX ? "#EF4444" : (isKing ? "#38BDF8" : "#FACC15"));
 
-        // 1B. 方案 B 專屬：多節動態扭動實質巨龍軀幹 ＋ 雙層裝甲龍鱗 ＋ 背脊能量鰭刺 ＋ 烈焰龍尾鞭
-        if (isPlanB) {
+        // 1A. 7 節動態扭動實質巨龍軀幹 ＋ 雙層裝甲龍鱗 ＋ 背脊能量鰭刺 ＋ 烈焰龍尾鞭
+        {
           ctx.save();
           const segCount = 7;
-          const bodyBaseCol = isMegaX ? "#0F172A" : (isKing ? "#B45309" : "#1E1B4B");
-          const scaleMidCol = isMegaX ? "#0284C7" : (isKing ? "#F59E0B" : "#4338CA");
-          const finGlowCol  = isMegaX ? "#38BDF8" : (isKing ? "#FEF08A" : "#7DD3FC");
+          const bodyBaseCol = isMegaGyara ? "#0F172A" : (isMegaX ? "#0F172A" : (isKing ? "#B45309" : "#1E1B4B"));
+          const scaleMidCol = isMegaGyara ? "#E11D48" : (isMegaX ? "#0284C7" : (isKing ? "#F59E0B" : "#4338CA"));
+          const finGlowCol  = isMegaGyara ? "#FACC15" : (isMegaX ? "#38BDF8" : (isKing ? "#FEF08A" : "#7DD3FC"));
           const pts = [];
           for (let s = 0; s < segCount; s++) {
             const frac = s / (segCount - 1);
@@ -4648,17 +4639,6 @@ const SkillsEngine = {
         ctx.restore();
         ctx.restore();
 
-        // 5. 方案 A：移除原色複製分身，改為「純能量發光靈體剪影（外層蒼藍/金焰 ＋ 內層純白熾核）」並前傾俯衝
-        if (!isPlanB && sprRec && sprRec.loaded) {
-          const leanAngle = (hz.facingX > 0 ? 0.24 : -0.24);
-          ctx.save();
-          ctx.globalCompositeOperation = "lighter";
-          ctx.rotate(leanAngle);
-          ctx.scale((hz.facingX > 0 ? -1 : 1) * 1.16, 0.86);
-          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -25, -23, 50, 50, trailTint, lifeAlpha * 0.72);
-          GameApp.drawSilhouetteFlash(ctx, sprRec.img, -20, -18, 40, 40, "#FFFFFF", lifeAlpha * 0.42);
-          ctx.restore();
-        }
         ctx.restore();
 
       } else if (hz.kind === "meteor_strike") {
@@ -4705,12 +4685,12 @@ const SkillsEngine = {
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = "#F59E0B";
+        ctx.fillStyle = hz.isMegaBlueFlame ? "#0EA5E9" : "#F59E0B";
         ctx.beginPath();
         ctx.arc(0, 2, 9, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = "#FEF08A";
+        ctx.fillStyle = hz.isMegaBlueFlame ? "#E0F2FE" : "#FEF08A";
         ctx.beginPath();
         ctx.arc(0, 3, 4.5, 0, Math.PI * 2);
         ctx.fill();
@@ -6518,44 +6498,45 @@ const SkillsEngine = {
 
         ctx.rotate(pr.angle || 0);
 
-        // 1. 柔和赤橘熱暈外層（營造高溫餘燼感，不再是硬邊子彈）
+        const isBlueEmb = !!pr.isMegaBlueFlame;
+        // 1. 柔和熱暈外層（Mega 噴火龍X 切換蒼藍冥炎）
         const halo = ctx.createRadialGradient(jx, jy, 1.5, jx, jy, vr * 1.15);
-        halo.addColorStop(0, "rgba(254, 240, 138, 0.85)");
-        halo.addColorStop(0.5, "rgba(249, 115, 22, 0.55)");
-        halo.addColorStop(1, "rgba(220, 38, 38, 0)");
+        halo.addColorStop(0, isBlueEmb ? "rgba(224, 242, 254, 0.88)" : "rgba(254, 240, 138, 0.85)");
+        halo.addColorStop(0.5, isBlueEmb ? "rgba(14, 165, 233, 0.58)" : "rgba(249, 115, 22, 0.55)");
+        halo.addColorStop(1, isBlueEmb ? "rgba(29, 78, 216, 0)" : "rgba(220, 38, 38, 0)");
         ctx.fillStyle = halo;
         ctx.beginPath();
         ctx.arc(jx, jy, vr * 1.15, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. 主火星：高頻跳動的不規則菱形火芯（外赤紅 ➔ 中熾橘 ➔ 內白黃）
+        // 2. 主火星：高頻跳動的不規則菱形火芯
         const cs = vr * (0.62 + flicker * 0.12);
         ctx.save();
         ctx.translate(jx, jy);
         ctx.rotate(flicker * 0.35);
-        ctx.fillStyle = "#DC2626";
+        ctx.fillStyle = isBlueEmb ? "#1D4ED8" : "#DC2626";
         ctx.beginPath();
         ctx.moveTo(cs * 1.15, 0); ctx.lineTo(0, -cs * 0.85);
         ctx.lineTo(-cs * 1.35, 0); ctx.lineTo(0, cs * 0.85);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = "#F97316";
+        ctx.fillStyle = isBlueEmb ? "#0EA5E9" : "#F97316";
         ctx.beginPath();
         ctx.moveTo(cs * 0.82, 0); ctx.lineTo(0, -cs * 0.58);
         ctx.lineTo(-cs * 0.95, 0); ctx.lineTo(0, cs * 0.58);
         ctx.closePath();
         ctx.fill();
 
-        ctx.fillStyle = "#FEF9C3";
+        ctx.fillStyle = isBlueEmb ? "#E0F2FE" : "#FEF9C3";
         ctx.fillRect(-cs * 0.30, -cs * 0.30, cs * 0.60, cs * 0.60);
         ctx.restore();
 
         // 3. 周圍 3 顆錯落閃爍的方形／菱形像素火星碎屑
         const embers = [
-          { ox: -vr * 0.72, oy: -vr * 0.58 + Math.sin(now * 24 + seed) * 2.4, sz: 3.6, col: "#FEF08A" },
-          { ox: -vr * 0.98, oy:  vr * 0.50 + Math.cos(now * 26 + seed) * 2.4, sz: 3.0, col: "#FB923C" },
-          { ox: -vr * 1.48, oy:  Math.sin(now * 20 + seed * 2) * 3.2,         sz: 2.4, col: "#EF4444" }
+          { ox: -vr * 0.72, oy: -vr * 0.58 + Math.sin(now * 24 + seed) * 2.4, sz: 3.6, col: isBlueEmb ? "#E0F2FE" : "#FEF08A" },
+          { ox: -vr * 0.98, oy:  vr * 0.50 + Math.cos(now * 26 + seed) * 2.4, sz: 3.0, col: isBlueEmb ? "#38BDF8" : "#FB923C" },
+          { ox: -vr * 1.48, oy:  Math.sin(now * 20 + seed * 2) * 3.2,         sz: 2.4, col: isBlueEmb ? "#2563EB" : "#EF4444" }
         ];
         embers.forEach((em, idx) => {
           ctx.save();
@@ -6724,8 +6705,8 @@ const SkillsEngine = {
         ctx.save();
         ctx.rotate(rot);
 
-        // 不規則跳動幽冥鬼火外殼（8 瓣鋸齒火焰）
-        ctx.fillStyle = "#581C87";
+        // 不規則跳動幽冥鬼火外殼（超級耿鬼切換深紅冥炎）
+        ctx.fillStyle = pr.isMegaGengarShadow ? "#9F1239" : "#581C87";
         ctx.beginPath();
         for (let k = 0; k < 16; k++) {
           const a = (k * Math.PI * 2) / 16;
@@ -6739,7 +6720,7 @@ const SkillsEngine = {
 
         // 純黑奇點核心
         ctx.fillStyle = "#05050A";
-        ctx.strokeStyle = "#C084FC";
+        ctx.strokeStyle = pr.isMegaGengarShadow ? "#FB7185" : "#C084FC";
         ctx.lineWidth = 2.4;
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.64, 0, Math.PI * 2);
@@ -7116,7 +7097,11 @@ const SkillsEngine = {
           ctx.save();
           ctx.rotate(rotOff);
           const bladeGrad = ctx.createLinearGradient(-vr, -vr, vr, vr);
-          if (idx === 0) {
+          if (pr.isMegaAeroBlade) {
+            bladeGrad.addColorStop(0, "rgba(254, 249, 195, 0.98)");
+            bladeGrad.addColorStop(0.55, "rgba(251, 191, 36, 0.92)");
+            bladeGrad.addColorStop(1, "rgba(168, 85, 247, 0.88)");
+          } else if (idx === 0) {
             bladeGrad.addColorStop(0, "rgba(224, 242, 254, 0.96)");
             bladeGrad.addColorStop(0.55, "rgba(186, 230, 253, 0.92)");
             bladeGrad.addColorStop(1, "rgba(165, 180, 252, 0.85)");
@@ -7126,7 +7111,7 @@ const SkillsEngine = {
             bladeGrad.addColorStop(1, "rgba(125, 211, 252, 0.85)");
           }
           ctx.fillStyle = bladeGrad;
-          ctx.strokeStyle = "#38BDF8";
+          ctx.strokeStyle = pr.isMegaAeroBlade ? "#F59E0B" : "#38BDF8";
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.arc(vr * 0.14, 0, vr * 1.02, -1.18, 1.18);

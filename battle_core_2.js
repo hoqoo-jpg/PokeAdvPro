@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v6.9.18",
+  APP_VERSION: "v7.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -48,8 +48,7 @@ window.GameApp = {
       dmgTextMode: "all",
       procNoticeMode: "icon",
       screenShake: "normal",
-      fourthSlotPoolMode: "affinity",
-      dragonRushStyle: "A"
+      fourthSlotPoolMode: "affinity"
     }
   },
   spatialGrid: null,
@@ -721,19 +720,52 @@ window.GameApp = {
     this.startEvolutionMoment(10033, false, null, true);
   },
 
-  debugToggleDragonRushStyle() {
-    const s = this.ensureSettingsObject ? this.ensureSettingsObject() : (this.saveData.settings || (this.saveData.settings = {}));
-    s.dragonRushStyle = (s.dragonRushStyle === "B") ? "A" : "B";
-    const isB = s.dragonRushStyle === "B";
-    const btn = document.getElementById("btnDebugDragonRushStyle");
-    if (btn) {
-      btn.textContent = isB ? "🐉 龍之俯衝外觀：方案 B（實質巨龍）" : "🐉 龍之俯衝外觀：方案 A（殘影）";
+  debugTriggerMegaGengar() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10038) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級耿鬼】冥界踩影形態！", "#C084FC", 14);
+      return;
     }
-    if (this.saveToStorage) this.saveToStorage();
-    if (this.player) {
-      this.spawnFloatingText(this.player.x, this.player.y - 30, isB ? "🐉 龍之俯衝切換：方案 B（多節實質巨龍）" : "👻 龍之俯衝切換：方案 A（龍魂殘影）", "#38BDF8", 13);
+    if (!p.skills["Shadow Ball"] && !p.skills["ShadowBall"]) {
+      p.skills["Shadow Ball"] = { id: "Shadow Ball", level: 8, evolved: false, timer: 0.15 };
     }
-    SoundFX.play("hit");
+    if (!p.skills["Sludge Bomb"] && !p.skills["SludgeBomb"]) {
+      p.skills["Sludge Bomb"] = { id: "Sludge Bomb", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10038, false, null, true);
+  },
+
+  debugTriggerMegaGyarados() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10041) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級暴鯉龍】深海狂龍形態！", "#F43F5E", 14);
+      return;
+    }
+    if (!p.skills["Hydro Pump"] && !p.skills["HydroPump"]) {
+      p.skills["Hydro Pump"] = { id: "Hydro Pump", level: 8, evolved: false, timer: 0.15 };
+    }
+    if (!p.skills["Dragon Rush"] && !p.skills["DragonRush"]) {
+      p.skills["Dragon Rush"] = { id: "Dragon Rush", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10041, false, null, true);
+  },
+
+  debugTriggerMegaAerodactyl() {
+    if (!this.player) return;
+    const p = this.player;
+    if (p.id === 10042) {
+      this.spawnFloatingText(p.x, p.y - 28, "已是【超級化石翼龍】太古蒼穹形態！", "#F59E0B", 14);
+      return;
+    }
+    if (!p.skills["Air Slash"] && !p.skills["AirSlash"]) {
+      p.skills["Air Slash"] = { id: "Air Slash", level: 8, evolved: false, timer: 0.15 };
+    }
+    if (!p.skills["Earthquake"]) {
+      p.skills["Earthquake"] = { id: "Earthquake", level: 6, evolved: false, timer: 0.30 };
+    }
+    this.startEvolutionMoment(10042, false, null, true);
   },
 
   debugSpawnTreasureMob(kind) {
@@ -1037,6 +1069,7 @@ window.GameApp = {
   },
   startGameRun() {
     SoundFX.init();
+    if (this.saveLastSetup) this.saveLastSetup();
     const stageId = (this.selectedStage && this.selectedStage.id) ? this.selectedStage.id : "pallet";
     if (typeof MapEngine !== "undefined") {
       MapEngine.setStage(stageId);
@@ -1878,6 +1911,15 @@ window.GameApp = {
         } else if (p.id === 10033) {
           // 超級妙蛙花：翡翠嫩葉 ＋ 粉金霸王花瓣孢子
           SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 24, -40 - Math.random() * 24, Math.random() < 0.45 ? "#F472B6" : "#4ADE80", 3.3, 0.40, Math.random() < 0.55 ? "leaf" : "star");
+        } else if (p.id === 10038) {
+          // 超級耿鬼：冥界暗紫鬼火 ＋ 血紅邪眼星芒
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 24, -42 - Math.random() * 24, Math.random() < 0.42 ? "#FB7185" : "#A855F7", 3.4, 0.40, Math.random() < 0.55 ? "diamond" : "star");
+        } else if (p.id === 10041) {
+          // 超級暴鯉龍：深海赤紅狂瀾 ＋ 耀金電水星芒
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 24, -46 - Math.random() * 24, Math.random() < 0.48 ? "#F43F5E" : "#38BDF8", 3.4, 0.38, Math.random() < 0.5 ? "circle" : "star");
+        } else if (p.id === 10042) {
+          // 超級化石翼龍：太古金岩碎芒 ＋ 蒼穹紫銀疾風
+          SkillsEngine.spawnSubParticle(ax, ay, (Math.random() - 0.5) * 26, -48 - Math.random() * 26, Math.random() < 0.5 ? "#FACC15" : "#C084FC", 3.1, 0.36, Math.random() < 0.55 ? "diamond" : "star");
         } else {
           // 超級噴火龍X：暗黑冥炎 ＋ 蒼藍電焰
           const isDarkFlame = Math.random() < 0.45;
@@ -5527,6 +5569,8 @@ window.GameApp = {
       p.megaEvolved = true;
       p.finalEvoArmor = nextData.armor || 0.16;
       p.areaMult *= 1.08;
+      if (nextData.critBoost) p.critRate = (p.critRate || 0.10) + nextData.critBoost;
+      if (nextData.speedBoost) p.speedMult = (p.speedMult || 1.0) * nextData.speedBoost;
       if (!this.saveData.megaUnlocked) this.saveData.megaUnlocked = {};
       this.saveData.megaUnlocked[nextData.baseId || 6] = true;
       const isBondMega = !!(this.selectedTrainer && (nextData.bondTrainerIds || []).includes(this.selectedTrainer.id));
@@ -5545,11 +5589,11 @@ window.GameApp = {
         [...SkillsEngine.getEnemiesInRadius(p.x, p.y, 235 * p.areaMult)].forEach(en => {
           if (en && en.hp > 0 && Math.hypot(en.x - p.x, en.y - p.y) <= 235 * p.areaMult + en.radius) {
             this.dealDamageToEnemy(en, (p.baseAtk * 1.8 + 60) * p.dmgMult, bType, 0.55, en.isBoss ? 0 : 28);
-            if (nextData.id === 10033 && !en.status) {
-              en.status = "Poison";
-              en.statusTimer = en.isBoss ? 2.8 : 4.5;
+            if ((nextData.id === 10033 || nextData.id === 10038) && !en.status) {
+              en.status = nextData.id === 10038 ? "Confusion" : "Poison";
+              en.statusTimer = en.isBoss ? 2.2 : 4.0;
               en.statusTick = 0.35;
-            } else if (nextData.id === 10036 && !en.isBoss) {
+            } else if ((nextData.id === 10036 || nextData.id === 10041) && !en.isBoss) {
               en.inFrostAura = true;
             }
           }
@@ -6756,9 +6800,12 @@ window.GameApp = {
       const mPulse = Math.sin(mNow * 1.8) * 2.2;
       const isMVenu = (p.id === 10033);
       const isMBlas = (p.id === 10036);
-      const ringMain = isMVenu ? "#4ADE80" : (isMBlas ? "#0EA5E9" : "#38BDF8");
-      const ringInner = isMVenu ? "#F472B6" : (isMBlas ? "#FEF08A" : "#E0F2FE");
-      const midGlow = isMVenu ? "rgba(34, 197, 94, 0.34)" : (isMBlas ? "rgba(2, 132, 199, 0.36)" : "rgba(14, 165, 233, 0.34)");
+      const isMGeng = (p.id === 10038);
+      const isMGyar = (p.id === 10041);
+      const isMAero = (p.id === 10042);
+      const ringMain = isMVenu ? "#4ADE80" : (isMBlas ? "#0EA5E9" : (isMGeng ? "#C084FC" : (isMGyar ? "#F43F5E" : (isMAero ? "#F59E0B" : "#38BDF8"))));
+      const ringInner = isMVenu ? "#F472B6" : (isMBlas ? "#FEF08A" : (isMGeng ? "#FB7185" : (isMGyar ? "#38BDF8" : (isMAero ? "#E9D5FF" : "#E0F2FE"))));
+      const midGlow = isMVenu ? "rgba(34, 197, 94, 0.34)" : (isMBlas ? "rgba(2, 132, 199, 0.36)" : (isMGeng ? "rgba(168, 85, 247, 0.38)" : (isMGyar ? "rgba(225, 29, 72, 0.36)" : (isMAero ? "rgba(245, 158, 11, 0.34)" : "rgba(14, 165, 233, 0.34)"))));
       ctx.save();
       const mGrad = ctx.createRadialGradient(px, py + 16, 6, px, py + 16, 36 + mPulse);
       mGrad.addColorStop(0, "rgba(15, 23, 42, 0.62)");
@@ -7035,19 +7082,28 @@ window.GameApp = {
         else if (tc.facingX < 0) row = 1;
         else if (tc.facingX > 0) row = 2;
 
-        // GBA 經典 4 拍 3 幀步態循環：略微加快節奏，並為正面(下)/背面(上)補上同步踏步起伏與左右輕擺，消除滑步感
+        // GBA 四方向統一俐落步態：配合重烘焙 13px 明顯抬腳圖集，上下/左右同步具備踏步彈跳、重心微傾與落地微壓縮
         const isVerticalWalk = (row === 0 || row === 3);
-        const stepPhase = Math.floor(tc.walkBob * 0.64) % 4;
-        const col = isMoving ? [1, 0, 1, 2][stepPhase] : 1;
+        const stepPhase = Math.floor(tc.walkBob * 0.78) % 4;
+        const col = isMoving ? [0, 1, 2, 1][stepPhase] : 1;
         const sx = col * cellW;
         const sy = row * cellH;
         const drawW = 56, drawH = 56;
 
         const isStriding = isMoving && (col === 0 || col === 2);
-        const stepLift = isStriding ? (isVerticalWalk ? -2.8 : -1.6) : 0;
-        const stepTilt = (isMoving && isVerticalWalk) ? (col === 0 ? -0.055 : (col === 2 ? 0.055 : 0)) : 0;
-        const landSquashX = (isMoving && !isStriding && isVerticalWalk) ? 1.035 : 1.0;
-        const landSquashY = (isMoving && !isStriding && isVerticalWalk) ? 0.965 : 1.0;
+        const stepLift = isStriding ? (isVerticalWalk ? -2.2 : -1.9) : 0;
+        let stepTilt = 0;
+        if (isMoving) {
+          if (isVerticalWalk) {
+            stepTilt = col === 0 ? -0.045 : (col === 2 ? 0.045 : 0);
+          } else {
+            // 左右奔跑微前傾衝刺動感
+            const runLean = (row === 2 ? 0.036 : -0.036);
+            stepTilt = isStriding ? runLean : (runLean * 0.35);
+          }
+        }
+        const landSquashX = (isMoving && !isStriding) ? 1.032 : 1.0;
+        const landSquashY = (isMoving && !isStriding) ? 0.968 : 1.0;
 
         ctx.save();
         ctx.imageSmoothingEnabled = false;
@@ -7541,7 +7597,10 @@ window.GameApp = {
         const MEGA_ANCHOR_OFFSETS = {
           10036: { ox: -6, oy: -4 }, // 超級水箭龜：修正左炮留白導致雙腳偏右下
           10034: { ox: 2,  oy: -5 }, // 超級噴火龍X：雙爪收進光環內側並居中重心
-          10033: { ox: 0,  oy: -2 }  // 超級妙蛙花：四足完全落入光環內圈
+          10033: { ox: 0,  oy: -2 }, // 超級妙蛙花：四足完全落入光環內圈
+          10038: { ox: 0,  oy: -2 }, // 超級耿鬼：下盤沉入冥界光環中央
+          10041: { ox: -2, oy: -4 }, // 超級暴鯉龍：龍軀居中收進赤藍光環
+          10042: { ox: 0,  oy: -6 }  // 超級化石翼龍：展翼微浮於太古光環正上方
         };
         const mOff = isMegaSprite ? (MEGA_ANCHOR_OFFSETS[p.id] || { ox: 0, oy: 0 }) : { ox: 0, oy: 0 };
         const footAnchorLiftY = isMegaSprite ? 7 : (awakenScale - 1.0) * 28;

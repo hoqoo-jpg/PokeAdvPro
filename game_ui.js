@@ -64,6 +64,7 @@ Object.assign(window.GameApp, {
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
           megaUnlocked: { ...(this.saveData.megaUnlocked || {}), ...(parsed.megaUnlocked || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
+          lastSetup: parsed.lastSetup ? { ...parsed.lastSetup } : (this.saveData.lastSetup || null),
           settings: {
             mobCapProfile: "auto",
             screenFilter: "none",
@@ -71,14 +72,58 @@ Object.assign(window.GameApp, {
             procNoticeMode: "icon",
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
-            dragonRushStyle: "A",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
         };
       }
     } catch (e) {}
+    this.restoreLastSetup();
     this.applyVisualSettings();
+  },
+
+  saveLastSetup() {
+    if (!this.saveData) return;
+    this.saveData.lastSetup = {
+      trainerId: (this.selectedTrainer && this.selectedTrainer.id) || "ash",
+      starterId: this.selectedStarterId || 25,
+      useShinyStarter: { ...(this.useShinyStarter || {}) },
+      stageId: (this.selectedStage && this.selectedStage.id) || "pallet",
+      difficultyId: (this.selectedDifficulty && this.selectedDifficulty.id) || "normal",
+      gameMode: this.selectedGameMode || "standard"
+    };
+    try {
+      localStorage.setItem("POKEMON_ADV_SURVIVORS_V4", JSON.stringify(this.saveData));
+    } catch (e) {}
+  },
+
+  restoreLastSetup() {
+    const ls = this.saveData && this.saveData.lastSetup;
+    if (!ls || typeof ls !== "object") return;
+    if (ls.trainerId && this.saveData.unlockedTrainers && this.saveData.unlockedTrainers[ls.trainerId]) {
+      const tr = TRAINERS.find(x => x.id === ls.trainerId);
+      if (tr) this.selectedTrainer = tr;
+    }
+    if (ls.starterId && this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[ls.starterId] && POKEMON_MAP.has(ls.starterId)) {
+      this.selectedStarterId = ls.starterId;
+    }
+    if (ls.useShinyStarter && typeof ls.useShinyStarter === "object") {
+      this.useShinyStarter = { ...ls.useShinyStarter };
+    }
+    if (ls.stageId) {
+      const st = STAGES.find(s => s.id === ls.stageId);
+      if (st) {
+        this.selectedStage = st;
+        if (typeof MapEngine !== "undefined" && MapEngine.setStage) MapEngine.setStage(st.id);
+      }
+    }
+    if (ls.difficultyId) {
+      const df = DIFFICULTIES.find(d => d.id === ls.difficultyId);
+      if (df) this.selectedDifficulty = df;
+    }
+    if (ls.gameMode === "standard" || ls.gameMode === "endless") {
+      this.selectedGameMode = ls.gameMode;
+    }
   },
 
   saveToStorage() {
@@ -437,14 +482,33 @@ Object.assign(window.GameApp, {
           `;
         } else {
           const isLegend = p.id >= 144;
-          evoEl.innerHTML = `
-            <span class="text-[9px] font-black ${isLegend ? 'text-purple-700' : 'text-emerald-700'} shrink-0">
-              <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
-            </span>
-            <span class="text-[9px] font-bold text-slate-600 truncate">
-              ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+22% ‧ 全傷+15% ‧ 12%霸體)'}
-            </span>
-          `;
+          const singleMega = (typeof MEGA_FORMS !== "undefined") ? MEGA_FORMS[p.id] : null;
+          if (singleMega) {
+            const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[singleMega.baseId]);
+            evoEl.innerHTML = `
+              <span class="text-[9px] font-black text-amber-700 shrink-0"><i class="fa-solid fa-gem"></i> 超級進化：</span>
+              <div class="flex items-center gap-1 overflow-x-auto">
+                <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border border-slate-300 shrink-0">
+                  <img src="${p.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain" alt="${p.name_zh}"/>
+                  <span class="text-[9px] font-black text-slate-800">${p.name_zh}</span>
+                </div>
+                <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
+                <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${singleMega.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
+                  <img src="${singleMega.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                  <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? singleMega.name_zh : 'MEGA ???'}</span>
+                </div>
+              </div>
+            `;
+          } else {
+            evoEl.innerHTML = `
+              <span class="text-[9px] font-black ${isLegend ? 'text-purple-700' : 'text-emerald-700'} shrink-0">
+                <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
+              </span>
+              <span class="text-[9px] font-bold text-slate-600 truncate">
+                ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+22% ‧ 全傷+15% ‧ 12%霸體)'}
+              </span>
+            `;
+          }
         }
       }
     }
@@ -1024,6 +1088,7 @@ Object.assign(window.GameApp, {
     const unlocked = !!this.saveData.unlockedTrainers[t.id];
     if (unlocked) {
       this.selectedTrainer = t;
+      this.saveLastSetup();
       SoundFX.play("hit");
       this.renderWizardContent();
       this.updateTitleUI();
@@ -1039,6 +1104,7 @@ Object.assign(window.GameApp, {
   handlePokemonCardClick(pokeId, cost) {
     if (this.saveData.unlockedPokemon[pokeId]) {
       this.selectedStarterId = pokeId;
+      this.saveLastSetup();
       SoundFX.play("hit");
       this.renderWizardContent();
       this.updateTitleUI();
@@ -1111,6 +1177,7 @@ Object.assign(window.GameApp, {
       this.selectedTrainer = TRAINERS[0];
       this.selectedStarterId = 25;
       this.useShinyStarter = {};
+      this.restoreLastSetup();
       this.pokedexShowMega = {};
     this.pokedexShowShiny = {};
       this.pokedexShowShiny = {};
@@ -1142,8 +1209,7 @@ Object.assign(window.GameApp, {
         dmgTextMode: "all",
         procNoticeMode: "icon",
         screenShake: "normal",
-        fourthSlotPoolMode: "affinity",
-            dragonRushStyle: "A"
+        fourthSlotPoolMode: "affinity"
       }
     };
   },
@@ -1279,6 +1345,7 @@ Object.assign(window.GameApp, {
 
   toggleStarterShiny(id) {
     this.useShinyStarter[id] = !this.useShinyStarter[id];
+    this.saveLastSetup();
     SoundFX.play("super");
     this.renderWizardContent();
     this.updateTitleUI();
@@ -1288,6 +1355,7 @@ Object.assign(window.GameApp, {
     const found = DIFFICULTIES.find(d => d.id === id);
     if (found) {
       this.selectedDifficulty = found;
+      this.saveLastSetup();
       SoundFX.play("hit");
       this.renderWizardContent();
     }
@@ -1298,6 +1366,7 @@ Object.assign(window.GameApp, {
     if (found) {
       this.selectedStage = found;
       MapEngine.setStage(found.id);
+      this.saveLastSetup();
       SoundFX.play("hit");
       this.renderWizardContent();
     }
@@ -1305,6 +1374,7 @@ Object.assign(window.GameApp, {
 
   selectGameMode(modeId) {
     this.selectedGameMode = modeId;
+    this.saveLastSetup();
     SoundFX.play("hit");
     this.renderWizardContent();
   },
@@ -2334,8 +2404,7 @@ Object.assign(window.GameApp, {
         dmgTextMode: "all",
         procNoticeMode: "icon",
         screenShake: "normal",
-        fourthSlotPoolMode: "affinity",
-            dragonRushStyle: "A"
+        fourthSlotPoolMode: "affinity"
       };
     }
     return this.saveData.settings;
@@ -2402,8 +2471,7 @@ Object.assign(window.GameApp, {
       dmgTextMode: "all",
       procNoticeMode: "icon",
       screenShake: "normal",
-      fourthSlotPoolMode: "affinity",
-            dragonRushStyle: "A"
+      fourthSlotPoolMode: "affinity"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2494,18 +2562,6 @@ Object.assign(window.GameApp, {
         <div class="grid grid-cols-2 gap-1.5">
           ${renderOptionBtn("fourthSlotPoolMode", "affinity", "🎯 本系與特性優先", "優先抽本系/相性，防稀釋")}
           ${renderOptionBtn("fourthSlotPoolMode", "all", "🎲 全系自由混搭", "全屬性招式平等隨機")}
-        </div>
-      </div>
-
-      <!-- 3D. 龍之俯衝外觀實機對比開關 (方案 A vs 方案 B) -->
-      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
-        <div class="flex items-center justify-between gap-1">
-          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-dragon"></i> 龍之俯衝外觀對比 (A / B)</span>
-          <span class="text-[10px] font-bold text-sky-400">局內即時生效</span>
-        </div>
-        <div class="grid grid-cols-2 gap-1.5">
-          ${renderOptionBtn("dragonRushStyle", "A", "👻 方案 A：龍魂殘影", "精靈三連靈體殘影＋龍首")}
-          ${renderOptionBtn("dragonRushStyle", "B", "🐉 方案 B：實質巨龍", "多節扭動龍軀鱗片尾焰")}
         </div>
       </div>
 
