@@ -34,7 +34,7 @@ window.GameApp = {
     unlockedTrainers: { ash: true, misty: true, brock: true },
     upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, megaRing: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
     pokemonStars: {},
-    stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0 },
+    stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0, gemsCollected: 0 },
     pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
     pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
     pokedexRewardClaimed: {},
@@ -4664,6 +4664,9 @@ window.GameApp = {
       if (dSq < 484) {
         this.gems[i] = this.gems[this.gems.length - 1];
         this.gems.pop();
+        if (this.saveData && this.saveData.stats) {
+          this.saveData.stats.gemsCollected = (this.saveData.stats.gemsCollected || 0) + 1;
+        }
         SoundFX.play("gem");
         this.gainExp(g.val);
       }
@@ -6343,17 +6346,38 @@ window.GameApp = {
       ctx.restore();
     });
 
+    const gemNow = performance.now() * 0.0052;
+    const needGemGuide = !!(this.saveData && this.saveData.stats && (this.saveData.stats.gemsCollected || 0) < 3);
+    let nearestGuideGem = null;
+    let nearestGuideDistSq = Infinity;
+
     this.gems.forEach(g => {
       const sx = toSx(g.x), sy = toSy(g.y);
       if (sx < -20 || sx > this.width + 20 || sy < -20 || sy > this.height + 20) return;
       const s = g.size || 6.5;
+      const phase = gemNow + g.x * 0.045 + g.y * 0.035;
+      const bobY = Math.sin(phase) * 2.4;
+      const shScale = 1 - Math.max(0, -bobY) * 0.05;
+
+      if (needGemGuide && this.player && sx > 36 && sx < this.width - 36 && sy > 76 && sy < this.height - 80) {
+        const dSq = (g.x - this.player.x) ** 2 + (g.y - this.player.y) ** 2;
+        if (dSq < nearestGuideDistSq) {
+          nearestGuideDistSq = dSq;
+          nearestGuideGem = { sx, sy: sy + bobY, s };
+        }
+      }
+
       ctx.save();
       ctx.translate(sx, sy);
 
+      // 地面陰影保持貼地，隨寶石懸浮高度微縮
       ctx.fillStyle = "rgba(15, 23, 42, 0.30)";
       ctx.beginPath();
-      ctx.ellipse(0, s * 0.85, s * 0.65, s * 0.28, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, s * 0.88, s * 0.65 * shScale, s * 0.28 * shScale, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // 寶石本體輕微上下懸浮呼吸
+      ctx.translate(0, bobY);
 
       ctx.fillStyle = g.color || "#0284C7";
       ctx.strokeStyle = "#0F172A";
@@ -6380,6 +6404,18 @@ window.GameApp = {
       ctx.beginPath();
       ctx.arc(-s * 0.18, -s * 0.32, s * 0.16, 0, Math.PI * 2);
       ctx.fill();
+
+      // 偶發十字星芒閃光，自然提示為可拾取戰利品
+      const glint = Math.sin(phase * 1.45);
+      if (glint > 0.86) {
+        const gs = ((glint - 0.86) / 0.14) * (s * 0.68);
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-gs, -s * 0.35); ctx.lineTo(gs, -s * 0.35);
+        ctx.moveTo(0, -s * 0.35 - gs); ctx.lineTo(0, -s * 0.35 + gs);
+        ctx.stroke();
+      }
       ctx.restore();
     });
 
@@ -7701,6 +7737,45 @@ window.GameApp = {
       ctx.fillText(ft.text, sx, sy);
       ctx.restore();
     });
+
+    // 新手首 3 顆經驗寶石場內引導：於最近可見寶石上方顯示彈跳「▼ 撿取升級!」，撿滿 3 顆自動永久消失
+    if (nearestGuideGem) {
+      const bounce = Math.abs(Math.sin(performance.now() * 0.0075)) * 6;
+      const gx = nearestGuideGem.sx;
+      const gy = nearestGuideGem.sy - nearestGuideGem.s - 12 - bounce;
+
+      ctx.save();
+      ctx.translate(gx, gy);
+      // 向下指示三角箭頭
+      ctx.fillStyle = "#FACC15";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      ctx.moveTo(0, 6);
+      ctx.lineTo(-6, -2);
+      ctx.lineTo(6, -2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 精簡亮眼引導膠囊
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
+      const pillText = "撿取升級!";
+      const pw = Math.max(66, ctx.measureText(pillText).width + 14);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.roundRect(-pw / 2, -23, pw, 20, 10);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#FEF08A";
+      ctx.fillText(pillText, 0, -13);
+      ctx.restore();
+    }
 
     // 繪製輕量級攜帶物／被動觸發頭頂圖標氣泡 (Icon Pop-ups)
     if (this.iconPopups && this.iconPopups.length > 0) {

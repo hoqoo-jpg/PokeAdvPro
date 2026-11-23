@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.12');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.13');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -562,10 +562,14 @@
             </div>
           </div>
           <div class="min-w-0 flex-1">
-            <div class="text-[9px] font-black text-red-600 uppercase tracking-wider">CURRENT PARTNER</div>
+            <div class="text-[10px] font-black text-red-600 tracking-wide">當前出戰陣容</div>
             <div id="lobbyTrainerName" class="font-black text-xs sm:text-sm text-slate-800 truncate">小智 (Ash)</div>
             <div id="lobbyPokemonName" class="font-black text-[11px] sm:text-xs text-blue-700 truncate">皮卡丘 (#025)</div>
-            <div class="text-[9px] font-bold text-slate-500 mt-0.5">點擊更換搭檔 ➔</div>
+          </div>
+          <div class="shrink-0">
+            <span class="poke-btn-blue px-2.5 py-1.5 text-[11px] font-black flex items-center gap-1 whitespace-nowrap shadow">
+              <i class="fa-solid fa-repeat text-[10px]"></i> 更換陣容
+            </span>
           </div>
         </div>
         <!-- 進化路線與覺醒預覽列 -->
@@ -828,10 +832,10 @@
           </button>
         </div>
       </div>
-      <!-- 僅 STEP 2 展開的極簡特性與滿星提示細條 (~24px) -->
-      <div id="wizardBarTraitStrip" class="hidden px-3 py-1 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between gap-2 text-[10px]">
-        <div id="wizardBarTraitText" class="font-bold text-slate-200 truncate min-w-0">⚡ 特性載入中...</div>
-        <span id="wizardBarStarPerkText" class="font-black text-sky-300 whitespace-nowrap shrink-0 text-[9px]">★3開局Lv.2</span>
+      <!-- 僅 STEP 2 展開的雙行特性與滿星提示條（不截斷、不需等待走馬燈） -->
+      <div id="wizardBarTraitStrip" class="hidden px-3 py-1.5 bg-slate-950/95 border-t border-slate-800 flex items-start justify-between gap-2 text-[10px]">
+        <div id="wizardBarTraitText" class="font-bold text-slate-200 leading-snug line-clamp-2 whitespace-normal break-words flex-1 min-w-0">⚡ 特性載入中...</div>
+        <span id="wizardBarStarPerkText" class="font-black text-sky-300 whitespace-nowrap shrink-0 text-[9px] mt-0.5">★3開局Lv.2</span>
       </div>
     </div>
 
@@ -1253,10 +1257,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.12"></script>
-  <script src="map_v11_engine.js?v=6.9.12"></script>
-  <script src="skills_engine.js?v=6.9.12"></script>
-  <script src="battle_core_2.js?v=6.9.12"></script>
-  <script src="game_ui.js?v=6.9.12"></script>
+  <script src="pokedex_data.js?v=6.9.13"></script>
+  <script src="map_v11_engine.js?v=6.9.13"></script>
+  <script src="skills_engine.js?v=6.9.13"></script>
+  <script src="battle_core_2.js?v=6.9.13"></script>
+  <script src="game_ui.js?v=6.9.13"></script>
 </body>
 </html>
