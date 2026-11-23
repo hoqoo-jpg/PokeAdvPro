@@ -1453,10 +1453,23 @@ Object.assign(window.GameApp, {
       const found = TRAINERS.find(x => x.id === this.pendingUnlockId);
       if (found) this.selectedTrainer = found;
     }
+    const unlockedType = this.pendingUnlockType;
     SoundFX.play("levelup");
     this.saveToStorage();
     this.closeUnlockConfirmModal();
     this.renderWizardContent();
+    // 收服新寶可夢或解鎖新訓練家後，自動捲動定位至剛解鎖置頂的新角色並閃亮金框回饋
+    if (unlockedType === "pokemon" || unlockedType === "trainer") {
+      this.focusSelectedWizardCard(this.wizardStep);
+      requestAnimationFrame(() => {
+        const stepEl = document.getElementById(`wizardStep${this.wizardStep}`);
+        const selCard = stepEl ? stepEl.querySelector(".poke-card.selected") : null;
+        if (selCard) {
+          selCard.classList.add("ring-4", "ring-amber-400");
+          setTimeout(() => selCard.classList.remove("ring-4", "ring-amber-400"), 900);
+        }
+      });
+    }
   },
 
   openPokedexModal() {

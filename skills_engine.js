@@ -942,7 +942,7 @@ const SkillsEngine = {
         isBoomerang,
         returning: false,
         radius: Math.min(cleanSkillId === "HydroPump" ? 28 : (cleanSkillId === "WaterGun" ? 23 : 24), (cleanSkillId === "HydroPump" ? 22 : (isMegaWaterGun ? 18 : 16)) * GameApp.player.areaMult * (level >= 8 ? 1.20 : 1.0) * traitSizeMult),
-        dmg: isBoomerang ? rawDmg * 0.72 : rawDmg,
+        dmg: isBoomerang ? rawDmg * 0.80 : rawDmg,
         type: meta.type,
         skillId,
         vfx: meta.vfx || "star_shot",
@@ -950,8 +950,8 @@ const SkillsEngine = {
         color: meta.color,
         pierce: (isBoomerang ? (level >= 6 ? 6 : 4) : ((level >= 6 ? 3 : 2) + (cleanSkillId === "IceBeam" ? 1 : 0))) + traitPierceBonus,
         knockback: (meta.knockback !== undefined ? meta.knockback : 0) * traitKbMult,
-        life: isBoomerang ? 1.25 : 0.88,
-        maxLife: isBoomerang ? 1.25 : 0.88,
+        life: isBoomerang ? 0.92 : 0.88,
+        maxLife: isBoomerang ? 0.92 : 0.88,
         statusBonus: level >= 5 ? 0.30 : 0,
         hitSet: new Set(),
         trailTimer: 0
@@ -1961,20 +1961,20 @@ const SkillsEngine = {
       // 空氣斬迴旋鏢物理：去程減速懸停 -> 折返加速飛回施法者並重置命中集合 (二段切割)
       if (pr.isBoomerang) {
         const elapsed = pr.maxLife - pr.life;
-        if (!pr.returning && elapsed >= 0.48) {
+        if (!pr.returning && elapsed >= 0.38) {
           pr.returning = true;
           pr.hitSet.clear(); // 折返時允許再次切割同一批怪獸，達成雙段傷害！
         }
         if (pr.returning && pr.casterRef) {
           const backAng = Math.atan2(pr.casterRef.y - pr.y, pr.casterRef.x - pr.x);
-          const backSpd = (pr.initSpeed || 360) * 1.15;
-          pr.vx = pr.vx * 0.82 + Math.cos(backAng) * backSpd * 0.18;
-          pr.vy = pr.vy * 0.82 + Math.sin(backAng) * backSpd * 0.18;
-          if (Math.hypot(pr.casterRef.x - pr.x, pr.casterRef.y - pr.y) < 24 && elapsed > 0.72) {
+          const backSpd = (pr.initSpeed || 360) * 1.20;
+          pr.vx = pr.vx * 0.80 + Math.cos(backAng) * backSpd * 0.20;
+          pr.vy = pr.vy * 0.80 + Math.sin(backAng) * backSpd * 0.20;
+          if (Math.hypot(pr.casterRef.x - pr.x, pr.casterRef.y - pr.y) < 26 && elapsed > 0.56) {
             pr.life = 0;
           }
         }
-        pr.angle = (pr.angle || 0) + dt * 8.5;
+        pr.angle = (pr.angle || 0) + dt * 9.5;
       }
 
       // 污泥炸彈拋物線：落地爆開並生成持續 3.2 秒的冒泡腐蝕毒沼
@@ -2590,6 +2590,15 @@ const SkillsEngine = {
           const ry = hz.y + Math.sin(ang) * rad - 48;
           const col = Math.random() < 0.55 ? "#F472B6" : "#FEF08A";
           this.spawnSubParticle(rx, ry, (Math.random() - 0.5) * 18, 28 + Math.random() * 22, col, 2.8, 0.62, Math.random() < 0.6 ? "star" : "diamond");
+        }
+      } else if (hz.kind === "misty_tsunami") {
+        if (Math.random() < 0.42) {
+          const tProg = Math.min(1, (hz.maxTime - hz.timer) / (hz.maxTime || 1.15));
+          const curR = 36 + tProg * (hz.radius - 36);
+          const a = Math.random() * Math.PI * 2;
+          const rx = hz.x + Math.cos(a) * curR;
+          const ry = hz.y + Math.sin(a) * curR;
+          this.spawnSubParticle(rx, ry, Math.cos(a) * 55, Math.sin(a) * 55 - 18, Math.random() < 0.5 ? "#E0F2FE" : "#38BDF8", 2.8, 0.34, Math.random() < 0.55 ? "circle" : "diamond");
         }
       } else if (hz.kind === "dragon_wave") {
         hz.afterimageTimer = (hz.afterimageTimer || 0) - dt;
@@ -3336,6 +3345,54 @@ const SkillsEngine = {
           ctx.arc(bx, by, isLit ? 4.0 : 2.8, 0, Math.PI * 2);
           ctx.fill();
           ctx.stroke();
+        }
+      } else if (hz.kind === "misty_tsunami") {
+        // 【小霞大招・暴風海嘯（底層）】：中空碧藍擴散海嘯浪環 ＋ 10 道碎浪白沫 ＋ 外緣寒冰霜晶圈（不蓋屏、不與超武撞臉）
+        ctx.translate(sx, sy);
+        const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.35), 2.5);
+        const curR = Math.max(38, hz.radius * (0.20 + ease * 0.80));
+        const fade = hz.timer < 0.32 ? Math.max(0, hz.timer / 0.32) : 1.0;
+
+        // 1. 中空碧藍海嘯環帶（中心 0~66% 全透明，保留完美躲彈視野）
+        const tGrad = ctx.createRadialGradient(0, 0, curR * 0.62, 0, 0, curR);
+        tGrad.addColorStop(0, "rgba(2, 132, 199, 0.0)");
+        tGrad.addColorStop(0.55, `rgba(14, 165, 233, ${fade * 0.24})`);
+        tGrad.addColorStop(0.88, `rgba(186, 230, 253, ${fade * 0.36})`);
+        tGrad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
+        ctx.fillStyle = tGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. 雙層破浪外框（碧藍主浪線 ＋ 冰白霜晶虛線）
+        ctx.strokeStyle = `rgba(56, 189, 248, ${fade * 0.85})`;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(224, 242, 254, ${fade * 0.82})`;
+        ctx.lineWidth = 1.8;
+        ctx.setLineDash([12, 8]);
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 0.88, now * 1.4, now * 1.4 + Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 3. 10 道沿浪環奔湧的簡約浮世繪碎浪白沫弧
+        const crestCount = 10;
+        for (let w = 0; w < crestCount; w++) {
+          const wa = now * 0.9 + (w * Math.PI * 2) / crestCount;
+          ctx.save();
+          ctx.rotate(wa);
+          ctx.translate(curR * 0.94, 0);
+          ctx.fillStyle = `rgba(255, 255, 255, ${fade * 0.85})`;
+          ctx.beginPath();
+          ctx.arc(0, -6, 3.2, 0, Math.PI * 2);
+          ctx.arc(4, 0, 4.4, 0, Math.PI * 2);
+          ctx.arc(0, 6, 3.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
         }
       } else if (hz.kind === "quake_fissure") {
         // 【地裂斷層破（超武・瞬爆網狀深淵龜裂）】：0.22s 指數緩出瞬間撕裂全範圍 ＋ 不規則樹狀分岔裂谷 ＋ 熔岩呼吸光 ＋ 轉折點巨岩尖柱
@@ -4145,6 +4202,30 @@ const SkillsEngine = {
           ctx.stroke();
         });
         ctx.restore();
+      } else if (hz.kind === "misty_tsunami") {
+        // 【小霞大招・暴風海嘯（高空層）】：8 枚隨浪潮向外飄散的半透明冰晶星芒
+        ctx.translate(sx, sy);
+        const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.35), 2.5);
+        const curR = Math.max(38, hz.radius * (0.20 + ease * 0.80));
+        const fade = hz.timer < 0.32 ? Math.max(0, hz.timer / 0.32) : 1.0;
+        ctx.globalAlpha = fade * 0.82;
+        for (let k = 0; k < 8; k++) {
+          const a = -now * 1.1 + (k * Math.PI * 2) / 8;
+          const ix = Math.cos(a) * (curR * 0.92);
+          const iy = Math.sin(a) * (curR * 0.92) - 8;
+          ctx.save();
+          ctx.translate(ix, iy);
+          ctx.rotate(a + Math.PI / 2);
+          ctx.fillStyle = "#E0F2FE";
+          ctx.strokeStyle = "#0284C7";
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(0, -7); ctx.lineTo(4.2, 0); ctx.lineTo(0, 7); ctx.lineTo(-4.2, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
       } else if (hz.kind === "tornado") {
         // 【暴風驟雨・3層立體流體龍捲風柱】：底層吸塵渦流 ＋ 錐形半透明流體風柱與交織S風帶 ＋ 環繞月牙風刃與飛葉
         ctx.translate(sx, sy);

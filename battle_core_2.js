@@ -945,15 +945,17 @@ window.GameApp = {
       color: "#EF4444"
     });
 
-    // 神獸降臨霸王氣場清場：保留最多 20 隻常規小怪，超出的常規怪化為經驗水晶，瞬間清出決鬥舞台
+    // 神獸降臨霸王氣場清場：保留最多 20 隻常規小怪，超出的常規怪被威壓直接嚇散消失（不掉落經驗，杜絕蓄怪取巧）
     const regularMobs = this.enemies.filter(en => !en.isBoss && !en.isElite && !en.treasureType);
     if (regularMobs.length > 20) {
       let toClear = regularMobs.length - 20;
+      let puffCount = 0;
       for (let i = this.enemies.length - 1; i >= 0 && toClear > 0; i--) {
         const en = this.enemies[i];
         if (!en.isBoss && !en.isElite && !en.treasureType) {
-          if (this.gems.length < 110) {
-            this.gems.push({ x: en.x, y: en.y, val: 18, tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
+          if (puffCount < 16 && this.player && Math.abs(en.x - this.player.x) < this.width * 0.55 && Math.abs(en.y - this.player.y) < this.height * 0.55) {
+            this.spawnParticleCluster(en.x, en.y, "#94A3B8", "#E2E8F0", 4, "circle", 0.55);
+            puffCount++;
           }
           this.enemies[i] = this.enemies[this.enemies.length - 1];
           this.enemies.pop();
@@ -961,7 +963,7 @@ window.GameApp = {
         }
       }
       if (this.player) {
-        this.spawnFloatingText(this.player.x, this.player.y - 36, "⚡ 神獸威壓震散怪潮！決鬥舞台開啟！", "#FACC15", 13);
+        this.spawnFloatingText(this.player.x, this.player.y - 36, "⚡ 神獸威壓驅散小怪！決鬥舞台開啟！", "#FACC15", 13);
       }
     }
 
@@ -1116,6 +1118,8 @@ window.GameApp = {
       skills: {},
       heldItems: {},
       invulnTimer: 0,
+      lillieSanctuaryTimer: 0,
+      maxLillieSanctuaryTimer: 2.0,
       buffTimer: 0,
       maxBuffTimer: tr.skillDuration || 6.0,
       shieldTimer: 0,
@@ -1472,31 +1476,19 @@ window.GameApp = {
     } else if (tr.id === "misty") {
       healPct = 0.24;
       const waveDmg = (48 + p.baseAtk * 1.1) * p.dmgMult;
-      // 借用原生【潮旋激流】深海大漩渦 + 【絕對零度】極光冰晶環演繹小霞暴風海嘯！
+      // 獨立專屬【暴風海嘯】中空碧藍擴散浪環 ＋ 碎浪白沫 ＋ 冰晶霜圈（與水/冰超武完全分家，清爽不擋紅彈）
+      SkillsEngine.groundHazards = SkillsEngine.groundHazards.filter(h => h.kind !== "misty_tsunami");
       SkillsEngine.groundHazards.push({
-        kind: "blastoise_maelstrom",
+        kind: "misty_tsunami",
         x: p.x, y: p.y,
-        followPlayer: true,
-        rotAngle: 0,
-        radius: 245 * p.areaMult,
-        innerSafeRadius: 38,
-        dmg: waveDmg * 0.35,
+        radius: 238 * Math.min(1.25, p.areaMult),
+        dmg: waveDmg * 0.52,
         type: "Water",
-        timer: 1.55, maxTime: 1.55,
-        tickTimer: 0.08, tickInterval: 0.30,
+        timer: 1.15, maxTime: 1.15,
+        tickTimer: 0.14, tickInterval: 0.42,
         color: "#38BDF8"
       });
-      SkillsEngine.groundHazards.push({
-        kind: "ice_shatter_domain",
-        x: p.x, y: p.y,
-        radius: 235 * p.areaMult,
-        dmg: waveDmg * 0.65,
-        type: "Ice",
-        timer: 0.85, maxTime: 0.85,
-        tickTimer: 0.80, tickInterval: 99,
-        color: "#67E8F9"
-      });
-      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 36, "diamond", 1.3);
+      this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 30, "diamond", 1.25);
       this.enemies.forEach(e => {
         if (Math.hypot(e.x - p.x, e.y - p.y) < 250) {
           if (!e.isBoss) {
@@ -1506,7 +1498,7 @@ window.GameApp = {
           e.status = "Freeze"; e.statusTimer = e.isBoss ? 1.4 : 3.5;
         }
       });
-      this.spawnFloatingText(p.x, p.y - 35, "🌊 暴風海嘯！潮旋冰封席捲！", "#38BDF8", 15);
+      this.spawnFloatingText(p.x, p.y - 35, "🌊 暴風海嘯！碧藍巨浪冰封席捲！", "#38BDF8", 15);
     } else if (tr.id === "brock") {
       healPct = 0.26;
       p.shieldTimer = 5.5;
@@ -1568,20 +1560,44 @@ window.GameApp = {
     } else if (tr.id === "lillie") {
       healPct = 0.38;
       p.invulnTimer = 2.0;
-      this.spawnParticleCluster(p.x, p.y, "#34D399", "#FFFFFF", 30, "star");
-      this.spawnFloatingText(p.x, p.y - 35, "滿たん傷藥 +38% HP ＆ 淨化!", "#34D399", 15);
+      p.lillieSanctuaryTimer = 2.0;
+      p.maxLillieSanctuaryTimer = 2.0;
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: p.x, y: p.y,
+        radius: 105,
+        timer: 0.36, maxTime: 0.36,
+        color: "#6EE7B7"
+      });
+      this.spawnParticleCluster(p.x, p.y, "#34D399", "#FEF08A", 28, "star", 1.05);
+      this.spawnFloatingText(p.x, p.y - 35, "✨ 星之祈願結界！+38% HP ＆ 2s無敵!", "#34D399", 15);
     } else if (tr.id === "red") {
       healPct = 0.25;
       p.buffTimer = 6.5;
       p.maxBuffTimer = 6.5;
-      this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 36, "star");
+      // 冠軍專屬赤紅霸氣衝擊環（與 240px 震退範圍 1:1 呼應）
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: p.x, y: p.y,
+        radius: 235,
+        timer: 0.42, maxTime: 0.42,
+        color: "#EF4444"
+      });
+      SkillsEngine.meleeEffects.push({
+        style: "slam_wave",
+        x: p.x, y: p.y,
+        radius: 155,
+        timer: 0.32, maxTime: 0.32,
+        color: "#FACC15"
+      });
+      this.spawnParticleCluster(p.x, p.y, "#EF4444", "#F59E0B", 36, "star", 1.35);
       this.enemies.forEach(e => {
         if (Math.hypot(e.x - p.x, e.y - p.y) < 240 && !e.isBoss) {
           const ang = Math.atan2(e.y - p.y, e.x - p.x);
           e.x += Math.cos(ang) * 110; e.y += Math.sin(ang) * 110;
         }
       });
-      this.spawnFloatingText(p.x, p.y - 35, "赤紅王牌號令! 全傷+45%!", "#EF4444", 16);
+      this.spawnFloatingText(p.x, p.y - 35, "🔥 赤紅王牌號令! 全傷+45% ＆ 冠軍霸氣!", "#EF4444", 16);
     }
 
     const healAmt = Math.round(p.maxHp * healPct);
@@ -1809,8 +1825,29 @@ window.GameApp = {
     if (p.invulnTimer > 0) p.invulnTimer -= dt;
     if (p.whiteFlashTimer > 0) p.whiteFlashTimer -= dt;
 
+    if (p.lillieSanctuaryTimer > 0) {
+      p.lillieSanctuaryTimer = Math.max(0, p.lillieSanctuaryTimer - dt);
+      p._lillieSparkTick = (p._lillieSparkTick || 0) - dt;
+      if (p._lillieSparkTick <= 0) {
+        p._lillieSparkTick = 0.14;
+        const la = Math.random() * Math.PI * 2;
+        const lx = p.x + Math.cos(la) * (16 + Math.random() * 14);
+        const ly = p.y + 10 + Math.sin(la) * 8;
+        SkillsEngine.spawnSubParticle(lx, ly, (Math.random() - 0.5) * 12, -38 - Math.random() * 20, Math.random() < 0.5 ? "#6EE7B7" : "#FEF08A", 2.8, 0.42, "star");
+      }
+    }
     if (p.buffTimer > 0) {
       p.buffTimer -= dt;
+      if (this.selectedTrainer && this.selectedTrainer.id === "red") {
+        p._redChampSparkTick = (p._redChampSparkTick || 0) - dt;
+        if (p._redChampSparkTick <= 0) {
+          p._redChampSparkTick = 0.16;
+          const ra = Math.random() * Math.PI * 2;
+          const rx = p.x + Math.cos(ra) * (20 + Math.random() * 10);
+          const ry = p.y + 12 + Math.sin(ra) * 6;
+          SkillsEngine.spawnSubParticle(rx, ry, (Math.random() - 0.5) * 16, -46 - Math.random() * 24, Math.random() < 0.55 ? "#EF4444" : "#FACC15", 2.9, 0.36, "star");
+        }
+      }
       if (p.buffTimer <= 0) {
         p.buffTimer = 0;
         p.trainerSkillCd = p.trainerSkillMaxCd;
@@ -7115,13 +7152,81 @@ window.GameApp = {
         ctx.restore();
       }
 
+      if (p.lillieSanctuaryTimer > 0) {
+        // 【莉莉艾・星之祈願治癒結界】：2 秒無敵期柔和淡金綠半透明結界 ＋ 旋轉星十字
+        const lPct = p.lillieSanctuaryTimer / (p.maxLillieSanctuaryTimer || 2.0);
+        const lNow = performance.now() * 0.004;
+        const lFade = p.lillieSanctuaryTimer < 0.35 ? (p.lillieSanctuaryTimer / 0.35) : 1.0;
+        ctx.save();
+        ctx.globalAlpha = lFade;
+        const lGrad = ctx.createRadialGradient(px, py, 8, px, py, 34);
+        lGrad.addColorStop(0, "rgba(254, 249, 195, 0.06)");
+        lGrad.addColorStop(0.65, "rgba(110, 231, 183, 0.22)");
+        lGrad.addColorStop(1, "rgba(52, 211, 153, 0.0)");
+        ctx.fillStyle = lGrad;
+        ctx.beginPath();
+        ctx.arc(px, py, 34, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(110, 231, 183, 0.88)";
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.arc(px, py, 31, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * lPct, false);
+        ctx.stroke();
+
+        // 4 枚細小星十字繞結界公轉
+        for (let k = 0; k < 4; k++) {
+          const sa = lNow + (k * Math.PI) / 2;
+          const sx = px + Math.cos(sa) * 31;
+          const sy = py + Math.sin(sa) * 31;
+          ctx.strokeStyle = k % 2 === 0 ? "#FEF08A" : "#FFFFFF";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(sx - 3.5, sy); ctx.lineTo(sx + 3.5, sy);
+          ctx.moveTo(sx, sy - 3.5); ctx.lineTo(sx, sy + 3.5);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       if (p.buffTimer > 0) {
         const buffPct = p.buffTimer / p.maxBuffTimer;
-        ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
-        ctx.lineWidth = 3.5;
-        ctx.beginPath();
-        ctx.arc(px, py + 12, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
-        ctx.stroke();
+        if (this.selectedTrainer && this.selectedTrainer.id === "red") {
+          // 【赤紅・冠軍霸氣深紅金焰光環】：與小智一般黃環拉開視覺階級
+          const rNow = performance.now() * 0.006;
+          ctx.save();
+          const rGrad = ctx.createRadialGradient(px, py + 14, 10, px, py + 14, 34);
+          rGrad.addColorStop(0, "rgba(220, 38, 38, 0.0)");
+          rGrad.addColorStop(0.6, "rgba(220, 38, 38, 0.24)");
+          rGrad.addColorStop(1, "rgba(250, 204, 21, 0.0)");
+          ctx.fillStyle = rGrad;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 15, 34, 12.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // 外圈深紅倒數弧
+          ctx.strokeStyle = "rgba(239, 68, 68, 0.92)";
+          ctx.lineWidth = 3.8;
+          ctx.beginPath();
+          ctx.arc(px, py + 12, 28, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
+          ctx.stroke();
+
+          // 內圈旋轉耀金細虛線
+          ctx.strokeStyle = "rgba(254, 240, 138, 0.90)";
+          ctx.lineWidth = 1.8;
+          ctx.setLineDash([7, 5]);
+          ctx.lineDashOffset = -rNow * 14;
+          ctx.beginPath();
+          ctx.ellipse(px, py + 15, 29, 10.5, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.strokeStyle = "rgba(245, 158, 11, 0.85)";
+          ctx.lineWidth = 3.5;
+          ctx.beginPath();
+          ctx.arc(px, py + 12, 26, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * buffPct, false);
+          ctx.stroke();
+        }
       }
 
       if (p.speedTrails && p.speedTrails.length > 0) {

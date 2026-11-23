@@ -866,7 +866,7 @@ const TRAINERS = [
     skillName: "暴風海嘯",
     skillCd: 28,
     skillDuration: 4.5,
-    desc: "召喚【潮旋激流】與寒冰霜環席捲戰場，強烈震退並凍結周遭敵軍 3.5 秒！",
+    desc: "召喚專屬碧藍海嘯巨浪與冰晶霜環席捲戰場，強烈震退並凍結周遭敵軍 3.5 秒！",
     bondName: "水之精靈",
     bondColor: "#38BDF8",
     bondPokemonIds: [7, 54, 120, 131],
