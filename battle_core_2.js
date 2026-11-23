@@ -1541,14 +1541,14 @@ window.GameApp = {
       if (this.partners.length === 0) {
         this.summonOrUpgradePartner();
       }
-      // 展開 5.5 秒粉金「華麗雙打舞台」極光領域（持續星光傷害 ＋ 敵人降攻 35%）
+      // 展開 5.5 秒專屬「華麗雙打舞台」（臨時圓形星光地毯 ＋ 雙聚光燈，與月亮之力超武完全分家）
       const stageDmg = (34 + p.baseAtk * 0.72) * p.dmgMult;
-      SkillsEngine.groundHazards = SkillsEngine.groundHazards.filter(h => h.kind !== "genesis_aurora");
+      SkillsEngine.groundHazards = SkillsEngine.groundHazards.filter(h => h.kind !== "serena_stage");
       SkillsEngine.groundHazards.push({
-        kind: "genesis_aurora",
+        kind: "serena_stage",
         x: p.x, y: p.y,
         followPlayer: true,
-        radius: 175 * Math.min(1.3, p.areaMult),
+        radius: 172 * Math.min(1.25, p.areaMult),
         dmg: stageDmg * 0.45,
         type: "Psychic",
         timer: 5.5, maxTime: 5.5,
@@ -7161,26 +7161,34 @@ window.GameApp = {
 
         const isMegaSprite = !!(p.megaEvolved || p.id >= 10000);
         const awakenScale = isMegaSprite ? 1.38 : (p.legendaryAwaken24 ? 1.16 : (p.singleStageAwakened ? 1.12 : (p.legendaryAwaken12 ? 1.08 : 1.0)));
-        // 腳底錨點校準：Mega 96x96 精靈圖留白較大，微調錨點使其與 GBA 64x64 精靈等比例且穩踩光環中央
+        // 獨立 Mega 腳底錨點對照表（於鏡像後本地座標套用，轉向左右時自動對稱貼齊光環正中央）
+        const MEGA_ANCHOR_OFFSETS = {
+          10036: { ox: -6, oy: -4 }, // 超級水箭龜：修正左炮留白導致雙腳偏右下
+          10034: { ox: 2,  oy: -5 }, // 超級噴火龍X：雙爪收進光環內側並居中重心
+          10033: { ox: 0,  oy: -2 }  // 超級妙蛙花：四足完全落入光環內圈
+        };
+        const mOff = isMegaSprite ? (MEGA_ANCHOR_OFFSETS[p.id] || { ox: 0, oy: 0 }) : { ox: 0, oy: 0 };
         const footAnchorLiftY = isMegaSprite ? 7 : (awakenScale - 1.0) * 28;
         ctx.translate(px + visOffsetX, py + visOffsetY - footAnchorLiftY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
+        const drawX = -26 + mOff.ox;
+        const drawY = -21 + mOff.oy;
         if (submergeWater) {
           ctx.save();
           ctx.beginPath();
           ctx.rect(-26, -21, 52, 29); // 校準腳底透明留白 (+5px)，裁切至腹部吃水線 (y: -21 ~ +8)
           ctx.clip();
-          ctx.drawImage(pRec.img, -26, -21, 52, 52);
+          ctx.drawImage(pRec.img, drawX, drawY, 52, 52);
           if (p.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, pRec.img, -26, -21, 52, 52, "#FFFFFF", 0.75);
+            this.drawSilhouetteFlash(ctx, pRec.img, drawX, drawY, 52, 52, "#FFFFFF", 0.75);
           }
           ctx.restore();
           drawPixelWaterlineFoam(8, 16, 0);
         } else {
-          ctx.drawImage(pRec.img, -26, -21, 52, 52);
+          ctx.drawImage(pRec.img, drawX, drawY, 52, 52);
           if (p.whiteFlashTimer > 0) {
-            this.drawSilhouetteFlash(ctx, pRec.img, -26, -21, 52, 52, "#FFFFFF", 0.75);
+            this.drawSilhouetteFlash(ctx, pRec.img, drawX, drawY, 52, 52, "#FFFFFF", 0.75);
           }
         }
 

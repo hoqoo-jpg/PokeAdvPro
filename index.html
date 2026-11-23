@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=6.9.11');
+      background-image: url('images/skills_icons_sheet.png?v=6.9.12');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -805,20 +805,34 @@
       <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 關卡與模式</button>
     </div>
 
-    <!-- 選角常駐：當前出戰陣容條（跨 STEP 1/2/3 隨時一目了然，點擊即可快切定位） -->
-    <div id="wizardCurrentLineupBar" class="bg-slate-900 text-white px-3 py-1.5 border-b border-slate-700 flex items-center justify-between gap-2 text-xs shrink-0">
-      <div class="flex items-center gap-2 min-w-0">
-        <button onclick="GameApp.setWizardStep(1)" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
-          <img id="wizardBarTrainerImg" src="images/Ash_01.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Trainer" />
-          <span id="wizardBarTrainerName" class="font-black text-[11px] text-amber-300 truncate">小智</span>
-        </button>
-        <span class="text-slate-500 font-black text-[10px]">+</span>
-        <button onclick="GameApp.setWizardStep(2)" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
-          <img id="wizardBarPokeImg" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Pokemon" />
-          <span id="wizardBarPokeName" class="font-black text-[11px] text-sky-300 truncate">皮卡丘</span>
-        </button>
+    <!-- 選角智慧常駐條（第1行：陣容＋羈絆＋STEP2快捷王冠突破；第2行：STEP2極簡特性與滿星特典條） -->
+    <div id="wizardCurrentLineupBar" class="bg-slate-900 text-white border-b border-slate-700 shrink-0">
+      <div class="px-2.5 sm:px-3 py-1.5 flex items-center justify-between gap-1.5 text-xs">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <button onclick="GameApp.setWizardStep(1)" class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
+            <img id="wizardBarTrainerImg" src="images/Ash_01.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Trainer" />
+            <span id="wizardBarTrainerName" class="font-black text-[11px] text-amber-300 truncate">小智</span>
+          </button>
+          <span class="text-slate-500 font-black text-[10px] shrink-0">+</span>
+          <button onclick="GameApp.setWizardStep(2)" class="flex items-center gap-1 bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-xl border border-slate-600 transition-colors min-w-0">
+            <img id="wizardBarPokeImg" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-6 h-6 pixel-sprite object-contain shrink-0" alt="Pokemon" />
+            <span id="wizardBarPokeName" class="font-black text-[11px] text-sky-300 truncate">皮卡丘</span>
+            <span id="wizardBarPokeStars" class="text-[11px] leading-none shrink-0 ml-0.5">☆☆☆</span>
+          </button>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span id="wizardBarBondBadge" class="hidden px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shrink-0">★ 羈絆</span>
+          <button id="wizardBarStarBtn" onclick="GameApp.upgradePokemonStar(GameApp.selectedStarterId)" class="hidden relative px-2 py-1 rounded-xl font-black text-[10px] border flex items-center gap-1 transition-transform active:scale-95 shrink-0">
+            <i class="fa-solid fa-crown text-[9px]"></i>
+            <span id="wizardBarStarBtnText">突破 ★1 (400金)</span>
+          </button>
+        </div>
       </div>
-      <span id="wizardBarBondBadge" class="hidden px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black text-[9px] shrink-0">★ 羈絆+25%</span>
+      <!-- 僅 STEP 2 展開的極簡特性與滿星提示細條 (~24px) -->
+      <div id="wizardBarTraitStrip" class="hidden px-3 py-1 bg-slate-950/90 border-t border-slate-800 flex items-center justify-between gap-2 text-[10px]">
+        <div id="wizardBarTraitText" class="font-bold text-slate-200 truncate min-w-0">⚡ 特性載入中...</div>
+        <span id="wizardBarStarPerkText" class="font-black text-sky-300 whitespace-nowrap shrink-0 text-[9px]">★3開局Lv.2</span>
+      </div>
     </div>
 
     <div class="bg-amber-50 px-4 py-2 border-b border-amber-200 text-xs shrink-0">
@@ -1239,10 +1253,10 @@
   </div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=6.9.11"></script>
-  <script src="map_v11_engine.js?v=6.9.11"></script>
-  <script src="skills_engine.js?v=6.9.11"></script>
-  <script src="battle_core_2.js?v=6.9.11"></script>
-  <script src="game_ui.js?v=6.9.11"></script>
+  <script src="pokedex_data.js?v=6.9.12"></script>
+  <script src="map_v11_engine.js?v=6.9.12"></script>
+  <script src="skills_engine.js?v=6.9.12"></script>
+  <script src="battle_core_2.js?v=6.9.12"></script>
+  <script src="game_ui.js?v=6.9.12"></script>
 </body>
 </html>

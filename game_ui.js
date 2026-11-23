@@ -476,12 +476,20 @@ Object.assign(window.GameApp, {
     const trName = document.getElementById("wizardBarTrainerName");
     const pkImg = document.getElementById("wizardBarPokeImg");
     const pkName = document.getElementById("wizardBarPokeName");
+    const pkStars = document.getElementById("wizardBarPokeStars");
     const bondBadge = document.getElementById("wizardBarBondBadge");
+    const starBtn = document.getElementById("wizardBarStarBtn");
+    const starBtnText = document.getElementById("wizardBarStarBtnText");
+    const traitStrip = document.getElementById("wizardBarTraitStrip");
+    const traitText = document.getElementById("wizardBarTraitText");
+    const perkText = document.getElementById("wizardBarStarPerkText");
 
     const hasShiny = !!(this.saveData && this.saveData.shinyUnlocked && this.saveData.shinyUnlocked[p.id]);
     const useShiny = hasShiny && !!(this.useShinyStarter && this.useShinyStarter[p.id]);
     const starLv = (this.saveData && this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
     const isBond = (t.bondPokemonIds || []).includes(p.id);
+    const isUnlocked = !!(this.saveData && this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[p.id]);
+    const isStep2 = (this.wizardStep === 2);
 
     if (trImg) trImg.src = SpriteCache.resolveUrl(t.sprite);
     if (trName) trName.textContent = t.name.split(" ")[0];
@@ -489,12 +497,49 @@ Object.assign(window.GameApp, {
       pkImg.src = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
       pkImg.className = "w-6 h-6 pixel-sprite object-contain shrink-0";
     }
-    if (pkName) {
-      pkName.textContent = `${p.name_zh}${starLv > 0 ? ' ' + '★'.repeat(starLv) : ''}`;
+    if (pkName) pkName.textContent = p.name_zh;
+    if (pkStars) {
+      pkStars.innerHTML = [1, 2, 3].map(n =>
+        `<span class="${n <= starLv ? 'text-amber-400' : 'text-slate-600'}">${n <= starLv ? '★' : '☆'}</span>`
+      ).join("");
     }
     if (bondBadge) {
       bondBadge.classList.toggle("hidden", !isBond);
-      if (isBond) bondBadge.textContent = `★ ${t.bondName || '羈絆'} +25%`;
+      if (isBond) bondBadge.textContent = isStep2 ? "★ 羈絆" : `★ ${t.bondName || '羈絆'} +25%`;
+    }
+
+    if (starBtn && starBtnText) {
+      if (isStep2 && isUnlocked) {
+        starBtn.classList.remove("hidden");
+        const starCostsTbl = [400, 800, 1500];
+        const nextCost = starLv < 3 ? starCostsTbl[starLv] : 0;
+        const canAfford = starLv < 3 && (this.saveData.coins || 0) >= nextCost;
+        starBtn.disabled = (starLv >= 3);
+        if (starLv >= 3) {
+          starBtn.className = "relative px-2 py-1 rounded-xl font-black text-[10px] border flex items-center gap-1 shrink-0 bg-amber-950/70 text-amber-300 border-amber-500/70";
+          starBtnText.textContent = "金冠滿星";
+        } else if (canAfford) {
+          starBtn.className = "relative px-2 py-1 rounded-xl font-black text-[10px] border-2 flex items-center gap-1 transition-transform active:scale-95 shrink-0 bg-gradient-to-b from-amber-300 to-amber-500 text-slate-950 border-white shadow-[0_0_12px_rgba(250,204,21,0.65)]";
+          starBtnText.textContent = `突破 ★${starLv + 1} (${nextCost}金)`;
+        } else {
+          starBtn.className = "relative px-2 py-1 rounded-xl font-black text-[10px] border flex items-center gap-1 transition-transform active:scale-95 shrink-0 bg-slate-800 text-amber-300 border-amber-500/60";
+          starBtnText.textContent = `突破 ★${starLv + 1} (${nextCost}金)`;
+        }
+      } else {
+        starBtn.classList.add("hidden");
+      }
+    }
+
+    if (traitStrip && traitText && perkText) {
+      const trMeta = (typeof getPokemonInnateTrait === "function") ? getPokemonInnateTrait(p, 1) : null;
+      if (isStep2 && trMeta) {
+        traitStrip.classList.remove("hidden");
+        traitText.innerHTML = `<span class="text-amber-300 font-black"><i class="fa-solid ${trMeta.icon} text-[9px] mr-0.5"></i>【${trMeta.name}】</span>${trMeta.desc}`;
+        perkText.textContent = starLv >= 3 ? "✓ ★3開局Lv.2" : "★3開局主招Lv.2";
+        perkText.className = `font-black whitespace-nowrap shrink-0 text-[9px] ${starLv >= 3 ? 'text-emerald-400' : 'text-sky-300'}`;
+      } else {
+        traitStrip.classList.add("hidden");
+      }
     }
   },
 
@@ -707,52 +752,8 @@ Object.assign(window.GameApp, {
       return (bBond * 2 + bUnlocked) - (aBond * 2 + aUnlocked);
     });
 
-    const curSelPoke = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
-    const curSelTrait1 = (typeof getPokemonInnateTrait === "function" && curSelPoke) ? getPokemonInnateTrait(curSelPoke, 1) : null;
-    const curSelUnlocked = !!(curSelPoke && this.saveData.unlockedPokemon[curSelPoke.id]);
-    const curStarLv = (curSelPoke && this.saveData.pokemonStars && this.saveData.pokemonStars[curSelPoke.id]) || 0;
-    const starCostsTbl = [400, 800, 1500];
-    const curNextStarCost = curStarLv < 3 ? starCostsTbl[curStarLv] : 0;
-    const canAffordCurStar = curSelUnlocked && curStarLv < 3 && (this.saveData.coins || 0) >= curNextStarCost;
-    const starSlotsHtml = [1, 2, 3].map(n =>
-      `<span class="${n <= curStarLv ? 'text-amber-400 drop-shadow-[0_0_4px_rgba(250,204,21,0.8)]' : 'text-slate-600'} text-sm leading-none">${n <= curStarLv ? '★' : '☆'}</span>`
-    ).join("");
-
-    const selectedTraitBannerHtml = (curSelPoke && curSelTrait1) ? `
-      <div class="bg-slate-900 text-white p-2.5 sm:p-3 rounded-2xl border-2 border-amber-400 shadow-lg space-y-2">
-        <div class="flex items-center justify-between gap-2.5">
-          <div class="flex items-center gap-2 min-w-0 flex-1">
-            <img src="${curSelPoke.forward_sprite}" class="w-11 h-11 pixel-sprite object-contain bg-slate-800 rounded-xl border border-slate-600 p-0.5 shrink-0"/>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-black text-xs sm:text-sm text-amber-300">${curSelPoke.name_zh}</span>
-                <div class="flex items-center gap-0.5 bg-slate-800 px-1.5 py-0.5 rounded-full border border-slate-700">${starSlotsHtml}</div>
-                <span class="px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-400/60 text-amber-200 text-[9px] font-black"><i class="fa-solid ${curSelTrait1.icon} mr-0.5"></i>${curSelTrait1.name}</span>
-              </div>
-              <div class="text-[10px] text-slate-200 font-bold leading-snug mt-0.5 whitespace-normal break-words">${curSelTrait1.desc}</div>
-            </div>
-          </div>
-          ${curSelUnlocked ? `
-            <button onclick="GameApp.upgradePokemonStar(${curSelPoke.id})" ${curStarLv >= 3 ? 'disabled' : ''} class="relative shrink-0 px-2.5 sm:px-3 py-1.5 rounded-xl font-black text-[10px] sm:text-xs border-2 flex flex-col items-center justify-center transition-transform active:scale-95 ${curStarLv >= 3 ? 'bg-amber-950/60 text-amber-300 border-amber-500/60' : (canAffordCurStar ? 'bg-gradient-to-b from-amber-300 to-amber-500 text-slate-950 border-white shadow-[0_0_14px_rgba(250,204,21,0.65)]' : 'bg-slate-800 text-amber-300 border-amber-500/60')}">
-              ${canAffordCurStar ? `<span class="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-red-500 border-2 border-white animate-ping"></span><span class="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-red-500 border-2 border-white"></span>` : ''}
-              <span class="flex items-center gap-1"><i class="fa-solid fa-crown text-[10px]"></i>${curStarLv >= 3 ? '金冠滿星' : `王冠突破 ★${curStarLv + 1}`}</span>
-              ${curStarLv < 3 ? `<span class="font-pixel text-[8px] mt-0.5 opacity-90">${curNextStarCost} 金</span>` : `<span class="text-[8px] text-emerald-300 mt-0.5">已達極限</span>`}
-            </button>
-          ` : ''}
-        </div>
-        <div class="bg-slate-950/80 border border-slate-700/80 rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 flex-wrap text-[10px]">
-          <span class="font-bold text-amber-200">
-            <i class="fa-solid fa-crown text-amber-400 mr-1"></i>王冠永久養成：每星 <strong class="text-white">HP/攻擊 +12% ‧ 減傷 +6%</strong>
-          </span>
-          <span class="font-black ${curStarLv >= 3 ? 'text-emerald-400' : 'text-sky-300'}">
-            ${curStarLv >= 3 ? '✓ ★3 特典已生效：開局主招式 Lv.2' : '★3 滿星特典：開局主招式直接 Lv.2！'}
-          </span>
-        </div>
-      </div>
-    ` : "";
-
     const prevFilterScroll = document.getElementById("wizardStep2FilterBar") ? document.getElementById("wizardStep2FilterBar").scrollLeft : 0;
-    const filterBarHtml = selectedTraitBannerHtml + `
+    const filterBarHtml = `
       <div id="wizardStep2FilterBar" class="flex items-center gap-1.5 overflow-x-auto pb-1">
         ${filterTabs.map(t => `
           <button data-filter-key="${t.key}" onclick="GameApp.setWizardPokeFilter('${t.key}')" class="px-3 py-1 rounded-full text-xs font-black whitespace-nowrap border transition-colors ${activeFilter === t.key ? 'bg-red-600 text-white border-red-700 shadow-sm' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}">

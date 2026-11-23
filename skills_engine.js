@@ -2580,7 +2580,16 @@ const SkillsEngine = {
         if (Math.random() < 0.35) {
           const rx = hz.x + (Math.random() - 0.5) * hz.radius * 1.4;
           const ry = hz.y + (Math.random() - 0.5) * hz.radius * 0.8;
-          this.spawnSubParticle(rx, ry - 40, (Math.random() - 0.5) * 20, 35 + Math.random() * 25, Math.random() < 0.5 ? "#FEF08A" : "#F472B6", 3.2, 0.55, "star");
+          this.spawnSubParticle(rx, ry - 55, -18 + (Math.random() - 0.5) * 14, 42 + Math.random() * 24, Math.random() < 0.5 ? "#E0E7FF" : "#F9A8D4", 3.0, 0.55, "star");
+        }
+      } else if (hz.kind === "serena_stage") {
+        if (Math.random() < 0.28) {
+          const ang = Math.random() * Math.PI * 2;
+          const rad = 20 + Math.random() * (hz.radius * 0.78);
+          const rx = hz.x + Math.cos(ang) * rad;
+          const ry = hz.y + Math.sin(ang) * rad - 48;
+          const col = Math.random() < 0.55 ? "#F472B6" : "#FEF08A";
+          this.spawnSubParticle(rx, ry, (Math.random() - 0.5) * 18, 28 + Math.random() * 22, col, 2.8, 0.62, Math.random() < 0.6 ? "star" : "diamond");
         }
       } else if (hz.kind === "dragon_wave") {
         hz.afterimageTimer = (hz.afterimageTimer || 0) - dt;
@@ -2668,14 +2677,14 @@ const SkillsEngine = {
               if (hz.kind === "quake_fissure" && (e.data.type1 === "Flying" || e.data.type2 === "Flying")) {
                 dVal *= 3.0; // 飛石對空破局 (對齊 0.35x 屬性底線)
               }
-              if (hz.kind === "genesis_aurora" || hz.kind === "moon_pillar") {
+              if (hz.kind === "genesis_aurora" || hz.kind === "moon_pillar" || hz.kind === "serena_stage") {
                 const wasWeakened = (e.weakenTimer && e.weakenTimer > 0.5);
-                e.weakenTimer = 3.0; // 創世極光與月光聖柱：降低敵方 35% 攻擊力
+                e.weakenTimer = 3.0; // 創世極光、月光聖柱與莎莉娜華麗舞台：降低敵方 35% 攻擊力
                 if (!wasWeakened) {
-                  GameApp.spawnFloatingText(e.x, e.y - 24, "🌙 降攻 -35%!", "#F472B6", 11);
+                  GameApp.spawnFloatingText(e.x, e.y - 24, hz.kind === "serena_stage" ? "✨ 魅惑降攻 -35%!" : "🌙 降攻 -35%!", "#F472B6", 11);
                 }
               }
-              const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora") ? -0.28 : -0.08);
+              const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora" || hz.kind === "serena_stage") ? -0.28 : -0.08);
               const megaToughClawsCrit = (hz.kind === "dragon_wave" && hz.isMegaCharizardX) ? 0.25 : 0;
               GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2, megaToughClawsCrit);
               // 超級噴火龍X (#10034) 硬爪＋藍焰聯動：龍之俯衝命中必定掛上灼傷，完美觸發猛火龍威增傷
@@ -3219,39 +3228,113 @@ const SkillsEngine = {
           ctx.fill();
         }
       } else if (hz.kind === "genesis_aurora") {
-        // 【創世極光（月亮之力超武・底層）】：月華星河投影陣 ＋ 雙向交織波浪極光帶 ＋ 閃爍十字星芒
+        // 【創世極光（月亮之力超武・底層）】：天頂月華投影陣（星夜深紫微暈 ＋ 旋轉銀白月相符文環）
         ctx.translate(sx, sy);
-        const alpha = Math.sin((1 - prog) * Math.PI) * 0.90;
-        const curR = Math.max(28, hz.radius * Math.min(1, prog * 2.0));
+        const alpha = Math.sin((1 - prog) * Math.PI) * 0.88;
+        const curR = Math.max(28, hz.radius * Math.min(1, prog * 2.1));
 
-        const aurGrad = ctx.createRadialGradient(0, 0, 24, 0, 0, curR);
-        aurGrad.addColorStop(0, `rgba(254, 240, 138, ${alpha * 0.25})`);
-        aurGrad.addColorStop(0.45, `rgba(244, 114, 182, ${alpha * 0.38})`);
-        aurGrad.addColorStop(0.82, `rgba(56, 189, 248, ${alpha * 0.32})`);
+        // 1. 半透明星夜深紫微暈底盤（中心輕透不擋敵彈，外緣泛出銀紫月暈）
+        const aurGrad = ctx.createRadialGradient(0, 0, curR * 0.25, 0, 0, curR);
+        aurGrad.addColorStop(0, `rgba(30, 27, 75, ${alpha * 0.14})`);
+        aurGrad.addColorStop(0.58, `rgba(88, 28, 135, ${alpha * 0.24})`);
+        aurGrad.addColorStop(0.86, `rgba(244, 114, 182, ${alpha * 0.28})`);
         aurGrad.addColorStop(1, "rgba(15, 23, 42, 0)");
         ctx.fillStyle = aurGrad;
         ctx.beginPath();
         ctx.arc(0, 0, curR, 0, Math.PI * 2);
         ctx.fill();
 
-        // 外圍神聖月相星軌環
-        ctx.strokeStyle = `rgba(254, 240, 138, ${alpha * 0.8})`;
-        ctx.lineWidth = 2.2;
+        // 2. 雙層逆向旋轉銀白月相星軌細環
+        ctx.strokeStyle = `rgba(224, 231, 255, ${alpha * 0.72})`;
+        ctx.lineWidth = 2.0;
         ctx.beginPath();
-        ctx.arc(0, 0, curR * 0.88, 0, Math.PI * 2);
+        ctx.arc(0, 0, curR * 0.90, 0, Math.PI * 2);
         ctx.stroke();
 
-        // 4 道交織流動的波浪極光絲帶
-        for (let band = 0; band < 4; band++) {
-          ctx.strokeStyle = band % 2 === 0 ? `rgba(244, 114, 182, ${alpha * 0.9})` : (band === 1 ? `rgba(254, 240, 138, ${alpha * 0.95})` : `rgba(103, 232, 249, ${alpha * 0.9})`);
-          ctx.lineWidth = 4.8;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          for (let x = -curR * 0.84; x <= curR * 0.84; x += 16) {
-            const y = (band - 1.5) * 36 + Math.sin(now * 3.4 + x * 0.032 + band * 1.4) * 18;
-            if (x === -curR * 0.84) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+        ctx.strokeStyle = `rgba(244, 114, 182, ${alpha * 0.55})`;
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([10, 8]);
+        ctx.beginPath();
+        ctx.arc(0, 0, curR * 0.72, -now * 0.5, -now * 0.5 + Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 3. 環繞地面投影的 8 枚「新月 ➔ 弦月 ➔ 滿月」幾何月相刻紋
+        const phaseR = curR * 0.81;
+        for (let m = 0; m < 8; m++) {
+          const ma = now * 0.35 + (m * Math.PI * 2) / 8;
+          const mx = Math.cos(ma) * phaseR;
+          const my = Math.sin(ma) * phaseR;
+          ctx.save();
+          ctx.translate(mx, my);
+          ctx.rotate(ma + Math.PI / 2);
+          ctx.globalAlpha = alpha * 0.85;
+          if (m % 4 === 0) {
+            // 滿月銀白圓印
+            ctx.fillStyle = "#FEF9C3";
+            ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+          } else if (m % 4 === 2) {
+            // 新月空心銀環
+            ctx.strokeStyle = "#E0E7FF";
+            ctx.lineWidth = 1.6;
+            ctx.beginPath(); ctx.arc(0, 0, 5.2, 0, Math.PI * 2); ctx.stroke();
+          } else {
+            // 上／下弦月眉印
+            ctx.fillStyle = "#FBCFE8";
+            ctx.beginPath();
+            ctx.arc(0, 0, 5.5, -Math.PI * 0.45, Math.PI * 0.45);
+            ctx.arc(2.4, 0, 4.4, Math.PI * 0.45, -Math.PI * 0.45, true);
+            ctx.closePath();
+            ctx.fill();
           }
+          ctx.restore();
+        }
+      } else if (hz.kind === "serena_stage") {
+        // 【莎莉娜大招・華麗雙打舞台（底層）】：中空星光圓形臨時舞台 ＋ 深玫紅/金邊細框 ＋ 12 顆交替閃爍像素小燈泡
+        ctx.translate(sx, sy);
+        const fade = hz.timer < 0.5 ? Math.max(0, hz.timer / 0.5) : Math.min(1, prog * 4.0);
+        const curR = Math.max(32, hz.radius * Math.min(1, prog * 3.0));
+
+        // 1. 中空星光舞台邊暈（中心 0~70% 幾近透明，絕不遮草地與敵方紅彈）
+        const stGrad = ctx.createRadialGradient(0, 0, curR * 0.65, 0, 0, curR);
+        stGrad.addColorStop(0, "rgba(244, 114, 182, 0.0)");
+        stGrad.addColorStop(0.55, `rgba(219, 39, 119, ${fade * 0.14})`);
+        stGrad.addColorStop(0.92, `rgba(254, 240, 138, ${fade * 0.24})`);
+        stGrad.addColorStop(1, "rgba(190, 24, 93, 0.0)");
+        ctx.fillStyle = stGrad;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. 深玫紅外框 ＋ 香檳金內細線
+        ctx.strokeStyle = `rgba(190, 24, 93, ${fade * 0.78})`;
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = `rgba(254, 240, 138, ${fade * 0.72})`;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, 0, curR - 4.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // 3. 12 顆沿舞台外緣輪流明暗閃爍的暖金／粉紅像素舞台小燈泡
+        const bulbCount = 12;
+        const chaseStep = Math.floor(now * 3.8);
+        for (let b = 0; b < bulbCount; b++) {
+          const ba = (b * Math.PI * 2) / bulbCount;
+          const bx = Math.cos(ba) * (curR - 1.5);
+          const by = Math.sin(ba) * (curR - 1.5);
+          const isLit = ((b + chaseStep) % 2 === 0);
+          ctx.fillStyle = isLit
+            ? `rgba(254, 249, 195, ${fade * 0.96})`
+            : `rgba(244, 114, 182, ${fade * 0.55})`;
+          ctx.strokeStyle = `rgba(131, 24, 67, ${fade * 0.85})`;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(bx, by, isLit ? 4.0 : 2.8, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
         }
       } else if (hz.kind === "quake_fissure") {
@@ -3979,52 +4062,89 @@ const SkillsEngine = {
         ctx.fill();
         ctx.stroke();
       } else if (hz.kind === "genesis_aurora") {
-        // 【創世極光（高空層）】：頭頂高空浮現皎潔立體滿月虛影 ＋ 傾瀉而下的雙色垂直極光天幕
+        // 【創世極光（高空層）】：移除貼地圓月，改由畫面上緣斜射 4 道潔白偏粉丁達爾月光柱（由單柱聚光進化為滿天月華）
         ctx.translate(sx, sy);
         const alpha = Math.sin((1 - prog) * Math.PI) * 0.85;
-        ctx.globalAlpha = alpha;
-        const moonY = -165;
+        ctx.globalCompositeOperation = "lighter";
+        const beams = [
+          { bx: -hz.radius * 0.52, by: -hz.radius * 0.14, w: 28, phase: 0.0 },
+          { bx: -hz.radius * 0.14, by:  hz.radius * 0.24, w: 36, phase: 1.4 },
+          { bx:  hz.radius * 0.22, by: -hz.radius * 0.18, w: 32, phase: 2.7 },
+          { bx:  hz.radius * 0.56, by:  hz.radius * 0.16, w: 26, phase: 4.1 }
+        ];
+        beams.forEach((bm, idx) => {
+          const sway = Math.sin(now * 2.2 + bm.phase) * 8;
+          const topX = bm.bx + 92 + sway;
+          const topY = bm.by - 270;
+          const bGrad = ctx.createLinearGradient(topX, topY, bm.bx, bm.by + 12);
+          bGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
+          bGrad.addColorStop(0.28, `rgba(224, 231, 255, ${alpha * 0.26})`);
+          bGrad.addColorStop(0.76, idx % 2 === 0 ? `rgba(244, 114, 182, ${alpha * 0.28})` : `rgba(254, 240, 138, ${alpha * 0.26})`);
+          bGrad.addColorStop(1, "rgba(244, 114, 182, 0.0)");
+          ctx.fillStyle = bGrad;
+          ctx.beginPath();
+          ctx.moveTo(topX - bm.w * 0.42, topY);
+          ctx.lineTo(topX + bm.w * 0.42, topY);
+          ctx.lineTo(bm.bx + bm.w * 0.95, bm.by + 10);
+          ctx.lineTo(bm.bx - bm.w * 0.95, bm.by + 10);
+          ctx.closePath();
+          ctx.fill();
 
-        // 1. 垂直傾瀉極光布幕 (粉金 ➔ 冰青 ➔ 透明)
-        const curtainGrad = ctx.createLinearGradient(0, moonY, 0, 10);
-        curtainGrad.addColorStop(0, "rgba(254, 240, 138, 0.55)");
-        curtainGrad.addColorStop(0.5, "rgba(244, 114, 182, 0.32)");
-        curtainGrad.addColorStop(1, "rgba(56, 189, 248, 0.0)");
-        ctx.fillStyle = curtainGrad;
-        ctx.beginPath();
-        ctx.moveTo(-45, moonY);
-        ctx.lineTo(45, moonY);
-        ctx.lineTo(hz.radius * 0.65, 10);
-        ctx.lineTo(-hz.radius * 0.65, 10);
-        ctx.closePath();
-        ctx.fill();
+          // 光柱落點柔和月華光斑
+          ctx.fillStyle = `rgba(254, 249, 195, ${alpha * 0.28})`;
+          ctx.beginPath();
+          ctx.ellipse(bm.bx, bm.by + 4, bm.w * 0.72, bm.w * 0.30, 0, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      } else if (hz.kind === "serena_stage") {
+        // 【莎莉娜大招・華麗雙打舞台（高空層）】：2 道克制半透明斜射追蹤聚光燈（分別照亮主角與雙打夥伴/莎莉娜）
+        const fade = hz.timer < 0.5 ? Math.max(0, hz.timer / 0.5) : Math.min(1, prog * 4.0);
+        const pRef = GameApp.player;
+        const spotTargets = [];
+        if (pRef) spotTargets.push({ x: toSx(pRef.x), y: toSy(pRef.y) + 12, fromSide: -1, rgb: "244, 114, 182" });
+        if (GameApp.partners && GameApp.partners.length > 0) {
+          const pt0 = GameApp.partners[0];
+          spotTargets.push({ x: toSx(pt0.x), y: toSy(pt0.y) + 10, fromSide: 1, rgb: "254, 240, 138" });
+        } else if (GameApp.trainerCompanion) {
+          const tc = GameApp.trainerCompanion;
+          spotTargets.push({ x: toSx(tc.x), y: toSy(tc.y) + 12, fromSide: 1, rgb: "254, 240, 138" });
+        }
 
-        // 2. 高空皎潔滿月外暈與立體環形山紋理
-        const haloGrad = ctx.createRadialGradient(0, moonY, 10, 0, moonY, 54);
-        haloGrad.addColorStop(0, "rgba(254, 249, 195, 0.95)");
-        haloGrad.addColorStop(0.55, "rgba(244, 114, 182, 0.45)");
-        haloGrad.addColorStop(1, "rgba(244, 114, 182, 0)");
-        ctx.fillStyle = haloGrad;
-        ctx.beginPath();
-        ctx.arc(0, moonY, 54, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+        spotTargets.forEach((st, idx) => {
+          const sway = Math.sin(now * 2.6 + idx * 2.1) * 10;
+          const srcX = st.x + st.fromSide * 135 + sway;
+          const srcY = st.y - 260;
 
-        ctx.fillStyle = "#FEF9C3";
-        ctx.strokeStyle = "#FDE047";
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.arc(0, moonY, 26, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+          const coneGrad = ctx.createLinearGradient(srcX, srcY, st.x, st.y);
+          coneGrad.addColorStop(0, `rgba(${st.rgb}, 0.0)`);
+          coneGrad.addColorStop(0.25, `rgba(${st.rgb}, ${0.18 * fade})`);
+          coneGrad.addColorStop(0.85, `rgba(${st.rgb}, ${0.25 * fade})`);
+          coneGrad.addColorStop(1, `rgba(${st.rgb}, 0.0)`);
 
-        // 月面淺影紋理
-        ctx.fillStyle = "rgba(250, 204, 21, 0.35)";
-        ctx.beginPath();
-        ctx.arc(-8, moonY - 5, 6, 0, Math.PI * 2);
-        ctx.arc(9, moonY + 7, 8, 0, Math.PI * 2);
-        ctx.arc(5, moonY - 9, 4, 0, Math.PI * 2);
-        ctx.fill();
+          ctx.fillStyle = coneGrad;
+          ctx.beginPath();
+          ctx.moveTo(srcX - 10, srcY);
+          ctx.lineTo(srcX + 10, srcY);
+          ctx.lineTo(st.x + 36, st.y);
+          ctx.lineTo(st.x - 36, st.y);
+          ctx.closePath();
+          ctx.fill();
 
+          // 腳底柔和聚光圓斑
+          ctx.fillStyle = `rgba(${st.rgb}, ${0.22 * fade})`;
+          ctx.beginPath();
+          ctx.ellipse(st.x, st.y, 34, 13, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.42 * fade})`;
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.ellipse(st.x, st.y, 34, 13, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        });
+        ctx.restore();
       } else if (hz.kind === "tornado") {
         // 【暴風驟雨・3層立體流體龍捲風柱】：底層吸塵渦流 ＋ 錐形半透明流體風柱與交織S風帶 ＋ 環繞月牙風刃與飛葉
         ctx.translate(sx, sy);
