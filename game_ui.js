@@ -70,6 +70,7 @@ Object.assign(window.GameApp, {
             dmgTextMode: "all",
             procNoticeMode: "icon",
             screenShake: "normal",
+            fourthSlotPoolMode: "affinity",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
@@ -1121,7 +1122,8 @@ Object.assign(window.GameApp, {
         screenFilter: "none",
         dmgTextMode: "all",
         procNoticeMode: "icon",
-        screenShake: "normal"
+        screenShake: "normal",
+        fourthSlotPoolMode: "affinity"
       }
     };
   },
@@ -1704,10 +1706,14 @@ Object.assign(window.GameApp, {
     const list = this.centerTab === "pokemon" ? CENTER_POKEMON_UPGRADES : CENTER_TRAINER_UPGRADES;
     const box = document.getElementById("skillTreeContainer");
 
+    const poolMode = (this.ensureSettingsObject ? this.ensureSettingsObject().fourthSlotPoolMode : null) || "affinity";
+    const isAffinityMode = poolMode !== "all";
+
     box.innerHTML = list.map(u => {
       const lv = this.saveData.upgrades[u.id] || 0;
       const isMax = lv >= u.maxLv;
       const cost = Math.round(u.baseCost * Math.pow(1.45, lv));
+      const isFourthSlotToggle = (u.id === "fourthSlot" && isMax);
 
       return `
         <div class="poke-card p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${u.isSpecialSlot ? 'rarity-legendary' : ''}">
@@ -1716,19 +1722,39 @@ Object.assign(window.GameApp, {
               <img src="${u.sprite}" class="w-8 h-8 pixel-sprite object-contain" alt="${u.name}" />
             </div>
             <div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="font-black text-sm sm:text-base text-slate-800">${u.name}</span>
                 <span class="px-2 py-0.5 bg-blue-600 text-white font-pixel text-[9px] rounded-full">Lv.${lv}/${u.maxLv}</span>
+                ${isFourthSlotToggle ? `<span class="px-2 py-0.5 ${isAffinityMode ? 'bg-emerald-600' : 'bg-indigo-600'} text-white text-[9px] font-black rounded-full">${isAffinityMode ? '🎯 本系與特性優先' : '🎲 全系自由混搭'}</span>` : ''}
               </div>
               <p class="text-xs font-bold text-slate-600 mt-0.5">${u.desc}</p>
+              ${isFourthSlotToggle ? `<p class="text-[11px] font-bold ${isAffinityMode ? 'text-emerald-700' : 'text-indigo-700'} mt-1">${isAffinityMode ? '目前第 4 槽優先抽取本系 (STAB) 與種族特性相性招式（無可抽時自動回退全池保底）。' : '目前第 4 槽開放全屬性招式平等隨機抽取，適合自由跨系混搭。'}</p>` : ''}
             </div>
           </div>
-          <button onclick="GameApp.buyUpgrade('${u.id}', ${u.baseCost}, ${u.maxLv})" ${isMax ? 'disabled' : ''} class="${isMax ? 'poke-btn-white opacity-60' : 'poke-btn-red'} px-4 py-2 text-xs font-black shrink-0 flex items-center gap-1.5 min-h-[40px]">
-            ${isMax ? '已達上限' : `<img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/> ${cost} 強化`}
-          </button>
+          ${isFourthSlotToggle
+            ? `<button onclick="GameApp.toggleFourthSlotPoolMode()" class="${isAffinityMode ? 'poke-btn-blue' : 'poke-btn-yellow'} px-3.5 py-2 text-xs font-black shrink-0 flex items-center gap-1.5 min-h-[40px] whitespace-nowrap">
+                <i class="fa-solid ${isAffinityMode ? 'fa-crosshairs' : 'fa-shuffle'}"></i>
+                <span>${isAffinityMode ? '切換：全系混搭' : '切換：本系優先'}</span>
+              </button>`
+            : `<button onclick="GameApp.buyUpgrade('${u.id}', ${u.baseCost}, ${u.maxLv})" ${isMax ? 'disabled' : ''} class="${isMax ? 'poke-btn-white opacity-60' : 'poke-btn-red'} px-4 py-2 text-xs font-black shrink-0 flex items-center gap-1.5 min-h-[40px]">
+                ${isMax ? '已達上限' : `<img src="${ITEM_SPRITES.coin}" class="w-4 h-4 pixel-sprite"/> ${cost} 強化`}
+              </button>`
+          }
         </div>
       `;
     }).join("");
+  },
+
+  toggleFourthSlotPoolMode() {
+    const s = this.ensureSettingsObject();
+    s.fourthSlotPoolMode = (s.fourthSlotPoolMode === "all") ? "affinity" : "all";
+    if (typeof SoundFX !== "undefined") SoundFX.play("hit");
+    this.saveToStorage();
+    this.renderCenterUpgrades();
+    const settingsEl = document.getElementById("settingsModal");
+    if (settingsEl && !settingsEl.classList.contains("hidden")) {
+      this.renderSettingsModal();
+    }
   },
 
   buyUpgrade(id, baseCost, maxLv) {
@@ -2287,7 +2313,8 @@ Object.assign(window.GameApp, {
         screenFilter: "none",
         dmgTextMode: "all",
         procNoticeMode: "icon",
-        screenShake: "normal"
+        screenShake: "normal",
+        fourthSlotPoolMode: "affinity"
       };
     }
     return this.saveData.settings;
@@ -2341,6 +2368,10 @@ Object.assign(window.GameApp, {
     this.applyVisualSettings();
     this.saveToStorage();
     this.renderSettingsModal();
+    const labEl = document.getElementById("skillTreeModal");
+    if (labEl && !labEl.classList.contains("hidden")) {
+      this.renderCenterUpgrades();
+    }
   },
 
   resetDefaultSettings() {
@@ -2349,7 +2380,8 @@ Object.assign(window.GameApp, {
       screenFilter: "none",
       dmgTextMode: "all",
       procNoticeMode: "icon",
-      screenShake: "normal"
+      screenShake: "normal",
+      fourthSlotPoolMode: "affinity"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2428,6 +2460,18 @@ Object.assign(window.GameApp, {
           ${renderOptionBtn("procNoticeMode", "icon", "✨ 圖標氣泡", "頭頂輕量圖標(推薦)")}
           ${renderOptionBtn("procNoticeMode", "text", "📝 完整文字", "詳細中文說明")}
           ${renderOptionBtn("procNoticeMode", "off", "🔇 極簡關閉", "僅留左下閃光")}
+        </div>
+      </div>
+
+      <!-- 3C. 第 4 招式槽抽卡偏好 (與研究所第 4 槽開關即時同步) -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
+        <div class="flex items-center justify-between gap-1">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i> 第 4 招式槽抽卡偏好</span>
+          <span class="text-[10px] font-bold ${(this.saveData && this.saveData.upgrades && this.saveData.upgrades.fourthSlot >= 1) ? 'text-emerald-400' : 'text-slate-400'}">${(this.saveData && this.saveData.upgrades && this.saveData.upgrades.fourthSlot >= 1) ? '已解鎖第 4 槽' : '研究所解鎖後生效'}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${renderOptionBtn("fourthSlotPoolMode", "affinity", "🎯 本系與特性優先", "優先抽本系/相性，防稀釋")}
+          ${renderOptionBtn("fourthSlotPoolMode", "all", "🎲 全系自由混搭", "全屬性招式平等隨機")}
         </div>
       </div>
 

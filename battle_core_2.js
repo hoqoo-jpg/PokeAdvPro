@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v6.9.15",
+  APP_VERSION: "v6.9.16",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -47,7 +47,8 @@ window.GameApp = {
       screenFilter: "none",
       dmgTextMode: "all",
       procNoticeMode: "icon",
-      screenShake: "normal"
+      screenShake: "normal",
+      fourthSlotPoolMode: "affinity"
     }
   },
   spatialGrid: null,
@@ -5682,27 +5683,64 @@ window.GameApp = {
             }
           });
         } else {
-          // 2. 天生三招已學齊，才開放從全庫挑選普通新招
+          // 2. 天生三招已學齊：依「第 4 招式槽抽卡偏好」決定本系與特性優先（軟鎖保底）或全系自由混搭
+          const poolMode = (this.saveData && this.saveData.settings && this.saveData.settings.fourthSlotPoolMode) || "affinity";
+          const traitAffinityMap = {
+            heavy_slam:         ["Ground", "Rock", "Normal", "Fighting"],
+            quick_attack:       ["Electric", "Flying", "Normal"],
+            iron_fist:          ["Fighting", "Normal", "Ground", "Rock"],
+            mega_launcher:      ["Water", "Ice"],
+            overgrow_thorn:     ["Grass", "Poison", "Bug"],
+            dragon_maw:         ["Fire", "Dragon", "Flying"],
+            psychic_surge:      ["Psychic", "Ghost", "Poison"],
+            legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying"]
+          };
+          const traitId = p.innateTrait ? p.innateTrait.id : "";
+          const traitTypes = traitAffinityMap[traitId] || [];
+
+          const unlearnedAll = [];
+          const seenMetaNames = new Set();
           Object.values(SKILLS_CATALOG).forEach(meta => {
             const alreadyHas = Object.values(p.skills).some(existing => existing.id === meta.id || existing.id.replace(/\s+/g,'') === meta.id.replace(/\s+/g,''));
-            if (!alreadyHas && meta.id !== "Metronome" && !addedKeys.has(meta.name)) {
-              addedKeys.add(meta.name);
-              pool.push({
-                key: meta.name,
-                weight: 15,
-                rarityClass: "rarity-rare",
-                badge: `新招式 (${currentCount + 1}/${p.maxSkillSlots})`,
-                badgeBg: "bg-blue-600 text-white font-black",
-                title: meta.name,
-                subTitle: "新領悟 Lv.1",
-                typeBadge: renderTypeBadgeHTML(meta.type),
-                sprite: meta.sprite, skillIconMeta: meta,
-                desc: meta.desc,
-                isNew: true,
-                apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
-              });
+            if (!alreadyHas && meta.id !== "Metronome" && !addedKeys.has(meta.name) && !seenMetaNames.has(meta.name)) {
+              seenMetaNames.add(meta.name);
+              unlearnedAll.push(meta);
             }
           });
+
+          const pushSkillChoice = (meta, weight, badgeLabel, badgeBg) => {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight,
+              rarityClass: "rarity-rare",
+              badge: badgeLabel,
+              badgeBg,
+              title: meta.name,
+              subTitle: "新領悟 Lv.1",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite, skillIconMeta: meta,
+              desc: meta.desc,
+              isNew: true,
+              apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
+            });
+          };
+
+          if (poolMode === "affinity") {
+            const t1Stab = unlearnedAll.filter(m => m.type === p.data.type1 || (p.data.type2 && p.data.type2 !== "None" && m.type === p.data.type2));
+            const t1Set = new Set(t1Stab.map(m => m.name));
+            const t2Trait = unlearnedAll.filter(m => !t1Set.has(m.name) && traitTypes.includes(m.type));
+
+            if (t1Stab.length > 0 || t2Trait.length > 0) {
+              t1Stab.forEach(meta => pushSkillChoice(meta, 55, `本系進階 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-emerald-600 text-white font-black"));
+              t2Trait.forEach(meta => pushSkillChoice(meta, 35, `特性契合 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-indigo-600 text-white font-black"));
+            } else {
+              // 軟鎖保底：若本系與特性相性招式全數已學會，自動回退全池避免空池
+              unlearnedAll.forEach(meta => pushSkillChoice(meta, 15, `新招式 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-blue-600 text-white font-black"));
+            }
+          } else {
+            unlearnedAll.forEach(meta => pushSkillChoice(meta, 15, `新招式 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-blue-600 text-white font-black"));
+          }
         }
       }
 
