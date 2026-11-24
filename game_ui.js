@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.3";
+        const ver = this.APP_VERSION || "v7.2.5";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.3";
+      const curVer = this.APP_VERSION || "v7.2.5";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1035,7 +1035,9 @@ Object.assign(window.GameApp, {
       const bestS = String(bestTimeSec % 60).padStart(2, "0");
       const bestKills = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessKills) || 0;
       const arenaTimes = (this.saveData && this.saveData.stats && this.saveData.stats.arenaBestTimes) || {};
-      const arenaClearedCount = Object.keys(arenaTimes).length;
+      const arenaClearedCount = (typeof ARENA_BOSSES !== "undefined")
+        ? ARENA_BOSSES.filter(b => arenaTimes[b.id] !== undefined).length
+        : 0;
       const modes = [
         {
           id: "standard",
@@ -1288,7 +1290,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.3",
+      lastSeenVersion: this.APP_VERSION || "v7.2.5",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2492,7 +2494,9 @@ Object.assign(window.GameApp, {
       fpsEl.className = `font-pixel text-[9px] sm:text-[10px] whitespace-nowrap text-right ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
     }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
-    const modeTag = this.isEndlessMode ? " [♾️無盡試煉]" : "";
+    const modeTag = this.isArenaMode
+      ? ` [⚔️1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
+      : (this.isEndlessMode ? " [♾️無盡試煉]" : "");
     document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})${modeTag}`;
     document.getElementById("endStatKills").textContent = this.kills;
     document.getElementById("endStatCoins").textContent = `+${this.runCoins}`;
@@ -2838,8 +2842,33 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.3 訓練家雙時裝專屬 Cut-in 橫幅補完版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.5 1vs1 純單挑規則、光束擋柱與完美閃避反擊版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">🏛️ 1vs1 光束物理撞柱截斷</div>
+            <div>• <strong>水炮／噴射火焰／冷凍光線</strong>：實裝精準射線石柱截斷判定，命中四角石柱時光束視覺與傷害判定同步於柱面止步，徹底杜絕隔柱白嫖。</div>
+            <div class="text-rose-300 font-black pt-1">⚔️ 純 1vs1 公平單挑 ＆ 完美閃避反擊</div>
+            <div>• <strong>純 1vs1 單挑規則</strong>：進入鬥技場時自動隱藏雙打夥伴，並將莎莉娜／研究所夥伴加成轉化為主動「單挑專注補償」（移速、冷卻與暴擊強化）；莎莉娜大招於鬥技場改為「華麗獨舞（全傷+35% ＆ 重置閃避）」。</div>
+            <div>• <strong>完美閃避反擊強化</strong>：極限閃避除原本 CD -1s 外，額外觸發 2 秒【反擊爆發（全傷 +20%、暴擊 +25%）】，高風險走位回報感大幅升級！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.4 1vs1 夢幻瞬移修復 ＆ 全檔健檢優化版</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">🛠️ 關鍵修復</div>
+            <div>• <strong>始祖夢幻瞬移錯位修復（方案 A）</strong>：改於奇數彈幕輪觸發瞬移，並加入「蓄力／衝鋒期間禁止瞬移」雙重鎖，徹底根除衝鋒一半跳走的問題。</div>
+            <div>• <strong>全 Boss／精英直線衝鋒蓄力定身</strong>：畫出直線跑道時原地蓄力不漂移，確保視覺跑道與實際衝鋒起點 100% 重合。</div>
+            <div>• <strong>1vs1 制霸計數 ＆ 開局補給防護</strong>：修復三段難度重複累計導致「已制霸超過 5/5」的顯示 Bug；進入鬥技場不再誤扣割草模式勾選的補給代幣。</div>
+            <div class="text-emerald-300 font-black pt-1">✨ 手感與介面優化</div>
+            <div>• 閃避衝刺穿過 Boss 身體或衝鋒瞬間現可觸發【⚡ 完美閃避！CD -1s】；上方狀態列即時顯示狂暴核心／疾風羽毛／折射護盾剩餘秒數。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.3 訓練家雙時裝專屬 Cut-in 橫幅補完版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-sky-300 font-black pt-0.5">🎨 三大訓練家雙時裝專屬大招特寫補齊</div>
@@ -2973,7 +3002,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.3";
+    const curVer = this.APP_VERSION || "v7.2.5";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -3099,6 +3128,7 @@ Object.assign(window.GameApp, {
     this.evoSequence = null;
     this.victoryCeremony = null;
     this.bossDeathAnims = [];
+    this.arenaPowerups = [];
     this.pendingMewTimer = 0;
     this.bossWeatherLock = false;
     this.battleCountdownTimer = 0;

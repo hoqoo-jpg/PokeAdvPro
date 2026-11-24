@@ -743,6 +743,9 @@ const SkillsEngine = {
         const ang = baseAngle + angOffset;
         const startX = caster.x + Math.cos(ang) * 22;
         const startY = caster.y + Math.sin(ang) * 22;
+        const clippedFlame = (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars)
+          ? MapEngine.clipRayAgainstArenaPillars(startX, startY, ang, beamLength, 4)
+          : { length: beamLength, hit: false };
 
         this.meleeEffects.push({
           style: "flamethrower_beam",
@@ -752,7 +755,8 @@ const SkillsEngine = {
           x: startX,
           y: startY,
           angle: ang,
-          length: beamLength,
+          baseLength: beamLength,
+          length: clippedFlame.length,
           startHalfW: 9,
           endHalfW: endHalfW,
           isInferno,
@@ -783,8 +787,8 @@ const SkillsEngine = {
           [0.58, 0.92].forEach(frac => {
             if (GameApp.lavaFootprints.length >= 26) GameApp.lavaFootprints.shift();
             GameApp.lavaFootprints.push({
-              x: startX + Math.cos(ang) * (beamLength * frac),
-              y: startY + Math.sin(ang) * (beamLength * frac) + 6,
+              x: startX + Math.cos(ang) * (clippedFlame.length * frac),
+              y: startY + Math.sin(ang) * (clippedFlame.length * frac) + 6,
               radius: 28,
               life: 2.3,
               maxLife: 2.3,
@@ -848,6 +852,10 @@ const SkillsEngine = {
         const ang = baseAngle + angOffset;
         const startX = caster.x + Math.cos(perp) * latOffset + Math.cos(ang) * 22;
         const startY = caster.y + Math.sin(perp) * latOffset + Math.sin(ang) * 22;
+        const rawHydroLen = beamLength * (isMegaBlastoise && b !== 1 ? 0.88 : 1.0);
+        const clippedHydro = (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars)
+          ? MapEngine.clipRayAgainstArenaPillars(startX, startY, ang, rawHydroLen, 4)
+          : { length: rawHydroLen, hit: false };
 
         this.meleeEffects.push({
           style: "hydro_pump_beam",
@@ -862,7 +870,8 @@ const SkillsEngine = {
           x: startX,
           y: startY,
           angle: ang,
-          length: beamLength * (isMegaBlastoise && b !== 1 ? 0.88 : 1.0),
+          baseLength: rawHydroLen,
+          length: clippedHydro.length,
           width: Math.min(54, beamWidth * widthMult),
           dmg: rawDmg * dmgMult,
           type: "Water",
@@ -910,6 +919,9 @@ const SkillsEngine = {
         const startX = caster.x + Math.cos(ang) * 22;
         const startY = caster.y + Math.sin(ang) * 22;
         const zigSeed = Math.random() * 10;
+        const clippedIce = (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars)
+          ? MapEngine.clipRayAgainstArenaPillars(startX, startY, ang, beamLength, 4)
+          : { length: beamLength, hit: false };
 
         this.meleeEffects.push({
           style: "ice_beam_laser",
@@ -919,7 +931,8 @@ const SkillsEngine = {
           x: startX,
           y: startY,
           angle: ang,
-          length: beamLength,
+          baseLength: beamLength,
+          length: clippedIce.length,
           width: beamWidth,
           zigSeed,
           isHighCryo,
@@ -2303,6 +2316,10 @@ const SkillsEngine = {
             m.x = m.ox;
             m.y = m.oy;
           }
+          if (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars) {
+            const clip = MapEngine.clipRayAgainstArenaPillars(m.ox, m.oy, m.angle, m.baseLength || m.length, 4);
+            m.length = clip.length;
+          }
           // 0.18s 時重置命中集，執行第 2 段高壓持續沖刷判定
           if (!m.secondTickDone && prog >= 0.50) {
             m.secondTickDone = true;
@@ -2362,6 +2379,10 @@ const SkillsEngine = {
             m.x = m.ox;
             m.y = m.oy;
           }
+          if (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars) {
+            const clip = MapEngine.clipRayAgainstArenaPillars(m.ox, m.oy, m.angle, m.baseLength || m.length, 4);
+            m.length = clip.length;
+          }
           if (!m.secondTickDone && prog >= 0.48) {
             m.secondTickDone = true;
             m.hitSet.clear();
@@ -2411,6 +2432,10 @@ const SkillsEngine = {
             m.oy = m.casterRef.y + Math.sin(m.angle) * 22;
             m.x = m.ox;
             m.y = m.oy;
+          }
+          if (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.clipRayAgainstArenaPillars) {
+            const clip = MapEngine.clipRayAgainstArenaPillars(m.ox, m.oy, m.angle, m.baseLength || m.length, 4);
+            m.length = clip.length;
           }
           if (!m.secondTickDone && prog >= 0.48) {
             m.secondTickDone = true;

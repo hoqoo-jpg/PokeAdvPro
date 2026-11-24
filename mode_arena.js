@@ -72,6 +72,20 @@ window.ModeArena = {
       p.skills[keyId] = { id: keyId, level: 8, evolved: false, timer: 0.18 + idx * 0.22 };
     });
 
+    // 3B. 純 1vs1 單挑規則：移除雙打夥伴以確保公平 1 對 1，並將莎莉娜／研究所夥伴投資轉化為主角單挑加成
+    const hadPartnerBonus = (app.partners && app.partners.length > 0) || !!(tr.mods && tr.mods.startPartner) || ((upg.partner || 0) >= 1);
+    app.partners = [];
+    let soloCompNote = "";
+    if (hadPartnerBonus) {
+      const pLabLv = upg.partner || 0;
+      const spdBonus = 1.06 + pLabLv * 0.02;
+      const cdBonus = Math.max(0.86, 0.94 - pLabLv * 0.02);
+      p.speedMult *= spdBonus;
+      p.cdMult *= cdBonus;
+      p.critRate = (p.critRate || 0.10) + 0.05;
+      soloCompNote = " ‧ 單挑專注補償已啟動";
+    }
+
     // 4. 裝備玩家於 STEP 3 免費自選的 1 件競技場攜帶物
     p.heldItems = {};
     const chosenHeldId = app.selectedArenaHeldItem || "silk_scarf";
@@ -107,6 +121,7 @@ window.ModeArena = {
     p.arenaFuryTimer = 0;
     p.arenaGaleTimer = 0;
     p.arenaShieldTimer = 0;
+    p.arenaPerfectCounterTimer = 0;
 
     const bossCfg = (typeof ARENA_BOSSES !== "undefined"
       ? ARENA_BOSSES.find(b => b.id === app.selectedArenaBossId)
@@ -158,7 +173,7 @@ window.ModeArena = {
     if (app.checkMegaEvolutionReady) app.checkMegaEvolutionReady();
     app.showCutsceneBanner(
       `【⚔️ 石英大會 1vs1 ‧ ${arenaDiff.name}】`,
-      `Lv.25 完全體 ‧ 招式 Lv.8！單挑【${bData.name_zh}】(HP ${scaledHp.toLocaleString()})！`,
+      `純 1vs1 單挑【${bData.name_zh}】(HP ${scaledHp.toLocaleString()})${soloCompNote}！`,
       3000
     );
   },

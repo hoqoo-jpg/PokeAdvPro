@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.3",
+  APP_VERSION: "v7.2.5",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1134,6 +1134,9 @@ window.GameApp = {
     this._lastHudBtnStateKey = null;
     this._lastTerrainBadgeKey = null;
     this._lastStatusBadgeKey = null;
+    this._lastArenaDashHudKey = null;
+    this._lastMegaHudKey = null;
+    this._lastTraitBadgeKey = null;
     this._hudRefreshTimer = 0;
 
     SkillsEngine.reset();
@@ -1156,10 +1159,12 @@ window.GameApp = {
     this.endlessNextKillMilestone = 150;
     this.activeLoadoutBuffs = {};
 
-    // 兌現 STEP 3 多選勾選的所有「開局戰術特訓補給」
-    const chosenLoadouts = Array.isArray(this.selectedLoadouts)
-      ? [...this.selectedLoadouts]
-      : (this.selectedLoadout && this.selectedLoadout !== "none" ? [this.selectedLoadout] : []);
+    // 兌現 STEP 3 多選勾選的所有「開局戰術特訓補給」（1vs1 鬥技場不扣款、不套用割草開局補給）
+    const chosenLoadouts = this.isArenaMode
+      ? []
+      : (Array.isArray(this.selectedLoadouts)
+          ? [...this.selectedLoadouts]
+          : (this.selectedLoadout && this.selectedLoadout !== "none" ? [this.selectedLoadout] : []));
     const loadoutCatalog = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
     const appliedNames = [];
 
@@ -1361,8 +1366,9 @@ window.GameApp = {
       if (!p.arenaDashPerfectUsed) {
         p.arenaDashPerfectUsed = true;
         p.arenaDashCd = Math.max(0, (p.arenaDashCd || 0) - 1.0);
+        p.arenaPerfectCounterTimer = 2.0;
         this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FEF08A", 16, "star", 1.15);
-        this.spawnFloatingText(p.x, p.y - 34, "⚡ 完美閃避！CD -1s", "#38BDF8", 14);
+        this.spawnFloatingText(p.x, p.y - 34, "⚡ 完美閃避！CD -1s ‧ 反擊+20%傷", "#38BDF8", 14);
         SoundFX.play("shiny");
       }
       return true;
@@ -1582,7 +1588,7 @@ window.GameApp = {
       healPct = 0.22;
       p.buffTimer = 5.5;
       p.maxBuffTimer = 5.5;
-      if (this.partners.length === 0) {
+      if (!this.isArenaMode && this.partners.length === 0) {
         this.summonOrUpgradePartner();
       }
       // 展開 5.5 秒專屬「華麗雙打舞台」（臨時圓形星光地毯 ＋ 雙聚光燈，與月亮之力超武完全分家）
@@ -1599,16 +1605,24 @@ window.GameApp = {
         tickTimer: 0.12, tickInterval: 0.48,
         color: "#F472B6"
       });
-      // 全雙打夥伴立即爆發 1.6x 強化華麗合擊，並重置冷卻進入 5.5 秒狂熱演出
-      const upgPartnerMult = 1 + ((this.saveData.upgrades && this.saveData.upgrades.partner) || 0) * 0.18;
-      this.partners.forEach(pt => {
-        pt.cdTimer = 0;
-        const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
-        SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + 3), false, upgPartnerMult * 1.10);
-        this.spawnParticleCluster(pt.x, pt.y, "#F472B6", "#FEF08A", 16, "star", 1.1);
-      });
-      this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FEF08A", 32, "star", 1.25);
-      this.spawnFloatingText(p.x, p.y - 68, "✨ 華麗舞台・夥伴 2x 攻速！", "#F472B6", 14);
+      if (this.isArenaMode) {
+        // 純 1vs1 鬥技場不召喚副手，轉化為主角 5.5 秒華麗獨舞爆發（傷害 +35% ＋ 立即重置閃避 CD）
+        p.arenaFuryTimer = Math.max(p.arenaFuryTimer || 0, 5.5);
+        p.arenaDashCd = 0;
+        this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FEF08A", 32, "star", 1.25);
+        this.spawnFloatingText(p.x, p.y - 68, "✨ 華麗獨舞・全傷+35% ＆ 閃避重置！", "#F472B6", 14);
+      } else {
+        // 全雙打夥伴立即爆發 1.6x 強化華麗合擊，並重置冷卻進入 5.5 秒狂熱演出
+        const upgPartnerMult = 1 + ((this.saveData.upgrades && this.saveData.upgrades.partner) || 0) * 0.18;
+        this.partners.forEach(pt => {
+          pt.cdTimer = 0;
+          const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
+          SkillsEngine.fireSkill(pt, skId, Math.min(10, pt.level + 3), false, upgPartnerMult * 1.10);
+          this.spawnParticleCluster(pt.x, pt.y, "#F472B6", "#FEF08A", 16, "star", 1.1);
+        });
+        this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FEF08A", 32, "star", 1.25);
+        this.spawnFloatingText(p.x, p.y - 68, "✨ 華麗舞台・夥伴 2x 攻速！", "#F472B6", 14);
+      }
     } else if (tr.id === "lillie") {
       healPct = 0.38;
       p.invulnTimer = 2.0;
@@ -1805,6 +1819,7 @@ window.GameApp = {
     if (p.arenaFuryTimer > 0) p.arenaFuryTimer = Math.max(0, p.arenaFuryTimer - dt);
     if (p.arenaGaleTimer > 0) p.arenaGaleTimer = Math.max(0, p.arenaGaleTimer - dt);
     if (p.arenaShieldTimer > 0) p.arenaShieldTimer = Math.max(0, p.arenaShieldTimer - dt);
+    if (p.arenaPerfectCounterTimer > 0) p.arenaPerfectCounterTimer = Math.max(0, p.arenaPerfectCounterTimer - dt);
 
     const arenaHealEff = this.isArenaMode ? (this.arenaHealEff || 0.85) : 1.0;
     const bossHealMod = ((this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0) * arenaHealEff;
@@ -2228,10 +2243,13 @@ window.GameApp = {
       const stNames = { Burn: "灼傷中", Paralysis: "麻痺減速", Freeze: "冰凍遲緩", Poison: "中毒中", Confusion: "混亂反向" };
       nextStatusText = `[異常] ${stNames[p.status] || p.status}`;
       nextStatusKind = "debuff";
-    } else if (p.xAttackTimer > 0 || p.xSpeedTimer > 0) {
+    } else if (p.xAttackTimer > 0 || p.xSpeedTimer > 0 || p.arenaFuryTimer > 0 || p.arenaGaleTimer > 0 || p.arenaShieldTimer > 0) {
       const buffLabels = [];
       if (p.xAttackTimer > 0) buffLabels.push(`力量強化(${Math.ceil(p.xAttackTimer)}s)`);
       if (p.xSpeedTimer > 0) buffLabels.push(`速度強化(${Math.ceil(p.xSpeedTimer)}s)`);
+      if (p.arenaFuryTimer > 0) buffLabels.push(`⚡狂暴+35%(${Math.ceil(p.arenaFuryTimer)}s)`);
+      if (p.arenaGaleTimer > 0) buffLabels.push(`💨疾風(${Math.ceil(p.arenaGaleTimer)}s)`);
+      if (p.arenaShieldTimer > 0) buffLabels.push(`🛡️折射護盾(${Math.ceil(p.arenaShieldTimer)}s)`);
       nextStatusText = `[增益] ${buffLabels.join(" ")}`;
       nextStatusKind = "buff";
     }
@@ -3103,8 +3121,17 @@ window.GameApp = {
         vx = (dirX / dLen) * spdNow;
         vy = (dirY / dLen) * spdNow;
 
-        // 始祖夢幻 (#151) 專屬幻影游擊 AI：每 2 輪出招瞬移至競技場對角
-        if (e.id === 151 && (e.bossCycleStep || 0) > 0 && (e.bossCycleStep % 2 === 0) && e._lastTeleportStep !== e.bossCycleStep) {
+        // 始祖夢幻 (#151) 專屬幻影游擊 AI（方案 A）：改於奇數彈幕輪觸發，且蓄力預警或衝鋒期間絕對鎖定不瞬移
+        const hasOwnTelegraph = this.telegraphs.some(tg => tg.owner === e);
+        const hasOwnDash = this.enemyDashes && this.enemyDashes.some(ds => ds.owner === e);
+        if (
+          e.id === 151 &&
+          (e.bossCycleStep || 0) >= 3 &&
+          (e.bossCycleStep % 2 === 1) &&
+          !hasOwnTelegraph &&
+          !hasOwnDash &&
+          e._lastTeleportStep !== e.bossCycleStep
+        ) {
           e._lastTeleportStep = e.bossCycleStep;
           this.spawnParticleCluster(e.x, e.y, "#F472B6", "#FEF08A", 18, "star", 1.1);
           e.x = p.x >= 0 ? -205 : 205;
@@ -3113,6 +3140,12 @@ window.GameApp = {
           this.spawnFloatingText(e.x, e.y - 36, "✨ 夢幻瞬移！", "#F472B6", 13);
           SoundFX.play("shiny");
         }
+      }
+
+      // 直線衝鋒預警蓄力定身鎖：任何 Boss 或精英正在畫出直線衝鋒跑道時原地蓄力不漂移，確保起點 100% 貼合
+      if ((e.isBoss || e.isElite) && this.telegraphs.some(tg => tg.owner === e && tg.shape === "line")) {
+        vx = 0;
+        vy = 0;
       }
 
       if (e.treasureType) {
@@ -3441,6 +3474,10 @@ window.GameApp = {
       const distToTrainer = tc ? Math.hypot(tc.x - e.x, tc.y - e.y) : 999;
       const hitPoke = distToPoke < e.radius + 16;
       const hitTrainer = tc && !(p.lungeTimer > 0) && (distToTrainer < e.radius + 5);
+
+      if (!e.treasureType && (hitPoke || hitTrainer) && this.tryArenaPerfectDodge()) {
+        continue;
+      }
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
         if (this.tryConsumeArenaShield()) continue;
@@ -4176,7 +4213,8 @@ window.GameApp = {
     const martialGodCrit = (this.player.martialGodTimer > 0) ? 0.20 : 0;
     const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
     const dualSuperCritBonus = Object.values(this.player.skills || {}).filter(s => s.evolved).length >= 2 ? 0.08 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit + (extraCritBonus || 0));
+    const perfectCounterCrit = (this.player.arenaPerfectCounterTimer > 0) ? 0.25 : 0;
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit + perfectCounterCrit + (extraCritBonus || 0));
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
     const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
 
@@ -4214,7 +4252,7 @@ window.GameApp = {
       if (heldTypeMap[moveType] && hi[heldTypeMap[moveType]]) heldBonus = 0.20;
     }
 
-    const xAtkBonus = (this.player.xAttackTimer > 0 ? 0.35 : 0) + (this.player.arenaFuryTimer > 0 ? 0.35 : 0);
+    const xAtkBonus = (this.player.xAttackTimer > 0 ? 0.35 : 0) + (this.player.arenaFuryTimer > 0 ? 0.35 : 0) + (this.player.arenaPerfectCounterTimer > 0 ? 0.20 : 0);
     const dragonMawBonus = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? pTrait.dragonMawBurnAmp : 0;
     const envAddMult = Math.max(0.5, 1.0 + stageBonus + weatherBonus + heldBonus + xAtkBonus + dragonMawBonus);
 
@@ -5580,6 +5618,7 @@ window.GameApp = {
     this.enemies = [];
     this.enemyProjectiles = [];
     this.telegraphs = [];
+    this.arenaPowerups = [];
     this.activeBoss = null;
     this.bossWeatherLock = false;
     MapEngine.setWeather("CLEAR");

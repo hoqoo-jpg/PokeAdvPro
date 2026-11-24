@@ -92,6 +92,56 @@ const MapEngine = {
     }
     return false;
   },
+
+  clipRayAgainstArenaPillars(ox, oy, angle, maxLen, pad = 4) {
+    if (!this.isArenaMode || !this.arenaPillars || this.arenaPillars.length === 0) {
+      return { length: maxLen, hit: false };
+    }
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    let bestT = maxLen;
+    let hit = false;
+    for (let i = 0; i < this.arenaPillars.length; i++) {
+      const pl = this.arenaPillars[i];
+      const minX = pl.x - pad;
+      const maxX = pl.x + pl.w + pad;
+      const minY = pl.y - pad;
+      const maxY = pl.y + pl.h + pad;
+
+      let tMin = 0;
+      let tMax = bestT;
+
+      if (Math.abs(dx) < 1e-6) {
+        if (ox < minX || ox > maxX) continue;
+      } else {
+        const invDx = 1 / dx;
+        let t1 = (minX - ox) * invDx;
+        let t2 = (maxX - ox) * invDx;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tMin) tMin = t1;
+        if (t2 < tMax) tMax = t2;
+        if (tMin > tMax) continue;
+      }
+
+      if (Math.abs(dy) < 1e-6) {
+        if (oy < minY || oy > maxY) continue;
+      } else {
+        const invDy = 1 / dy;
+        let t1 = (minY - oy) * invDy;
+        let t2 = (maxY - oy) * invDy;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        if (t1 > tMin) tMin = t1;
+        if (t2 < tMax) tMax = t2;
+        if (tMin > tMax) continue;
+      }
+
+      if (tMin >= 0 && tMin < bestT) {
+        bestT = tMin;
+        hit = true;
+      }
+    }
+    return { length: Math.max(12, bestT), hit };
+  },
   chunkCache: new Map(),
   tileCache: new Map(),
 
