@@ -69,17 +69,21 @@ Object.assign(window.GameApp, {
           settings: {
             mobCapProfile: "auto",
             screenFilter: "none",
-            dmgTextMode: "all",
+            dmgTextMode: "crit_only",
             procNoticeMode: "icon",
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
-            skillAlpha: "100",
+            skillAlpha: "75",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
         };
       }
     } catch (e) {}
+    if (this.saveData && this.saveData.settings) {
+      if (this.saveData.settings.skillAlpha === "65") this.saveData.settings.skillAlpha = "75";
+      if (this.saveData.settings.skillAlpha === "40") this.saveData.settings.skillAlpha = "45";
+    }
     this.restoreLastSetup();
     this.applyVisualSettings();
   },
@@ -292,7 +296,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.1.1";
+        const ver = this.APP_VERSION || "v7.1.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -533,7 +537,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.1.1";
+      const curVer = this.APP_VERSION || "v7.1.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1219,15 +1223,15 @@ Object.assign(window.GameApp, {
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.1.1",
+      lastSeenVersion: this.APP_VERSION || "v7.1.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
-        dmgTextMode: "all",
+        dmgTextMode: "crit_only",
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "100"
+        skillAlpha: "75"
       }
     };
   },
@@ -2423,15 +2427,19 @@ Object.assign(window.GameApp, {
       this.saveData.settings = {
         mobCapProfile: "auto",
         screenFilter: "none",
-        dmgTextMode: "all",
+        dmgTextMode: "crit_only",
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "100"
+        skillAlpha: "75"
       };
     }
     if (!this.saveData.settings.skillAlpha) {
-      this.saveData.settings.skillAlpha = "100";
+      this.saveData.settings.skillAlpha = "75";
+    } else if (this.saveData.settings.skillAlpha === "65") {
+      this.saveData.settings.skillAlpha = "75";
+    } else if (this.saveData.settings.skillAlpha === "40") {
+      this.saveData.settings.skillAlpha = "45";
     }
     return this.saveData.settings;
   },
@@ -2494,11 +2502,11 @@ Object.assign(window.GameApp, {
     this.saveData.settings = {
       mobCapProfile: "auto",
       screenFilter: "none",
-      dmgTextMode: "all",
+      dmgTextMode: "crit_only",
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "100"
+      skillAlpha: "75"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2514,13 +2522,16 @@ Object.assign(window.GameApp, {
     const isMob = this.isMobileDevice ? this.isMobileDevice() : (window.innerWidth < 768);
     const deviceLabel = isMob ? "📱 手機觸控模式 (自動上限 120隻 + 1.22x 經驗補償)" : "💻 電腦寬屏模式 (自動上限 190隻)";
 
-    const renderOptionBtn = (settingKey, val, label, sub) => {
+    const renderOptionBtn = (settingKey, val, label, sub, isRec = false) => {
       const active = s[settingKey] === val;
       return `
         <button onclick="GameApp.updateSetting('${settingKey}', '${val}')" class="p-2 rounded-xl border text-left transition-all flex flex-col justify-between ${active ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-md' : 'bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-800'}">
-          <div class="font-black text-[11px] flex items-center justify-between">
-            <span>${label}</span>
-            ${active ? '<i class="fa-solid fa-circle-check text-amber-400 text-[10px]"></i>' : ''}
+          <div class="font-black text-[11px] flex items-center justify-between gap-1">
+            <span class="truncate">${label}</span>
+            <span class="flex items-center gap-1 shrink-0">
+              ${isRec ? '<span class="px-1 py-0.2 rounded bg-emerald-600/90 text-white text-[8px] font-black leading-tight">推薦</span>' : ''}
+              ${active ? '<i class="fa-solid fa-circle-check text-amber-400 text-[10px]"></i>' : ''}
+            </span>
           </div>
           ${sub ? `<div class="text-[9px] text-slate-400 mt-0.5 leading-tight">${sub}</div>` : ''}
         </button>
@@ -2536,10 +2547,10 @@ Object.assign(window.GameApp, {
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed">${deviceLabel}</div>
         <div class="grid grid-cols-2 gap-1.5">
-          ${renderOptionBtn("mobCapProfile", "auto", "🤖 自動依裝置", "手機120 / 電腦190")}
+          ${renderOptionBtn("mobCapProfile", "auto", "🤖 自動依裝置", "手機120 / 電腦190，防發燙", true)}
           ${renderOptionBtn("mobCapProfile", "low", "⚡ 省電流暢 (100隻)", "穩鎖60幀 + 1.22x經驗")}
-          ${renderOptionBtn("mobCapProfile", "standard", "⚔️ 標準密度 (160隻)", "平衡視覺與流暢度")}
-          ${renderOptionBtn("mobCapProfile", "extreme", "🔥 狂暴怪海 (250隻)", "高壓爽快割草")}
+          ${renderOptionBtn("mobCapProfile", "standard", "⚔️ 標準密度 (160隻)", "均衡怪潮與流暢度")}
+          ${renderOptionBtn("mobCapProfile", "extreme", "🔥 狂暴怪海 (250隻)", "極限高壓割草挑戰")}
         </div>
       </div>
 
@@ -2549,22 +2560,22 @@ Object.assign(window.GameApp, {
           <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-tv"></i> 畫面視覺濾鏡 (零效能損耗)</span>
         </div>
         <div class="grid grid-cols-2 gap-1.5">
-          ${renderOptionBtn("screenFilter", "none", "✨ 現代高清", "原始銳利像素色彩")}
-          ${renderOptionBtn("screenFilter", "gba", "🎮 GBA 液晶網格", "經典掌機晶格質感")}
+          ${renderOptionBtn("screenFilter", "none", "✨ 現代高清", "清晰銳利，最利閃彈", true)}
+          ${renderOptionBtn("screenFilter", "gba", "🎮 GBA 液晶網格", "懷舊掌機晶格質感")}
           ${renderOptionBtn("screenFilter", "crt", "📺 CRT 街機掃描線", "復古映像管暗角氛圍")}
           ${renderOptionBtn("screenFilter", "vivid", "🌈 鮮豔街機模式", "強化超武色彩對比度")}
         </div>
       </div>
 
-      <!-- 2B. 我方技能特效透明度 (無盡深淵閃彈視野神器) -->
+      <!-- 2B. 我方技能特效透明度 (分層透明，敵方攻擊永遠 100% 清晰) -->
       <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
         <div class="flex items-center justify-between">
-          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-eye"></i> 我方技能特效透明度 (不影響敵彈顯示)</span>
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-eye"></i> 我方技能特效透明度 (敵彈恆為100%)</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("skillAlpha", "100", "🔥 100% 華麗", "完整視覺爆發")}
-          ${renderOptionBtn("skillAlpha", "65", "✨ 65% 清爽", "平衡特效與走位")}
-          ${renderOptionBtn("skillAlpha", "40", "🎯 40% 極淨", "無盡躲彈專用")}
+          ${renderOptionBtn("skillAlpha", "100", "🔥 100% 華麗", "完整特效張力")}
+          ${renderOptionBtn("skillAlpha", "75", "✨ 75% 平衡", "細節清晰兼顧閃彈", true)}
+          ${renderOptionBtn("skillAlpha", "45", "🎯 45% 極淨", "無盡深淵專注走位")}
         </div>
       </div>
 
@@ -2574,9 +2585,9 @@ Object.assign(window.GameApp, {
           <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-font"></i> 傷害跳字顯示 (後期流暢度關鍵)</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("dmgTextMode", "all", "全部顯示", "所有攻擊跳字")}
-          ${renderOptionBtn("dmgTextMode", "crit_only", "精簡模式", "僅暴擊與克制")}
-          ${renderOptionBtn("dmgTextMode", "off", "關閉傷害字", "視野最乾淨")}
+          ${renderOptionBtn("dmgTextMode", "all", "全部顯示", "顯示所有普通傷害")}
+          ${renderOptionBtn("dmgTextMode", "crit_only", "精簡模式", "僅暴擊與克制，視野清爽", true)}
+          ${renderOptionBtn("dmgTextMode", "off", "關閉傷害字", "純淨戰場零干擾")}
         </div>
       </div>
 
@@ -2586,9 +2597,9 @@ Object.assign(window.GameApp, {
           <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-toolbox"></i> 攜帶物與被動提示</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("procNoticeMode", "icon", "✨ 圖標氣泡", "頭頂輕量圖標(推薦)")}
-          ${renderOptionBtn("procNoticeMode", "text", "📝 完整文字", "詳細中文說明")}
-          ${renderOptionBtn("procNoticeMode", "off", "🔇 極簡關閉", "僅留左下閃光")}
+          ${renderOptionBtn("procNoticeMode", "icon", "✨ 圖標氣泡", "頭頂輕量圖標不擋視線", true)}
+          ${renderOptionBtn("procNoticeMode", "text", "📝 完整文字", "顯示詳細中文說明")}
+          ${renderOptionBtn("procNoticeMode", "off", "🔇 極簡關閉", "僅留左下圖示閃光")}
         </div>
       </div>
 
@@ -2599,7 +2610,7 @@ Object.assign(window.GameApp, {
           <span class="text-[10px] font-bold ${(this.saveData && this.saveData.upgrades && this.saveData.upgrades.fourthSlot >= 1) ? 'text-emerald-400' : 'text-slate-400'}">${(this.saveData && this.saveData.upgrades && this.saveData.upgrades.fourthSlot >= 1) ? '已解鎖第 4 槽' : '研究所解鎖後生效'}</span>
         </div>
         <div class="grid grid-cols-2 gap-1.5">
-          ${renderOptionBtn("fourthSlotPoolMode", "affinity", "🎯 本系與特性優先", "優先抽本系/相性，防稀釋")}
+          ${renderOptionBtn("fourthSlotPoolMode", "affinity", "🎯 本系與特性優先", "防卡池稀釋，穩衝超武", true)}
           ${renderOptionBtn("fourthSlotPoolMode", "all", "🎲 全系自由混搭", "全屬性招式平等隨機")}
         </div>
       </div>
@@ -2610,9 +2621,9 @@ Object.assign(window.GameApp, {
           <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-mobile-screen-button"></i> 螢幕震動與幀率顯示</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("screenShake", "normal", "震動：標準", "100% 震撼")}
-          ${renderOptionBtn("screenShake", "low", "震動：柔和", "減半不頭暈")}
-          ${renderOptionBtn("screenShake", "off", "震動：關閉", "完全靜止")}
+          ${renderOptionBtn("screenShake", "normal", "震動：標準", "完整打擊震撼", true)}
+          ${renderOptionBtn("screenShake", "low", "震動：柔和", "減半震幅護眼")}
+          ${renderOptionBtn("screenShake", "off", "震動：關閉", "畫面完全靜止")}
         </div>
         <div class="pt-1 flex items-center justify-between border-t border-slate-800/80">
           <span class="text-[11px] font-bold text-slate-300">頂部常駐即時 FPS ＆ 怪量標籤：</span>
@@ -2632,10 +2643,26 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("changelogContentBox");
     if (box) {
       box.innerHTML = `
-        <div class="bg-slate-950/85 border border-cyan-400/70 rounded-2xl p-3 space-y-2 shadow-[0_0_14px_rgba(56,189,248,0.18)]">
+        <div class="bg-slate-950/90 border border-rose-400/70 rounded-2xl p-3 space-y-2 shadow-[0_0_14px_rgba(244,63,94,0.18)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-cyan-300">v7.1.1 視覺演出精修版</span>
+            <span class="font-black text-sm text-rose-300">v7.1.2 戰場可讀性與敵方預警重製版</span>
             <span class="px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-pixel text-[8px]">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">🔥 敵方預警與爆破全面升級（100% 獨立清晰度）</div>
+            <div>• 圓形／環形預警改為「由內向外充能填滿」＋ 最後 0.12 秒亮白閃框；環形攻擊補齊甜甜圈危險帶與安全眼虛線。</div>
+            <div>• 直線衝鋒升級為「動態箭頭跑道 (>>>)」與 0.16 秒實質高速衝刺殘影；蓄力中怪獸新增腳底壓迫氣環與微幅膨脹。</div>
+            <div>• 實裝 3 層次屬性專屬爆破（火岩裂地、天頂雷柱、冰晶放射、暗紫內爆），不再受我方技能透明度影響。</div>
+            <div class="text-cyan-300 font-black pt-1">✨ 介面、透明度與新手體驗精修</div>
+            <div>• Mega 名牌將 💎 移至頭像左上角對角徽章，釋放名字全寬不截斷，血條數字加上高對比深色陰影。</div>
+            <div>• 暫停選單調整為「左：返回大廳（附防誤觸確認）／右：繼續冒險」；全 6 位訓練家大招浮字上移讓位不擋特效。</div>
+            <div>• 雙打夥伴球改顯示精準等級進度，滿 Lv.5 後再拾取自動轉化為 +20% HP ＆ +50 金幣。</div>
+            <div>• 技能透明度升級分層檔位（100% / 75% 平衡 / 45% 極淨），設定頁補齊全 7 項新手「推薦」徽章。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/80 border border-cyan-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-cyan-300">v7.1.1 視覺演出精修版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-cyan-300 font-black pt-0.5">💎 MEGA 尊榮名牌升級</div>
@@ -2674,7 +2701,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.1.1";
+    const curVer = this.APP_VERSION || "v7.1.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -2781,6 +2808,18 @@ Object.assign(window.GameApp, {
 
   pixelPrompt(message, title = "請輸入內容", defaultValue = "", onConfirm = null) {
     this._openPixelDialog({ mode: "prompt", title, message, defaultValue, onConfirm });
+  },
+
+  handleEndModalQuit() {
+    if (this.state === "PAUSED") {
+      this.pixelConfirm(
+        "確定要放棄本局冒險並返回大廳嗎？\n（本局已收集的代幣與圖鑑進度仍會保留）",
+        "返回大廳確認",
+        () => this.quitToTitle()
+      );
+      return;
+    }
+    this.quitToTitle();
   },
 
   quitToTitle() {

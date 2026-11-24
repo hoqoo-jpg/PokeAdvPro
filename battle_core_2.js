@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.1.1",
+  APP_VERSION: "v7.1.2",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -46,11 +46,11 @@ window.GameApp = {
     settings: {
       mobCapProfile: "auto",
       screenFilter: "none",
-      dmgTextMode: "all",
+      dmgTextMode: "crit_only",
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "100"
+      skillAlpha: "75"
     }
   },
   spatialGrid: null,
@@ -75,6 +75,8 @@ window.GameApp = {
   activeBoss: null,
   telegraphs: [],
   enemyProjectiles: [],
+  enemyExplosions: [],
+  enemyDashes: [],
 
   // 8 分鐘快局時間軸
   runTime: 0,
@@ -1282,6 +1284,8 @@ window.GameApp = {
     this.lavaFootprints = [];
     this.telegraphs = [];
     this.enemyProjectiles = [];
+    this.enemyExplosions = [];
+    this.enemyDashes = [];
     this.activeBoss = null;
     this.debugWeatherLock = false;
     this.bossWeatherLock = false;
@@ -1603,7 +1607,7 @@ window.GameApp = {
         color: "#EF4444"
       });
       this.spawnParticleCluster(p.x, p.y, "#F59E0B", "#FFFFFF", 28, "star");
-      this.spawnFloatingText(p.x, p.y - 35, "⚡ 就決定是你了! 命運羈絆全開!", "#FACC15", 15);
+      this.spawnFloatingText(p.x, p.y - 68, "⚡ 命運羈絆全開！", "#FACC15", 14);
     } else if (tr.id === "misty") {
       healPct = 0.24;
       const waveDmg = (48 + p.baseAtk * 1.1) * p.dmgMult;
@@ -1629,7 +1633,7 @@ window.GameApp = {
           e.status = "Freeze"; e.statusTimer = e.isBoss ? 1.4 : 3.5;
         }
       });
-      this.spawnFloatingText(p.x, p.y - 35, "🌊 暴風海嘯！碧藍巨浪冰封席捲！", "#38BDF8", 15);
+      this.spawnFloatingText(p.x, p.y - 68, "🌊 暴風海嘯・冰封席捲！", "#38BDF8", 14);
     } else if (tr.id === "brock") {
       healPct = 0.26;
       p.shieldTimer = 5.5;
@@ -1656,7 +1660,7 @@ window.GameApp = {
         }
       });
       this.spawnParticleCluster(p.x, p.y, "#B45309", "#FDE68A", 26, "circle", 1.15);
-      this.spawnFloatingText(p.x, p.y - 35, "🛡️ 岩石壁壘！6 巨岩護體反震 ＆ 減傷55%！", "#F59E0B", 15);
+      this.spawnFloatingText(p.x, p.y - 68, "🛡️ 岩石壁壘・減傷55%！", "#F59E0B", 14);
     } else if (tr.id === "serena") {
       healPct = 0.22;
       p.buffTimer = 5.5;
@@ -1687,7 +1691,7 @@ window.GameApp = {
         this.spawnParticleCluster(pt.x, pt.y, "#F472B6", "#FEF08A", 16, "star", 1.1);
       });
       this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FEF08A", 32, "star", 1.25);
-      this.spawnFloatingText(p.x, p.y - 35, "✨ 華麗雙打舞台！夥伴狂熱 2x 攻速！", "#F472B6", 15);
+      this.spawnFloatingText(p.x, p.y - 68, "✨ 華麗舞台・夥伴 2x 攻速！", "#F472B6", 14);
     } else if (tr.id === "lillie") {
       healPct = 0.38;
       p.invulnTimer = 2.0;
@@ -1701,7 +1705,7 @@ window.GameApp = {
         color: "#6EE7B7"
       });
       this.spawnParticleCluster(p.x, p.y, "#34D399", "#FEF08A", 28, "star", 1.05);
-      this.spawnFloatingText(p.x, p.y - 35, "✨ 星之祈願結界！+38% HP ＆ 2s無敵!", "#34D399", 15);
+      this.spawnFloatingText(p.x, p.y - 68, "✨ 星之祈願・2s無敵！", "#34D399", 14);
     } else if (tr.id === "red") {
       healPct = 0.25;
       p.buffTimer = 6.5;
@@ -1728,12 +1732,12 @@ window.GameApp = {
           e.x += Math.cos(ang) * 110; e.y += Math.sin(ang) * 110;
         }
       });
-      this.spawnFloatingText(p.x, p.y - 35, "🔥 赤紅王牌號令! 全傷+45% ＆ 冠軍霸氣!", "#EF4444", 16);
+      this.spawnFloatingText(p.x, p.y - 68, "🔥 王牌號令・全傷+45%！", "#EF4444", 15);
     }
 
     const healAmt = Math.round(p.maxHp * healPct);
     p.hp = Math.min(p.maxHp, p.hp + healAmt);
-    this.spawnFloatingText(p.x, p.y - 16, `+${healAmt} HP`, "#10B981", 14);
+    this.spawnFloatingText(p.x + 28, p.y - 14, `+${healAmt} HP`, "#10B981", 13);
 
     // 瞬發型訓練家（小霞、莉莉艾）釋放後立即賦予完整冷卻時間；持續型（小智、小剛、莎莉娜、赤紅）於 buff 結束後進冷卻
     if (tr.id !== "ash" && tr.id !== "brock" && tr.id !== "serena" && tr.id !== "red") {
@@ -1763,25 +1767,44 @@ window.GameApp = {
       this.spawnFloatingText(this.player.x, this.player.y - 28, `收服雙打夥伴：${pData.name_zh}!`, "#EC4899", 14);
     } else {
       let anyUpg = false;
+      let evolvedAny = false;
+      let maxNewLv = 1;
       this.partners.forEach(pt => {
         if (pt.level < 5) {
           pt.level += 1;
           anyUpg = true;
+          if (pt.level > maxNewLv) maxNewLv = pt.level;
           if (pt.data.evo_level !== "None" && pt.level >= 3 && pt.data.evo_to) {
             const nextData = POKEMON_MAP.get(pt.data.evo_to);
             if (nextData) {
               pt.id = nextData.id;
               pt.data = nextData;
+              evolvedAny = true;
               this.saveData.pokedexSeen[nextData.id] = true;
               this.saveData.pokedexCaught[nextData.id] = true;
             }
           }
+        } else if (pt.level > maxNewLv) {
+          maxNewLv = pt.level;
         }
       });
       if (anyUpg) {
-        this.spawnFloatingText(this.player.x, this.player.y - 28, `雙打夥伴等級提升 (MAX Lv.5)!`, "#EC4899", 14);
+        if (evolvedAny) {
+          this.spawnFloatingText(this.player.x, this.player.y - 30, `✨ 夥伴進化＆強化！Lv.${maxNewLv} / 5`, "#F472B6", 14);
+        } else if (maxNewLv >= 5) {
+          this.spawnFloatingText(this.player.x, this.player.y - 30, `★ 夥伴滿級覺醒 (Lv.5)！狂熱連擊解鎖！`, "#FACC15", 14);
+        } else {
+          this.spawnFloatingText(this.player.x, this.player.y - 30, `雙打夥伴強化！Lv.${maxNewLv} / 5`, "#EC4899", 14);
+        }
       } else {
-        this.spawnFloatingText(this.player.x, this.player.y - 28, `雙打夥伴已達上限 Lv.5!`, "#EC4899", 14);
+        const p = this.player;
+        const healAmt = Math.round(p.maxHp * 0.20);
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+        this.runCoins += 50;
+        this.saveData.coins += 50;
+        SoundFX.play("coin");
+        this.spawnParticleCluster(p.x, p.y, "#F472B6", "#FACC15", 16, "star", 1.0);
+        this.spawnFloatingText(p.x, p.y - 30, `💖 夥伴已滿級！轉化 +${healAmt} HP ＆ +50 金幣！`, "#34D399", 14);
       }
     }
     this.refreshHUD();
@@ -4086,8 +4109,79 @@ window.GameApp = {
     }
   },
 
+  inferEnemyExplosionKind(tg) {
+    const col = (tg.color || "").toUpperCase();
+    const t1 = (tg.owner && tg.owner.data && tg.owner.data.type1) || "";
+    const t2 = (tg.owner && tg.owner.data && tg.owner.data.type2) || "";
+    if (col === "#FACC15" || t1 === "Electric" || t2 === "Electric") return "electric";
+    if (col === "#38BDF8" || t1 === "Ice" || t2 === "Ice" || t1 === "Water" || t2 === "Water") return "ice_water";
+    if (col === "#A855F7" || col === "#C084FC" || tg.isSuction || t1 === "Psychic" || t1 === "Ghost" || t1 === "Poison") return "psychic_ghost";
+    return "fire_rock";
+  },
+
   updateTelegraphs(dt) {
     const p = this.player;
+    if (!this.enemyExplosions) this.enemyExplosions = [];
+    if (!this.enemyDashes) this.enemyDashes = [];
+
+    // 1. 更新敵方 3 層次屬性爆炸特效（獨立於我方技能透明度，永遠 100% 清晰）
+    for (let i = this.enemyExplosions.length - 1; i >= 0; i--) {
+      const ex = this.enemyExplosions[i];
+      ex.timer -= dt;
+      if (ex.timer <= 0) {
+        this.enemyExplosions.splice(i, 1);
+      }
+    }
+
+    // 2. 更新敵方 0.16s 高速實質衝鋒與殘影（取代舊版 1 幀瞬移）
+    for (let i = this.enemyDashes.length - 1; i >= 0; i--) {
+      const ds = this.enemyDashes[i];
+      ds.timer += dt;
+      const t = Math.min(1, ds.timer / ds.duration);
+      const ease = 1 - Math.pow(1 - t, 2.2);
+      const curX = ds.startX + (ds.endX - ds.startX) * ease;
+      const curY = ds.startY + (ds.endY - ds.startY) * ease;
+
+      if (ds.owner && ds.owner.hp > 0) {
+        ds.owner.x = curX;
+        ds.owner.y = curY;
+        ds.owner.facingX = Math.cos(ds.angle) >= 0 ? 1 : -1;
+      }
+
+      if (ds.afterimages.length < 3 && t >= (ds.afterimages.length + 1) * 0.26) {
+        ds.afterimages.push({
+          x: curX, y: curY,
+          facingX: Math.cos(ds.angle) >= 0 ? 1 : -1,
+          life: 0.22, maxLife: 0.22
+        });
+        this.spawnParticleCluster(curX, curY + 12, ds.color || "#F59E0B", "#FEF08A", 4, "circle", 0.55);
+      }
+      for (let a = ds.afterimages.length - 1; a >= 0; a--) {
+        ds.afterimages[a].life -= dt;
+        if (ds.afterimages[a].life <= 0) ds.afterimages.splice(a, 1);
+      }
+
+      if (t >= 1) {
+        if (!ds.impactDone) {
+          ds.impactDone = true;
+          this.enemyExplosions.push({
+            kind: "fire_rock",
+            shape: "circle",
+            x: ds.endX, y: ds.endY,
+            radius: Math.max(46, (ds.width || 40) * 1.35),
+            color: ds.color || "#F59E0B",
+            timer: 0.34, maxTime: 0.34,
+            seed: Math.random() * 10
+          });
+          this.spawnParticleCluster(ds.endX, ds.endY, ds.color || "#F59E0B", "#FFFFFF", 12, "star", 0.95);
+        }
+        if (ds.afterimages.length === 0) {
+          this.enemyDashes.splice(i, 1);
+        }
+      }
+    }
+
+    // 3. 更新敵方預警圈／環／跑道讀條
     for (let i = this.telegraphs.length - 1; i >= 0; i--) {
       const tg = this.telegraphs[i];
 
@@ -4122,25 +4216,24 @@ window.GameApp = {
             if (Math.hypot(p.x - nearX, p.y - nearY) <= tg.width / 2 + 16) hitPlayer = true;
           }
           if (tg.owner && tg.owner.hp > 0) {
-            // 【衝撞視覺升級】：沿衝鋒路徑生成 3 道破空音爆風罩 (sonic_cone) 與揚塵粒子，告別乾癟瞬移感！
-            for (let step = 1; step <= 3; step++) {
-              const frac = step * 0.28;
-              const cx = tg.startX + Math.cos(tg.angle) * (tg.length * frac);
-              const cy = tg.startY + Math.sin(tg.angle) * (tg.length * frac);
-              SkillsEngine.meleeEffects.push({
-                style: "sonic_cone",
-                casterRef: step === 3 ? tg.owner : null,
-                ox: cx, oy: cy, x: cx, y: cy,
-                angle: tg.angle,
-                radius: (tg.width || 40) * (0.85 + step * 0.12),
-                waveIdx: step - 1,
-                timer: 0.22, maxTime: 0.22,
-                color: tg.color || "#F8FAFC"
-              });
-            }
-            tg.owner.x = tg.startX + Math.cos(tg.angle) * (tg.length * 0.85);
-            tg.owner.y = tg.startY + Math.sin(tg.angle) * (tg.length * 0.85);
-            this.spawnParticleCluster(tg.owner.x, tg.owner.y, tg.color || "#F59E0B", "#FFFFFF", 10, "star", 0.85);
+            const endX = tg.startX + Math.cos(tg.angle) * (tg.length * 0.88);
+            const endY = tg.startY + Math.sin(tg.angle) * (tg.length * 0.88);
+            const sprUrl = tg.owner.data ? tg.owner.data.forward_sprite : null;
+            this.enemyDashes.push({
+              owner: tg.owner,
+              spriteUrl: sprUrl,
+              size: tg.owner.isBoss ? 120 : 88,
+              startX: tg.owner.x,
+              startY: tg.owner.y,
+              endX, endY,
+              angle: tg.angle,
+              width: tg.width || 40,
+              color: tg.color || "#F59E0B",
+              timer: 0,
+              duration: 0.16,
+              impactDone: false,
+              afterimages: []
+            });
           }
         } else if (tg.shape === "ring") {
           const d = Math.hypot(p.x - tg.x, p.y - tg.y);
@@ -4175,15 +4268,29 @@ window.GameApp = {
           }
         }
 
-        SkillsEngine.meleeEffects.push({
-          style: "slam_wave",
-          x: tg.shape === "line" ? tg.startX + Math.cos(tg.angle) * tg.length : tg.x,
-          y: tg.shape === "line" ? tg.startY + Math.sin(tg.angle) * tg.length : tg.y,
-          radius: tg.radius || tg.width * 1.5,
-          timer: 0.28,
-          maxTime: 0.28,
-          color: tg.color || "#EF4444"
-        });
+        // 觸發 3 層次屬性專屬爆破 + 微份量鏡頭震動（100% 獨立於我方技能透明度）
+        if (tg.shape !== "line") {
+          const exKind = this.inferEnemyExplosionKind(tg);
+          const exX = tg.x;
+          const exY = tg.y;
+          const exR = tg.radius || 52;
+          this.enemyExplosions.push({
+            kind: exKind,
+            shape: tg.shape || "circle",
+            x: exX, y: exY,
+            radius: exR,
+            innerRadius: tg.innerRadius || 0,
+            color: tg.color || "#EF4444",
+            timer: 0.36, maxTime: 0.36,
+            seed: Math.random() * 10
+          });
+          const pCol2 = exKind === "electric" ? "#FEF08A" : (exKind === "ice_water" ? "#E0F2FE" : (exKind === "psychic_ghost" ? "#E9D5FF" : "#FDE047"));
+          this.spawnParticleCluster(exX, exY, tg.color || "#EF4444", pCol2, tg.isBoss ? 14 : 9, exKind === "ice_water" ? "diamond" : "star", 1.0);
+          if (Math.hypot(p.x - exX, p.y - exY) < Math.max(this.width, this.height) * 0.65) {
+            this.camera.shakeTime = Math.max(this.camera.shakeTime || 0, 0.12);
+            this.camera.shakeMagnitude = Math.max(this.camera.shakeMagnitude || 0, tg.isBoss ? 2.5 : 1.6);
+          }
+        }
 
         this.telegraphs.splice(i, 1);
       }
@@ -6125,6 +6232,150 @@ window.GameApp = {
     }
   },
 
+  renderEnemyDashesAndExplosions(ctx, toSx, toSy) {
+    // 1. 敵方高速衝鋒殘影（暗紅／金黃剪影，100% 獨立於我方透明度）
+    if (this.enemyDashes && this.enemyDashes.length > 0) {
+      this.enemyDashes.forEach(ds => {
+        const rec = ds.spriteUrl ? SpriteCache.get(ds.spriteUrl) : null;
+        if (!rec || !rec.loaded) return;
+        const sz = ds.size || 88;
+        ds.afterimages.forEach(ai => {
+          const sx = toSx(ai.x), sy = toSy(ai.y);
+          const alpha = Math.max(0, (ai.life / (ai.maxLife || 0.22)) * 0.65);
+          ctx.save();
+          ctx.translate(sx, sy);
+          if (ai.facingX > 0) ctx.scale(-1, 1);
+          this.drawSilhouetteFlash(ctx, rec.img, -sz / 2, -sz / 2, sz, sz, ds.color || "#EF4444", alpha);
+          ctx.restore();
+        });
+      });
+    }
+
+    // 2. 敵方 3 層次屬性專屬爆破特效（100% 不受我方技能透明度影響）
+    if (this.enemyExplosions && this.enemyExplosions.length > 0) {
+      this.enemyExplosions.forEach(ex => {
+        const prog = Math.max(0, Math.min(1, 1 - (ex.timer / (ex.maxTime || 0.36))));
+        const fade = Math.max(0, 1 - prog);
+        const sx = toSx(ex.x), sy = toSy(ex.y);
+        const r = ex.radius || 52;
+        const curR = r * (0.42 + (1 - Math.pow(1 - prog, 2.2)) * 0.66);
+
+        ctx.save();
+        ctx.translate(sx, sy);
+
+        // 第 1 層：前 0.08s 白金實心閃核（提供紮實引爆擊打點）
+        if (prog < 0.24) {
+          const coreA = (1 - prog / 0.24) * 0.88;
+          ctx.fillStyle = `rgba(255, 255, 255, ${coreA})`;
+          if (ex.shape === "ring" && ex.innerRadius > 0) {
+            ctx.beginPath();
+            ctx.arc(0, 0, r * 0.96, 0, Math.PI * 2);
+            ctx.arc(0, 0, ex.innerRadius, 0, Math.PI * 2, true);
+            ctx.fill("evenodd");
+          } else {
+            ctx.beginPath();
+            ctx.arc(0, 0, r * (0.68 + prog * 0.45), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // 第 2 層：依屬性區分專屬爆破視覺
+        if (ex.kind === "electric") {
+          // 雷系：天頂劈下 0.20s 細亮雷柱 ＋ 地面金白十字電環
+          if (prog < 0.60) {
+            const bA = 1 - prog / 0.60;
+            ctx.strokeStyle = `rgba(250, 204, 21, ${bA * 0.9})`;
+            ctx.lineWidth = 10 * bA;
+            ctx.beginPath();
+            ctx.moveTo(0, -240);
+            ctx.lineTo(-10, -150);
+            ctx.lineTo(9, -70);
+            ctx.lineTo(0, 0);
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(255, 255, 255, ${bA})`;
+            ctx.lineWidth = 3.8 * bA;
+            ctx.stroke();
+          }
+          ctx.strokeStyle = `rgba(250, 204, 21, ${fade})`;
+          ctx.lineWidth = Math.max(1.5, 5.5 * fade);
+          ctx.beginPath();
+          ctx.arc(0, 0, curR, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (ex.kind === "ice_water") {
+          // 冰／水系：六角冰晶放射碎片 ＋ 碧藍衝擊環
+          ctx.strokeStyle = `rgba(56, 189, 248, ${fade})`;
+          ctx.lineWidth = Math.max(1.8, 6.0 * fade);
+          ctx.beginPath();
+          ctx.arc(0, 0, curR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(224, 242, 254, ${fade * 0.95})`;
+          ctx.lineWidth = Math.max(1.2, 2.8 * fade);
+          for (let k = 0; k < 6; k++) {
+            const a = (k * Math.PI) / 3 + (ex.seed || 0);
+            const r0 = ex.shape === "ring" ? (ex.innerRadius || 24) : curR * 0.35;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+            ctx.lineTo(Math.cos(a) * curR * 1.06, Math.sin(a) * curR * 1.06);
+            ctx.stroke();
+          }
+        } else if (ex.kind === "psychic_ghost") {
+          // 超能／幽靈系：暗紫內爆波 ＋ 粉白星芒環
+          const inR = Math.max(6, r * (1.0 - prog * 0.72));
+          ctx.fillStyle = `rgba(88, 28, 135, ${fade * 0.42})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, inR, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(192, 132, 252, ${fade})`;
+          ctx.lineWidth = Math.max(1.8, 5.2 * fade);
+          ctx.beginPath();
+          ctx.arc(0, 0, curR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(255, 255, 255, ${fade * 0.9})`;
+          ctx.lineWidth = 2.0 * fade;
+          ctx.beginPath();
+          ctx.arc(0, 0, inR, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          // 火／岩系：焦黑地裂 ＋ 熾橘火環 ＋ 飛濺岩屑線
+          ctx.fillStyle = `rgba(28, 10, 6, ${fade * 0.46})`;
+          ctx.beginPath();
+          ctx.ellipse(0, 4, curR * 0.85, curR * 0.46, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(239, 68, 68, ${fade})`;
+          ctx.lineWidth = Math.max(2.0, 7.0 * fade);
+          ctx.beginPath();
+          ctx.arc(0, 0, curR, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(254, 240, 138, ${fade * 0.95})`;
+          ctx.lineWidth = Math.max(1.4, 3.2 * fade);
+          ctx.beginPath();
+          ctx.arc(0, 0, curR * 0.78, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 5 條焦黑放射地裂線
+          ctx.strokeStyle = `rgba(41, 16, 6, ${fade * 0.9})`;
+          ctx.lineWidth = 2.6 * fade;
+          for (let k = 0; k < 5; k++) {
+            const a = (k * Math.PI * 2) / 5 + (ex.seed || 0);
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * 10, Math.sin(a) * 10);
+            ctx.lineTo(Math.cos(a + 0.14) * curR * 0.55, Math.sin(a + 0.14) * curR * 0.55);
+            ctx.lineTo(Math.cos(a) * curR * 0.92, Math.sin(a) * curR * 0.92);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
+      });
+    }
+  },
+
   renderBossDeathAnims(ctx, toSx, toSy) {
     if (!this.bossDeathAnims || this.bossDeathAnims.length === 0) return;
     this.bossDeathAnims.forEach(ba => {
@@ -6443,53 +6694,131 @@ window.GameApp = {
 
     MapEngine.renderBiomeWorld(ctx, camX, camY, this.width, this.height);
 
+    // 收集當前正在蓄力放招的怪獸，供腳底壓迫氣環與微幅蓄力膨脹使用
+    const castingOwners = new Set();
+    const tgNow = performance.now() * 0.008;
+
     this.telegraphs.forEach(tg => {
-      const pct = 1 - (tg.timer / tg.maxTime);
+      if (tg.owner && tg.owner.hp > 0 && !tg.isBossWarning) castingOwners.add(tg.owner);
+      const pct = Math.max(0, Math.min(1, 1 - (tg.timer / (tg.maxTime || 0.8))));
+      const isFinalFlash = (tg.timer <= 0.12 && !tg.isBossWarning);
       ctx.save();
 
       if (tg.shape === "line") {
+        // 【戰術箭頭衝鋒跑道 (Chevron Lane)】：雙側亮紅軌道線 ＋ 前端尖頭 ＋ 3 組滾動 >>> 警示箭頭 ＋ 前推充能帶
         const ssx = toSx(tg.startX), ssy = toSy(tg.startY);
+        const halfW = (tg.width || 40) * 0.5;
+        const len = tg.length || 260;
+        const tipExt = Math.min(26, halfW * 1.05);
         ctx.translate(ssx, ssy);
         ctx.rotate(tg.angle);
 
-        ctx.fillStyle = "rgba(239, 68, 68, 0.20)";
-        ctx.strokeStyle = "rgba(239, 68, 68, 0.85)";
-        ctx.lineWidth = 2.0;
-        ctx.fillRect(0, -tg.width / 2, tg.length, tg.width);
-        ctx.strokeRect(0, -tg.width / 2, tg.length, tg.width);
+        // 1. 漸層紅底跑道（前端微尖破空輪廓）
+        const laneGrad = ctx.createLinearGradient(0, 0, len + tipExt, 0);
+        laneGrad.addColorStop(0, "rgba(220, 38, 38, 0.16)");
+        laneGrad.addColorStop(0.85, "rgba(239, 68, 68, 0.28)");
+        laneGrad.addColorStop(1, "rgba(248, 113, 113, 0.10)");
+        ctx.fillStyle = laneGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, -halfW);
+        ctx.lineTo(len, -halfW);
+        ctx.lineTo(len + tipExt, 0);
+        ctx.lineTo(len, halfW);
+        ctx.lineTo(0, halfW);
+        ctx.closePath();
+        ctx.fill();
 
-        ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
-        ctx.fillRect(0, -tg.width / 2, tg.length * pct, tg.width);
+        // 2. 前推充能紅金掃描帶
+        const fillLen = len * pct;
+        const chargeGrad = ctx.createLinearGradient(0, 0, Math.max(12, fillLen), 0);
+        chargeGrad.addColorStop(0, "rgba(239, 68, 68, 0.18)");
+        chargeGrad.addColorStop(0.82, isFinalFlash ? "rgba(255, 255, 255, 0.58)" : "rgba(249, 115, 22, 0.45)");
+        chargeGrad.addColorStop(1, "rgba(254, 240, 138, 0.78)");
+        ctx.fillStyle = chargeGrad;
+        ctx.fillRect(0, -halfW, fillLen, tg.width);
+
+        // 3. 兩側高對比亮紅軌道線 ＋ 前端尖頭描邊（去除了生硬的左右封閉盒框）
+        ctx.strokeStyle = isFinalFlash ? "#FFFFFF" : "#F43F5E";
+        ctx.lineWidth = isFinalFlash ? 3.2 : 2.4;
+        ctx.beginPath();
+        ctx.moveTo(0, -halfW);
+        ctx.lineTo(len, -halfW);
+        ctx.lineTo(len + tipExt, 0);
+        ctx.lineTo(len, halfW);
+        ctx.lineTo(0, halfW);
+        ctx.stroke();
+
+        // 4. 內部 3 組不斷向前滾動的 >>> 動態方向箭頭
+        const chevSpacing = len / 3;
+        const scrollOff = ((tgNow * 22) % chevSpacing);
+        ctx.strokeStyle = isFinalFlash ? "#FFFFFF" : "rgba(254, 240, 138, 0.88)";
+        ctx.lineWidth = 2.6;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        for (let c = 0; c < 3; c++) {
+          const cx = scrollOff + c * chevSpacing;
+          if (cx < 10 || cx > len - 6) continue;
+          const ch = halfW * 0.58;
+          ctx.beginPath();
+          ctx.moveTo(cx - 10, -ch);
+          ctx.lineTo(cx + 4, 0);
+          ctx.lineTo(cx - 10, ch);
+          ctx.stroke();
+        }
       } else if (tg.shape === "ring") {
+        // 【甜甜圈危險帶 ＋ 清晰安全眼】：evenodd 填滿危險環、內圈淺色虛線標示安全貼臉區、由內向外充能
         const sx = toSx(tg.x), sy = toSy(tg.y);
-        ctx.strokeStyle = tg.color || "rgba(56, 189, 248, 0.85)";
-        ctx.lineWidth = 3.0;
+        const inR = tg.innerRadius || 42;
+        const outR = tg.radius || 145;
+        const curFillR = inR + (outR - inR) * pct;
+
+        // 1. 靜態半透明紅危環帶
+        ctx.fillStyle = "rgba(239, 68, 68, 0.18)";
         ctx.beginPath();
-        ctx.arc(sx, sy, tg.innerRadius + (tg.radius - tg.innerRadius) * pct, 0, Math.PI * 2);
+        ctx.arc(sx, sy, outR, 0, Math.PI * 2);
+        ctx.arc(sx, sy, inR, 0, Math.PI * 2, true);
+        ctx.fill("evenodd");
+
+        // 2. 由內向外擴張的充能危險帶
+        ctx.fillStyle = isFinalFlash ? "rgba(255, 255, 255, 0.42)" : "rgba(239, 68, 68, 0.34)";
+        ctx.beginPath();
+        ctx.arc(sx, sy, curFillR, 0, Math.PI * 2);
+        ctx.arc(sx, sy, inR, 0, Math.PI * 2, true);
+        ctx.fill("evenodd");
+
+        // 3. 外邊界框線（最後 0.12s 爆閃亮白）
+        ctx.strokeStyle = isFinalFlash ? "#FFFFFF" : (tg.color || "#EF4444");
+        ctx.lineWidth = isFinalFlash ? 3.5 : 2.6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, outR, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
-        ctx.lineWidth = 1.5;
+        // 4. 內圓安全眼虛線邊界
+        ctx.strokeStyle = "rgba(224, 242, 254, 0.90)";
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([6, 5]);
         ctx.beginPath();
-        ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
+        ctx.arc(sx, sy, inR, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.setLineDash([]);
       } else if (tg.isBossWarning) {
         const sx = toSx(tg.x), sy = toSy(tg.y);
-        const curR = tg.radius * (1 - pct);
+        const curR = tg.radius * pct;
 
-        ctx.fillStyle = "rgba(239, 68, 68, 0.25)";
+        ctx.fillStyle = "rgba(239, 68, 68, 0.18)";
         ctx.beginPath();
         ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "#EF4444";
-        ctx.lineWidth = 3.5;
-        ctx.stroke();
-
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.0;
+        ctx.fillStyle = "rgba(239, 68, 68, 0.28)";
         ctx.beginPath();
         ctx.arc(sx, sy, curR, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = "#EF4444";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
         ctx.stroke();
 
         ctx.font = "900 12px 'Noto Sans TC', sans-serif";
@@ -6500,20 +6829,57 @@ window.GameApp = {
         ctx.strokeText(`⚠️ DANGER: ${tg.timer.toFixed(1)}s`, sx, sy + 4);
         ctx.fillText(`⚠️ DANGER: ${tg.timer.toFixed(1)}s`, sx, sy + 4);
       } else {
+        // 【圓形紅圈預警】：反轉為「由內向外充能填滿」＋ 最後 0.12s 外框爆閃亮白
         const sx = toSx(tg.x), sy = toSy(tg.y);
-        ctx.strokeStyle = tg.color || "rgba(239, 68, 68, 0.9)";
-        ctx.fillStyle = tg.isSuction ? "rgba(168, 85, 247, 0.22)" : "rgba(239, 68, 68, 0.18)";
-        ctx.lineWidth = 2.5;
+        const baseFill = tg.isSuction ? "rgba(168, 85, 247, 0.16)" : "rgba(239, 68, 68, 0.14)";
+        const chargeFill = isFinalFlash
+          ? "rgba(255, 255, 255, 0.45)"
+          : (tg.isSuction ? "rgba(192, 132, 252, 0.36)" : "rgba(239, 68, 68, 0.34)");
+
+        ctx.fillStyle = baseFill;
         ctx.beginPath();
         ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
-        ctx.fill(); ctx.stroke();
+        ctx.fill();
 
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2;
+        ctx.fillStyle = chargeFill;
         ctx.beginPath();
-        ctx.arc(sx, sy, tg.radius * (1 - pct), 0, Math.PI * 2);
+        ctx.arc(sx, sy, Math.max(4, tg.radius * pct), 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = isFinalFlash ? "#FFFFFF" : (tg.color || "#EF4444");
+        ctx.lineWidth = isFinalFlash ? 3.5 : 2.6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, tg.radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(4, tg.radius * pct), 0, Math.PI * 2);
         ctx.stroke();
       }
+      ctx.restore();
+    });
+
+    // 繪製正在蓄力放招怪獸的腳底壓迫聚氣環（Casting Aura）
+    castingOwners.forEach(owner => {
+      const osx = toSx(owner.x), osy = toSy(owner.y);
+      const sz = owner.isBoss ? 120 : 88;
+      const pulse = Math.sin(tgNow * 2.4) * 5;
+      ctx.save();
+      ctx.strokeStyle = "#F43F5E";
+      ctx.lineWidth = 3.2;
+      ctx.beginPath();
+      ctx.ellipse(osx, osy + sz * 0.35, sz * 0.42 + pulse, sz * 0.18 + pulse * 0.4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#FEF08A";
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath();
+      ctx.ellipse(osx, osy + sz * 0.35, sz * 0.52 - pulse * 0.5, sz * 0.22 - pulse * 0.2, 0, tgNow, tgNow + Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     });
 
@@ -6531,9 +6897,12 @@ window.GameApp = {
       const r = lf.radius || 24;
       const seed = lf.seed || (lf.x * 0.13 + lf.y * 0.07);
 
+      const lfSkillAlpha = (typeof SkillsEngine !== "undefined" && SkillsEngine.getLightProjectileAlpha)
+        ? SkillsEngine.getLightProjectileAlpha()
+        : 1.0;
       ctx.save();
       ctx.translate(lsx, lsy);
-      ctx.globalAlpha = fade * 0.92;
+      ctx.globalAlpha = fade * 0.92 * lfSkillAlpha;
 
       // 第 1 層：地面焦黑炭化烙印（讓火焰真正「咬」在草地與石板上）
       ctx.fillStyle = isBlue ? "rgba(10, 18, 40, 0.56)" : "rgba(32, 14, 6, 0.52)";
@@ -7670,7 +8039,8 @@ window.GameApp = {
 
       ctx.save();
       ctx.translate(esx, esy);
-      if (e.facingX > 0) ctx.scale(-1, 1);
+      const castPulse = castingOwners.has(e) ? (1.06 + Math.sin(tgNow * 3.0) * 0.06) : 1.0;
+      ctx.scale((e.facingX > 0 ? -1 : 1) * castPulse, castPulse);
 
       if (eRec && eRec.loaded) {
         ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
@@ -8145,6 +8515,7 @@ window.GameApp = {
       ctx.restore();
     });
 
+    this.renderEnemyDashesAndExplosions(ctx, toSx, toSy);
     this.renderBossDeathAnims(ctx, toSx, toSy);
     this.renderVictoryCeremonyOverlay(ctx, toSx, toSy);
 

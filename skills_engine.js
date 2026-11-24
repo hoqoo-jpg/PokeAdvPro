@@ -40,10 +40,14 @@ const SkillsEngine = {
   },
 
   getPlayerSkillAlpha() {
-    const raw = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.skillAlpha) || "100";
+    const raw = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.skillAlpha) || "75";
     const num = parseFloat(raw);
-    if (!Number.isFinite(num)) return 1.0;
+    if (!Number.isFinite(num)) return 0.75;
     return Math.max(0.25, Math.min(1.0, num / 100));
+  },
+
+  getLightProjectileAlpha() {
+    return Math.max(0.55, this.getPlayerSkillAlpha());
   },
 
   // 空間網格快速範圍索敵：利用 battle_core_2 每幀建立的 80x80 spatialGrid，將彈幕與領域碰撞由 O(N) 全陣列掃描降至 O(1) 鄰近格查詢
@@ -6638,11 +6642,13 @@ const SkillsEngine = {
       ctx.restore();
     });
 
-    // 4. 具象化投射物彈幕 (projectiles)
+    // 4. 具象化投射物彈幕 (projectiles — 輕量普攻彈幕享有 55% 透明度下限保底，避免 45% 極淨模式下隱形)
+    const projAlpha = this.getLightProjectileAlpha();
     this.projectiles.forEach(pr => {
       const sx = toSx(pr.x), sy = toSy(pr.y);
       const r = pr.radius;
       ctx.save();
+      ctx.globalAlpha = projAlpha;
       ctx.translate(sx, sy);
 
       if (pr.vfx === "ember_spark") {
