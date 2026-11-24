@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.1.3",
+  APP_VERSION: "v7.1.4",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -4134,7 +4134,7 @@ window.GameApp = {
       }
     }
 
-    // 2. 更新敵方 0.16s 高速實質衝鋒與殘影（取代舊版 1 幀瞬移）
+    // 2. 更新敵方 0.16s 高速實質衝鋒與殘影（修復殘影無限再生導致 Boss 抵達終點後卡死之 Bug）
     for (let i = this.enemyDashes.length - 1; i >= 0; i--) {
       const ds = this.enemyDashes[i];
       ds.timer += dt;
@@ -4143,19 +4143,22 @@ window.GameApp = {
       const curX = ds.startX + (ds.endX - ds.startX) * ease;
       const curY = ds.startY + (ds.endY - ds.startY) * ease;
 
-      if (ds.owner && ds.owner.hp > 0) {
+      // 僅在尚未落地前驅動怪獸座標，抵達終點 (impactDone) 後立即歸還移動權
+      if (!ds.impactDone && ds.owner && ds.owner.hp > 0) {
         ds.owner.x = curX;
         ds.owner.y = curY;
         ds.owner.facingX = Math.cos(ds.angle) >= 0 ? 1 : -1;
       }
 
-      if (ds.afterimages.length < 3 && t >= (ds.afterimages.length + 1) * 0.26) {
+      if (t < 1 && (ds.spawnedAfterimages || 0) < 3 && t >= ((ds.spawnedAfterimages || 0) + 1) * 0.26) {
+        ds.spawnedAfterimages = (ds.spawnedAfterimages || 0) + 1;
         ds.afterimages.push({
           x: curX, y: curY,
           facingX: Math.cos(ds.angle) >= 0 ? 1 : -1,
           life: 0.22, maxLife: 0.22
         });
-        this.spawnParticleCluster(curX, curY + 12, ds.color || "#F59E0B", "#FEF08A", 4, "circle", 0.55);
+        const dustCol2 = ds.explosionKind === "ice_water" ? "#E0F2FE" : (ds.explosionKind === "psychic_ghost" ? "#E9D5FF" : "#FEF08A");
+        this.spawnParticleCluster(curX, curY + 12, ds.color || "#F59E0B", dustCol2, 4, ds.explosionKind === "ice_water" ? "diamond" : "circle", 0.55);
       }
       for (let a = ds.afterimages.length - 1; a >= 0; a--) {
         ds.afterimages[a].life -= dt;
@@ -4165,8 +4168,9 @@ window.GameApp = {
       if (t >= 1) {
         if (!ds.impactDone) {
           ds.impactDone = true;
+          const exKind = ds.explosionKind || "fire_rock";
           this.enemyExplosions.push({
-            kind: "fire_rock",
+            kind: exKind,
             shape: "circle",
             x: ds.endX, y: ds.endY,
             radius: Math.max(46, (ds.width || 40) * 1.35),
@@ -4174,7 +4178,8 @@ window.GameApp = {
             timer: 0.34, maxTime: 0.34,
             seed: Math.random() * 10
           });
-          this.spawnParticleCluster(ds.endX, ds.endY, ds.color || "#F59E0B", "#FFFFFF", 12, "star", 0.95);
+          const pCol2 = exKind === "ice_water" ? "#E0F2FE" : "#FFFFFF";
+          this.spawnParticleCluster(ds.endX, ds.endY, ds.color || "#F59E0B", pCol2, 12, exKind === "ice_water" ? "diamond" : "star", 0.95);
         }
         if (ds.afterimages.length === 0) {
           this.enemyDashes.splice(i, 1);
@@ -4230,9 +4235,11 @@ window.GameApp = {
               angle: tg.angle,
               width: tg.width || 40,
               color: tg.color || "#F59E0B",
+              explosionKind: this.inferEnemyExplosionKind(tg),
               timer: 0,
               duration: 0.16,
               impactDone: false,
+              spawnedAfterimages: 0,
               afterimages: []
             });
           }
@@ -6304,18 +6311,23 @@ window.GameApp = {
           ctx.arc(0, 0, curR, 0, Math.PI * 2);
           ctx.stroke();
         } else if (ex.kind === "ice_water") {
-          // 冰／水系：六角冰晶放射碎片 ＋ 碧藍衝擊環
+          // 冰／水系：淺藍霜霧內暈 ＋ 加粗碧藍衝擊環 ＋ 六角冰晶放射碎片
+          ctx.fillStyle = `rgba(56, 189, 248, ${fade * 0.22})`;
+          ctx.beginPath();
+          ctx.arc(0, 0, curR * 0.94, 0, Math.PI * 2);
+          ctx.fill();
+
           ctx.strokeStyle = `rgba(56, 189, 248, ${fade})`;
-          ctx.lineWidth = Math.max(1.8, 6.0 * fade);
+          ctx.lineWidth = Math.max(2.2, 7.2 * fade);
           ctx.beginPath();
           ctx.arc(0, 0, curR, 0, Math.PI * 2);
           ctx.stroke();
 
-          ctx.strokeStyle = `rgba(224, 242, 254, ${fade * 0.95})`;
-          ctx.lineWidth = Math.max(1.2, 2.8 * fade);
+          ctx.strokeStyle = `rgba(224, 242, 254, ${fade * 0.96})`;
+          ctx.lineWidth = Math.max(1.5, 3.4 * fade);
           for (let k = 0; k < 6; k++) {
             const a = (k * Math.PI) / 3 + (ex.seed || 0);
-            const r0 = ex.shape === "ring" ? (ex.innerRadius || 24) : curR * 0.35;
+            const r0 = ex.shape === "ring" ? (ex.innerRadius || 24) : curR * 0.30;
             ctx.beginPath();
             ctx.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
             ctx.lineTo(Math.cos(a) * curR * 1.06, Math.sin(a) * curR * 1.06);

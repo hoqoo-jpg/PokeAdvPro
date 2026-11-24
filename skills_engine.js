@@ -415,7 +415,7 @@ const SkillsEngine = {
       let lockedTarget = (!useManualAim) ? (target || GameApp.findNearestEnemyInViewport(caster.x, caster.y, 370)) : null;
 
       for (let b = 0; b < burstCount; b++) {
-        this.scheduleEvent(b * 0.038, () => {
+        this.scheduleEvent(b * 0.072, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
           if (!useManualAim) {
             const stillAlive = lockedTarget && lockedTarget.hp > 0 && GameApp.enemies.includes(lockedTarget) &&
@@ -433,8 +433,10 @@ const SkillsEngine = {
             : (useManualAim ? liveMoveAng : baseAngle) + jitter;
 
           const spd = 445;
-          const mx = caster.x + Math.cos(shotAng) * 24;
-          const my = caster.y + Math.sin(shotAng) * 24;
+          const latJitter = (b % 2 === 0 ? 1 : -1) * 3.0;
+          const perpS = shotAng + Math.PI / 2;
+          const mx = caster.x + Math.cos(shotAng) * 22 + Math.cos(perpS) * latJitter;
+          const my = caster.y + Math.sin(shotAng) * 22 + Math.sin(perpS) * latJitter;
           this.spawnSubParticle(mx, my, Math.cos(shotAng + 0.4) * 45, Math.sin(shotAng + 0.4) * 45, "#BEF264", 2.4, 0.16, "leaf");
           this.projectiles.push({
             x: mx,
@@ -1031,9 +1033,9 @@ const SkillsEngine = {
       for (let w = 0; w < whipCount; w++) {
         const spread = (w - (whipCount - 1) / 2) * 0.30;
         const ang = baseAngle + spread;
-        const sideShift = whipCount === 3 ? ((w - 1) * 14) : (whipCount > 1 ? (w === 0 ? -12 : 12) : 0);
-        const startX = caster.x + Math.cos(ang) * 24 + Math.cos(perp) * sideShift;
-        const startY = caster.y + Math.sin(ang) * 24 + Math.sin(perp) * sideShift;
+        const sideShift = whipCount === 3 ? ((w - 1) * 12) : (whipCount > 1 ? (w === 0 ? -10 : 10) : 0);
+        const startX = caster.x + Math.cos(ang) * 14 + Math.cos(perp) * sideShift;
+        const startY = caster.y + Math.sin(ang) * 14 + Math.sin(perp) * sideShift;
         this.meleeEffects.push({
           style: "vine_whip",
           casterRef: caster,
@@ -2809,11 +2811,13 @@ const SkillsEngine = {
 
         ctx.strokeStyle = isCrimson ? `rgba(251, 113, 133, ${alpha * 0.88})` : `rgba(74, 222, 128, ${alpha * 0.85})`;
         ctx.lineWidth = 2.0;
-        ctx.setLineDash(isUltSwamp ? [16, 10] : []);
+        ctx.setLineDash(isUltSwamp ? [16, 10] : [10, 8]);
+        ctx.lineDashOffset = -now * 16;
         ctx.beginPath();
-        ctx.ellipse(sx, sy, rx * 0.76, ry * 0.76, now * 0.5, 0, Math.PI * 2);
+        ctx.ellipse(sx, sy, rx * 0.76, ry * 0.76, 0, 0, Math.PI * 2);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.lineDashOffset = 0;
 
         if (isUltSwamp) {
           // 劇毒沼澤超武：內部 4 道螢光綠逆時針腐蝕渦流帶
@@ -4121,7 +4125,7 @@ const SkillsEngine = {
         ctx.ellipse(0, 0, r * 0.92, r * 0.52, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        const pulseR = r * (0.35 + ((now * 1.8) % 0.65));
+        const pulseR = r * (0.35 + ((now * 0.55) % 0.65));
         ctx.strokeStyle = `rgba(254, 240, 138, ${alpha * 0.85})`;
         ctx.lineWidth = 2.0;
         ctx.beginPath();
@@ -4160,7 +4164,7 @@ const SkillsEngine = {
           for (let h = 0; h <= pillarH * 0.85; h += 10) {
             const t = h / pillarH;
             const curW = r * (0.62 - t * 0.25);
-            const ang = now * 2.4 + h * 0.055 + strand * Math.PI;
+            const ang = now * 1.1 + h * 0.055 + strand * Math.PI;
             const hx = Math.cos(ang) * curW;
             const hy = -h + Math.sin(ang) * (curW * 0.25);
             if (h === 0) ctx.moveTo(hx, hy);
@@ -4170,7 +4174,7 @@ const SkillsEngine = {
         }
 
         // 4. 光柱頂端懸浮的立體黃金新月聖徽 (Crescent Moon Crest)
-        const crestY = -pillarH * 0.78 + Math.sin(now * 3.5) * 6;
+        const crestY = -pillarH * 0.78 + Math.sin(now * 1.6) * 6;
         ctx.fillStyle = `rgba(254, 240, 138, ${alpha * 0.95})`;
         ctx.strokeStyle = `rgba(217, 119, 6, ${alpha * 0.9})`;
         ctx.lineWidth = 1.6;
@@ -4302,14 +4306,14 @@ const SkillsEngine = {
         ctx.strokeStyle = "rgba(186, 230, 253, 0.75)";
         ctx.lineWidth = 2.4;
         for (let g = 0; g < 3; g++) {
-          const gAng = -now * 5.5 + (g * Math.PI * 2) / 3;
+          const gAng = -now * 2.6 + (g * Math.PI * 2) / 3;
           ctx.beginPath();
           ctx.ellipse(0, 4, hz.radius * 0.62, hz.radius * 0.28, 0, gAng, gAng + 1.2);
           ctx.stroke();
         }
 
         // 2. 中層：由下往上漸寬的錐形半透明流體風柱主體
-        const topSway = Math.sin(now * 4.5) * 9;
+        const topSway = Math.sin(now * 2.2) * 9;
         const funnelGrad = ctx.createLinearGradient(0, 8, topSway, -92);
         funnelGrad.addColorStop(0, "rgba(51, 65, 85, 0.65)");
         funnelGrad.addColorStop(0.5, "rgba(148, 163, 184, 0.48)");
@@ -4329,11 +4333,11 @@ const SkillsEngine = {
           const rY = 4 - t * 88;
           const rRadX = 15 + t * 38;
           const rRadY = rRadX * 0.34;
-          const swayX = Math.sin(now * 5 + levelIdx * 0.7) * (3 + t * 6);
+          const swayX = Math.sin(now * 2.4 + levelIdx * 0.7) * (3 + t * 6);
 
           ctx.save();
           ctx.translate(swayX, rY);
-          const rot = now * (4.2 - t * 1.0) + levelIdx * 1.15;
+          const rot = now * (2.4 - t * 0.6) + levelIdx * 1.15;
           ctx.strokeStyle = levelIdx % 2 === 0 ? "#E0F2FE" : "#38BDF8";
           ctx.lineWidth = 3.2 - t * 0.8;
           ctx.lineCap = "round";
@@ -4412,7 +4416,7 @@ const SkillsEngine = {
         ctx.rotate(hz.angle || 0);
         ctx.globalAlpha = (lifeAlpha) * sAlpha;
 
-        const dWave = Math.sin(now * 16 + hz.x * 0.04) * 3.5;
+        const dWave = Math.sin(now * 5.5 + hz.x * 0.04) * 3.5;
         const gradMain = ctx.createLinearGradient(-r * 1.0, 0, r * 1.15, 0);
         if (isMegaGyara) {
           gradMain.addColorStop(0, "rgba(15, 23, 42, 0.25)");
@@ -4446,7 +4450,7 @@ const SkillsEngine = {
           for (let s = 0; s < segCount; s++) {
             const frac = s / (segCount - 1);
             const bx = -r * (0.36 + frac * 1.65);
-            const sway = Math.sin(now * 16 - s * 0.92 + hz.x * 0.02) * (r * (0.14 + frac * 0.22));
+            const sway = Math.sin(now * 5.5 - s * 0.92 + hz.x * 0.02) * (r * (0.14 + frac * 0.22));
             const segR = r * (0.42 * (1 - frac * 0.68));
             pts.push({ x: bx, y: sway, r: segR, frac });
           }
@@ -4458,8 +4462,8 @@ const SkillsEngine = {
           ctx.fillStyle = finGlowCol;
           ctx.beginPath();
           ctx.moveTo(tailEnd.x + 4, tailEnd.y - tailEnd.r * 0.85);
-          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y + Math.sin(now * 20) * 8, tailEnd.x - r * 0.78, tailEnd.y);
-          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y - Math.sin(now * 20) * 8, tailEnd.x + 4, tailEnd.y + tailEnd.r * 0.85);
+          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y + Math.sin(now * 7.0) * 8, tailEnd.x - r * 0.78, tailEnd.y);
+          ctx.quadraticCurveTo(tailEnd.x - r * 0.45, tailEnd.y - Math.sin(now * 7.0) * 8, tailEnd.x + 4, tailEnd.y + tailEnd.r * 0.85);
           ctx.closePath();
           ctx.fill();
           ctx.restore();
@@ -4526,7 +4530,7 @@ const SkillsEngine = {
         ctx.globalCompositeOperation = "lighter";
         for (let m = -1; m <= 1; m++) {
           const my = m * r * 0.24;
-          const tailWag = Math.sin(now * 18 + m * 2.1) * 5.5;
+          const tailWag = Math.sin(now * 6.5 + m * 2.1) * 5.5;
           ctx.fillStyle = isMegaX
             ? (m === 0 ? "rgba(34, 211, 238, 0.42)" : "rgba(37, 99, 235, 0.34)")
             : (isKing
@@ -4630,9 +4634,9 @@ const SkillsEngine = {
         ctx.lineCap = "round";
         const sparkCount = (isKing || isMegaX) ? 3 : 2;
         for (let s = 0; s < sparkCount; s++) {
-          const side = s === 2 ? (Math.sin(now * 30) >= 0 ? 1 : -1) : (s === 0 ? -1 : 1);
-          const jitter1 = Math.sin(now * 28 + s * 3.1) * 5;
-          const jitter2 = Math.cos(now * 32 + s * 4.7) * 6;
+          const side = s === 2 ? (Math.sin(now * 11) >= 0 ? 1 : -1) : (s === 0 ? -1 : 1);
+          const jitter1 = Math.sin(now * 10 + s * 3.1) * 5;
+          const jitter2 = Math.cos(now * 12 + s * 4.7) * 6;
           ctx.beginPath();
           ctx.moveTo(r * 0.46, side * r * 0.22);
           ctx.lineTo(r * 0.16, side * r * 0.42 + jitter1);
@@ -5255,13 +5259,13 @@ const SkillsEngine = {
         ctx.moveTo(0, -halfW * 0.78);
         for (let x = 0; x <= curLen; x += stepPx) {
           const taper = 0.84 + (x / Math.max(1, curLen)) * 0.26;
-          const wave = Math.sin(now * 26 - x * 0.085) * 2.6 * wScale;
+          const wave = Math.sin(now * 9.5 - x * 0.085) * 2.6 * wScale;
           ctx.lineTo(x, -halfW * taper + wave);
         }
         ctx.lineTo(curLen + 6, 0);
         for (let x = curLen; x >= 0; x -= stepPx) {
           const taper = 0.84 + (x / Math.max(1, curLen)) * 0.26;
-          const wave = Math.sin(now * 26 - x * 0.085 + 1.4) * 2.6 * wScale;
+          const wave = Math.sin(now * 9.5 - x * 0.085 + 1.4) * 2.6 * wScale;
           ctx.lineTo(x, halfW * taper + wave);
         }
         ctx.closePath();
@@ -5298,7 +5302,7 @@ const SkillsEngine = {
           ctx.beginPath();
           for (let x = 2; x <= curLen; x += 10) {
             const amp = halfW * 0.66 * (0.75 + (x / Math.max(1, curLen)) * 0.28);
-            const y = Math.sin(x * 0.095 - now * 30 + (strand * Math.PI * 2) / strandCount) * amp;
+            const y = Math.sin(x * 0.095 - now * 11 + (strand * Math.PI * 2) / strandCount) * amp;
             if (x === 2) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
           }
@@ -5341,7 +5345,7 @@ const SkillsEngine = {
         ];
         ctx.fillStyle = "rgba(255, 255, 255, 0.92)";
         foamPts.forEach(([fx, fy, fr], idx) => {
-          const jitter = Math.sin(now * 24 + idx * 1.7) * 2.5;
+          const jitter = Math.sin(now * 9.0 + idx * 1.7) * 2.5;
           ctx.beginPath();
           ctx.arc(fx + jitter, fy, fr * wScale, 0, Math.PI * 2);
           ctx.fill();
@@ -5405,14 +5409,14 @@ const SkillsEngine = {
           for (let x = 0; x <= lim; x += stepPx) {
             const t = x / Math.max(1, curLen);
             const baseHalf = (sW + (eW - sW) * t) * wMul;
-            const curl = Math.sin(now * 28 - x * 0.095 + phaseShift) * (3.2 + t * 5.2) * ampMul * wScale;
+            const curl = Math.sin(now * 10 - x * 0.095 + phaseShift) * (3.2 + t * 5.2) * ampMul * wScale;
             ctx.lineTo(x, -baseHalf + curl);
           }
-          ctx.lineTo(lim + 10 * wMul, Math.sin(now * 24 + phaseShift) * 3.5);
+          ctx.lineTo(lim + 10 * wMul, Math.sin(now * 9.0 + phaseShift) * 3.5);
           for (let x = lim; x >= 0; x -= stepPx) {
             const t = x / Math.max(1, curLen);
             const baseHalf = (sW + (eW - sW) * t) * wMul;
-            const curl = Math.sin(now * 28 - x * 0.095 + phaseShift + 2.1) * (3.2 + t * 5.2) * ampMul * wScale;
+            const curl = Math.sin(now * 10 - x * 0.095 + phaseShift + 2.1) * (3.2 + t * 5.2) * ampMul * wScale;
             ctx.lineTo(x, baseHalf + curl);
           }
           ctx.closePath();
@@ -5497,7 +5501,7 @@ const SkillsEngine = {
           [-2, eW * 0.62, eW * 0.32]
         ];
         capPts.forEach(([cx, cy, cr], idx) => {
-          const jit = Math.sin(now * 26 + idx * 1.9) * 3.0;
+          const jit = Math.sin(now * 9.5 + idx * 1.9) * 3.0;
           ctx.fillStyle = isBlue
             ? (idx === 2 ? "rgba(103, 232, 249, 0.86)" : "rgba(56, 189, 248, 0.78)")
             : (idx === 2 ? "rgba(250, 204, 21, 0.82)" : "rgba(249, 115, 22, 0.78)");
@@ -5696,7 +5700,7 @@ const SkillsEngine = {
         ctx.stroke();
         ctx.restore();
       } else if (m.style === "vine_whip") {
-        // 【藤鞭（漸進射程 ＋ 妙蛙花 #003 專屬霸王花瓣藤鞭）】：雙層 S 彎曲藤蔓 ＋ 倒刺花瓣 ＋ 破空月牙斬痕
+        // 【藤鞭 v7.1.4 漸細流線版】：根部 8px ➔ 尖端收尖 2px 自然 S 型甩鞭 ＋ 倒刺花瓣 ＋ 銳利月牙鞭爆
         const osx = toSx(m.ox !== undefined ? m.ox : m.x);
         const osy = toSy(m.oy !== undefined ? m.oy : m.y);
         const isVenu = !!m.isVenusaurWhip;
@@ -5704,96 +5708,106 @@ const SkillsEngine = {
         ctx.translate(osx, osy);
         ctx.rotate(m.angle || 0);
 
-        const reach = m.reach * Math.min(1, prog * 1.8);
-        const thickness = isVenu ? 9.4 : 7.8;
-        const waveFreq = 2.5;
-        const waveAmp = (1 - prog * 0.5) * 24;
+        const reach = Math.max(12, m.reach * Math.min(1, prog * 1.8));
+        const baseThick = isVenu ? 8.2 : 7.0;
+        const waveFreq = 1.35;
+        const waveAmp = (1 - prog * 0.45) * 15;
+        const segs = 14;
 
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
 
-        // 底層深綠硬邊襯底
-        ctx.strokeStyle = "#14532D";
-        ctx.lineWidth = thickness + 3.5;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        for (let x = 0; x <= reach; x += 8) {
-          const t = x / reach;
+        const vinePts = [];
+        for (let s = 0; s <= segs; s++) {
+          const t = s / segs;
+          const x = t * reach;
           const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
-          ctx.lineTo(x, y);
+          vinePts.push({ x, y, t });
         }
-        ctx.stroke();
 
-        // 中層翠綠主幹
-        ctx.strokeStyle = "#22C55E";
-        ctx.lineWidth = thickness;
-        ctx.stroke();
+        // 分段漸細繪製：底層深綠硬邊 ➔ 中層翠綠主幹 ➔ 內層嫩綠高光脊
+        for (let s = 0; s < segs; s++) {
+          const p0 = vinePts[s], p1 = vinePts[s + 1];
+          const w = Math.max(1.8, baseThick * (1 - p0.t * 0.74));
 
-        // 內層嫩綠高光脊線
-        ctx.strokeStyle = "#86EFAC";
-        ctx.lineWidth = 2.0;
-        ctx.stroke();
+          ctx.strokeStyle = "#14532D";
+          ctx.lineWidth = w + 2.8;
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
 
-        // 兩側交錯倒刺三角 + 發光嫩芽圓點
-        for (let step = 26; step < reach - 18; step += 22) {
-          const t = step / reach;
-          const y = Math.sin(t * Math.PI * waveFreq) * waveAmp * Math.sin(t * Math.PI);
-          const side = (step % 44 === 0) ? 1 : -1;
+          ctx.strokeStyle = "#22C55E";
+          ctx.lineWidth = w;
+          ctx.beginPath();
+          ctx.moveTo(p0.x, p0.y);
+          ctx.lineTo(p1.x, p1.y);
+          ctx.stroke();
+
+          if (w > 2.8) {
+            ctx.strokeStyle = "#86EFAC";
+            ctx.lineWidth = Math.max(1.0, w * 0.28);
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y - w * 0.16);
+            ctx.lineTo(p1.x, p1.y - w * 0.16);
+            ctx.stroke();
+          }
+        }
+
+        // 兩側交錯倒刺三角 + 花瓣／嫩芽點綴（依該處藤身粗細縮放）
+        for (let s = 2; s < segs - 1; s += 2) {
+          const pt = vinePts[s];
+          const localW = Math.max(2.2, baseThick * (1 - pt.t * 0.74));
+          const side = (s % 4 === 0) ? 1 : -1;
 
           ctx.fillStyle = "#15803D";
           ctx.beginPath();
-          ctx.moveTo(step, y);
-          ctx.lineTo(step + 6, y + side * (thickness + 6));
-          ctx.lineTo(step - 4, y + side * (thickness + 2));
+          ctx.moveTo(pt.x, pt.y);
+          ctx.lineTo(pt.x + 5, pt.y + side * (localW + 4.5));
+          ctx.lineTo(pt.x - 3, pt.y + side * (localW + 1.5));
           ctx.closePath();
           ctx.fill();
 
           ctx.fillStyle = isVenu ? "#F472B6" : "#86EFAC";
           ctx.beginPath();
-          ctx.arc(step, y + side * (thickness * 0.6), isVenu ? 3.2 : 2.3, 0, Math.PI * 2);
+          ctx.arc(pt.x, pt.y + side * (localW * 0.65), isVenu ? 2.6 : 1.9, 0, Math.PI * 2);
           ctx.fill();
           if (isVenu) {
             ctx.fillStyle = "#FDE047";
             ctx.beginPath();
-            ctx.arc(step, y + side * (thickness * 0.6), 1.3, 0, Math.PI * 2);
+            ctx.arc(pt.x, pt.y + side * (localW * 0.65), 1.1, 0, Math.PI * 2);
             ctx.fill();
           }
         }
 
-        // 末端破空月牙鞭影斬痕（妙蛙花專屬升級翠綠＋粉紅霸王花瓣風暴斬）
-        const slashR = (isVenu ? 18 : 14) + prog * 12;
+        // 末端銳利乾淨月牙鞭爆（移除雜亂分岔短線）
+        const tipPt = vinePts[segs];
+        const slashR = (isVenu ? 16 : 13) + prog * 10;
         const slashAlpha = Math.max(0, 1 - prog * 0.78);
         ctx.save();
-        ctx.translate(reach, 0);
+        ctx.translate(tipPt.x, tipPt.y);
         ctx.globalAlpha = (slashAlpha) * sAlpha;
 
         ctx.fillStyle = isVenu ? "rgba(244, 114, 182, 0.78)" : "rgba(34, 197, 94, 0.72)";
         ctx.beginPath();
-        ctx.arc(-2, 0, slashR, -1.18, 1.18);
-        ctx.arc(-8, 0, slashR * 0.74, 1.18, -1.18, true);
+        ctx.arc(-2, 0, slashR, -1.12, 1.12);
+        ctx.arc(-7, 0, slashR * 0.72, 1.12, -1.12, true);
         ctx.closePath();
         ctx.fill();
 
         if (isVenu) {
           ctx.fillStyle = "rgba(34, 197, 94, 0.80)";
           ctx.beginPath();
-          ctx.arc(-4, 0, slashR * 0.82, -1.02, 1.02);
-          ctx.arc(-9, 0, slashR * 0.60, 1.02, -1.02, true);
+          ctx.arc(-4, 0, slashR * 0.80, -0.98, 0.98);
+          ctx.arc(-8, 0, slashR * 0.58, 0.98, -0.98, true);
           ctx.closePath();
           ctx.fill();
         }
 
         ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2.8 * slashAlpha + 0.8;
+        ctx.lineWidth = 2.4 * slashAlpha + 0.7;
         ctx.beginPath();
-        ctx.arc(-1, 0, slashR * 0.96, -1.05, 1.05);
-        ctx.stroke();
-
-        ctx.strokeStyle = "#BBF7D0";
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(slashR * 0.65, -7); ctx.lineTo(slashR * 1.18, -13);
-        ctx.moveTo(slashR * 0.65, 7); ctx.lineTo(slashR * 1.18, 13);
+        ctx.arc(-1, 0, slashR * 0.95, -1.0, 1.0);
         ctx.stroke();
         ctx.restore();
 
@@ -7026,20 +7040,55 @@ const SkillsEngine = {
         }
         ctx.rotate(pr.angle || 0);
         const isCrimsonOrb = !!pr.isMegaGengarPuddle;
-        ctx.fillStyle = isCrimsonOrb ? "#4C0519" : "#3B0764";
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2); ctx.fill();
+        const wobble = Math.sin(now * 6.5 + pr.x * 0.05) * 0.12;
 
-        ctx.fillStyle = isCrimsonOrb ? "#BE123C" : "#7E22CE";
-        ctx.beginPath(); ctx.arc(0, 0, r * 0.76, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = isCrimsonOrb ? "#F43F5E" : "#4ADE80";
+        // 1. 拖尾飛濺的 2 顆黏稠毒液小水滴
+        ctx.fillStyle = isCrimsonOrb ? "rgba(190, 18, 60, 0.85)" : "rgba(126, 34, 206, 0.85)";
         ctx.beginPath();
-        ctx.arc(-r * 0.25, -r * 0.2, r * 0.26, 0, Math.PI * 2);
-        ctx.arc(r * 0.28, r * 0.15, r * 0.22, 0, Math.PI * 2);
+        ctx.arc(-r * 1.18, r * 0.28, r * 0.28, 0, Math.PI * 2);
+        ctx.arc(-r * 0.95, -r * 0.42, r * 0.20, 0, Math.PI * 2);
         ctx.fill();
 
+        // 2. 不規則有機流動毒泥主體（取代死板正圓保齡球）
+        ctx.fillStyle = isCrimsonOrb ? "#4C0519" : "#3B0764";
+        ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const a = (k * Math.PI * 2) / 10;
+          const rad = r * (0.86 + Math.sin(a * 3 + now * 5.0) * 0.14 + (k % 2 === 0 ? wobble : -wobble));
+          const px = Math.cos(a) * rad, py = Math.sin(a) * rad;
+          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = isCrimsonOrb ? "#BE123C" : "#7E22CE";
+        ctx.beginPath();
+        for (let k = 0; k < 10; k++) {
+          const a = (k * Math.PI * 2) / 10;
+          const rad = r * (0.68 + Math.sin(a * 3 + now * 5.0 + 0.6) * 0.11);
+          const px = Math.cos(a) * rad, py = Math.sin(a) * rad;
+          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // 3. 表面翻湧的立體亮綠／血紅毒泡與彎月高光
+        ctx.fillStyle = isCrimsonOrb ? "#FB7185" : "#4ADE80";
+        ctx.strokeStyle = isCrimsonOrb ? "#881337" : "#14532D";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(-r * 0.24, -r * 0.18, r * 0.24, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(r * 0.28, r * 0.16, r * 0.18, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
         ctx.fillStyle = "#FFFFFF";
-        ctx.beginPath(); ctx.arc(-r * 0.3, -r * 0.28, r * 0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath();
+        ctx.arc(-r * 0.31, -r * 0.25, r * 0.09, 0, Math.PI * 2);
+        ctx.arc(r * 0.23, r * 0.11, r * 0.06, 0, Math.PI * 2);
+        ctx.fill();
 
       } else if (pr.vfx === "giant_fist") {
         // 【爆裂十字劈・3層立體武神百裂重拳】：後方赤紅殘影與破空音爆環 ＋ 立體四指節金紅重拳 ＋ 前端白熾氣勁波
@@ -7208,7 +7257,7 @@ const SkillsEngine = {
         });
         ctx.restore();
 
-        const spinAng = (pr.angle || 0) + now * 4.8;
+        const spinAng = (pr.angle || 0) + now * 2.6;
         ctx.rotate(spinAng);
 
         // 修長柳葉刀身（寬度由 0.68 壓窄至 0.44，俐落銳利）

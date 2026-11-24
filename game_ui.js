@@ -296,7 +296,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.1.3";
+        const ver = this.APP_VERSION || "v7.1.4";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -537,7 +537,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.1.3";
+      const curVer = this.APP_VERSION || "v7.1.4";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1223,7 +1223,7 @@ Object.assign(window.GameApp, {
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.1.3",
+      lastSeenVersion: this.APP_VERSION || "v7.1.4",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2643,10 +2643,24 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("changelogContentBox");
     if (box) {
       box.innerHTML = `
-        <div class="bg-slate-950/90 border border-cyan-300/75 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(125,211,252,0.22)]">
+        <div class="bg-slate-950/90 border border-emerald-400/75 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(52,211,153,0.20)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-cyan-200">v7.1.3 SAR 質感名牌與天氣／攻速精調版</span>
+            <span class="font-black text-sm text-emerald-300">v7.1.4 Boss 衝鋒修復與動畫節奏精修版</span>
             <span class="px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-pixel text-[8px]">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">🛠️ 關鍵修復</div>
+            <div>• 修復急凍鳥及所有衝鋒型 Boss／精英於直線衝鋒後因殘影無限再生導致卡死原地的致命 Bug，並讓衝鋒終點正確觸發對應屬性爆破。</div>
+            <div>• 修復污泥炸彈毒沼內圈亮綠橢圓直立穿幫問題，改以水平貼地虛線平滑流動。</div>
+            <div class="text-emerald-300 font-black pt-1">🎨 美術與動態節奏精調</div>
+            <div>• 重繪藤鞭為「根粗尾尖漸細 S 型甩鞭」並內縮起點貼合本體；拉開種子機關槍連射間距，告別黏成一串。</div>
+            <div>• 升級污泥炸彈本體為有機流動毒液滴；加厚冰／水系爆破光環與霜霧內暈。</div>
+            <div>• 將龍之俯衝、月亮之力、水炮／噴射火焰、暴風驟雨與飛葉快刀 5 組過快擺動／旋轉速度收斂回黃金視覺頻率。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-cyan-300/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-cyan-200">v7.1.3 SAR 質感名牌與天氣／攻速精調版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-cyan-300 font-black pt-0.5">💎 寶可夢 SAR 卡質感 Mega 名牌</div>
@@ -2715,7 +2729,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.1.3";
+    const curVer = this.APP_VERSION || "v7.1.4";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
