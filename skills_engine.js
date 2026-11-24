@@ -40,14 +40,14 @@ const SkillsEngine = {
   },
 
   getPlayerSkillAlpha() {
-    const raw = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.skillAlpha) || "75";
+    const raw = (typeof GameApp !== "undefined" && GameApp.saveData && GameApp.saveData.settings && GameApp.saveData.settings.skillAlpha) || "85";
     const num = parseFloat(raw);
-    if (!Number.isFinite(num)) return 0.75;
+    if (!Number.isFinite(num)) return 0.85;
     return Math.max(0.25, Math.min(1.0, num / 100));
   },
 
   getLightProjectileAlpha() {
-    return Math.max(0.55, this.getPlayerSkillAlpha());
+    return Math.max(0.60, this.getPlayerSkillAlpha());
   },
 
   // 空間網格快速範圍索敵：利用 battle_core_2 每幀建立的 80x80 spatialGrid，將彈幕與領域碰撞由 O(N) 全陣列掃描降至 O(1) 鄰近格查詢

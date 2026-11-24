@@ -1514,7 +1514,7 @@ const MapEngine = {
     if (this.weather === "RAIN" || this.weather === "THUNDER") {
       ctx.save();
       const isThunder = this.weather === "THUNDER";
-      ctx.strokeStyle = isThunder ? "rgba(224, 242, 254, 0.34)" : "rgba(186, 230, 253, 0.32)";
+      ctx.strokeStyle = isThunder ? "rgba(224, 242, 254, 0.28)" : "rgba(186, 230, 253, 0.26)";
       ctx.lineWidth = isThunder ? 1.6 : 1.3;
       const slant = isThunder ? 24 : 12;
       const dropLen = isThunder ? 32 : 22;
@@ -1549,35 +1549,48 @@ const MapEngine = {
       ctx.restore();
 
     } else if (this.weather === "BLIZZARD") {
+      // v7.1.3 中心全透明・邊緣寒霧漸層 (Vignette)，徹底保留中央戰場銳利度
       ctx.save();
-      ctx.fillStyle = "rgba(224, 242, 254, 0.88)";
+      const maxDim = Math.max(width, height);
+      const bGrad = ctx.createRadialGradient(width * 0.5, height * 0.5, maxDim * 0.28, width * 0.5, height * 0.5, maxDim * 0.72);
+      bGrad.addColorStop(0, "rgba(186, 230, 253, 0.0)");
+      bGrad.addColorStop(0.60, "rgba(186, 230, 253, 0.02)");
+      bGrad.addColorStop(1, "rgba(186, 230, 253, 0.19)");
+      ctx.fillStyle = bGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillStyle = "rgba(224, 242, 254, 0.55)";
       const t = performance.now() * 0.002;
       ctx.beginPath();
-      for (let i = 0; i < 65; i++) {
-        const sx = ((i * 47 + t * 45 + Math.sin(t * 1.5 + i) * 25) % width);
-        const sy = ((i * 61 + t * 125) % height);
-        const sz = (i % 3 === 0) ? 3.4 : (i % 2 === 0 ? 2.4 : 1.6);
+      for (let i = 0; i < 42; i++) {
+        const sx = ((i * 53 + t * 45 + Math.sin(t * 1.5 + i) * 25) % width);
+        const sy = ((i * 67 + t * 125) % height);
+        const sz = (i % 3 === 0) ? 2.8 : (i % 2 === 0 ? 2.1 : 1.5);
         ctx.moveTo(sx + sz, sy);
         ctx.arc(sx, sy, sz, 0, Math.PI * 2);
       }
       ctx.fill();
-      ctx.fillStyle = "rgba(186, 230, 253, 0.12)";
-      ctx.fillRect(0, 0, width, height);
       ctx.restore();
 
     } else if (this.weather === "HEATWAVE") {
+      // v7.1.3 中心全透明・邊緣熱浪漸層 (Vignette)，保留中央技能色彩飽和度
       ctx.save();
-      ctx.fillStyle = "rgba(249, 115, 22, 0.11)";
+      const maxDim = Math.max(width, height);
+      const hGrad = ctx.createRadialGradient(width * 0.5, height * 0.5, maxDim * 0.28, width * 0.5, height * 0.5, maxDim * 0.72);
+      hGrad.addColorStop(0, "rgba(249, 115, 22, 0.0)");
+      hGrad.addColorStop(0.60, "rgba(249, 115, 22, 0.02)");
+      hGrad.addColorStop(1, "rgba(249, 115, 22, 0.18)");
+      ctx.fillStyle = hGrad;
       ctx.fillRect(0, 0, width, height);
 
-      ctx.fillStyle = "rgba(253, 224, 71, 0.45)";
+      ctx.fillStyle = "rgba(253, 224, 71, 0.38)";
       const t = performance.now() * 0.003;
       ctx.beginPath();
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 24; i++) {
         const hx = (i * 73 + Math.sin(t * 2.0 + i) * 18) % width;
         const hy = height - ((i * 37 + t * 90) % height);
-        ctx.moveTo(hx + 2.2, hy);
-        ctx.arc(hx, hy, 2.2, 0, Math.PI * 2);
+        ctx.moveTo(hx + 2.0, hy);
+        ctx.arc(hx, hy, 2.0, 0, Math.PI * 2);
       }
       ctx.fill();
       ctx.restore();

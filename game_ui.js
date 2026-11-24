@@ -73,7 +73,7 @@ Object.assign(window.GameApp, {
             procNoticeMode: "icon",
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
-            skillAlpha: "75",
+            skillAlpha: "85",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
@@ -81,8 +81,8 @@ Object.assign(window.GameApp, {
       }
     } catch (e) {}
     if (this.saveData && this.saveData.settings) {
-      if (this.saveData.settings.skillAlpha === "65") this.saveData.settings.skillAlpha = "75";
-      if (this.saveData.settings.skillAlpha === "40") this.saveData.settings.skillAlpha = "45";
+      if (this.saveData.settings.skillAlpha === "75" || this.saveData.settings.skillAlpha === "65") this.saveData.settings.skillAlpha = "85";
+      if (this.saveData.settings.skillAlpha === "45" || this.saveData.settings.skillAlpha === "40") this.saveData.settings.skillAlpha = "50";
     }
     this.restoreLastSetup();
     this.applyVisualSettings();
@@ -296,7 +296,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.1.2";
+        const ver = this.APP_VERSION || "v7.1.3";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -537,7 +537,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.1.2";
+      const curVer = this.APP_VERSION || "v7.1.3";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1223,7 +1223,7 @@ Object.assign(window.GameApp, {
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.1.2",
+      lastSeenVersion: this.APP_VERSION || "v7.1.3",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1231,7 +1231,7 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "75"
+        skillAlpha: "85"
       }
     };
   },
@@ -2431,15 +2431,15 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "75"
+        skillAlpha: "85"
       };
     }
     if (!this.saveData.settings.skillAlpha) {
-      this.saveData.settings.skillAlpha = "75";
-    } else if (this.saveData.settings.skillAlpha === "65") {
-      this.saveData.settings.skillAlpha = "75";
-    } else if (this.saveData.settings.skillAlpha === "40") {
-      this.saveData.settings.skillAlpha = "45";
+      this.saveData.settings.skillAlpha = "85";
+    } else if (this.saveData.settings.skillAlpha === "75" || this.saveData.settings.skillAlpha === "65") {
+      this.saveData.settings.skillAlpha = "85";
+    } else if (this.saveData.settings.skillAlpha === "45" || this.saveData.settings.skillAlpha === "40") {
+      this.saveData.settings.skillAlpha = "50";
     }
     return this.saveData.settings;
   },
@@ -2506,7 +2506,7 @@ Object.assign(window.GameApp, {
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "75"
+      skillAlpha: "85"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -2574,8 +2574,8 @@ Object.assign(window.GameApp, {
         </div>
         <div class="grid grid-cols-3 gap-1.5">
           ${renderOptionBtn("skillAlpha", "100", "🔥 100% 華麗", "完整特效張力")}
-          ${renderOptionBtn("skillAlpha", "75", "✨ 75% 平衡", "細節清晰兼顧閃彈", true)}
-          ${renderOptionBtn("skillAlpha", "45", "🎯 45% 極淨", "無盡深淵專注走位")}
+          ${renderOptionBtn("skillAlpha", "85", "✨ 85% 平衡", "細節銳利兼顧閃彈", true)}
+          ${renderOptionBtn("skillAlpha", "50", "🎯 50% 極淨", "無盡深淵專注走位")}
         </div>
       </div>
 
@@ -2643,10 +2643,24 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("changelogContentBox");
     if (box) {
       box.innerHTML = `
-        <div class="bg-slate-950/90 border border-rose-400/70 rounded-2xl p-3 space-y-2 shadow-[0_0_14px_rgba(244,63,94,0.18)]">
+        <div class="bg-slate-950/90 border border-cyan-300/75 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(125,211,252,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-rose-300">v7.1.2 戰場可讀性與敵方預警重製版</span>
+            <span class="font-black text-sm text-cyan-200">v7.1.3 SAR 質感名牌與天氣／攻速精調版</span>
             <span class="px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-pixel text-[8px]">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-cyan-300 font-black pt-0.5">💎 寶可夢 SAR 卡質感 Mega 名牌</div>
+            <div>• 升級 Mega 名牌為銀彩鐳射雙層邊框 ＋ 45° 精細壓紋底紋 ＋ 緩慢斜向星塵掃光，頭像 100% 無遮擋。</div>
+            <div>• 採用方案 A：💎 MEGA 徽章移至血條卡下方與種族特性同排並置，工整零裁切。</div>
+            <div class="text-amber-300 font-black pt-1">❄️ 天氣清晰度、攻速節奏與 HUD 空間優化</div>
+            <div>• 暴雪與熱浪濾鏡重製為「中心全透明・邊緣漸層 (Vignette)」，技能透明度調整為 100% / 85%(推薦) / 50%。</div>
+            <div>• 收斂冷卻下限至 0.55 並分級設定招式最短間隔（0.48s / 0.55s），解決後期火花過快與空手劈動畫重疊。</div>
+            <div>• 合併左下角夥伴與攜帶物同行釋放直屏視野，優化磁鐵／商店邊緣指標避讓與入鏡提前淡出。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-rose-400/50 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-rose-300">v7.1.2 戰場可讀性與敵方預警重製版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">🔥 敵方預警與爆破全面升級（100% 獨立清晰度）</div>
@@ -2701,7 +2715,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.1.2";
+    const curVer = this.APP_VERSION || "v7.1.3";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.1.2",
+  APP_VERSION: "v7.1.3",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -50,7 +50,7 @@ window.GameApp = {
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "75"
+      skillAlpha: "85"
     }
   },
   spatialGrid: null,
@@ -2613,7 +2613,7 @@ window.GameApp = {
     const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
     const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
     const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
-    const cdFactor = Math.max(0.45, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
+    const cdFactor = Math.max(0.55, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
     p.castStaggerTimer = Math.max(0, (p.castStaggerTimer || 0) - dt);
     p.superMoveIcdTimer = Math.max(0, (p.superMoveIcdTimer || 0) - dt);
 
@@ -2726,10 +2726,11 @@ window.GameApp = {
         const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
           ? (p.innateTrait.quickAttackCdMult || 1.0)
           : 1.0;
+        const isLongAnimSkill = ["Karate Chop", "Flamethrower", "Hydro Pump", "HydroPump", "Ice Beam", "IceBeam", "VineWhip"].includes(skSlot.id);
         const minSkillCd = (skSlot.id === "Tackle")
-          ? (skSlot.level >= 8 ? 0.88 : (skSlot.level >= 4 ? 0.56 : 0.35))
-          : 0.35;
-        skSlot.timer = Math.max(minSkillCd, meta.baseCd * lvCdBonus * Math.max(0.45, cdFactor * traitCdMod));
+          ? (skSlot.level >= 8 ? 0.88 : (skSlot.level >= 4 ? 0.56 : 0.48))
+          : (isLongAnimSkill ? 0.55 : 0.48);
+        skSlot.timer = Math.max(minSkillCd, meta.baseCd * lvCdBonus * Math.max(0.55, cdFactor * traitCdMod));
         p.castStaggerTimer = 0.085;
       }
     });
@@ -3223,7 +3224,7 @@ window.GameApp = {
           sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/town-map.png"
         }
       });
-      this.showCutsceneBanner("【友好商店 (Poké Mart) 登場】", "靠近並站定 0.5 秒即可進店選購 TM 學習機！", 3000);
+      this.showCutsceneBanner("【友好商店 (Poké Mart) 登場】", "靠近點擊進入，或站定 0.35 秒選購 TM 學習機！", 2800);
     }
   },
 
@@ -8654,7 +8655,8 @@ window.GameApp = {
     const edgePad = 36;
     const drawEdgeIconIndicator = (wx, wy, borderColor, labelText, iconImg, iconDrawSize = 24) => {
       const esx = toSx(wx), esy = toSy(wy);
-      if (esx >= 0 && esx <= this.width && esy >= 0 && esy <= this.height) return;
+      // 放寬 40px 入鏡提前隱藏容差，商店／神獸剛露頭時即刻無縫淡出指標
+      if (esx >= -40 && esx <= this.width + 40 && esy >= -40 && esy <= this.height + 40) return;
 
       const dx = wx - this.player.x;
       const dy = wy - this.player.y;
@@ -8662,11 +8664,11 @@ window.GameApp = {
       const distMeters = Math.round(Math.hypot(dx, dy) / 10);
 
       let cx = Math.max(edgePad, Math.min(this.width - edgePad, this.width / 2 + Math.cos(ang) * (this.width / 2 - edgePad)));
-      let cy = Math.max(edgePad + 46, Math.min(this.height - edgePad - 18, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
-      // 智慧避讓左下角招式／夥伴 HUD 與右下角大招／Mega 按鈕區，杜絕重疊
-      const bottomLeftLimitY = this.height - 148;
+      let cy = Math.max(edgePad + 46, Math.min(this.height - edgePad - 14, this.height / 2 + Math.sin(ang) * (this.height / 2 - edgePad)));
+      // 智慧避讓左下角緊湊 HUD（僅 <46% 寬度）與右下角大招／Mega 按鈕區，正下方指標貼底不飄入搖桿區
+      const bottomLeftLimitY = this.height - 118;
       const bottomRightLimitY = this.height - 132;
-      if (cx < this.width * 0.54 && cy > bottomLeftLimitY) {
+      if (cx < this.width * 0.46 && cy > bottomLeftLimitY) {
         cy = bottomLeftLimitY;
       } else if (cx > this.width - 148 && cy > bottomRightLimitY) {
         cy = bottomRightLimitY;
