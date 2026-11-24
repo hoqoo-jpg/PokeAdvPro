@@ -958,7 +958,7 @@ const TRAINERS = [
     title: "真新鎮的少年",
     sprite: "images/Ash_01.png",
     walkSheet: "images/ash_walk_sheet.png",
-    cutin: "images/cutin_ash.png",
+    cutin: "images/cutin_ash_classic.png",
     sprites: {
       down: "images/Ash_01.png",
       up: "images/Ash_04.png",
@@ -972,7 +972,7 @@ const TRAINERS = [
         badge: "經典裝",
         sprite: "images/Ash_01.png",
         walkSheet: "images/ash_walk_sheet.png",
-        cutin: "images/cutin_ash.png",
+        cutin: "images/cutin_ash_classic.png",
         sprites: {
           down: "images/Ash_01.png",
           up: "images/Ash_04.png",
@@ -1091,7 +1091,7 @@ const TRAINERS = [
         badge: "長髮裝",
         sprite: "images/serena_01_2.png",
         walkSheet: "images/serena_walk_sheet_2.png",
-        cutin: "images/cutin_serena.png",
+        cutin: "images/cutin_serena_2.png",
         sprites: {
           down: "images/serena_01_2.png",
           up: "images/serena_04.png",
@@ -1147,7 +1147,7 @@ const TRAINERS = [
         badge: "白帽裝",
         sprite: "images/lillie_01_2.png",
         walkSheet: "images/lillie_walk_sheet_2.png",
-        cutin: "images/cutin_lillie.png",
+        cutin: "images/cutin_lillie_2.png",
         sprites: {
           down: "images/lillie_01_2.png",
           up: "images/lillie_04.png",

@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.2";
+        const ver = this.APP_VERSION || "v7.2.3";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.2";
+      const curVer = this.APP_VERSION || "v7.2.3";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1288,7 +1288,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.2",
+      lastSeenVersion: this.APP_VERSION || "v7.2.3",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2838,8 +2838,19 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.2 1vs1 鬥技場真動作對決重製版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.3 訓練家雙時裝專屬 Cut-in 橫幅補完版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">🎨 三大訓練家雙時裝專屬大招特寫補齊</div>
+            <div>• <strong>小智・初代關都經典裝</strong>：補完綠標紅白帽與經典藍背心 Cut-in（戰術裝保留原版熱血特寫）。</div>
+            <div>• <strong>莎莉娜・卡洛斯長髮裝</strong>：實裝過肩波浪長髮與前指呼喊全新動作 Cut-in。</div>
+            <div>• <strong>莉莉艾・白帽洋裝經典裝</strong>：實裝壓帽前指指揮全新動作 Cut-in，大廳頭像、選角橫幅與局內大招 100% 同步切換！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.2 1vs1 鬥技場真動作對決重製版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 動作化五大核心升級</div>
@@ -2962,7 +2973,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.2";
+    const curVer = this.APP_VERSION || "v7.2.3";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
