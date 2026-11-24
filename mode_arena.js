@@ -80,39 +80,50 @@ window.ModeArena = {
       p.dmgMult *= 1.12;
     }
 
-    // 5. 擺放左側選手起跑位置與右側神獸對手
-    p.x = -145;
+    // 5. 擺放左側選手起跑位置與右側神獸對手（適配 600x460 緊湊競技場）
+    p.x = -120;
     p.y = 0;
     p.facingX = 1;
     p.facingY = 0;
     p.trail = [{ x: p.x, y: p.y }];
     if (app.trainerCompanion) {
-      app.trainerCompanion.x = -175;
-      app.trainerCompanion.y = 14;
+      app.trainerCompanion.x = -148;
+      app.trainerCompanion.y = 12;
       app.trainerCompanion.facingX = 1;
       app.trainerCompanion.facingY = 0;
     }
+
+    const diffList = (typeof ARENA_DIFFICULTIES !== "undefined") ? ARENA_DIFFICULTIES : [];
+    const arenaDiff = diffList.find(d => d.id === (app.selectedArenaDifficultyId || "standard")) || {
+      id: "standard", name: "標準試煉", hpMult: 2.2, atkMult: 1.0, cdMult: 0.85, armor: 0, dpsCapPct: 0.12, coinMult: 1.0
+    };
 
     const bossCfg = (typeof ARENA_BOSSES !== "undefined"
       ? ARENA_BOSSES.find(b => b.id === app.selectedArenaBossId)
       : null) || (typeof ARENA_BOSSES !== "undefined" ? ARENA_BOSSES[0] : { id: 144, name: "急凍鳥", hp: 9200, atk: 32, speed: 94, reward: 140, firstBonus: 200 });
 
     const bData = POKEMON_MAP.get(bossCfg.id) || POKEMON_MAP.get(144);
+    const scaledHp = Math.round(bossCfg.hp * (arenaDiff.hpMult || 2.2));
+    const scaledAtk = Math.round(bossCfg.atk * (arenaDiff.atkMult || 1.0));
     app.saveData.pokedexSeen[bossCfg.id] = true;
     const boss = {
       id: bossCfg.id,
       data: bData,
-      x: 155,
+      x: 125,
       y: 0,
-      hp: bossCfg.hp,
-      maxHp: bossCfg.hp,
-      atk: bossCfg.atk,
+      hp: scaledHp,
+      maxHp: scaledHp,
+      atk: scaledAtk,
       speed: bossCfg.speed,
       radius: 44,
       isElite: true,
       isBoss: true,
       isArenaBoss: true,
       arenaCfg: bossCfg,
+      arenaDiff: arenaDiff,
+      arenaCdMult: arenaDiff.cdMult || 0.85,
+      arenaArmor: arenaDiff.armor || 0,
+      arenaDpsCapPct: arenaDiff.dpsCapPct || 0.12,
       isFinalMewtwo: bossCfg.id === 150,
       isShiny: false,
       treasureType: null,
@@ -122,7 +133,7 @@ window.ModeArena = {
       statusTimer: 0,
       statusTick: 0,
       ccImmunityTimer: 0,
-      rangedCd: 1.6,
+      rangedCd: 1.1,
       whiteFlashTimer: 0,
       weightTier: "boss",
       kbResist: 1.0,
@@ -136,8 +147,8 @@ window.ModeArena = {
 
     if (app.checkMegaEvolutionReady) app.checkMegaEvolutionReady();
     app.showCutsceneBanner(
-      `【⚔️ 石英大會 1vs1 鬥技場】`,
-      `固定 Lv.25 完全體 ‧ 招式 Lv.8！單挑傳說神獸【${bData.name_zh}】！`,
+      `【⚔️ 石英大會 1vs1 ‧ ${arenaDiff.name}】`,
+      `Lv.25 完全體 ‧ 招式 Lv.8！單挑【${bData.name_zh}】(HP ${scaledHp.toLocaleString()})！`,
       3000
     );
   },
@@ -154,17 +165,25 @@ window.ModeArena = {
     if (!app.isArenaMode) return false;
     const clearSec = Math.max(0.1, Number((app.runTime || 0.1).toFixed(1)));
     const cfg = boss.arenaCfg || { id: boss.id, name: boss.data ? boss.data.name_zh : "神獸", reward: 150, firstBonus: 200 };
+    const diff = boss.arenaDiff || { id: "standard", name: "標準試煉", coinMult: 1.0 };
 
     if (!app.saveData.stats.arenaBestTimes) app.saveData.stats.arenaBestTimes = {};
-    const prevBest = app.saveData.stats.arenaBestTimes[boss.id];
+    const recKey = `${boss.id}_${diff.id}`;
+    const prevBest = app.saveData.stats.arenaBestTimes[recKey];
     const isFirstClear = (prevBest === undefined || prevBest === null);
     const isNewRecord = isFirstClear || clearSec < prevBest;
     if (isNewRecord) {
+      app.saveData.stats.arenaBestTimes[recKey] = clearSec;
+    }
+    // 同步維護神獸整體最佳紀錄（向下相容總制霸數統計）
+    const overallPrev = app.saveData.stats.arenaBestTimes[boss.id];
+    if (overallPrev === undefined || clearSec < overallPrev) {
       app.saveData.stats.arenaBestTimes[boss.id] = clearSec;
     }
 
-    const baseReward = cfg.reward || 150;
-    const bonusCoins = isFirstClear ? (cfg.firstBonus || 200) : (isNewRecord ? 100 : 0);
+    const coinMult = diff.coinMult || 1.0;
+    const baseReward = Math.round((cfg.reward || 150) * coinMult);
+    const bonusCoins = Math.round((isFirstClear ? (cfg.firstBonus || 200) : (isNewRecord ? 100 : 0)) * coinMult);
     const totalGain = baseReward + bonusCoins;
     app.runCoins += totalGain;
     app.saveData.coins += totalGain;

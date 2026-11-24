@@ -57,13 +57,13 @@ const STAGES = [
 const MapEngine = {
   currentStage: STAGES[0],
   isArenaMode: false,
-  arenaHalfW: 360,
-  arenaHalfH: 270,
+  arenaHalfW: 300,
+  arenaHalfH: 230,
   arenaPillars: [
-    { x: -215, y: -155, w: 44, h: 44 },
-    { x:  171, y: -155, w: 44, h: 44 },
-    { x: -215, y:  111, w: 44, h: 44 },
-    { x:  171, y:  111, w: 44, h: 44 }
+    { x: -175, y: -125, w: 40, h: 40 },
+    { x:  135, y: -125, w: 40, h: 40 },
+    { x: -175, y:   85, w: 40, h: 40 },
+    { x:  135, y:   85, w: 40, h: 40 }
   ],
 
   setArenaMode(enabled) {

@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.0",
+  APP_VERSION: "v7.2.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -2838,7 +2838,8 @@ window.GameApp = {
       if (e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
       if (e.whiteFlashTimer > 0) e.whiteFlashTimer -= dt;
       if (e.isBoss && e.dpsBucket > 0) {
-        e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * 0.12 * dt);
+        const capPct = e.arenaDpsCapPct || 0.12;
+        e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * capPct * dt);
       }
       if (e.dpsShieldFlashTimer > 0) {
         e.dpsShieldFlashTimer = Math.max(0, e.dpsShieldFlashTimer - dt);
@@ -3040,13 +3041,13 @@ window.GameApp = {
       if (Math.abs(vx) > 2) e.facingX = vx >= 0 ? 1 : -1;
       e.facingY = vy < -8 ? -1 : 1;
 
-      if (!e.isBoss && (nearView || e.isElite || e.treasureType)) {
+      if ((this.isArenaMode && e.isBoss) || (!e.isBoss && (nearView || e.isElite || e.treasureType))) {
         MapEngine.resolveObstacleCollision(e, e.radius * 0.8, false);
       }
 
       const cdDt = e.status === "Paralysis" ? dt * 0.5 : dt;
       // 1. 神獸 Boss 彈幕與紅圈交替出招節奏（彈幕輪 ⇄ 紅圈大招輪，避免同幀傾倒；雙神同場自動放緩 18%）
-      if (inView && e.isBoss && !e.treasureType) {
+      if ((inView || this.isArenaMode) && e.isBoss && !e.treasureType) {
         e.rangedCd = (e.rangedCd !== undefined ? e.rangedCd : 0.9) - cdDt;
         if (e.rangedCd <= 0) {
           const isEnraged = (e.hp / e.maxHp) <= 0.5;
@@ -3054,7 +3055,8 @@ window.GameApp = {
           const dualPaceMod = aliveBossCount >= 2 ? 1.18 : 1.0;
           e.bossCycleStep = (e.bossCycleStep || 0) + 1;
           const isTelegraphTurn = (e.bossCycleStep % 2 === 0);
-          e.rangedCd = (isEnraged ? (1.32 + Math.random() * 0.34) : (1.58 + Math.random() * 0.38)) * dualPaceMod;
+          const arenaPaceMod = e.arenaCdMult || 1.0;
+          e.rangedCd = (isEnraged ? (1.32 + Math.random() * 0.34) : (1.58 + Math.random() * 0.38)) * dualPaceMod * arenaPaceMod;
 
           if (isTelegraphTurn) {
             // 紅圈大招輪：清晰預警走位解題
@@ -3600,10 +3602,13 @@ window.GameApp = {
       const curX = ds.startX + (ds.endX - ds.startX) * ease;
       const curY = ds.startY + (ds.endY - ds.startY) * ease;
 
-      // 僅在尚未落地前驅動怪獸座標，抵達終點 (impactDone) 後立即歸還移動權
+      // 僅在尚未落地前驅動怪獸座標，抵達終點 (impactDone) 後立即歸還移動權（鬥技場強制鎖在圍牆內）
       if (!ds.impactDone && ds.owner && ds.owner.hp > 0) {
         ds.owner.x = curX;
         ds.owner.y = curY;
+        if (this.isArenaMode && typeof MapEngine !== "undefined") {
+          MapEngine.resolveObstacleCollision(ds.owner, (ds.owner.radius || 36) * 0.85, false);
+        }
         ds.owner.facingX = Math.cos(ds.angle) >= 0 ? 1 : -1;
       }
 
@@ -3679,8 +3684,13 @@ window.GameApp = {
             if (Math.hypot(p.x - nearX, p.y - nearY) <= tg.width / 2 + 16) hitPlayer = true;
           }
           if (tg.owner && tg.owner.hp > 0) {
-            const endX = tg.startX + Math.cos(tg.angle) * (tg.length * 0.88);
-            const endY = tg.startY + Math.sin(tg.angle) * (tg.length * 0.88);
+            let endX = tg.startX + Math.cos(tg.angle) * (tg.length * 0.88);
+            let endY = tg.startY + Math.sin(tg.angle) * (tg.length * 0.88);
+            if (this.isArenaMode && typeof MapEngine !== "undefined") {
+              const pad = (tg.owner.radius || 44) * 0.9;
+              endX = Math.max(-MapEngine.arenaHalfW + pad, Math.min(MapEngine.arenaHalfW - pad, endX));
+              endY = Math.max(-MapEngine.arenaHalfH + pad, Math.min(MapEngine.arenaHalfH - pad, endY));
+            }
             const sprUrl = tg.owner.data ? tg.owner.data.forward_sprite : null;
             this.enemyDashes.push({
               owner: tg.owner,
@@ -4019,11 +4029,15 @@ window.GameApp = {
     const envAddMult = Math.max(0.5, 1.0 + stageBonus + weatherBonus + heldBonus + xAtkBonus + dragonMawBonus);
 
     let finalDmg = Math.round(rawDmg * envAddMult * eff * critMult);
+    if (enemy.arenaArmor) {
+      finalDmg = Math.max(1, Math.round(finalDmg * (1 - enemy.arenaArmor)));
+    }
     if (enemy.isBoss) {
-      // v6.6 Boss 滾動秒傷軟上限護盾：單發防呆上限 18%，12%/s 以內 100% 全額結算，溢出部分 30% 效率結算
-      const singleCap = Math.round(enemy.maxHp * 0.18);
+      // Boss 滾動秒傷軟上限護盾（鬥技場高難度動態收緊防站樁秒殺）
+      const softPct = enemy.arenaDpsCapPct || 0.12;
+      const singleCap = Math.round(enemy.maxHp * Math.min(0.18, softPct * 1.4));
       const cappedRaw = Math.min(finalDmg, singleCap);
-      const softLimit = enemy.maxHp * 0.12;
+      const softLimit = enemy.maxHp * softPct;
       const curBucket = enemy.dpsBucket || 0;
       const fullRoom = Math.max(0, softLimit - curBucket);
       if (cappedRaw <= fullRoom) {

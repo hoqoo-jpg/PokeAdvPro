@@ -685,31 +685,36 @@ Object.assign(window.GameApp, {
     const toSx = (wx) => wx - camX + this.width / 2;
     const toSy = (wy) => wy - camY + this.height / 2;
 
-    // 進化／單階覺醒演出平滑鏡頭 Zoom-in 特寫 (手機端拉近至 2.05x、電腦端 1.80x 並彈性拉回 1.0x)
+    // 進化／Mega／單階覺醒演出平滑鏡頭 Zoom-in 特寫 (動態聚焦主角實際螢幕座標，競技場半鎖定鏡頭同樣 100% 置中)
     let evoZoom = 1.0;
+    let evoZoomDelta = this.isMobileDevice() ? 1.05 : 0.80;
     if (this.state === "EVOLVING" && this.evoSequence && this.evoSequence.active) {
       const seq = this.evoSequence;
       const et = seq.timer;
-      const zoomDelta = this.isMobileDevice() ? 1.05 : 0.80;
       const zoomInEnd = seq.isAwakening ? 0.28 : 0.35;
-      const zoomOutStart = seq.isAwakening ? 0.90 : 1.35;
+      const zoomOutStart = seq.isAwakening ? 0.90 : (seq.isMega ? 1.65 : 1.35);
       const zoomOutDur = Math.max(0.1, seq.duration - zoomOutStart);
       if (et < zoomInEnd) {
         const k = et / zoomInEnd;
-        evoZoom = 1.0 + zoomDelta * (1 - Math.pow(1 - k, 3));
+        evoZoom = 1.0 + evoZoomDelta * (1 - Math.pow(1 - k, 3));
       } else if (et < zoomOutStart) {
-        evoZoom = 1.0 + zoomDelta;
+        evoZoom = 1.0 + evoZoomDelta;
       } else {
         const k = Math.min(1, (et - zoomOutStart) / zoomOutDur);
-        evoZoom = (1.0 + zoomDelta) - zoomDelta * (1 - Math.pow(1 - k, 3));
+        evoZoom = (1.0 + evoZoomDelta) - evoZoomDelta * (1 - Math.pow(1 - k, 3));
       }
     }
 
     ctx.save();
     if (evoZoom > 1.001) {
-      ctx.translate(this.width / 2, this.height / 2);
+      const pSx = toSx(this.player.x);
+      const pSy = toSy(this.player.y);
+      const blend = Math.min(1, (evoZoom - 1.0) / Math.max(0.01, evoZoomDelta));
+      const destX = pSx + (this.width / 2 - pSx) * blend;
+      const destY = pSy + (this.height / 2 - pSy) * blend;
+      ctx.translate(destX, destY);
       ctx.scale(evoZoom, evoZoom);
-      ctx.translate(-this.width / 2, -this.height / 2);
+      ctx.translate(-pSx, -pSy);
     }
 
     MapEngine.renderBiomeWorld(ctx, camX, camY, this.width, this.height);

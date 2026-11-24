@@ -24,6 +24,7 @@ Object.assign(window.GameApp, {
   pokedexShowShiny: {},
   selectedGameMode: "standard",
   selectedArenaBossId: 144,
+  selectedArenaDifficultyId: "standard",
   selectedArenaHeldItem: "silk_scarf",
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
@@ -102,6 +103,7 @@ Object.assign(window.GameApp, {
       difficultyId: (this.selectedDifficulty && this.selectedDifficulty.id) || "normal",
       gameMode: this.selectedGameMode || "standard",
       arenaBossId: this.selectedArenaBossId || 144,
+      arenaDifficultyId: this.selectedArenaDifficultyId || "standard",
       arenaHeldItem: this.selectedArenaHeldItem || "silk_scarf"
     };
     try {
@@ -137,6 +139,7 @@ Object.assign(window.GameApp, {
       this.selectedGameMode = ls.gameMode;
     }
     if (ls.arenaBossId) this.selectedArenaBossId = ls.arenaBossId;
+    if (ls.arenaDifficultyId) this.selectedArenaDifficultyId = ls.arenaDifficultyId;
     if (ls.arenaHeldItem && HELD_ITEMS[ls.arenaHeldItem]) this.selectedArenaHeldItem = ls.arenaHeldItem;
   },
 
@@ -311,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.0";
+        const ver = this.APP_VERSION || "v7.2.1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -554,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.0";
+      const curVer = this.APP_VERSION || "v7.2.1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1285,7 +1288,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.0",
+      lastSeenVersion: this.APP_VERSION || "v7.2.1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1467,6 +1470,13 @@ Object.assign(window.GameApp, {
     this.renderWizardContent();
   },
 
+  selectArenaDifficulty(diffId) {
+    this.selectedArenaDifficultyId = diffId;
+    this.saveLastSetup();
+    SoundFX.play("hit");
+    this.renderArenaConfigPanel();
+  },
+
   selectArenaBoss(bossId) {
     this.selectedArenaBossId = bossId;
     this.saveLastSetup();
@@ -1482,31 +1492,70 @@ Object.assign(window.GameApp, {
   },
 
   renderArenaConfigPanel() {
+    const diffGrid = document.getElementById("arenaDiffGrid");
     const bossGrid = document.getElementById("arenaBossGrid");
     const heldGrid = document.getElementById("arenaHeldItemGrid");
     const bestTimes = (this.saveData && this.saveData.stats && this.saveData.stats.arenaBestTimes) || {};
     const bosses = typeof ARENA_BOSSES !== "undefined" ? ARENA_BOSSES : [];
+    const diffs = typeof ARENA_DIFFICULTIES !== "undefined" ? ARENA_DIFFICULTIES : [];
+    const activeDiff = diffs.find(d => d.id === (this.selectedArenaDifficultyId || "standard")) || diffs[0] || { id: "standard", name: "標準試煉", hpMult: 2.2, coinMult: 1.0 };
+
+    if (diffGrid && diffs.length > 0) {
+      diffGrid.innerHTML = diffs.map(d => {
+        const sel = activeDiff.id === d.id;
+        return `
+          <div onclick="GameApp.selectArenaDifficulty('${d.id}')" class="poke-card cursor-pointer p-2 flex flex-col justify-between ${sel ? 'selected ring-2 ring-red-500' : ''}">
+            <div class="flex items-center justify-between gap-1 mb-0.5">
+              <span class="font-black text-xs text-slate-900">${d.name}</span>
+              <span class="px-1.5 py-0.2 rounded-full text-[9px] font-black ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} shrink-0">${d.badge}</span>
+            </div>
+            <p class="text-[9px] font-bold text-slate-600 leading-snug">${d.desc}</p>
+          </div>
+        `;
+      }).join("");
+    }
 
     if (bossGrid) {
       bossGrid.innerHTML = bosses.map(b => {
         const sel = (this.selectedArenaBossId || 144) === b.id;
         const pData = POKEMON_MAP.get(b.id);
-        const best = bestTimes[b.id];
+        const recKey = `${b.id}_${activeDiff.id}`;
+        const best = bestTimes[recKey] !== undefined ? bestTimes[recKey] : (activeDiff.id === "standard" ? bestTimes[b.id] : undefined);
+        const hdUrl = (typeof getPokemonOfficialArtworkUrl === "function")
+          ? getPokemonOfficialArtworkUrl(b.id, false)
+          : (pData ? pData.forward_sprite : "");
+        const pxUrl = pData ? pData.forward_sprite : "";
+        const scaledHp = Math.round(b.hp * (activeDiff.hpMult || 2.2));
+        const scaledReward = Math.round(b.reward * (activeDiff.coinMult || 1.0));
+        const accent = b.color || "#EF4444";
+
         return `
-          <div onclick="GameApp.selectArenaBoss(${b.id})" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between gap-1 ${sel ? 'selected ring-2 ring-red-500' : ''}">
-            <div class="flex items-center gap-2">
-              <div class="w-11 h-11 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
-                <img src="${pData ? pData.forward_sprite : ''}" class="w-10 h-10 pixel-sprite object-contain" alt="${b.name}"/>
-              </div>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-1">
-                  <span class="font-black text-xs text-slate-900 truncate">${b.name}</span>
-                  <span class="px-1.5 py-0.2 rounded-full text-[8px] font-black ${best ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'} shrink-0">${best ? `★ ${best.toFixed(1)}s` : '未制霸'}</span>
+          <div onclick="GameApp.selectArenaBoss(${b.id})" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between gap-2 ${sel ? 'selected ring-2 ring-red-500' : ''}">
+            <div class="space-y-1.5">
+              <!-- 比照訓練家卡片雙圖層橫幅：左側大廳同款高清立繪 ＋ 右下角局內像素預覽 -->
+              <div class="relative h-24 sm:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border-2 border-slate-800 shadow-inner">
+                <div class="absolute inset-0 opacity-30 pointer-events-none" style="background: radial-gradient(circle at 28% 50%, ${accent} 0%, transparent 65%);"></div>
+                <img src="${hdUrl}" onerror="this.onerror=null;this.src='${pxUrl}';" class="absolute left-1.5 top-1 h-[92%] w-[52%] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.85)]" alt="${b.name}" />
+                <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/95 via-slate-950/50 to-transparent pointer-events-none"></div>
+                ${sel ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full border border-white/80 shadow">✓ 挑戰中</span>` : ''}
+                <span class="absolute top-1.5 right-1.5 px-2 py-0.5 rounded-full text-[9px] font-black border shadow ${best ? 'bg-emerald-600 text-white border-emerald-300' : 'bg-slate-950/85 text-slate-300 border-slate-600'}">${best ? `★ ${best.toFixed(1)}s` : '未制霸'}</span>
+                <div class="absolute bottom-1.5 left-2 right-12 min-w-0">
+                  <div class="flex items-center gap-1">
+                    <span class="font-black text-xs sm:text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${b.name}</span>
+                    ${pData ? renderTypeBadgeHTML(pData.type1) : ''}
+                  </div>
+                  <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${b.title} ‧ HP ${scaledHp.toLocaleString()}</div>
                 </div>
-                <div class="text-[9px] font-bold text-slate-500">HP ${b.hp.toLocaleString()} ‧ 賞金 +${b.reward}金</div>
+                <div class="absolute bottom-1 right-1.5 w-10 h-10 rounded-xl bg-white/95 border-2 border-slate-900 flex items-center justify-center shadow-md" title="局內像素造型預覽">
+                  <img src="${pxUrl}" class="w-8 h-8 pixel-sprite object-contain" alt="Pixel" />
+                </div>
               </div>
+              <p class="text-[10px] font-bold text-slate-600 leading-snug">${b.desc}</p>
             </div>
-            <p class="text-[10px] font-bold text-slate-600 leading-snug">${b.desc}</p>
+            <div class="pt-1.5 border-t border-slate-200 flex items-center justify-between text-[10px] font-black">
+              <span class="text-amber-700 flex items-center gap-0.5"><img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/> 賞金 +${scaledReward}金</span>
+              <span class="px-2 py-0.5 rounded-full ${sel ? 'bg-blue-600 text-white' : 'bg-red-600 text-white'}">${sel ? '已選定' : '挑戰'}</span>
+            </div>
           </div>
         `;
       }).join("");
@@ -2789,8 +2838,21 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.0 完整版：3刀解耦・1vs1 鬥技場・3人換裝</span>
+            <span class="font-black text-sm text-amber-300">v7.2.1 1vs1 鬥技場三段難度、鏡頭聚焦與防穿牆修復版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 鬥技場三段難度 ＆ 黃金單挑節奏</div>
+            <div>• 新增【標準試煉 (2.2x血) ／ 大師宿敵 (3.6x血＋12%甲) ／ 冠軍極限 (5.2x血＋20%甲＋8%秒傷盾)】，告別 10 秒蒸發，各難度獨立計時排行與賞金加乘！</div>
+            <div>• 五神獸選單全面升級為「訓練家風格雙圖層大卡」：左側大廳同款高清立繪 ＋ 右下角局內像素預覽。</div>
+            <div class="text-emerald-300 font-black pt-1">🛠️ 關鍵修復</div>
+            <div>• 鎖定神獸本體與直線衝鋒終點於 600×460 緊湊競技場圍牆內，徹底杜絕敵人衝出場外與畫面失蹤。</div>
+            <div>• 修復 Mega／進化 Zoom-in 縮放中心，改為動態鎖定主角實際座標，任何模式下 100% 置中特寫。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.0 完整版：3刀解耦・1vs1 鬥技場・3人換裝</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">⚔️ 全新模式：石英大會 1vs1 鬥技場（Phase 1）</div>
@@ -2887,7 +2949,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.0";
+    const curVer = this.APP_VERSION || "v7.2.1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

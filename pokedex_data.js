@@ -2574,3 +2574,42 @@ const ARENA_BOSSES = [
   { id: 150, name: "超夢",   title: "基因王者", hp: 14500, atk: 42, speed: 108, reward: 220, firstBonus: 300, color: "#A855F7", desc: "引力黑核 ＋ 次元穿刺，關都最強超能宿敵試煉！" },
   { id: 151, name: "始祖夢幻", title: "幻影起源", hp: 12200, atk: 38, speed: 112, reward: 240, firstBonus: 350, color: "#F472B6", desc: "旋轉彩虹星花環 ＋ 起源光陣，高頻全向彈幕極限對決！" }
 ];
+
+const ARENA_DIFFICULTIES = [
+  {
+    id: "standard",
+    name: "標準試煉",
+    badge: "標準 1.0x",
+    hpMult: 2.2,
+    atkMult: 1.0,
+    cdMult: 0.85,
+    armor: 0.0,
+    dpsCapPct: 0.12,
+    coinMult: 1.0,
+    desc: "神獸血量 2.2x ‧ 出招節奏 +15%，體驗 40 秒單挑節奏"
+  },
+  {
+    id: "master",
+    name: "大師宿敵",
+    badge: "進階 1.6x",
+    hpMult: 3.6,
+    atkMult: 1.25,
+    cdMult: 0.75,
+    armor: 0.12,
+    dpsCapPct: 0.10,
+    coinMult: 1.6,
+    desc: "神獸血量 3.6x ‧ 12% 減傷護甲 ‧ 高頻彈幕，考驗石柱拉扯"
+  },
+  {
+    id: "champion",
+    name: "冠軍極限",
+    badge: "極限 2.5x",
+    hpMult: 5.2,
+    atkMult: 1.45,
+    cdMult: 0.68,
+    armor: 0.20,
+    dpsCapPct: 0.08,
+    coinMult: 2.5,
+    desc: "神獸血量 5.2x ‧ 20% 護甲 ‧ 8%/s 秒傷盾，開局即高壓對決"
+  }
+];
