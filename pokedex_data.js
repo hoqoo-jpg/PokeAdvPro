@@ -1069,6 +1069,38 @@ const TRAINERS = [
       left: "images/serena_02.png",
       right: "images/serena_03.png"
     },
+    costumes: [
+      {
+        id: "kalos_short",
+        name: "短髮表演家裝",
+        badge: "短髮裝",
+        sprite: "images/serena_01.png",
+        walkSheet: "images/serena_walk_sheet.png",
+        cutin: "images/cutin_serena.png",
+        sprites: {
+          down: "images/serena_01.png",
+          up: "images/serena_04.png",
+          left: "images/serena_02.png",
+          right: "images/serena_03.png"
+        },
+        cost: 0
+      },
+      {
+        id: "kalos_long",
+        name: "卡洛斯長髮裝",
+        badge: "長髮裝",
+        sprite: "images/serena_01_2.png",
+        walkSheet: "images/serena_walk_sheet_2.png",
+        cutin: "images/cutin_serena.png",
+        sprites: {
+          down: "images/serena_01_2.png",
+          up: "images/serena_04.png",
+          left: "images/serena_02.png",
+          right: "images/serena_03.png"
+        },
+        cost: 0
+      }
+    ],
     cost: 350,
     skillName: "華麗雙打舞台",
     skillCd: 32,
@@ -1093,6 +1125,38 @@ const TRAINERS = [
       left: "images/lillie_02.png",
       right: "images/lillie_03.png"
     },
+    costumes: [
+      {
+        id: "alola_powered",
+        name: "阿羅拉全力裝",
+        badge: "全力裝",
+        sprite: "images/lillie_01.png",
+        walkSheet: "images/lillie_walk_sheet.png",
+        cutin: "images/cutin_lillie.png",
+        sprites: {
+          down: "images/lillie_01.png",
+          up: "images/lillie_04.png",
+          left: "images/lillie_02.png",
+          right: "images/lillie_03.png"
+        },
+        cost: 0
+      },
+      {
+        id: "classic_hat",
+        name: "白帽洋裝經典裝",
+        badge: "白帽裝",
+        sprite: "images/lillie_01_2.png",
+        walkSheet: "images/lillie_walk_sheet_2.png",
+        cutin: "images/cutin_lillie.png",
+        sprites: {
+          down: "images/lillie_01_2.png",
+          up: "images/lillie_04.png",
+          left: "images/lillie_02.png",
+          right: "images/lillie_03.png"
+        },
+        cost: 0
+      }
+    ],
     cost: 450,
     skillName: "全滿傷藥＆淨化",
     skillCd: 35,
@@ -2501,3 +2565,12 @@ function getUnderdogExpBonus(pokeData) {
   if (statSum <= 145) return 0.25;
   return 0;
 }
+
+// 16. 石英大會 1vs1 鬥技場神獸挑戰名單 (v7.2.0 Phase 1)
+const ARENA_BOSSES = [
+  { id: 144, name: "急凍鳥", title: "極寒雙翼", hp: 9200,  atk: 32, speed: 94,  reward: 140, firstBonus: 200, color: "#38BDF8", desc: "扇形五叉冰錐 ＋ 暴風雪環，考驗貼身安全眼走位！" },
+  { id: 145, name: "閃電鳥", title: "雷霆霸主", hp: 9400,  atk: 34, speed: 102, reward: 140, firstBonus: 200, color: "#FACC15", desc: "高速雷羽 ＋ 追蹤電磁球，善用四角石柱拉扯視線！" },
+  { id: 146, name: "火焰鳥", title: "烈焰鳳凰", hp: 9600,  atk: 36, speed: 98,  reward: 150, firstBonus: 200, color: "#EF4444", desc: "爆裂大字炎彈 ＋ 烈焰衝鋒，注意預警跑道與火星分裂！" },
+  { id: 150, name: "超夢",   title: "基因王者", hp: 14500, atk: 42, speed: 108, reward: 220, firstBonus: 300, color: "#A855F7", desc: "引力黑核 ＋ 次元穿刺，關都最強超能宿敵試煉！" },
+  { id: 151, name: "始祖夢幻", title: "幻影起源", hp: 12200, atk: 38, speed: 112, reward: 240, firstBonus: 350, color: "#F472B6", desc: "旋轉彩虹星花環 ＋ 起源光陣，高頻全向彈幕極限對決！" }
+];

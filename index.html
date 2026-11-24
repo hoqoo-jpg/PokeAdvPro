@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.2.0-1A');
+      background-image: url('images/skills_icons_sheet.png?v=7.2.0');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -595,7 +595,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.2.0-1A
+      v7.2.0
     </div>
   </div>
 
@@ -942,20 +942,34 @@
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
       <div id="wizardStep3" class="hidden space-y-3">
         <div>
+          <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式（8分鐘標準 ／ 無盡深淵 ／ 1vs1 鬥技場）</h3>
+          <div id="gameModeGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- 1vs1 石英大會鬥技場專屬設定面板 -->
+        <div id="arenaConfigPanel" class="hidden space-y-3 bg-rose-50/70 border-2 border-rose-300 rounded-2xl p-3">
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <div class="font-black text-xs sm:text-sm text-rose-800 flex items-center gap-1.5"><i class="fa-solid fa-trophy text-amber-500"></i> 石英大會 1vs1 規則：自動進化完全體 Lv.25 ‧ 招式 Lv.8 ‧ 無小怪單挑</div>
+          </div>
+          <div>
+            <h4 class="font-black text-xs text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-dragon text-rose-600"></i> 選擇單挑傳說神獸</h4>
+            <div id="arenaBossGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2"></div>
+          </div>
+          <div>
+            <h4 class="font-black text-xs text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-toolbox text-purple-600"></i> 免費自選 1 件競技場攜帶物</h4>
+            <div id="arenaHeldItemGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-1.5"></div>
+          </div>
+        </div>
+
+        <div id="stageSectionWrap">
           <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-map-location-dot text-blue-600"></i> GBA 生態地圖（選擇關卡）</h3>
           <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-infinity text-purple-600"></i> 冒險模式</h3>
-            <div id="gameModeGrid" class="grid grid-cols-2 gap-2"></div>
-          </div>
-          <div>
-            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
-            <div id="difficultyGrid" class="grid grid-cols-2 gap-2"></div>
-          </div>
+        <div id="difficultySectionWrap">
+          <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
+          <div id="difficultyGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
         </div>
-        <div>
+        <div id="loadoutSectionWrap">
           <div class="flex items-center justify-between gap-1.5 mb-1.5 flex-wrap">
             <div class="flex items-center gap-1.5 flex-wrap">
               <h3 class="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術補給（可複選）</h3>
@@ -1317,7 +1331,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.0-1A</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.0</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1365,7 +1379,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.0-1A</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.0</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1398,11 +1412,13 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.2.0-1A"></script>
-  <script src="map_v11_engine.js?v=7.2.0-1A"></script>
-  <script src="skills_engine.js?v=7.2.0-1A"></script>
-  <script src="battle_core_2.js?v=7.2.0-1A"></script>
-  <script src="battle_renderer.js?v=7.2.0-1A"></script>
-  <script src="game_ui.js?v=7.2.0-1A"></script>
+  <script src="pokedex_data.js?v=7.2.0"></script>
+  <script src="map_v11_engine.js?v=7.2.0"></script>
+  <script src="skills_engine.js?v=7.2.0"></script>
+  <script src="battle_core_2.js?v=7.2.0"></script>
+  <script src="battle_renderer.js?v=7.2.0"></script>
+  <script src="mode_survivor.js?v=7.2.0"></script>
+  <script src="mode_arena.js?v=7.2.0"></script>
+  <script src="game_ui.js?v=7.2.0"></script>
 </body>
 </html>

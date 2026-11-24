@@ -56,6 +56,19 @@ const STAGES = [
 
 const MapEngine = {
   currentStage: STAGES[0],
+  isArenaMode: false,
+  arenaHalfW: 360,
+  arenaHalfH: 270,
+  arenaPillars: [
+    { x: -215, y: -155, w: 44, h: 44 },
+    { x:  171, y: -155, w: 44, h: 44 },
+    { x: -215, y:  111, w: 44, h: 44 },
+    { x:  171, y:  111, w: 44, h: 44 }
+  ],
+
+  setArenaMode(enabled) {
+    this.isArenaMode = !!enabled;
+  },
   chunkCache: new Map(),
   tileCache: new Map(),
 
@@ -844,6 +857,9 @@ const MapEngine = {
   },
 
   getTerrainModifierAt(x, y) {
+    if (this.isArenaMode) {
+      return { speedMult: 1.0, label: "⚔️ 石英大會競技場", inWater: false };
+    }
     const cx = Math.floor(x / 600);
     const cy = Math.floor(y / 600);
     const chunk = this.getBiomeChunk(cx, cy);
@@ -882,6 +898,32 @@ const MapEngine = {
   },
 
   resolveObstacleCollision(ent, radius, isPlayer = false) {
+    if (this.isArenaMode) {
+      const r = radius || 18;
+      const minX = -this.arenaHalfW + r;
+      const maxX =  this.arenaHalfW - r;
+      const minY = -this.arenaHalfH + r;
+      const maxY =  this.arenaHalfH - r;
+      if (ent.x < minX) ent.x = minX;
+      if (ent.x > maxX) ent.x = maxX;
+      if (ent.y < minY) ent.y = minY;
+      if (ent.y > maxY) ent.y = maxY;
+      // 四角石柱掩體碰撞
+      for (const pl of this.arenaPillars) {
+        const nearX = Math.max(pl.x, Math.min(ent.x, pl.x + pl.w));
+        const nearY = Math.max(pl.y, Math.min(ent.y, pl.y + pl.h));
+        const dx = ent.x - nearX;
+        const dy = ent.y - nearY;
+        const dSq = dx * dx + dy * dy;
+        if (dSq < r * r) {
+          const d = Math.sqrt(dSq) || 0.001;
+          const push = r - d;
+          ent.x += (dx / d) * push;
+          ent.y += (dy / d) * push;
+        }
+      }
+      return;
+    }
     const cx = Math.floor(ent.x / 600);
     const cy = Math.floor(ent.y / 600);
 
@@ -998,6 +1040,11 @@ const MapEngine = {
       this.prebakePixelProps();
     }
 
+    if (this.isArenaMode) {
+      this.renderIndigoArena(ctx, camX, camY, width, height);
+      ctx.restore();
+      return;
+    }
     const stage = this.currentStage || STAGES[0];
 
     if (stage.id === "cerulean_bay") {
@@ -1457,7 +1504,115 @@ const MapEngine = {
   },
 
   // P1 新增：GBA 2.5D 樹冠、屋頂與古代神獸雕像前景遮擋層（角色走到後方時自動產生半透明景深遮罩）
+  renderIndigoArena(ctx, camX, camY, width, height) {
+    const toSx = (wx) => wx - camX + width / 2;
+    const toSy = (wy) => wy - camY + height / 2;
+    const hw = this.arenaHalfW;
+    const hh = this.arenaHalfH;
+    const x0 = toSx(-hw), y0 = toSy(-hh);
+    const w = hw * 2, h = hh * 2;
+
+    // 1. 場館外圍深色觀眾席背景
+    ctx.fillStyle = "#0F172A";
+    ctx.fillRect(0, 0, width, height);
+
+    // 外圍石階框線
+    ctx.fillStyle = "#1E293B";
+    ctx.fillRect(x0 - 26, y0 - 26, w + 52, h + 52);
+    ctx.strokeStyle = "#475569";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x0 - 26, y0 - 26, w + 52, h + 52);
+
+    // 2. 競技場米灰石磚棋盤地板
+    const tile = 40;
+    for (let tx = -hw; tx < hw; tx += tile) {
+      for (let ty = -hh; ty < hh; ty += tile) {
+        const isEven = ((Math.floor(tx / tile) + Math.floor(ty / tile)) & 1) === 0;
+        ctx.fillStyle = isEven ? "#CBD5E1" : "#B8C4D4";
+        ctx.fillRect(toSx(tx), toSy(ty), tile + 0.5, tile + 0.5);
+      }
+    }
+
+    // 3. 左藍右紅對戰場半場淡淡染色
+    ctx.fillStyle = "rgba(56, 189, 248, 0.10)";
+    ctx.fillRect(x0, y0, w / 2, h);
+    ctx.fillStyle = "rgba(239, 68, 68, 0.10)";
+    ctx.fillRect(x0 + w / 2, y0, w / 2, h);
+
+    // 4. 經典石英大會場線 ＋ 中央精靈球圖騰
+    const cx = toSx(0), cy = toSy(0);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x0 + 18, y0 + 18, w - 36, h - 36);
+    ctx.beginPath();
+    ctx.moveTo(cx, y0 + 18);
+    ctx.lineTo(cx, y0 + h - 18);
+    ctx.stroke();
+
+    // 中央精靈球圓環
+    ctx.fillStyle = "rgba(239, 68, 68, 0.24)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 62, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.30)";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 62, 0, Math.PI);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.90)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 62, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // 5. 競技場厚實石牆圍欄 ＋ 四角金火炬
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 10;
+    ctx.strokeRect(x0 - 4, y0 - 4, w + 8, h + 8);
+    ctx.strokeStyle = "#F59E0B";
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(x0, y0, w, h);
+
+    const flamePulse = 1 + Math.sin(performance.now() * 0.012) * 0.2;
+    [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]].forEach(([bx, by]) => {
+      const fx = toSx(bx), fy = toSy(by);
+      ctx.fillStyle = "#78350F";
+      ctx.beginPath(); ctx.arc(fx, fy, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#F97316";
+      ctx.beginPath(); ctx.arc(fx, fy, 7.5 * flamePulse, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#FEF08A";
+      ctx.beginPath(); ctx.arc(fx, fy, 4 * flamePulse, 0, Math.PI * 2); ctx.fill();
+    });
+
+    // 6. 四角立體石柱掩體 (2.5D 陰影＋頂面高光)
+    for (const pl of this.arenaPillars) {
+      const px = toSx(pl.x), py = toSy(pl.y);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.35)";
+      ctx.fillRect(px + 6, py + 8, pl.w, pl.h);
+      ctx.fillStyle = "#475569";
+      ctx.fillRect(px, py, pl.w, pl.h);
+      ctx.fillStyle = "#64748B";
+      ctx.fillRect(px + 3, py + 3, pl.w - 6, pl.h - 12);
+      ctx.fillStyle = "#94A3B8";
+      ctx.fillRect(px + 5, py + 5, pl.w - 10, 10);
+      ctx.strokeStyle = "#1E293B";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(px, py, pl.w, pl.h);
+    }
+  },
+
   renderForegroundCanopies(ctx, camX, camY, width, height, player, trainer) {
+    if (this.isArenaMode) return;
     const startCx = Math.floor((camX - width / 2) / 600) - 1;
     const endCx = Math.floor((camX + width / 2) / 600) + 1;
     const startCy = Math.floor((camY - height / 2) / 600) - 1;

@@ -50,6 +50,35 @@ const SkillsEngine = {
     return Math.max(0.60, this.getPlayerSkillAlpha());
   },
 
+  // 【v7.2 第一刀解耦】陣營辨識、統一索敵與傷害路由介面 (team: "player" | "enemy")
+  getCasterTeam(caster) {
+    return (caster && caster.team === "enemy") ? "enemy" : "player";
+  },
+
+  getTargetsFor(team, x, y, radius) {
+    if (team === "enemy") {
+      const p = (typeof GameApp !== "undefined") ? GameApp.player : null;
+      if (!p || p.hp <= 0) return [];
+      const pad = radius + 24;
+      if (Math.abs(p.x - x) <= pad && Math.abs(p.y - y) <= pad) {
+        return [p];
+      }
+      return [];
+    }
+    return this.getEnemiesInRadius(x, y, radius);
+  },
+
+  applySkillHit(team, target, dmg, moveType, bonusStatusChance = 0, knockback = 0, extraCritBonus = 0) {
+    if (!target || target.hp <= 0) return;
+    if (team === "enemy") {
+      if (typeof GameApp !== "undefined" && GameApp.dealEnemySkillDamageToPlayer) {
+        GameApp.dealEnemySkillDamageToPlayer(dmg, moveType, bonusStatusChance, knockback);
+      }
+      return;
+    }
+    GameApp.dealDamageToEnemy(target, dmg, moveType, bonusStatusChance, knockback, extraCritBonus);
+  },
+
   // 空間網格快速範圍索敵：利用 battle_core_2 每幀建立的 80x80 spatialGrid，將彈幕與領域碰撞由 O(N) 全陣列掃描降至 O(1) 鄰近格查詢
   getEnemiesInRadius(x, y, radius) {
     const grid = GameApp.spatialGrid;
@@ -257,15 +286,16 @@ const SkillsEngine = {
     }
   },
 
-  fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0, slotIdx = 0) {
+  fireSkill(caster, skillId, level, isEvolved, dmgScale = 1.0, slotIdx = 0, opts = null) {
+    const team = (opts && opts.team) || this.getCasterTeam(caster);
     if (skillId === "Metronome") {
       const pool = ["Flamethrower", "Hydro Pump", "Razor Leaf", "Seed Bomb", "Thunderbolt", "Shadow Ball", "Psystrike", "Ice Beam", "Moonblast", "Dragon Rush"];
       const pick1 = pool[Math.floor(Math.random() * pool.length)];
-      this.fireSkill(caster, pick1, level, isEvolved, dmgScale * 1.15, slotIdx);
+      this.fireSkill(caster, pick1, level, isEvolved, dmgScale * 1.15, slotIdx, opts);
       if (caster && caster.id === 151) {
         const rest = pool.filter(s => s !== pick1);
         const pick2 = rest[Math.floor(Math.random() * rest.length)];
-        this.fireSkill(caster, pick2, level, isEvolved, dmgScale * 0.95, slotIdx + 1);
+        this.fireSkill(caster, pick2, level, isEvolved, dmgScale * 0.95, slotIdx + 1, opts);
       }
       return;
     }
@@ -273,16 +303,20 @@ const SkillsEngine = {
     const meta = SKILLS_CATALOG[skillId] || SKILLS_CATALOG["Tackle"];
     const cleanSkillId = skillId.replace(/\s+/g, '');
 
-    // 1. 貼身自衛最高優先級 + 差異化智能索敵：
-    // 若怪獸已逼近主角 105px 警戒圈內，強制最優先鎖定貼身最近目標，徹底消除鬼斯/拉普拉斯近身死區！
-    let target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 105);
-    if (!target) {
-      if (["Thunderbolt", "Psystrike", "IceBeam", "ShadowBall"].includes(cleanSkillId)) {
-        target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 400, "highest_hp") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 400);
-      } else if (["SeedBomb", "SludgeBomb"].includes(cleanSkillId)) {
-        target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 360, "cluster") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360);
-      } else {
-        target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+    // 1. 陣營化智能索敵：敵方施法直接鎖定玩家；我方優先鎖定貼身警戒圈內敵軍
+    let target = null;
+    if (team === "enemy") {
+      target = GameApp.player;
+    } else {
+      target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 105);
+      if (!target) {
+        if (["Thunderbolt", "Psystrike", "IceBeam", "ShadowBall"].includes(cleanSkillId)) {
+          target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 400, "highest_hp") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 400);
+        } else if (["SeedBomb", "SludgeBomb"].includes(cleanSkillId)) {
+          target = GameApp.findPriorityTargetInViewport ? GameApp.findPriorityTargetInViewport(caster.x, caster.y, 360, "cluster") : GameApp.findNearestEnemyInViewport(caster.x, caster.y, 360);
+        } else {
+          target = GameApp.findNearestEnemyInViewport(caster.x, caster.y, 380);
+        }
       }
     }
 
@@ -2180,16 +2214,18 @@ const SkillsEngine = {
       }
 
       if (pr.spawnGraceTimer && pr.spawnGraceTimer > 0) continue;
-      const tightRadius = pr.radius * 0.82; // 緊縮判定框 0.82x，確保子彈視覺前端真正嵌入怪獸身體才觸發命中
-      const nearbyEnemies = this.getEnemiesInRadius(pr.x, pr.y, tightRadius);
+      const tightRadius = pr.radius * 0.82; // 緊縮判定框 0.82x，確保子彈視覺前端真正嵌入目標身體才觸發命中
+      const prTeam = pr.team || this.getCasterTeam(pr.casterRef);
+      const nearbyEnemies = this.getTargetsFor(prTeam, pr.x, pr.y, tightRadius);
       for (let j = nearbyEnemies.length - 1; j >= 0; j--) {
         const e = nearbyEnemies[j];
         if (!e || e.hp <= 0 || pr.hitSet.has(e)) continue;
         const dx = e.x - pr.x, dy = e.y - pr.y;
-        const rSum = tightRadius + e.radius * 0.9;
+        const tRad = (e.radius !== undefined) ? e.radius : 16;
+        const rSum = tightRadius + tRad * 0.9;
         if (dx * dx + dy * dy <= rSum * rSum) {
           pr.hitSet.add(e);
-          GameApp.dealDamageToEnemy(e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
+          this.applySkillHit(prTeam, e, pr.dmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
           this.spawnElementalHitSpark(e.x, e.y, pr.type);
           if ((pr.vfx === "shadow_orb" || pr.skillId === "Shadow Ball") && !(GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.55)) {
             this.meleeEffects.push({
@@ -2276,17 +2312,19 @@ const SkillsEngine = {
             }
           }
 
-          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
+          const mTeam = m.team || this.getCasterTeam(m.casterRef);
+          const candidates = this.getTargetsFor(mTeam, midX, midY, curLen * 0.5 + halfW + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
             if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
+            const tRad = (e.radius !== undefined) ? e.radius : 16;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
-            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            if (along < -tRad * 0.5 || along > curLen + tRad) continue;
             const perpDist = Math.abs(-rx * sinA + ry * cosA);
-            if (perpDist <= halfW + e.radius * 0.85) {
+            if (perpDist <= halfW + tRad * 0.85) {
               m.hitSet.add(e);
-              GameApp.dealDamageToEnemy(e, m.dmg, m.type, m.statusBonus || 0.15, (m.kb || 16) * (m.secondTickDone ? 0.65 : 1.0));
+              this.applySkillHit(mTeam, e, m.dmg, m.type, m.statusBonus || 0.15, (m.kb || 16) * (m.secondTickDone ? 0.65 : 1.0));
               if (!(GameApp.enemies && GameApp.enemies.length > 140 && Math.random() < 0.6)) {
                 this.meleeEffects.push({
                   style: "water_splash_burst",
@@ -2333,19 +2371,21 @@ const SkillsEngine = {
             this.spawnSubParticle(ex, ey, cosA * 55 + (Math.random() - 0.5) * 35, sinA * 55 - 35 - Math.random() * 30, embCol, 3.0 + Math.random() * 1.4, 0.28, "star");
           }
 
-          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + (m.endHalfW || 36) + 18);
+          const mTeam = m.team || this.getCasterTeam(m.casterRef);
+          const candidates = this.getTargetsFor(mTeam, midX, midY, curLen * 0.5 + (m.endHalfW || 36) + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
             if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
+            const tRad = (e.radius !== undefined) ? e.radius : 16;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
-            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            if (along < -tRad * 0.5 || along > curLen + tRad) continue;
             const tFrac = Math.max(0, Math.min(1, along / Math.max(1, m.length)));
             const coneHalfW = (m.startHalfW || 9) + ((m.endHalfW || 32) - (m.startHalfW || 9)) * tFrac;
             const perpDist = Math.abs(-rx * sinA + ry * cosA);
-            if (perpDist <= coneHalfW + e.radius * 0.85) {
+            if (perpDist <= coneHalfW + tRad * 0.85) {
               m.hitSet.add(e);
-              GameApp.dealDamageToEnemy(e, m.dmg, "Fire", m.statusBonus || 0.22, 0);
+              this.applySkillHit(mTeam, e, m.dmg, "Fire", m.statusBonus || 0.22, 0);
               this.spawnElementalHitSpark(e.x, e.y, "Fire");
             }
           }
@@ -2379,17 +2419,19 @@ const SkillsEngine = {
             }
           }
 
-          const candidates = this.getEnemiesInRadius(midX, midY, curLen * 0.5 + halfW + 18);
+          const mTeam = m.team || this.getCasterTeam(m.casterRef);
+          const candidates = this.getTargetsFor(mTeam, midX, midY, curLen * 0.5 + halfW + 18);
           for (let j = 0; j < candidates.length; j++) {
             const e = candidates[j];
             if (!e || e.hp <= 0 || m.hitSet.has(e) || !this.isInsideViewport(e.x, e.y, 20)) continue;
+            const tRad = (e.radius !== undefined) ? e.radius : 16;
             const rx = e.x - m.ox, ry = e.y - m.oy;
             const along = rx * cosA + ry * sinA;
-            if (along < -e.radius * 0.5 || along > curLen + e.radius) continue;
+            if (along < -tRad * 0.5 || along > curLen + tRad) continue;
             const perpDist = Math.abs(-rx * sinA + ry * cosA);
-            if (perpDist <= halfW + e.radius * 0.85) {
+            if (perpDist <= halfW + tRad * 0.85) {
               m.hitSet.add(e);
-              GameApp.dealDamageToEnemy(e, m.dmg, "Ice", m.statusBonus || 0.25, m.kb || 4);
+              this.applySkillHit(mTeam, e, m.dmg, "Ice", m.statusBonus || 0.25, m.kb || 4);
               this.spawnElementalHitSpark(e.x, e.y, "Ice");
             }
           }
@@ -2725,11 +2767,13 @@ const SkillsEngine = {
             });
           }
           const nowMs = performance.now();
-          const hzCandidates = [...this.getEnemiesInRadius(hz.x, hz.y, hz.radius)];
+          const hzTeam = hz.team || "player";
+          const hzCandidates = [...this.getTargetsFor(hzTeam, hz.x, hz.y, hz.radius)];
           hzCandidates.forEach(e => {
             if (!e || e.hp <= 0) return;
+            const tRad = (e.radius !== undefined) ? e.radius : 16;
             const dx = e.x - hz.x, dy = e.y - hz.y;
-            const rSum = hz.radius + e.radius;
+            const rSum = hz.radius + tRad;
             if (dx * dx + dy * dy <= rSum * rSum) {
               // 防多個普攻毒沼重疊秒殺：同一隻怪每 360ms 最多吃一次 poison_puddle 跳傷
               if (hz.kind === "poison_puddle") {
@@ -2749,7 +2793,7 @@ const SkillsEngine = {
               }
               const hzStatusMod = hz.kind === "dragon_wave" ? 0.25 : ((hz.kind === "moon_pillar" || hz.kind === "genesis_aurora" || hz.kind === "serena_stage") ? -0.28 : -0.08);
               const megaToughClawsCrit = (hz.kind === "dragon_wave" && hz.isMegaCharizardX) ? 0.25 : ((hz.kind === "dragon_wave" && hz.isMegaGyarados) ? 0.20 : 0);
-              GameApp.dealDamageToEnemy(e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2, megaToughClawsCrit);
+              this.applySkillHit(hzTeam, e, dVal, hz.type, hzStatusMod, hz.kind === "dragon_wave" ? 14 : 2, megaToughClawsCrit);
               // 超級噴火龍X (#10034) 硬爪＋藍焰聯動：龍之俯衝命中必定掛上灼傷，完美觸發猛火龍威增傷
               if (hz.kind === "dragon_wave" && hz.isMegaCharizardX && e.hp > 0 && !checkStatusImmunity(e, "Burn")) {
                 if (!["Freeze", "Paralysis", "Confusion"].includes(e.status)) {

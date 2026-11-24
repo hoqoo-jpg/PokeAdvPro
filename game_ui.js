@@ -23,6 +23,8 @@ Object.assign(window.GameApp, {
   pokedexShowMega: {},
   pokedexShowShiny: {},
   selectedGameMode: "standard",
+  selectedArenaBossId: 144,
+  selectedArenaHeldItem: "silk_scarf",
   selectedDifficulty: DIFFICULTIES[1],
   selectedStage: STAGES[0],
   selectedLoadout: "none",
@@ -63,8 +65,8 @@ Object.assign(window.GameApp, {
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
           megaUnlocked: { ...(this.saveData.megaUnlocked || {}), ...(parsed.megaUnlocked || {}) },
-          selectedCostumes: { ash: "classic", ...(this.saveData.selectedCostumes || {}), ...(parsed.selectedCostumes || {}) },
-          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, ...(this.saveData.unlockedCostumes || {}), ...(parsed.unlockedCostumes || {}) },
+          selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short", ...(this.saveData.selectedCostumes || {}), ...(parsed.selectedCostumes || {}) },
+          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true }, ...(this.saveData.unlockedCostumes || {}), ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
           lastSetup: parsed.lastSetup ? { ...parsed.lastSetup } : (this.saveData.lastSetup || null),
           lastSeenVersion: parsed.lastSeenVersion || "",
@@ -98,7 +100,9 @@ Object.assign(window.GameApp, {
       useShinyStarter: { ...(this.useShinyStarter || {}) },
       stageId: (this.selectedStage && this.selectedStage.id) || "pallet",
       difficultyId: (this.selectedDifficulty && this.selectedDifficulty.id) || "normal",
-      gameMode: this.selectedGameMode || "standard"
+      gameMode: this.selectedGameMode || "standard",
+      arenaBossId: this.selectedArenaBossId || 144,
+      arenaHeldItem: this.selectedArenaHeldItem || "silk_scarf"
     };
     try {
       localStorage.setItem("POKEMON_ADV_SURVIVORS_V4", JSON.stringify(this.saveData));
@@ -129,9 +133,11 @@ Object.assign(window.GameApp, {
       const df = DIFFICULTIES.find(d => d.id === ls.difficultyId);
       if (df) this.selectedDifficulty = df;
     }
-    if (ls.gameMode === "standard" || ls.gameMode === "endless") {
+    if (ls.gameMode === "standard" || ls.gameMode === "endless" || ls.gameMode === "arena") {
       this.selectedGameMode = ls.gameMode;
     }
+    if (ls.arenaBossId) this.selectedArenaBossId = ls.arenaBossId;
+    if (ls.arenaHeldItem && HELD_ITEMS[ls.arenaHeldItem]) this.selectedArenaHeldItem = ls.arenaHeldItem;
   },
 
   saveToStorage() {
@@ -305,7 +311,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.0-1A";
+        const ver = this.APP_VERSION || "v7.2.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -548,7 +554,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.0-1A";
+      const curVer = this.APP_VERSION || "v7.2.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1025,20 +1031,29 @@ Object.assign(window.GameApp, {
       const bestM = String(Math.floor(bestTimeSec / 60)).padStart(2, "0");
       const bestS = String(bestTimeSec % 60).padStart(2, "0");
       const bestKills = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessKills) || 0;
+      const arenaTimes = (this.saveData && this.saveData.stats && this.saveData.stats.arenaBestTimes) || {};
+      const arenaClearedCount = Object.keys(arenaTimes).length;
       const modes = [
         {
           id: "standard",
           name: "⏱️ 8分鐘標準",
           badge: "經典",
           badgeCls: "bg-blue-100 text-blue-800",
-          desc: "5:00 三聖鳥、7:30 超夢與隱藏夢幻 #151，擊破即登冠！"
+          desc: "5:00 三聖鳥、7:30 超夢與夢幻，擊破登冠！"
         },
         {
           id: "endless",
           name: "♾️ 無盡深淵",
           badge: "1.25x金",
           badgeCls: "bg-purple-100 text-purple-800",
-          desc: `8:00 後無限神獸波次！（紀錄 ${bestM}:${bestS} / ${bestKills}斬）`
+          desc: `8:00 後無限雙神波次（${bestM}:${bestS} / ${bestKills}斬）`
+        },
+        {
+          id: "arena",
+          name: "⚔️ 1vs1 鬥技場",
+          badge: "NEW",
+          badgeCls: "bg-rose-600 text-white",
+          desc: `Lv.25 固定數值單挑 5 大神獸（已制霸 ${arenaClearedCount}/5）`
         }
       ];
       modeGridEl.innerHTML = modes.map(m => {
@@ -1102,6 +1117,17 @@ Object.assign(window.GameApp, {
         `;
       }).join("");
     }
+    const isArena = (this.selectedGameMode === "arena");
+    ["stageSectionWrap", "difficultySectionWrap", "loadoutSectionWrap"].forEach(secId => {
+      const el = document.getElementById(secId);
+      if (el) el.classList.toggle("hidden", isArena);
+    });
+    const arenaPanel = document.getElementById("arenaConfigPanel");
+    if (arenaPanel) {
+      arenaPanel.classList.toggle("hidden", !isArena);
+      if (isArena) this.renderArenaConfigPanel();
+    }
+
     this.updateWizardNextButtonText();
     this.updateWizardLineupBar();
 
@@ -1224,8 +1250,8 @@ Object.assign(window.GameApp, {
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...(parsed.shinyUnlocked || { 25: true }) },
           megaUnlocked: { ...(parsed.megaUnlocked || {}) },
-          selectedCostumes: { ash: "classic", ...(parsed.selectedCostumes || {}) },
-          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, ...(parsed.unlockedCostumes || {}) },
+          selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short", ...(parsed.selectedCostumes || {}) },
+          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true }, ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) }
         };
         this.selectedTrainer = TRAINERS[0];
@@ -1256,10 +1282,10 @@ Object.assign(window.GameApp, {
       pokedexRewardClaimed: {},
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
-      selectedCostumes: { ash: "classic" },
-      unlockedCostumes: { ash: { classic: true, cutin_tactical: true } },
+      selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
+      unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.0-1A",
+      lastSeenVersion: this.APP_VERSION || "v7.2.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1441,6 +1467,84 @@ Object.assign(window.GameApp, {
     this.renderWizardContent();
   },
 
+  selectArenaBoss(bossId) {
+    this.selectedArenaBossId = bossId;
+    this.saveLastSetup();
+    SoundFX.play("hit");
+    this.renderArenaConfigPanel();
+  },
+
+  selectArenaHeldItem(itemId) {
+    this.selectedArenaHeldItem = itemId;
+    this.saveLastSetup();
+    SoundFX.play("hit");
+    this.renderArenaConfigPanel();
+  },
+
+  renderArenaConfigPanel() {
+    const bossGrid = document.getElementById("arenaBossGrid");
+    const heldGrid = document.getElementById("arenaHeldItemGrid");
+    const bestTimes = (this.saveData && this.saveData.stats && this.saveData.stats.arenaBestTimes) || {};
+    const bosses = typeof ARENA_BOSSES !== "undefined" ? ARENA_BOSSES : [];
+
+    if (bossGrid) {
+      bossGrid.innerHTML = bosses.map(b => {
+        const sel = (this.selectedArenaBossId || 144) === b.id;
+        const pData = POKEMON_MAP.get(b.id);
+        const best = bestTimes[b.id];
+        return `
+          <div onclick="GameApp.selectArenaBoss(${b.id})" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between gap-1 ${sel ? 'selected ring-2 ring-red-500' : ''}">
+            <div class="flex items-center gap-2">
+              <div class="w-11 h-11 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
+                <img src="${pData ? pData.forward_sprite : ''}" class="w-10 h-10 pixel-sprite object-contain" alt="${b.name}"/>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-1">
+                  <span class="font-black text-xs text-slate-900 truncate">${b.name}</span>
+                  <span class="px-1.5 py-0.2 rounded-full text-[8px] font-black ${best ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'} shrink-0">${best ? `★ ${best.toFixed(1)}s` : '未制霸'}</span>
+                </div>
+                <div class="text-[9px] font-bold text-slate-500">HP ${b.hp.toLocaleString()} ‧ 賞金 +${b.reward}金</div>
+              </div>
+            </div>
+            <p class="text-[10px] font-bold text-slate-600 leading-snug">${b.desc}</p>
+          </div>
+        `;
+      }).join("");
+    }
+
+    if (heldGrid && typeof HELD_ITEMS !== "undefined") {
+      const starter = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
+      const natSkills = (typeof getNaturalSkillsForPokemon === "function") ? getNaturalSkillsForPokemon(starter) : [];
+      const natTypes = new Set(natSkills.map(s => SKILLS_CATALOG[s]?.type).filter(Boolean));
+      const allHeld = Object.values(HELD_ITEMS).sort((a, b) => {
+        const aMatch = natTypes.has(SKILLS_CATALOG[a.skillReq]?.type) ? 1 : 0;
+        const bMatch = natTypes.has(SKILLS_CATALOG[b.skillReq]?.type) ? 1 : 0;
+        return bMatch - aMatch;
+      });
+      if (!HELD_ITEMS[this.selectedArenaHeldItem]) {
+        this.selectedArenaHeldItem = allHeld[0]?.id || "silk_scarf";
+      }
+      heldGrid.innerHTML = allHeld.map(hi => {
+        const sel = this.selectedArenaHeldItem === hi.id;
+        const isRec = natTypes.has(SKILLS_CATALOG[hi.skillReq]?.type);
+        return `
+          <div onclick="GameApp.selectArenaHeldItem('${hi.id}')" class="poke-card cursor-pointer p-2 flex items-center gap-2 ${sel ? 'selected ring-2 ring-red-500' : ''}">
+            <div class="w-8 h-8 rounded-lg bg-slate-900 border border-amber-400/70 flex items-center justify-center shrink-0">
+              <img src="${hi.sprite}" class="w-6 h-6 pixel-sprite object-contain" alt="${hi.name}"/>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1">
+                <span class="font-black text-[11px] text-slate-800 truncate">${hi.name}</span>
+                ${isRec ? '<span class="px-1 py-0.2 rounded bg-emerald-600 text-white text-[8px] font-black shrink-0">本系</span>' : ''}
+              </div>
+              <div class="text-[9px] font-bold text-slate-500 truncate">${hi.desc}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  },
+
   getSelectedLoadoutsTotalCost() {
     if (!Array.isArray(this.selectedLoadouts)) return 0;
     const loadouts = typeof TACTICAL_LOADOUTS !== "undefined" ? TACTICAL_LOADOUTS : [];
@@ -1457,6 +1561,10 @@ Object.assign(window.GameApp, {
     if (!btn) return;
     if (this.wizardStep < 3) {
       btn.textContent = "下一步 →";
+      return;
+    }
+    if (this.selectedGameMode === "arena") {
+      btn.textContent = "⚔️ 進入石英大會 1vs1 鬥技場 →";
       return;
     }
     const totalCost = this.getSelectedLoadoutsTotalCost();
@@ -2681,15 +2789,17 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.0 (Step 1A) 渲染層解耦與訓練家換裝首發</span>
+            <span class="font-black text-sm text-amber-300">v7.2.0 完整版：3刀解耦・1vs1 鬥技場・3人換裝</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">👕 訓練家時裝切換系統（首發小智雙造型）</div>
-            <div>• 選角頁 STEP 1 新增【👕 換裝】按鈕，支援小智自由切換「初代關都經典裝」與「Cut-in 熱血戰術裝」（全紅帽冠＋白帽簷＋黑框綠心徽＋紅白橫條 T 恤）。</div>
-            <div>• 切換後即時同步預覽頭像、局內 3×4 行走圖集、涉水／草叢遮罩與右下角戰術大招圓鈕。</div>
-            <div class="text-emerald-300 font-black pt-1">🧱 架構解耦第一階段（battle_renderer.js）</div>
-            <div>• 將超過 2,800 行的戰場 Canvas 繪圖、Y-Sorting 與過場演出從 battle_core_2.js 抽離為獨立 battle_renderer.js，為後續技能陣營化與 1vs1 鬥技場打好乾淨地基。</div>
+            <div class="text-rose-300 font-black pt-0.5">⚔️ 全新模式：石英大會 1vs1 鬥技場（Phase 1）</div>
+            <div>• STEP 3 新增【⚔️ 1vs1 鬥技場】：封閉單屏石英大會競技場（含四角石柱掩體），固定 Lv.25 完全體 ＋ 天生三招 Lv.8 ＋ 免費自選 1 件攜帶物！</div>
+            <div>• 直接單挑 5 大傳說神獸（急凍鳥／閃電鳥／火焰鳥／超夢／始祖夢幻），自動記錄每隻神獸最快擊破秒數與發放首通／破紀錄賞金。</div>
+            <div class="text-sky-300 font-black pt-1">👕 訓練家時裝切換（小智・莉莉艾・莎莉娜）</div>
+            <div>• 支援小智（經典裝／Cut-in 戰術裝）、莉莉艾（阿羅拉全力裝／白帽洋裝經典裝）與莎莉娜（短髮裝／卡洛斯長髮裝）雙造型自由切換，全套 3×4 行走圖集與頭像即時同步！</div>
+            <div class="text-emerald-300 font-black pt-1">🧱 3 刀架構解耦正式完工</div>
+            <div>• 技能引擎陣營化 (team: player/enemy)、渲染層 (battle_renderer.js) 與雙模式控制器 (mode_survivor.js / mode_arena.js) 全數獨立，為 v7.3 王牌手動對決打通底層。</div>
           </div>
         </div>
         <div class="bg-slate-950/85 border border-emerald-400/50 rounded-2xl p-3 space-y-2">
@@ -2777,7 +2887,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.0-1A";
+    const curVer = this.APP_VERSION || "v7.2.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -2922,6 +3032,7 @@ Object.assign(window.GameApp, {
       }
     });
     if (typeof MapEngine !== "undefined") {
+      if (MapEngine.setArenaMode) MapEngine.setArenaMode(false);
       MapEngine.setWeather("CLEAR");
       MapEngine.lightningFlashAlpha = 0;
     }
