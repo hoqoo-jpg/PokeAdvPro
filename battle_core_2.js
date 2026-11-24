@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.5",
+  APP_VERSION: "v7.2.6",
   canvas: null,
   ctx: null,
   width: window.innerWidth,

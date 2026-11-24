@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.5";
+        const ver = this.APP_VERSION || "v7.2.6";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.5";
+      const curVer = this.APP_VERSION || "v7.2.6";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1290,7 +1290,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.5",
+      lastSeenVersion: this.APP_VERSION || "v7.2.6",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2842,8 +2842,22 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.5 1vs1 純單挑規則、光束擋柱與完美閃避反擊版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.6 五大究極超武視覺重製升級版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">🐉 天龍流星雨全面重製（深紫 ＋ 蒼藍星焰）</div>
+            <div>• 移除舊版暗雲與垂直光柱，改為 <strong>45° 斜切次元星縫 ➔ 燃燒三層長彗尾 ➔ 銳角黑曜龍晶隕岩</strong>，落地爆出深紫＋蒼藍雙環星爆，與龍之俯衝美術語言 100% 統一！</div>
+            <div class="text-amber-300 font-black pt-1">🥊 四大超武同步提亮精修</div>
+            <div>• <strong>爆裂十字劈（格鬥）</strong>：8 枚飛拳全面升級為空手劈同款【赤金烈焰武道重拳】（附三尾火焰、四指節、拇指與月牙拳風）。</div>
+            <div>• <strong>終極衝擊（一般）</strong>：去除偏暗濁褐色描邊，換裝純金白熾動能核心與亮青白音爆環。</div>
+            <div>• <strong>精神強念領域（超能）</strong>：加厚紫粉雙層空間重力波動外環，浮空碎石與次元鏡面補上粉紫念力光暈。</div>
+            <div>• <strong>暗影死滅波（幽靈）</strong>：拉高底層耿鬼壞笑法陣暗紫底盤與血紅雙眼對比度，亮藍水面亦清晰可辨！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.5 1vs1 純單挑規則、光束擋柱與完美閃避反擊版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-sky-300 font-black pt-0.5">🏛️ 1vs1 光束物理撞柱截斷</div>
@@ -3002,7 +3016,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.5";
+    const curVer = this.APP_VERSION || "v7.2.6";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
