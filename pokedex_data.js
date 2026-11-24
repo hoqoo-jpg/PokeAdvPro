@@ -965,6 +965,38 @@ const TRAINERS = [
       left: "images/Ash_02.png",
       right: "images/Ash_03.png"
     },
+    costumes: [
+      {
+        id: "classic",
+        name: "初代關都經典裝",
+        badge: "經典裝",
+        sprite: "images/Ash_01.png",
+        walkSheet: "images/ash_walk_sheet.png",
+        cutin: "images/cutin_ash.png",
+        sprites: {
+          down: "images/Ash_01.png",
+          up: "images/Ash_04.png",
+          left: "images/Ash_02.png",
+          right: "images/Ash_03.png"
+        },
+        cost: 0
+      },
+      {
+        id: "cutin_tactical",
+        name: "Cut-in 熱血戰術裝",
+        badge: "戰術裝",
+        sprite: "images/Ash_01_cutin.png",
+        walkSheet: "images/ash_walk_sheet_cutin.png",
+        cutin: "images/cutin_ash.png",
+        sprites: {
+          down: "images/Ash_01_cutin.png",
+          up: "images/Ash_04.png",
+          left: "images/Ash_02.png",
+          right: "images/Ash_03.png"
+        },
+        cost: 0
+      }
+    ],
     cost: 0,
     skillName: "就決定是你了！",
     skillCd: 25,
@@ -1098,6 +1130,35 @@ const TRAINERS = [
     mods: { dmgMult: 1.25, cdMult: 0.88, hpMult: 1.15, speedMult: 1.10, areaMult: 1.20, critBonus: 0.15, regen: 0.6, expMult: 1.20 }
   }
 ];
+
+function getResolvedTrainerCostume(trainer, saveData) {
+  if (!trainer) {
+    return { id: "classic", name: "經典裝", badge: "經典裝", sprite: "", walkSheet: null, cutin: "", sprites: null };
+  }
+  const list = Array.isArray(trainer.costumes) ? trainer.costumes : [];
+  if (list.length === 0) {
+    return {
+      id: "classic",
+      name: "經典裝",
+      badge: "經典裝",
+      sprite: trainer.sprite,
+      walkSheet: trainer.walkSheet || null,
+      cutin: trainer.cutin || trainer.sprite,
+      sprites: trainer.sprites || null
+    };
+  }
+  const chosenId = (saveData && saveData.selectedCostumes && saveData.selectedCostumes[trainer.id]) || list[0].id;
+  const found = list.find(c => c.id === chosenId) || list[0];
+  return {
+    id: found.id,
+    name: found.name || "經典裝",
+    badge: found.badge || "時裝",
+    sprite: found.sprite || trainer.sprite,
+    walkSheet: found.walkSheet || trainer.walkSheet || null,
+    cutin: found.cutin || trainer.cutin || trainer.sprite,
+    sprites: found.sprites || trainer.sprites || null
+  };
+}
 
 // 8. 模式與難度考驗
 const DIFFICULTIES = [

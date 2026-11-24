@@ -63,6 +63,8 @@ Object.assign(window.GameApp, {
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...this.saveData.shinyUnlocked, ...(parsed.shinyUnlocked || {}) },
           megaUnlocked: { ...(this.saveData.megaUnlocked || {}), ...(parsed.megaUnlocked || {}) },
+          selectedCostumes: { ash: "classic", ...(this.saveData.selectedCostumes || {}), ...(parsed.selectedCostumes || {}) },
+          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, ...(this.saveData.unlockedCostumes || {}), ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
           lastSetup: parsed.lastSetup ? { ...parsed.lastSetup } : (this.saveData.lastSetup || null),
           lastSeenVersion: parsed.lastSeenVersion || "",
@@ -174,6 +176,13 @@ Object.assign(window.GameApp, {
         if (t.walkSheet) priorityUrls.add(t.walkSheet);
         if (t.sprites) Object.values(t.sprites).forEach(u => { if (u) priorityUrls.add(u); });
         if (t.cutin) priorityUrls.add(t.cutin);
+        if (Array.isArray(t.costumes)) {
+          t.costumes.forEach(c => {
+            if (c.sprite) priorityUrls.add(c.sprite);
+            if (c.walkSheet) priorityUrls.add(c.walkSheet);
+            if (c.cutin) priorityUrls.add(c.cutin);
+          });
+        }
       });
     }
     if (typeof POKEMON_DB !== "undefined") {
@@ -296,7 +305,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.1.4";
+        const ver = this.APP_VERSION || "v7.2.0-1A";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -407,18 +416,20 @@ Object.assign(window.GameApp, {
     const lTrImg = document.getElementById("lobbyTrainerPreview");
     const lPkImg = document.getElementById("lobbyPokemonPreview");
     if (lTrImg && t) {
-      const trHdUrl = t.cutin || t.sprite;
+      const trCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(t, this.saveData) : t;
+      const trHdUrl = trCos.cutin || trCos.sprite;
       lTrImg.onerror = () => {
         lTrImg.onerror = null;
-        lTrImg.src = t.sprite;
+        lTrImg.src = trCos.sprite || t.sprite;
         lTrImg.className = "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
       };
       lTrImg.src = SpriteCache.resolveUrl(trHdUrl);
-      lTrImg.className = t.cutin
+      lTrImg.className = trCos.cutin
         ? "w-full h-full object-cover object-top"
         : "w-12 h-12 sm:w-14 sm:h-14 pixel-sprite object-contain";
       const tNameEl = document.getElementById("lobbyTrainerName");
-      if (tNameEl) tNameEl.textContent = t.name;
+      const hasMultiCostumes = Array.isArray(t.costumes) && t.costumes.length > 1;
+      if (tNameEl) tNameEl.textContent = hasMultiCostumes ? `${t.name} ‧ ${trCos.badge}` : t.name;
     }
     if (lPkImg && p) {
       const fallbackPxUrl = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
@@ -537,7 +548,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.1.4";
+      const curVer = this.APP_VERSION || "v7.2.0-1A";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -595,7 +606,8 @@ Object.assign(window.GameApp, {
     const isUnlocked = !!(this.saveData && this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[p.id]);
     const isStep2 = (this.wizardStep === 2);
 
-    if (trImg) trImg.src = SpriteCache.resolveUrl(t.sprite);
+    const _barCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(t, this.saveData) : t;
+    if (trImg) trImg.src = SpriteCache.resolveUrl(_barCos.sprite || t.sprite);
     if (trName) trName.textContent = t.name.split(" ")[0];
     if (pkImg) {
       pkImg.src = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
@@ -762,21 +774,24 @@ Object.assign(window.GameApp, {
         `<span class="px-1.5 py-0.2 rounded bg-slate-100 border border-slate-300 text-[9px] font-black text-slate-700">${tag}</span>`
       ).join("");
       const accentColor = t.bondColor || "#F59E0B";
+      const activeCostume = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(t, this.saveData) : t;
+      const hasCostumes = unlocked && Array.isArray(t.costumes) && t.costumes.length > 1;
 
       return `
         <div onclick="GameApp.handleTrainerCardClick('${t.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between gap-2 ${selected ? 'selected' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''}">
           <div class="space-y-2">
-            <!-- 1. 高清動漫特寫橫幅 ＋ 右下角局內像素預覽 ＋ 身分標籤 -->
+            <!-- 1. 高清動漫特寫橫幅 ＋ 右上角時裝切換 ＋ 右下角局內像素預覽 -->
             <div class="relative h-24 sm:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border-2 border-slate-800 shadow-inner">
-              <img src="${t.cutin || t.sprite}" onerror="this.onerror=null;this.src='${t.sprite}';this.className='w-16 h-16 pixel-sprite object-contain mx-auto my-auto';" class="w-full h-full object-cover object-top ${!unlocked && t.isHiddenRed ? 'brightness-0 opacity-60' : ''}" alt="${t.name}" />
+              <img src="${activeCostume.cutin || activeCostume.sprite}" onerror="this.onerror=null;this.src='${activeCostume.sprite}';this.className='w-16 h-16 pixel-sprite object-contain mx-auto my-auto';" class="w-full h-full object-cover object-top ${!unlocked && t.isHiddenRed ? 'brightness-0 opacity-60' : ''}" alt="${t.name}" />
               <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/95 via-slate-950/45 to-transparent pointer-events-none"></div>
               ${selected ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full border border-white/80 shadow">✓ 出戰中</span>` : ''}
+              ${hasCostumes ? `<button type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume('${t.id}')" title="點擊切換局內走路服裝" class="absolute top-1.5 right-1.5 px-2 py-0.5 bg-slate-950/90 hover:bg-slate-800 text-amber-300 text-[9px] font-black rounded-full border border-amber-400/90 shadow-md flex items-center gap-1 active:scale-95 transition-transform"><span>👕</span><span>${activeCostume.badge}</span></button>` : ''}
               <div class="absolute bottom-1.5 left-2 right-12 min-w-0">
                 <div class="font-black text-xs sm:text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</div>
-                <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${t.title}</div>
+                <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${hasCostumes ? `${t.title} ‧ ${activeCostume.name}` : t.title}</div>
               </div>
               <div class="absolute bottom-1 right-1.5 w-10 h-10 rounded-xl bg-white/95 border-2 border-slate-900 flex items-center justify-center shadow-md" title="局內像素造型預覽">
-                <img src="${t.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-8 h-8 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="Pixel" />
+                <img src="${activeCostume.sprite}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-8 h-8 pixel-sprite object-contain ${!unlocked && t.isHiddenRed ? 'brightness-0' : ''}" alt="Pixel" />
               </div>
             </div>
             <div class="flex flex-wrap gap-1">${passiveHtml}</div>
@@ -1102,6 +1117,23 @@ Object.assign(window.GameApp, {
     this.renderWizardContent();
   },
 
+  cycleTrainerCostume(trainerId) {
+    const t = TRAINERS.find(x => x.id === trainerId);
+    if (!t || !Array.isArray(t.costumes) || t.costumes.length <= 1) return;
+    if (!this.saveData.selectedCostumes) this.saveData.selectedCostumes = {};
+    const curId = this.saveData.selectedCostumes[trainerId] || t.costumes[0].id;
+    const curIdx = Math.max(0, t.costumes.findIndex(c => c.id === curId));
+    const nextCos = t.costumes[(curIdx + 1) % t.costumes.length];
+    this.saveData.selectedCostumes[trainerId] = nextCos.id;
+    if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+    this.saveToStorage();
+    this.renderWizardContent();
+    this.updateTitleUI();
+    if (this.pixelToast) {
+      this.pixelToast(`👕 ${t.name.split(" ")[0]} 已切換為【${nextCos.name}】！`, "success");
+    }
+  },
+
   handleTrainerCardClick(trainerId) {
     const t = TRAINERS.find(x => x.id === trainerId);
     if (!t) return;
@@ -1192,6 +1224,8 @@ Object.assign(window.GameApp, {
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...(parsed.shinyUnlocked || { 25: true }) },
           megaUnlocked: { ...(parsed.megaUnlocked || {}) },
+          selectedCostumes: { ash: "classic", ...(parsed.selectedCostumes || {}) },
+          unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) }
         };
         this.selectedTrainer = TRAINERS[0];
@@ -1222,8 +1256,10 @@ Object.assign(window.GameApp, {
       pokedexRewardClaimed: {},
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
+      selectedCostumes: { ash: "classic" },
+      unlockedCostumes: { ash: { classic: true, cutin_tactical: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.1.4",
+      lastSeenVersion: this.APP_VERSION || "v7.2.0-1A",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2643,10 +2679,22 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("changelogContentBox");
     if (box) {
       box.innerHTML = `
-        <div class="bg-slate-950/90 border border-emerald-400/75 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(52,211,153,0.20)]">
+        <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-emerald-300">v7.1.4 Boss 衝鋒修復與動畫節奏精修版</span>
-            <span class="px-2 py-0.5 rounded-full bg-emerald-600/90 text-white font-pixel text-[8px]">LATEST</span>
+            <span class="font-black text-sm text-amber-300">v7.2.0 (Step 1A) 渲染層解耦與訓練家換裝首發</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">👕 訓練家時裝切換系統（首發小智雙造型）</div>
+            <div>• 選角頁 STEP 1 新增【👕 換裝】按鈕，支援小智自由切換「初代關都經典裝」與「Cut-in 熱血戰術裝」（全紅帽冠＋白帽簷＋黑框綠心徽＋紅白橫條 T 恤）。</div>
+            <div>• 切換後即時同步預覽頭像、局內 3×4 行走圖集、涉水／草叢遮罩與右下角戰術大招圓鈕。</div>
+            <div class="text-emerald-300 font-black pt-1">🧱 架構解耦第一階段（battle_renderer.js）</div>
+            <div>• 將超過 2,800 行的戰場 Canvas 繪圖、Y-Sorting 與過場演出從 battle_core_2.js 抽離為獨立 battle_renderer.js，為後續技能陣營化與 1vs1 鬥技場打好乾淨地基。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-emerald-400/50 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-emerald-300">v7.1.4 Boss 衝鋒修復與動畫節奏精修版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">🛠️ 關鍵修復</div>
@@ -2729,7 +2777,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.1.4";
+    const curVer = this.APP_VERSION || "v7.2.0-1A";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
