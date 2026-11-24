@@ -95,8 +95,18 @@ window.ModeArena = {
 
     const diffList = (typeof ARENA_DIFFICULTIES !== "undefined") ? ARENA_DIFFICULTIES : [];
     const arenaDiff = diffList.find(d => d.id === (app.selectedArenaDifficultyId || "standard")) || {
-      id: "standard", name: "標準試煉", hpMult: 2.2, atkMult: 1.0, cdMult: 0.85, armor: 0, dpsCapPct: 0.12, coinMult: 1.0
+      id: "standard", name: "標準試煉", hpMult: 2.2, atkMult: 1.15, bulletPct: 0.06, telegraphPct: 0.16, contactPct: 0.09, healEff: 0.85, cdMult: 0.85, armor: 0, dpsCapPct: 0.12, coinMult: 1.0
     };
+    app.arenaDiff = arenaDiff;
+    app.arenaHealEff = arenaDiff.healEff || 0.85;
+    app.arenaPowerups = [];
+    app.arenaPowerupTimer = 11.0;
+    p.arenaDashCd = 0;
+    p.arenaDashMaxCd = 3.2;
+    p.arenaDashInvulnTimer = 0;
+    p.arenaFuryTimer = 0;
+    p.arenaGaleTimer = 0;
+    p.arenaShieldTimer = 0;
 
     const bossCfg = (typeof ARENA_BOSSES !== "undefined"
       ? ARENA_BOSSES.find(b => b.id === app.selectedArenaBossId)
@@ -153,11 +163,90 @@ window.ModeArena = {
     );
   },
 
+  ARENA_POWERUP_TYPES: [
+    { id: "sitrus_berry",  name: "文柚果",   icon: "🍒", color: "#4ADE80", desc: "立即回復 18% HP ＆ 淨化異常！" },
+    { id: "fury_core",     name: "狂暴核心", icon: "⚡", color: "#EF4444", desc: "8秒內全招式傷害 +35%！" },
+    { id: "gale_feather",  name: "疾風羽毛", icon: "💨", color: "#38BDF8", desc: "重置閃避CD ‧ 6秒移速+25% ＆ 冷卻-20%！" },
+    { id: "mirror_shield", name: "折射護盾", icon: "🛡️", color: "#A855F7", desc: "展開 8秒能量護盾，完全抵擋下次重擊！" }
+  ],
+
+  ARENA_SPAWN_SPOTS: [
+    { x: -225, y: 0 },
+    { x:  225, y: 0 },
+    { x: 0,    y: -165 },
+    { x: 0,    y:  165 },
+    { x: -85,  y: -155 },
+    { x:  85,  y:  155 }
+  ],
+
   update(app, dt) {
-    // 鬥技場模式不刷小怪、不切隨機天氣，鏡頭柔和鎖定場地中央讓全場對決一覽無遺
-    if (app.player) {
-      app.camera.x = app.player.x * 0.42;
-      app.camera.y = app.player.y * 0.42;
+    const p = app.player;
+    if (!p) return;
+    // 鏡頭柔和鎖定場地中央讓全場對決一覽無遺
+    app.camera.x = p.x * 0.42;
+    app.camera.y = p.y * 0.42;
+
+    // 場地臨時戰術道具刷新與拾取（每 12~14 秒刷新 1 顆，存在 10 秒）
+    if (!app.arenaPowerups) app.arenaPowerups = [];
+    if (app.arenaPowerups.length === 0) {
+      app.arenaPowerupTimer = (app.arenaPowerupTimer !== undefined ? app.arenaPowerupTimer : 11.0) - dt;
+      if (app.arenaPowerupTimer <= 0) {
+        app.arenaPowerupTimer = 12.0 + Math.random() * 2.5;
+        // 挑選距離玩家較遠的 3 個開放點隨機生成，鼓勵玩家離開石柱搶資源
+        const sortedSpots = [...this.ARENA_SPAWN_SPOTS].sort((a, b) =>
+          Math.hypot(b.x - p.x, b.y - p.y) - Math.hypot(a.x - p.x, a.y - p.y)
+        );
+        const spot = sortedSpots[Math.floor(Math.random() * Math.min(3, sortedSpots.length))];
+        // 若玩家殘血 (<55%) 提高文柚果權重
+        const lowHp = (p.hp / p.maxHp) < 0.55;
+        const pool = lowHp
+          ? [this.ARENA_POWERUP_TYPES[0], this.ARENA_POWERUP_TYPES[0], this.ARENA_POWERUP_TYPES[1], this.ARENA_POWERUP_TYPES[2], this.ARENA_POWERUP_TYPES[3]]
+          : this.ARENA_POWERUP_TYPES;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        app.arenaPowerups.push({
+          ...pick,
+          x: spot.x,
+          y: spot.y,
+          life: 10.0,
+          maxLife: 10.0,
+          bob: 0
+        });
+        app.spawnParticleCluster(spot.x, spot.y, pick.color, "#FFFFFF", 14, "star", 0.9);
+        app.spawnFloatingText(spot.x, spot.y - 24, `${pick.icon} 場地補給：【${pick.name}】出現！`, pick.color, 13);
+        SoundFX.play("gem");
+      }
+    }
+
+    for (let i = app.arenaPowerups.length - 1; i >= 0; i--) {
+      const pu = app.arenaPowerups[i];
+      pu.life -= dt;
+      pu.bob += dt * 4.5;
+      if (Math.hypot(p.x - pu.x, p.y - pu.y) <= 34) {
+        app.arenaPowerups.splice(i, 1);
+        SoundFX.play("levelup");
+        app.spawnParticleCluster(p.x, p.y, pu.color, "#FEF08A", 20, "star", 1.15);
+        if (pu.id === "sitrus_berry") {
+          const healAmt = Math.round(p.maxHp * 0.18);
+          p.hp = Math.min(p.maxHp, p.hp + healAmt);
+          p.status = null;
+          p.statusTimer = 0;
+          app.spawnFloatingText(p.x, p.y - 32, `🍒 文柚果：+${healAmt} HP ＆ 淨化！`, "#4ADE80", 14);
+        } else if (pu.id === "fury_core") {
+          p.arenaFuryTimer = 8.0;
+          app.spawnFloatingText(p.x, p.y - 32, "⚡ 狂暴核心：8秒全傷 +35%！", "#EF4444", 14);
+        } else if (pu.id === "gale_feather") {
+          p.arenaDashCd = 0;
+          p.arenaGaleTimer = 6.0;
+          app.spawnFloatingText(p.x, p.y - 32, "💨 疾風羽毛：閃避重置 ‧ 疾速6s！", "#38BDF8", 14);
+        } else if (pu.id === "mirror_shield") {
+          p.arenaShieldTimer = 8.0;
+          app.spawnFloatingText(p.x, p.y - 32, "🛡️ 折射護盾：抵擋下次攻擊！", "#C084FC", 14);
+        }
+        continue;
+      }
+      if (pu.life <= 0) {
+        app.arenaPowerups.splice(i, 1);
+      }
     }
   },
 

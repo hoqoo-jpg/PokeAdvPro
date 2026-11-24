@@ -911,6 +911,47 @@ Object.assign(window.GameApp, {
     // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
     SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
 
+    // 1vs1 鬥技場臨時戰術道具渲染（光柱 ＋ 倒數環 ＋ 圖示標籤）
+    if (this.isArenaMode && this.arenaPowerups && this.arenaPowerups.length > 0) {
+      this.arenaPowerups.forEach(pu => {
+        const psx = toSx(pu.x), psy = toSy(pu.y);
+        const bobY = Math.sin(pu.bob || 0) * 4;
+        const pct = Math.max(0, Math.min(1, pu.life / (pu.maxLife || 10.0)));
+        ctx.save();
+        // 垂直淡光柱
+        const beamGrad = ctx.createLinearGradient(psx, psy, psx, psy - 64);
+        beamGrad.addColorStop(0, `${pu.color}55`);
+        beamGrad.addColorStop(1, `${pu.color}00`);
+        ctx.fillStyle = beamGrad;
+        ctx.fillRect(psx - 14, psy - 64, 28, 64);
+
+        // 地面倒數環
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.75)";
+        ctx.lineWidth = 4.5;
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 19, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = pu.color;
+        ctx.lineWidth = 3.0;
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 19, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct); ctx.stroke();
+
+        // 實心深底圓牌與圖示
+        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.font = "16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(pu.icon, psx, psy + bobY + 1);
+
+        // 下方名稱標籤
+        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 3;
+        ctx.strokeText(pu.name, psx, psy + 28);
+        ctx.fillStyle = pu.color;
+        ctx.fillText(pu.name, psx, psy + 28);
+        ctx.restore();
+      });
+    }
+
     // 繪製地面燃燒火焰（三層動態搖曳像素火簇 ＋ 超級噴火龍X 蒼藍冥炎聯動）
     const flameNow = performance.now() * 0.011;
     this.lavaFootprints.forEach(lf => {
@@ -1955,7 +1996,25 @@ Object.assign(window.GameApp, {
         });
       }
 
-      if (p.xAttackTimer > 0) {
+      if (p.arenaShieldTimer > 0) {
+        const shPct = Math.min(1, p.arenaShieldTimer / 8.0);
+        ctx.save();
+        ctx.fillStyle = "rgba(192, 132, 252, 0.14)";
+        ctx.strokeStyle = "#C084FC";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.arc(px, py, 32, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.strokeStyle = "#E0F2FE";
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        ctx.arc(px, py, 35, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * shPct);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (p.xAttackTimer > 0 || p.arenaFuryTimer > 0) {
         const auraNow = performance.now() * 0.008;
         const pulseR = 24 + Math.sin(auraNow * 2.2) * 3.5;
         ctx.save();

@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.1",
+  APP_VERSION: "v7.2.2",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -219,6 +219,10 @@ window.GameApp = {
         e.preventDefault();
         this.triggerManualMegaEvolution();
       }
+      if ((e.key === "Shift" || e.code === "ShiftLeft" || e.code === "ShiftRight") && this.state === "PLAYING" && this.isArenaMode) {
+        e.preventDefault();
+        this.triggerArenaDash();
+      }
       if ((k === "e" || k === "E") && this.state === "PLAYING") {
         const mart = this.mapItems.find(it => it.id === "poke_mart");
         if (mart && Math.hypot(this.player.x - mart.x, this.player.y - mart.y) < 75) {
@@ -240,6 +244,7 @@ window.GameApp = {
     const joyStick = document.getElementById("touchJoyStick");
     const skillBtn = document.getElementById("btnTrainerActiveSkill");
     const megaBtn = document.getElementById("btnManualMegaSkill");
+    const dashBtn = document.getElementById("btnArenaDashSkill");
 
     const martPrompt = document.getElementById("hudEnterMartPrompt");
     const onTouchStart = (e) => {
@@ -264,6 +269,13 @@ window.GameApp = {
           const mRect = megaBtn.getBoundingClientRect();
           if (t.clientX >= mRect.left - 12 && t.clientX <= mRect.right + 12 &&
               t.clientY >= mRect.top - 12 && t.clientY <= mRect.bottom + 12) {
+            continue;
+          }
+        }
+        if (dashBtn && dashBtn.offsetParent !== null) {
+          const dRect = dashBtn.getBoundingClientRect();
+          if (t.clientX >= dRect.left - 12 && t.clientX <= dRect.right + 12 &&
+              t.clientY >= dRect.top - 12 && t.clientY <= dRect.bottom + 12) {
             continue;
           }
         }
@@ -370,11 +382,18 @@ window.GameApp = {
         this.triggerManualMegaEvolution();
       }, { passive: false });
     }
+    if (dashBtn) {
+      dashBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.triggerArenaDash();
+      }, { passive: false });
+    }
 
     // 手機端多點觸控委派：確保左手按住虛擬搖桿時，右手點擊頂部功能按鈕能即刻執行
     const topHudBtns = document.querySelectorAll("#hudLayer .pointer-events-auto button");
     topHudBtns.forEach(btn => {
-      if (btn.id === "btnTrainerActiveSkill" || btn.id === "btnManualMegaSkill") return;
+      if (btn.id === "btnTrainerActiveSkill" || btn.id === "btnManualMegaSkill" || btn.id === "btnArenaDashSkill") return;
       btn.addEventListener("touchstart", (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1126,6 +1145,9 @@ window.GameApp = {
     // 初始化本局模式 ("standard" 8分鐘標準 | "endless" 無盡深淵 | "arena" 1vs1 鬥技場)
     this.isArenaMode = (this.selectedGameMode === "arena");
     this.isEndlessMode = (this.selectedGameMode === "endless");
+    this.arenaHealEff = 1.0;
+    this.arenaDiff = null;
+    this.arenaPowerups = [];
     this.activeMode = this.isArenaMode
       ? (typeof ModeArena !== "undefined" ? ModeArena : ModeSurvivor)
       : (typeof ModeSurvivor !== "undefined" ? ModeSurvivor : null);
@@ -1300,6 +1322,75 @@ window.GameApp = {
     const megaWrap = document.getElementById("btnManualMegaWrap");
     if (megaWrap) megaWrap.classList.add("hidden");
     this.startEvolutionMoment(targetId, false, null, true);
+  },
+
+  triggerArenaDash() {
+    if (this.state !== "PLAYING" || !this.player || !this.isArenaMode) return;
+    if (this.battleCountdownTimer > 0) return;
+    const p = this.player;
+    if ((p.arenaDashCd || 0) > 0) return;
+
+    let dx = p.inputActive ? p.inputX : 0;
+    let dy = p.inputActive ? p.inputY : 0;
+    if (Math.hypot(dx, dy) < 0.05) {
+      dx = p.facingX || 0;
+      dy = p.facingY || 0;
+      if (Math.hypot(dx, dy) < 0.05) { dx = 1; dy = 0; }
+    }
+    const len = Math.hypot(dx, dy) || 1;
+    dx /= len; dy /= len;
+
+    p.dashTimer = 0.18;
+    p.dashVx = dx * 690;
+    p.dashVy = dy * 690;
+    p.arenaDashInvulnTimer = 0.25;
+    p.arenaDashPerfectUsed = false;
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.25);
+    p.arenaDashMaxCd = 3.2;
+    p.arenaDashCd = 3.2;
+
+    this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#E0F2FE", 12, "circle", 0.9);
+    SoundFX.play("hit", "Flying");
+    this.refreshHUD();
+  },
+
+  tryArenaPerfectDodge() {
+    const p = this.player;
+    if (!this.isArenaMode || !p) return false;
+    if ((p.arenaDashInvulnTimer || 0) > 0) {
+      if (!p.arenaDashPerfectUsed) {
+        p.arenaDashPerfectUsed = true;
+        p.arenaDashCd = Math.max(0, (p.arenaDashCd || 0) - 1.0);
+        this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FEF08A", 16, "star", 1.15);
+        this.spawnFloatingText(p.x, p.y - 34, "⚡ 完美閃避！CD -1s", "#38BDF8", 14);
+        SoundFX.play("shiny");
+      }
+      return true;
+    }
+    return false;
+  },
+
+  tryConsumeArenaShield() {
+    const p = this.player;
+    if (!this.isArenaMode || !p || (p.arenaShieldTimer || 0) <= 0) return false;
+    p.arenaShieldTimer = 0;
+    p.invulnTimer = Math.max(p.invulnTimer || 0, 0.55);
+    this.spawnParticleCluster(p.x, p.y, "#C084FC", "#E0F2FE", 18, "star", 1.1);
+    this.spawnFloatingText(p.x, p.y - 32, "🛡️ 折射護盾抵擋！", "#C084FC", 14);
+    SoundFX.play("super");
+    return true;
+  },
+
+  getArenaAdjustedIncomingDmg(normalDmg, kind = "bullet") {
+    const p = this.player;
+    if (!this.isArenaMode || !p || !this.arenaDiff) return normalDmg;
+    const d = this.arenaDiff;
+    const pct = kind === "telegraph"
+      ? (d.telegraphPct || 0.16)
+      : (kind === "contact" ? (d.contactPct || 0.09) : (d.bulletPct || 0.06));
+    const activeShieldMod = (p.shieldTimer > 0 ? 0.55 : 1.0);
+    const threatFloor = Math.round(p.maxHp * pct * activeShieldMod);
+    return Math.max(normalDmg, threatFloor);
   },
 
   triggerTrainerActiveSkill() {
@@ -1561,7 +1652,8 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 68, "🔥 王牌號令・全傷+45%！", "#EF4444", 15);
     }
 
-    const healAmt = Math.round(p.maxHp * healPct);
+    const arenaHealMod = this.isArenaMode ? (this.arenaHealEff || 0.85) : 1.0;
+    const healAmt = Math.round(p.maxHp * healPct * arenaHealMod);
     p.hp = Math.min(p.maxHp, p.hp + healAmt);
     this.spawnFloatingText(p.x + 28, p.y - 14, `+${healAmt} HP`, "#10B981", 13);
 
@@ -1708,7 +1800,14 @@ window.GameApp = {
     }
     const p = this.player;
 
-    const bossHealMod = (this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0;
+    if (p.arenaDashCd > 0) p.arenaDashCd = Math.max(0, p.arenaDashCd - dt);
+    if (p.arenaDashInvulnTimer > 0) p.arenaDashInvulnTimer = Math.max(0, p.arenaDashInvulnTimer - dt);
+    if (p.arenaFuryTimer > 0) p.arenaFuryTimer = Math.max(0, p.arenaFuryTimer - dt);
+    if (p.arenaGaleTimer > 0) p.arenaGaleTimer = Math.max(0, p.arenaGaleTimer - dt);
+    if (p.arenaShieldTimer > 0) p.arenaShieldTimer = Math.max(0, p.arenaShieldTimer - dt);
+
+    const arenaHealEff = this.isArenaMode ? (this.arenaHealEff || 0.85) : 1.0;
+    const bossHealMod = ((this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0) * arenaHealEff;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
     // 閃光精靈出戰專屬：每 2.2 秒於身周輕閃淡金四芒星，突顯正版官方色違質感
     if (p.isShiny) {
@@ -2161,7 +2260,8 @@ window.GameApp = {
       ? 1.0
       : ((p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult);
     const quickStepMod = (p.quickStepTimer > 0) ? 1.15 : 1.0;
-    const rawMoveSpd = (112 + p.baseSpeed * 0.72) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod;
+    const arenaGaleSpdMod = (p.arenaGaleTimer > 0) ? 1.25 : 1.0;
+    const rawMoveSpd = (112 + p.baseSpeed * 0.72) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod * arenaGaleSpdMod;
     // 主角速度軟上限 185 px/s，拉高坦型精靈底盤同時保留快慢手感差異
     const moveSpd = Math.min(185, rawMoveSpd);
 
@@ -2402,7 +2502,8 @@ window.GameApp = {
     const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
     const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
     const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
-    const cdFactor = Math.max(0.55, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod);
+    const arenaGaleCdMod = (p.arenaGaleTimer > 0) ? 0.80 : 1.0;
+    const cdFactor = Math.max(0.52, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod * arenaGaleCdMod);
     p.castStaggerTimer = Math.max(0, (p.castStaggerTimer || 0) - dt);
     p.superMoveIcdTimer = Math.max(0, (p.superMoveIcdTimer || 0) - dt);
 
@@ -2959,6 +3060,61 @@ window.GameApp = {
       let vx = (dx / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
       let vy = (dy / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
 
+      // 1vs1 鬥技場神獸專屬戰術 AI（維持交戰距離、智能繞柱找射界、夢幻對角瞬移、招後 0.55s 硬直窗口）
+      if (this.isArenaMode && e.isBoss) {
+        if (e.arenaRecoveryTimer > 0) {
+          e.arenaRecoveryTimer = Math.max(0, e.arenaRecoveryTimer - dt);
+        }
+        e.arenaStrafeTimer = (e.arenaStrafeTimer || 2.2) - dt;
+        if (e.arenaStrafeTimer <= 0) {
+          e.arenaStrafeTimer = 2.0 + Math.random() * 1.4;
+          e.arenaStrafeSign = (e.arenaStrafeSign || 1) * -1;
+        }
+        const sSign = e.arenaStrafeSign || 1;
+        const ux = dx / dist, uy = dy / dist;
+        const pxVec = -uy * sSign, pyVec = ux * sSign;
+        const isRangedKiter = (e.id === 144 || e.id === 150);
+        const idealMin = isRangedKiter ? 175 : 125;
+        const idealMax = isRangedKiter ? 235 : 190;
+        const losBlocked = (typeof MapEngine !== "undefined" && MapEngine.isArenaLosBlocked)
+          ? MapEngine.isArenaLosBlocked(e.x, e.y, p.x, p.y, 16)
+          : false;
+
+        let dirX = 0, dirY = 0;
+        if (losBlocked) {
+          // 視線被石柱擋住時：強橫移繞柱並微幅調整距離
+          dirX = pxVec * 0.92 + ux * 0.25;
+          dirY = pyVec * 0.92 + uy * 0.25;
+        } else if (dist > idealMax) {
+          dirX = ux * 0.82 + pxVec * 0.45;
+          dirY = uy * 0.82 + pyVec * 0.45;
+        } else if (dist < idealMin) {
+          // 過近時向後滑步拉開身距並橫移（避免像殭屍硬蹭貼臉）
+          const nearWall = Math.abs(e.x) > (MapEngine.arenaHalfW - 65) || Math.abs(e.y) > (MapEngine.arenaHalfH - 65);
+          dirX = nearWall ? (pxVec * 0.95) : (-ux * 0.65 + pxVec * 0.72);
+          dirY = nearWall ? (pyVec * 0.95) : (-uy * 0.65 + pyVec * 0.72);
+        } else {
+          dirX = pxVec;
+          dirY = pyVec;
+        }
+        const dLen = Math.hypot(dirX, dirY) || 1;
+        const recMod = (e.arenaRecoveryTimer > 0) ? 0.25 : 1.0;
+        const spdNow = effectiveSpd * paraMult * eTerrMult * recMod;
+        vx = (dirX / dLen) * spdNow;
+        vy = (dirY / dLen) * spdNow;
+
+        // 始祖夢幻 (#151) 專屬幻影游擊 AI：每 2 輪出招瞬移至競技場對角
+        if (e.id === 151 && (e.bossCycleStep || 0) > 0 && (e.bossCycleStep % 2 === 0) && e._lastTeleportStep !== e.bossCycleStep) {
+          e._lastTeleportStep = e.bossCycleStep;
+          this.spawnParticleCluster(e.x, e.y, "#F472B6", "#FEF08A", 18, "star", 1.1);
+          e.x = p.x >= 0 ? -205 : 205;
+          e.y = p.y >= 0 ? -145 : 145;
+          this.spawnParticleCluster(e.x, e.y, "#F472B6", "#FFFFFF", 20, "star", 1.2);
+          this.spawnFloatingText(e.x, e.y - 36, "✨ 夢幻瞬移！", "#F472B6", 13);
+          SoundFX.play("shiny");
+        }
+      }
+
       if (e.treasureType) {
         // 盜寶哥布林 AI：見面 (220px 內) 或受傷後才受驚逃跑；未受驚前在視野邊緣附近切線徘徊，絕不剛出生就逃到百米外！
         if (!e.fleeTriggered && (dist <= 220 || e.hp < e.maxHp)) {
@@ -3287,6 +3443,7 @@ window.GameApp = {
       const hitTrainer = tc && !(p.lungeTimer > 0) && (distToTrainer < e.radius + 5);
 
       if (!e.treasureType && (hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        if (this.tryConsumeArenaShield()) continue;
         if (p.multiscaleReady) {
           this.triggerRoyalShieldBurst(false);
           continue;
@@ -3308,7 +3465,8 @@ window.GameApp = {
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const shieldMult = (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult;
         const burnMod = (e.status === "Burn" ? 0.72 : 1.0) * (e.weakenTimer > 0 ? 0.65 : 1.0);
-        const dmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
+        const rawContactDmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
+        const dmg = this.getArenaAdjustedIncomingDmg(rawContactDmg, "contact");
         p.hp -= dmg;
 
         const hasMelee = Object.values(p.skills).some(s => SKILLS_CATALOG[s.id] && SKILLS_CATALOG[s.id].isMelee);
@@ -3630,6 +3788,9 @@ window.GameApp = {
       if (t >= 1) {
         if (!ds.impactDone) {
           ds.impactDone = true;
+          if (this.isArenaMode && ds.owner && ds.owner.isBoss) {
+            ds.owner.arenaRecoveryTimer = 0.55;
+          }
           const exKind = ds.explosionKind || "fire_rock";
           this.enemyExplosions.push({
             kind: exKind,
@@ -3718,7 +3879,17 @@ window.GameApp = {
           if (d <= tg.radius) hitPlayer = true;
         }
 
-        if (hitPlayer && p.invulnTimer <= 0 && !this.debugGodMode) {
+        if (this.isArenaMode && tg.owner && tg.owner.isBoss && tg.shape !== "line") {
+          tg.owner.arenaRecoveryTimer = Math.max(tg.owner.arenaRecoveryTimer || 0, 0.55);
+        }
+
+        if (hitPlayer && this.tryArenaPerfectDodge()) {
+          // 完美閃避成功，略過傷害並保留特效
+        } else if (hitPlayer && p.invulnTimer <= 0 && !this.debugGodMode) {
+          if (this.tryConsumeArenaShield()) {
+            this.telegraphs.splice(i, 1);
+            continue;
+          }
           if (p.heldItems && p.heldItems["soft_sand"] && Math.random() < 0.25) {
             p.invulnTimer = 0.45;
             this.spawnParticleCluster(p.x, p.y, "#D97706", "#FDE68A", 16, "circle", 0.9);
@@ -3731,7 +3902,8 @@ window.GameApp = {
           const armorMult = (1 - (p.finalEvoArmor || 0)) * starDrMult;
           const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
           const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
-          const dmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult));
+          const rawTgDmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult));
+          const dmg = this.getArenaAdjustedIncomingDmg(rawTgDmg, "telegraph");
           p.hp -= dmg;
           p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
@@ -3809,13 +3981,30 @@ window.GameApp = {
       ep.rot += dt * 3.0;
       ep.life -= dt;
 
+      if (this.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.hitArenaPillar) {
+        if (MapEngine.hitArenaPillar(ep.x, ep.y, Math.min(8, (ep.radius || 8) * 0.5))) {
+          this.spawnParticleCluster(ep.x, ep.y, "#CBD5E1", ep.color || "#FACC15", 6, "circle", 0.7);
+          this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
+          this.enemyProjectiles.pop();
+          continue;
+        }
+      }
+
       // 檢查是否擊中主角精靈或隨行訓練家
       const distToPoke = Math.hypot(p.x - ep.x, p.y - ep.y);
       const distToTrainer = tc ? Math.hypot(tc.x - ep.x, tc.y - ep.y) : 999;
       const hitPoke = distToPoke < ep.radius + 14;
       const hitTrainer = tc && !(p.lungeTimer > 0) && (distToTrainer < ep.radius + 5);
 
+      if ((hitPoke || hitTrainer) && this.tryArenaPerfectDodge()) {
+        continue;
+      }
+
       if ((hitPoke || hitTrainer) && p.invulnTimer <= 0) {
+        if (this.tryConsumeArenaShield()) {
+          this.enemyProjectiles.splice(i, 1);
+          continue;
+        }
         if (p.multiscaleReady) {
           this.triggerRoyalShieldBurst(false);
           this.enemyProjectiles.splice(i, 1);
@@ -3835,7 +4024,8 @@ window.GameApp = {
         const dragonScaleMult = (p.heldItems && p.heldItems["dragon_scale"]) ? 0.85 : 1.0;
         const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
         const shieldMult = (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult;
-        const dmg = Math.max(1, Math.round(ep.dmg * shieldMult));
+        const rawProjDmg = Math.max(1, Math.round(ep.dmg * shieldMult));
+        const dmg = this.getArenaAdjustedIncomingDmg(rawProjDmg, "bullet");
         p.hp -= dmg;
         p.invulnTimer = 0.55 + scarfBonus; // 賦予無敵硬直時間（含絲綢圍巾加成）
 
@@ -4024,7 +4214,7 @@ window.GameApp = {
       if (heldTypeMap[moveType] && hi[heldTypeMap[moveType]]) heldBonus = 0.20;
     }
 
-    const xAtkBonus = this.player.xAttackTimer > 0 ? 0.35 : 0;
+    const xAtkBonus = (this.player.xAttackTimer > 0 ? 0.35 : 0) + (this.player.arenaFuryTimer > 0 ? 0.35 : 0);
     const dragonMawBonus = (enemy.status === "Burn" && pTrait.dragonMawBurnAmp) ? pTrait.dragonMawBurnAmp : 0;
     const envAddMult = Math.max(0.5, 1.0 + stageBonus + weatherBonus + heldBonus + xAtkBonus + dragonMawBonus);
 
@@ -5769,6 +5959,29 @@ window.GameApp = {
       } else {
         btnEl.className = "tactical-btn-ready relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
         cdOverlay.className = "hidden absolute inset-0";
+      }
+    }
+
+    const dashWrap = document.getElementById("btnArenaDashWrap");
+    if (dashWrap) {
+      dashWrap.classList.toggle("hidden", !this.isArenaMode);
+      if (this.isArenaMode) {
+        const dashRem = Math.max(0, p.arenaDashCd || 0);
+        const dashKey = dashRem > 0 ? `cd_${dashRem.toFixed(1)}` : "ready";
+        if (this._lastArenaDashHudKey !== dashKey) {
+          this._lastArenaDashHudKey = dashKey;
+          const dBtn = document.getElementById("btnArenaDashSkill");
+          const dOv = document.getElementById("arenaDashCdOverlay");
+          const dTxt = document.getElementById("arenaDashCdText");
+          if (dashRem > 0) {
+            if (dBtn) dBtn.className = "relative w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-slate-800 border-[3px] border-slate-600 flex items-center justify-center overflow-hidden opacity-85 shadow-xl";
+            if (dOv) dOv.classList.remove("hidden");
+            if (dTxt) dTxt.textContent = `${dashRem.toFixed(1)}s`;
+          } else {
+            if (dBtn) dBtn.className = "relative w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-gradient-to-br from-sky-400 via-cyan-500 to-blue-600 border-[3px] border-white flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-[0_0_16px_rgba(56,189,248,0.8)]";
+            if (dOv) dOv.classList.add("hidden");
+          }
+        }
       }
     }
 

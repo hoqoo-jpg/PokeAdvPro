@@ -2187,6 +2187,22 @@ const SkillsEngine = {
         pr.x += pr.vx * dt;
         pr.y += pr.vy * dt;
       }
+      if (GameApp.isArenaMode && typeof MapEngine !== "undefined" && MapEngine.hitArenaPillar) {
+        const ignoresPillar = (
+          pr.vfx === "shadow_orb" ||
+          pr.vfx === "psychic_lance" ||
+          pr.vfx === "seed_nut" ||
+          pr.vfx === "moon_blast" ||
+          pr.isArc ||
+          pr.isSuper
+        );
+        if (!ignoresPillar && MapEngine.hitArenaPillar(pr.x, pr.y, Math.min(8, (pr.radius || 8) * 0.45))) {
+          GameApp.spawnParticleCluster(pr.x, pr.y, "#94A3B8", "#E2E8F0", 5, "circle", 0.65);
+          this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
+          this.projectiles.pop();
+          continue;
+        }
+      }
       pr.life -= dt;
       if (pr.spawnGraceTimer > 0) pr.spawnGraceTimer -= dt;
 

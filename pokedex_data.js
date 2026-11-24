@@ -2581,35 +2581,47 @@ const ARENA_DIFFICULTIES = [
     name: "標準試煉",
     badge: "標準 1.0x",
     hpMult: 2.2,
-    atkMult: 1.0,
+    atkMult: 1.15,
+    bulletPct: 0.06,
+    telegraphPct: 0.16,
+    contactPct: 0.09,
+    healEff: 0.85,
     cdMult: 0.85,
     armor: 0.0,
     dpsCapPct: 0.12,
     coinMult: 1.0,
-    desc: "神獸血量 2.2x ‧ 出招節奏 +15%，體驗 40 秒單挑節奏"
+    desc: "血量 2.2x ‧ 紅圈重擊 ~16% 血 ‧ 回復 85%，體驗動作對決"
   },
   {
     id: "master",
     name: "大師宿敵",
     badge: "進階 1.6x",
     hpMult: 3.6,
-    atkMult: 1.25,
+    atkMult: 1.40,
+    bulletPct: 0.09,
+    telegraphPct: 0.23,
+    contactPct: 0.13,
+    healEff: 0.60,
     cdMult: 0.75,
     armor: 0.12,
     dpsCapPct: 0.10,
     coinMult: 1.6,
-    desc: "神獸血量 3.6x ‧ 12% 減傷護甲 ‧ 高頻彈幕，考驗石柱拉扯"
+    desc: "血量 3.6x ‧ 紅圈 ~23% 血 ‧ 回復壓至 60%，善用石柱與閃避"
   },
   {
     id: "champion",
     name: "冠軍極限",
     badge: "極限 2.5x",
     hpMult: 5.2,
-    atkMult: 1.45,
+    atkMult: 1.70,
+    bulletPct: 0.125,
+    telegraphPct: 0.31,
+    contactPct: 0.17,
+    healEff: 0.35,
     cdMult: 0.68,
     armor: 0.20,
     dpsCapPct: 0.08,
     coinMult: 2.5,
-    desc: "神獸血量 5.2x ‧ 20% 護甲 ‧ 8%/s 秒傷盾，開局即高壓對決"
+    desc: "血量 5.2x ‧ 紅圈 ~31% 血 ‧ 回復壓至 35% ‧ 搶奪場地道具求生！"
   }
 ];

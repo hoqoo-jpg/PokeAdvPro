@@ -69,6 +69,29 @@ const MapEngine = {
   setArenaMode(enabled) {
     this.isArenaMode = !!enabled;
   },
+
+  hitArenaPillar(x, y, radius = 0) {
+    if (!this.isArenaMode) return null;
+    for (let i = 0; i < this.arenaPillars.length; i++) {
+      const pl = this.arenaPillars[i];
+      if (x + radius >= pl.x && x - radius <= pl.x + pl.w &&
+          y + radius >= pl.y && y - radius <= pl.y + pl.h) {
+        return pl;
+      }
+    }
+    return null;
+  },
+
+  isArenaLosBlocked(x1, y1, x2, y2, pad = 12) {
+    if (!this.isArenaMode) return false;
+    for (let s = 1; s <= 5; s++) {
+      const t = s / 6;
+      const sx = x1 + (x2 - x1) * t;
+      const sy = y1 + (y2 - y1) * t;
+      if (this.hitArenaPillar(sx, sy, pad)) return true;
+    }
+    return false;
+  },
   chunkCache: new Map(),
   tileCache: new Map(),
 

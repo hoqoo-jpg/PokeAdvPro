@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.1";
+        const ver = this.APP_VERSION || "v7.2.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.1";
+      const curVer = this.APP_VERSION || "v7.2.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1288,7 +1288,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.1",
+      lastSeenVersion: this.APP_VERSION || "v7.2.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2838,8 +2838,21 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.1 1vs1 鬥技場三段難度、鏡頭聚焦與防穿牆修復版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.2 1vs1 鬥技場真動作對決重製版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 動作化五大核心升級</div>
+            <div>• <strong>高難度威脅與回血壓制</strong>：加入百分比威脅保底（冠軍極限紅圈重擊 ~31% 血、回血壓至 35%），徹底告別站樁硬扛！</div>
+            <div>• <strong>四石柱實體擋彈分層</strong>：敵我直線彈幕撞柱爆裂；暗影球／精神擊破／種子炸彈／地震／月光柱與 Boss 紅圈可越柱突襲。</div>
+            <div>• <strong>專屬閃避衝刺鍵 [Shift]</strong>：0.18s 高速衝刺 ＋ 0.25s 無敵幀（3.2s CD），極限擦彈觸發【⚡ 完美閃避 CD -1s】！</div>
+            <div>• <strong>場地戰術補給爭奪</strong>：每 12~14 秒刷新文柚果／狂暴核心／疾風羽毛／折射護盾，創造走位搶點博弈。</div>
+            <div>• <strong>五神獸專屬走位 AI</strong>：智能繞柱找射界、遠程拉扯、始祖夢幻每 2 輪對角瞬移，並加入招後 0.55s 反打硬直窗口！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.1 1vs1 鬥技場三段難度、鏡頭聚焦與防穿牆修復版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 鬥技場三段難度 ＆ 黃金單挑節奏</div>
@@ -2949,7 +2962,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.1";
+    const curVer = this.APP_VERSION || "v7.2.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
