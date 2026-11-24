@@ -135,7 +135,7 @@ Object.assign(window.GameApp, {
       const df = DIFFICULTIES.find(d => d.id === ls.difficultyId);
       if (df) this.selectedDifficulty = df;
     }
-    if (ls.gameMode === "standard" || ls.gameMode === "endless" || ls.gameMode === "arena") {
+    if (ls.gameMode === "standard" || ls.gameMode === "endless" || ls.gameMode === "arena" || ls.gameMode === "expedition") {
       this.selectedGameMode = ls.gameMode;
     }
     if (ls.arenaBossId) this.selectedArenaBossId = ls.arenaBossId;
@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.6";
+        const ver = this.APP_VERSION || "v7.2.7";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.6";
+      const curVer = this.APP_VERSION || "v7.2.7";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
   },
@@ -1038,25 +1038,33 @@ Object.assign(window.GameApp, {
       const arenaClearedCount = (typeof ARENA_BOSSES !== "undefined")
         ? ARENA_BOSSES.filter(b => arenaTimes[b.id] !== undefined).length
         : 0;
+      const expClears = (this.saveData && this.saveData.stats && this.saveData.stats.expeditionClears) || 0;
       const modes = [
         {
           id: "standard",
-          name: "⏱️ 8分鐘標準",
+          name: "8分鐘標準",
           badge: "經典",
           badgeCls: "bg-blue-100 text-blue-800",
           desc: "5:00 三聖鳥、7:30 超夢與夢幻，擊破登冠！"
         },
         {
+          id: "expedition",
+          name: "關都大遠征 (RPG 10波)",
+          badge: "NEW",
+          badgeCls: "bg-emerald-600 text-white",
+          desc: `四區域串連 10 波推進 ＋ 波間整備商店（通關 ${expClears} 次）`
+        },
+        {
           id: "endless",
-          name: "♾️ 無盡深淵",
+          name: "無盡深淵",
           badge: "1.25x金",
           badgeCls: "bg-purple-100 text-purple-800",
           desc: `8:00 後無限雙神波次（${bestM}:${bestS} / ${bestKills}斬）`
         },
         {
           id: "arena",
-          name: "⚔️ 1vs1 鬥技場",
-          badge: "NEW",
+          name: "1vs1 鬥技場",
+          badge: "單挑",
           badgeCls: "bg-rose-600 text-white",
           desc: `Lv.25 固定數值單挑 5 大神獸（已制霸 ${arenaClearedCount}/5）`
         }
@@ -1123,14 +1131,23 @@ Object.assign(window.GameApp, {
       }).join("");
     }
     const isArena = (this.selectedGameMode === "arena");
-    ["stageSectionWrap", "difficultySectionWrap", "loadoutSectionWrap"].forEach(secId => {
-      const el = document.getElementById(secId);
-      if (el) el.classList.toggle("hidden", isArena);
-    });
+    const isExpedition = (this.selectedGameMode === "expedition");
+    const stageEl = document.getElementById("stageSectionWrap");
+    if (stageEl) stageEl.classList.toggle("hidden", isArena || isExpedition);
+    const diffEl = document.getElementById("difficultySectionWrap");
+    if (diffEl) diffEl.classList.toggle("hidden", isArena);
+    const loadEl = document.getElementById("loadoutSectionWrap");
+    if (loadEl) loadEl.classList.toggle("hidden", isArena);
+
     const arenaPanel = document.getElementById("arenaConfigPanel");
     if (arenaPanel) {
       arenaPanel.classList.toggle("hidden", !isArena);
       if (isArena) this.renderArenaConfigPanel();
+    }
+    const expPreviewPanel = document.getElementById("expeditionPreviewPanel");
+    if (expPreviewPanel) {
+      expPreviewPanel.classList.toggle("hidden", !isExpedition);
+      if (isExpedition) this.renderExpeditionSetupPreview();
     }
 
     this.updateWizardNextButtonText();
@@ -1290,7 +1307,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.6",
+      lastSeenVersion: this.APP_VERSION || "v7.2.7",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1472,6 +1489,48 @@ Object.assign(window.GameApp, {
     this.renderWizardContent();
   },
 
+  renderExpeditionSetupPreview() {
+    const cpBox = document.getElementById("expeditionCheckpointBanner");
+    const cp = this.saveData && this.saveData.expeditionCheckpoint;
+    if (cpBox) {
+      if (cp && cp.nextWave >= 2 && cp.nextWave <= 10) {
+        const pk = POKEMON_MAP.get(cp.player ? cp.player.id : cp.starterId) || POKEMON_MAP.get(25);
+        cpBox.classList.remove("hidden");
+        cpBox.innerHTML = `
+          <div class="flex items-center justify-between gap-2 bg-slate-900 text-white p-2.5 rounded-xl border-2 border-amber-400">
+            <div class="flex items-center gap-2 min-w-0">
+              <img src="${SpriteCache.resolveUrl(pk.forward_sprite)}" class="w-9 h-9 pixel-sprite bg-slate-800 rounded-lg border border-slate-600 p-0.5 shrink-0"/>
+              <div class="min-w-0">
+                <div class="font-pixel text-[9px] text-amber-300">AUTO-SAVE CHECKPOINT</div>
+                <div class="font-black text-xs text-white truncate">上次進度：第 ${cp.nextWave}/10 波（${pk.name_zh} Lv.${cp.player ? cp.player.level : 1}）</div>
+              </div>
+            </div>
+            <button onclick="GameApp.resumeSavedExpedition()" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0">繼續遠征</button>
+          </div>
+        `;
+      } else {
+        cpBox.classList.add("hidden");
+      }
+    }
+  },
+
+  resumeSavedExpedition() {
+    const cp = this.saveData && this.saveData.expeditionCheckpoint;
+    if (!cp) return;
+    if (cp.trainerId) {
+      const tr = TRAINERS.find(t => t.id === cp.trainerId);
+      if (tr) this.selectedTrainer = tr;
+    }
+    if (cp.starterId) this.selectedStarterId = cp.starterId;
+    if (cp.difficultyId) {
+      const df = DIFFICULTIES.find(d => d.id === cp.difficultyId);
+      if (df) this.selectedDifficulty = df;
+    }
+    this.selectedGameMode = "expedition";
+    this._resumeExpeditionCheckpoint = cp;
+    this.startGameRunWithTransition();
+  },
+
   selectArenaDifficulty(diffId) {
     this.selectedArenaDifficultyId = diffId;
     this.saveLastSetup();
@@ -1615,7 +1674,11 @@ Object.assign(window.GameApp, {
       return;
     }
     if (this.selectedGameMode === "arena") {
-      btn.textContent = "⚔️ 進入石英大會 1vs1 鬥技場 →";
+      btn.textContent = "進入石英大會 1vs1 鬥技場 →";
+      return;
+    }
+    if (this.selectedGameMode === "expedition") {
+      btn.textContent = "展開關都大遠征 (10波 RPG) →";
       return;
     }
     const totalCost = this.getSelectedLoadoutsTotalCost();
@@ -2494,9 +2557,11 @@ Object.assign(window.GameApp, {
       fpsEl.className = `font-pixel text-[9px] sm:text-[10px] whitespace-nowrap text-right ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
     }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
-    const modeTag = this.isArenaMode
-      ? ` [⚔️1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
-      : (this.isEndlessMode ? " [♾️無盡試煉]" : "");
+    const modeTag = this.isExpeditionMode
+      ? ` [關都大遠征 W${(this.expeditionState && this.expeditionState.currentWave) || 1}/10]`
+      : (this.isArenaMode
+          ? ` [1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
+          : (this.isEndlessMode ? " [無盡試煉]" : ""));
     document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})${modeTag}`;
     document.getElementById("endStatKills").textContent = this.kills;
     document.getElementById("endStatCoins").textContent = `+${this.runCoins}`;
@@ -2842,8 +2907,21 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.6 五大究極超武視覺重製升級版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.7 關都大遠征（RPG 10波串連地圖）＆ 超武精修版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">全新旗艦模式：關都大遠征（RPG 10 波串連地圖）</div>
+            <div>• <strong>四幕串連冒險</strong>：真新鎮常磐密林（W1-3）➔ 華藍海岬木棧道（W4-6）➔ 石英高原古神殿（W7-9）➔ 石英大會石柱鬥技場（W10 王者超夢決戰）！</div>
+            <div>• <strong>GBA 像素路線圖 ＆ 整備商店</strong>：採全像素繪製關都路線進度圖與下波敵情預告，波間自動推薦克制下波屬性的 TM 與適配攜帶物，並支援每波自動斷點續關。</div>
+            <div class="text-amber-300 font-black pt-1">兩大超武視覺精修</div>
+            <div>• <strong>終極衝擊（一般）</strong>：升級為「4 支斜角高速旋轉黃金螺旋錐 ＋ 上下左右 4 向動能月牙衝擊波」，形成真正的八方無死角破陣！</div>
+            <div>• <strong>地裂斷層破（地面）</strong>：精簡岩柱至 5 根外圈錯落大岩柱並加厚熔岩熾橘內焰，徹底消除水面蜘蛛網感。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.6 五大究極超武視覺重製升級版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-sky-300 font-black pt-0.5">🐉 天龍流星雨全面重製（深紫 ＋ 蒼藍星焰）</div>
@@ -3016,7 +3094,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.6";
+    const curVer = this.APP_VERSION || "v7.2.7";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -3154,7 +3232,7 @@ Object.assign(window.GameApp, {
       SpriteCache.clearVolatileCaches();
     }
     SoundFX.startBgm("lobby");
-    ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "cutInLayer", "setupModal"].forEach(mId => {
+    ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "expeditionModal", "cutInLayer", "setupModal"].forEach(mId => {
       const el = document.getElementById(mId);
       if (el) {
         el.classList.add("hidden");

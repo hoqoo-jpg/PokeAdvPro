@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.6",
+  APP_VERSION: "v7.2.7",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1145,15 +1145,18 @@ window.GameApp = {
       this.summonOrUpgradePartner();
     }
 
-    // 初始化本局模式 ("standard" 8分鐘標準 | "endless" 無盡深淵 | "arena" 1vs1 鬥技場)
+    // 初始化本局模式 ("standard" 8分鐘標準 | "endless" 無盡深淵 | "arena" 1vs1 鬥技場 | "expedition" 10波RPG大遠征)
     this.isArenaMode = (this.selectedGameMode === "arena");
     this.isEndlessMode = (this.selectedGameMode === "endless");
+    this.isExpeditionMode = (this.selectedGameMode === "expedition");
     this.arenaHealEff = 1.0;
     this.arenaDiff = null;
     this.arenaPowerups = [];
-    this.activeMode = this.isArenaMode
-      ? (typeof ModeArena !== "undefined" ? ModeArena : ModeSurvivor)
-      : (typeof ModeSurvivor !== "undefined" ? ModeSurvivor : null);
+    this.activeMode = this.isExpeditionMode
+      ? (typeof ModeExpedition !== "undefined" ? ModeExpedition : ModeSurvivor)
+      : (this.isArenaMode
+          ? (typeof ModeArena !== "undefined" ? ModeArena : ModeSurvivor)
+          : (typeof ModeSurvivor !== "undefined" ? ModeSurvivor : null));
     this.endlessNextBossTime = 480;
     this.endlessCycleIdx = 0;
     this.endlessNextKillMilestone = 150;
@@ -5040,6 +5043,9 @@ window.GameApp = {
 
       if (shouldOpenLvl) {
         this.openLevelUpModal();
+      } else if (this._pendingExpeditionIntermission && typeof ModeExpedition !== "undefined") {
+        this._pendingExpeditionIntermission = false;
+        ModeExpedition.openIntermissionModal(this);
       } else {
         this.state = "PLAYING";
       }
@@ -5566,6 +5572,12 @@ window.GameApp = {
       return;
     }
 
+    if (this._pendingExpeditionIntermission && typeof ModeExpedition !== "undefined") {
+      this._pendingExpeditionIntermission = false;
+      ModeExpedition.openIntermissionModal(this);
+      return;
+    }
+
     this.state = "PLAYING";
   },
 
@@ -5899,9 +5911,20 @@ window.GameApp = {
     document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
     document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
 
-    const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
-    const secs = String(Math.floor(this.runTime % 60)).padStart(2, "0");
-    document.getElementById("hudTimer").textContent = `${mins}:${secs}`;
+    if (this.isExpeditionMode && this.expeditionState) {
+      const est = this.expeditionState;
+      const wCfg = est.plan[est.currentWave - 1];
+      if (wCfg && wCfg.isBossWave) {
+        document.getElementById("hudTimer").textContent = `W${est.currentWave}/10 BOSS`;
+      } else {
+        const rem = Math.max(0, Math.ceil(est.waveTimer || 0));
+        document.getElementById("hudTimer").textContent = `W${est.currentWave}/10 · ${String(rem).padStart(2, "0")}s`;
+      }
+    } else {
+      const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
+      const secs = String(Math.floor(this.runTime % 60)).padStart(2, "0");
+      document.getElementById("hudTimer").textContent = `${mins}:${secs}`;
+    }
     document.getElementById("hudKills").textContent = this.kills;
     document.getElementById("hudCoins").textContent = this.runCoins;
 
@@ -6163,7 +6186,15 @@ window.GameApp = {
       this.saveData.stats.bestEndlessKills = Math.max(this.saveData.stats.bestEndlessKills || 0, this.kills);
     }
     if (this.saveToStorage) this.saveToStorage();
-    if (this.isArenaMode) {
+    if (this.isExpeditionMode) {
+      if (!isVictory && typeof ModeExpedition !== "undefined") ModeExpedition.clearCheckpoint(this);
+      const curW = (this.expeditionState && this.expeditionState.currentWave) || 1;
+      const er = this.lastExpeditionResult;
+      document.getElementById("endModalTitle").textContent = isVictory ? "EXPEDITION CHAMPION!" : `EXPEDITION FAILED (W${curW}/10)`;
+      document.getElementById("endModalSubtitle").textContent = (isVictory && er)
+        ? `完成 10 波關都四區域遠征並討伐王者超夢！冠軍賞金 +${er.totalGain} 金`
+        : `止步於第 ${curW}/10 波，調整陣容或強化天賦後再次啟程！`;
+    } else if (this.isArenaMode) {
       const ar = this.lastArenaResult;
       document.getElementById("endModalTitle").textContent = isVictory ? "⚔️ ARENA VICTORY!" : "⚔️ ARENA DEFEAT";
       document.getElementById("endModalSubtitle").textContent = (isVictory && ar)

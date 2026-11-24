@@ -222,13 +222,13 @@ const SkillsEngine = {
           }
         }
 
-        // 在裂縫轉折交匯點佈置崩岩或巨岩尖柱
-        if ((isUlt && (s === 1 || (s === 2 && b % 2 === 0))) || (!isUlt && s === 1)) {
+        // 在裂縫外圈轉折點佈置精簡大岩柱（地裂超武精簡至 5 根外圈錯落岩柱，保持內圈清爽不擋主角）
+        if ((isUlt && s === 2 && b % 2 === 0) || (!isUlt && s === 1 && b % 2 === 0)) {
           rocks.push({
             x: nx + (Math.random() - 0.5) * 6,
             y: ny + (Math.random() - 0.5) * 6,
-            h: isUlt ? (22 + Math.random() * 14) : (9 + Math.random() * 5),
-            w: isUlt ? (9 + Math.random() * 4) : (6 + Math.random() * 3),
+            h: isUlt ? (26 + Math.random() * 12) : (10 + Math.random() * 5),
+            w: isUlt ? (11 + Math.random() * 4) : (6 + Math.random() * 3),
             hopH: isUlt ? 0 : (11 + Math.random() * 9),
             phase: b * 0.9 + s * 1.3
           });
@@ -1698,26 +1698,49 @@ const SkillsEngine = {
         );
       }
     } else if (meta.type === "Normal") {
-      // 【近戰爆發型・終極衝擊】：收斂鑽頭長度至中近距離四向衝鋒
+      // 【近戰爆發型・終極衝擊 v7.2.7 八方雙層版】：4 支斜角高速旋轉黃金螺旋錐 ＋ 上下左右 4 向撞擊尾段動能月牙衝擊波
       const ultR = this.getUltRadius(148, 152, 192);
       for (let i = 0; i < 4; i++) {
         const ang = (i * Math.PI * 2) / 4 + Math.PI / 4;
         this.meleeEffects.push({
           style: "giga_impact_lance",
           casterRef: p,
-          ox: p.x + Math.cos(ang) * 26,
-          oy: p.y + Math.sin(ang) * 26,
-          x: p.x + Math.cos(ang) * 26,
-          y: p.y + Math.sin(ang) * 26,
+          baseAngle: ang,
+          spinSweep: 1.35,
+          ox: p.x + Math.cos(ang) * 24,
+          oy: p.y + Math.sin(ang) * 24,
+          x: p.x + Math.cos(ang) * 24,
+          y: p.y + Math.sin(ang) * 24,
           angle: ang,
           radius: ultR,
-          dmg: ultDmg * 0.62,
+          dmg: ultDmg * 0.58,
           type: "Normal",
-          kb: 24,
+          kb: 22,
           hitSet: new Set(),
-          timer: 0.48 + i * 0.04,
-          maxTime: 0.48 + i * 0.04,
+          timer: 0.52,
+          maxTime: 0.52,
           color: "#FACC15"
+        });
+
+        const cardAng = (i * Math.PI) / 2;
+        const waveStartR = 26;
+        const waveEndR = ultR * 0.92;
+        this.meleeEffects.push({
+          style: "giga_cardinal_wave",
+          casterRef: p,
+          ox: p.x + Math.cos(cardAng) * waveStartR,
+          oy: p.y + Math.sin(cardAng) * waveStartR,
+          x: p.x + Math.cos(cardAng) * waveEndR,
+          y: p.y + Math.sin(cardAng) * waveEndR,
+          angle: cardAng,
+          radius: Math.round(ultR * 0.48),
+          dmg: ultDmg * 0.50,
+          type: "Normal",
+          kb: 28,
+          hitSet: new Set(),
+          timer: 0.42,
+          maxTime: 0.42,
+          color: "#FEF08A"
         });
       }
     } else if (meta.type === "Fighting") {
@@ -2510,6 +2533,49 @@ const SkillsEngine = {
             if (dx * dx + dy * dy <= rSum * rSum) {
               m.hitSet.add(e);
               GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.25, m.kb || 20, m.extraCrit || 0);
+            }
+          }
+        } else if (m.style === "giga_impact_lance") {
+          if (m.spinSweep && m.baseAngle !== undefined) {
+            m.angle = m.baseAngle + prog * m.spinSweep;
+          }
+          if (m.casterRef) {
+            m.ox = m.casterRef.x + Math.cos(m.angle) * 24;
+            m.oy = m.casterRef.y + Math.sin(m.angle) * 24;
+            m.x = m.ox;
+            m.y = m.oy;
+          }
+          const curR = m.radius * (0.32 + prog * 0.72);
+          const candidates = this.getEnemiesInRadius(m.ox, m.oy, curR);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const dx = e.x - m.ox, dy = e.y - m.oy;
+            const rSum = curR + e.radius * 0.85;
+            const dSq = dx * dx + dy * dy;
+            if (dSq <= rSum * rSum) {
+              const eAng = Math.atan2(dy, dx);
+              const diff = Math.abs(Math.atan2(Math.sin(eAng - m.angle), Math.cos(eAng - m.angle)));
+              if (diff <= 0.42 || dSq < 1296) {
+                m.hitSet.add(e);
+                GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.28, m.kb || 22);
+              }
+            }
+          }
+        } else if (m.style === "giga_cardinal_wave") {
+          const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.45), 2.6);
+          const curX = m.ox + (m.x - m.ox) * ease;
+          const curY = m.oy + (m.y - m.oy) * ease;
+          const curR = m.radius * (0.72 + ease * 0.36);
+          const candidates = this.getEnemiesInRadius(curX, curY, curR);
+          for (let j = 0; j < candidates.length; j++) {
+            const e = candidates[j];
+            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+            const dx = e.x - curX, dy = e.y - curY;
+            const rSum = curR + e.radius * 0.85;
+            if (dx * dx + dy * dy <= rSum * rSum) {
+              m.hitSet.add(e);
+              GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 28);
             }
           }
         } else {
@@ -3603,28 +3669,38 @@ const SkillsEngine = {
           const ey = sg.y1 + (sg.y2 - sg.y1) * localFrac;
           const baseW = (sg.isSub ? 6.2 : 12.5) * sg.wMul;
 
-          // 深淵暗溝底色
-          ctx.strokeStyle = "#231006";
-          ctx.lineWidth = Math.max(1.8, baseW);
-          ctx.beginPath();
-          ctx.moveTo(sg.x1, sg.y1);
-          ctx.lineTo(ex, ey);
-          ctx.stroke();
-
-          // 中層熔岩熾橘呼吸光
-          if (baseW > 2.6) {
-            ctx.strokeStyle = `rgba(234, 88, 12, ${0.88 * lavaPulse})`;
-            ctx.lineWidth = Math.max(1.2, baseW * 0.46);
+          // 外層熾熱焦土微暈（消除在亮藍水面上的枯樹枝乾硬感）
+          if (!sg.isSub && baseW > 3.5) {
+            ctx.strokeStyle = `rgba(234, 88, 12, ${0.34 * lavaPulse})`;
+            ctx.lineWidth = baseW * 1.55;
             ctx.beginPath();
             ctx.moveTo(sg.x1, sg.y1);
             ctx.lineTo(ex, ey);
             ctx.stroke();
           }
 
-          // 核心地脈金白微光（僅主裂谷與粗分岔顯示，保留末端純黑尖刺感）
-          if (!sg.isSub && sg.wMul > 0.35) {
-            ctx.strokeStyle = `rgba(254, 240, 138, ${0.92 * lavaPulse})`;
-            ctx.lineWidth = Math.max(1.0, baseW * 0.18);
+          // 深淵暗溝底色
+          ctx.strokeStyle = "#231006";
+          ctx.lineWidth = Math.max(2.2, baseW * 1.08);
+          ctx.beginPath();
+          ctx.moveTo(sg.x1, sg.y1);
+          ctx.lineTo(ex, ey);
+          ctx.stroke();
+
+          // 中層厚實熔岩熾橘呼吸光
+          if (baseW > 2.4) {
+            ctx.strokeStyle = `rgba(249, 115, 22, ${0.94 * lavaPulse})`;
+            ctx.lineWidth = Math.max(1.6, baseW * 0.60);
+            ctx.beginPath();
+            ctx.moveTo(sg.x1, sg.y1);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+          }
+
+          // 核心地脈金白熾流
+          if (!sg.isSub && sg.wMul > 0.30) {
+            ctx.strokeStyle = `rgba(254, 240, 138, ${0.96 * lavaPulse})`;
+            ctx.lineWidth = Math.max(1.2, baseW * 0.26);
             ctx.beginPath();
             ctx.moveTo(sg.x1, sg.y1);
             ctx.lineTo(ex, ey);
@@ -6338,6 +6414,55 @@ const SkillsEngine = {
           ctx.closePath();
           ctx.fill();
         }
+        ctx.restore();
+      } else if (m.style === "giga_cardinal_wave") {
+        // 【終極衝擊・上下左右四正向動能月牙衝擊波】：承襲撞擊尾段雙層金白月牙氣浪，補足八方全覆蓋
+        const ease = 1 - Math.pow(1 - Math.min(1, prog * 1.45), 2.6);
+        const curWx = m.ox + (m.x - m.ox) * ease;
+        const curWy = m.oy + (m.y - m.oy) * ease;
+        const csx = toSx(curWx), csy = toSy(curWy);
+        const fade = Math.max(0, 1 - prog * 0.90);
+        const waveR = Math.max(36, m.radius * (0.76 + ease * 0.36));
+
+        ctx.save();
+        ctx.translate(csx, csy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = fade * sAlpha;
+
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.78)";
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = "round";
+        [-1, 0, 1].forEach(row => {
+          const ly = row * (waveR * 0.34);
+          ctx.beginPath();
+          ctx.moveTo(-4, ly);
+          ctx.lineTo(-28 - ease * 20, ly * 1.12);
+          ctx.stroke();
+        });
+
+        const cGrad = ctx.createRadialGradient(6, 0, waveR * 0.28, 6, 0, waveR);
+        cGrad.addColorStop(0, "rgba(255, 255, 255, 0.0)");
+        cGrad.addColorStop(0.50, "rgba(254, 240, 138, 0.42)");
+        cGrad.addColorStop(0.86, "rgba(255, 255, 255, 0.95)");
+        cGrad.addColorStop(1, "rgba(255, 255, 255, 0.0)");
+        ctx.fillStyle = cGrad;
+        ctx.beginPath();
+        ctx.arc(4, 0, waveR, -1.16, 1.16);
+        ctx.arc(-10, 0, waveR * 0.66, 1.16, -1.16, true);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 3.6 * (1 - prog * 0.32);
+        ctx.beginPath();
+        ctx.arc(6, 0, waveR * 0.96, -1.06, 1.06);
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.2 * (1 - prog * 0.32);
+        ctx.beginPath();
+        ctx.arc(10, 0, waveR * 1.03, -0.82, 0.82);
+        ctx.stroke();
         ctx.restore();
       } else if (m.style === "giga_impact_lance") {
         // 【終極衝擊（Giga Impact 超武）・4層次 3D 雙切面黃金霸王螺旋鑽 ＋ 黑紅霸氣閃電弧】
