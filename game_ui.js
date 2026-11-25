@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.8";
+        const ver = this.APP_VERSION || "v7.2.9";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.8";
+      const curVer = this.APP_VERSION || "v7.2.9";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -755,10 +755,17 @@ Object.assign(window.GameApp, {
         : "py-3 border-b-4 border-transparent text-slate-500";
     });
 
+    const modeTitleMap = {
+      expedition: ["STEP 3/3：關都大遠征 ‧ 關卡與難度 (STAGE)", "檢視本次遠征橫跨的所有生態地圖、續關進度與挑戰難度！"],
+      standard:   ["STEP 3/3：8分鐘標準 ‧ 地圖與難度 (STAGE)", "挑選一張 GBA 自然生態地圖與挑戰難度，8 分鐘極速登冠！"],
+      endless:    ["STEP 3/3：無盡深淵 ‧ 地圖與難度 (STAGE)", "挑選生態地圖挑戰 8 分鐘後無限雙神波次，刷新生存紀錄！"],
+      arena:      ["STEP 3/3：1vs1 石英鬥技場 ‧ 挑戰設定", "選擇鬥技場難度、單挑神獸與免費攜帶物，展開純動作對決！"]
+    };
+    const mKey = this.selectedGameMode || "expedition";
     const titles = {
       1: ["STEP 1/3：選擇隨行訓練家", "6 位訓練家皆有專屬代表精靈羈絆（傷害+25%）！底部為隱藏冠軍【赤紅】"],
       2: ["STEP 2/3：選擇出戰寶可夢", "與所選訓練家有羈絆的精靈已【自動置頂高亮】！全一階基礎精靈皆可挑選！"],
-      3: ["STEP 3/3：選擇關卡、模式與難度", "先挑選 GBA 自然生態地圖，再決定標準 8 分鐘快局或無盡深淵試煉！"]
+      3: modeTitleMap[mKey] || modeTitleMap.expedition
     };
     document.getElementById("wizardStepTitle").textContent = titles[step][0];
     document.getElementById("wizardStepDesc").textContent = titles[step][1];
@@ -1355,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.8",
+      lastSeenVersion: this.APP_VERSION || "v7.2.9",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1542,8 +1549,36 @@ Object.assign(window.GameApp, {
       ? ModeExpedition.getChapterSummary()
       : { chapterCount: 4, totalWaves: 10, chapters: [] };
     const routeTextEl = document.getElementById("expeditionDynamicRouteText");
-    if (routeTextEl && summary.chapters.length > 0) {
-      routeTextEl.textContent = summary.chapters.map(c => c.shortName || c.name).join(" ➔ ");
+    if (routeTextEl) {
+      routeTextEl.textContent = `關都大遠征路線（共 ${summary.chapterCount} 大區域 ‧ ${summary.totalWaves} 關推進）`;
+    }
+    const stageCardsEl = document.getElementById("expeditionStageCardsGrid");
+    if (stageCardsEl && summary.chapters.length > 0) {
+      let waveCursor = 1;
+      stageCardsEl.innerHTML = summary.chapters.map((ch, idx) => {
+        const wLen = (ch.waves && ch.waves.length) || 1;
+        const wRange = wLen === 1 ? `W${waveCursor}` : `W${waveCursor}-${waveCursor + wLen - 1}`;
+        waveCursor += wLen;
+        const previewKey = ch.isArena ? "arena" : (ch.stageId || "pallet");
+        const stObj = (typeof STAGES !== "undefined") ? STAGES.find(s => s.id === ch.stageId) : null;
+        const buffText = ch.isArena ? "封閉石柱競技場 ‧ 最終 1vs1 決戰" : (stObj ? stObj.buffDesc : (ch.name || ""));
+        return `
+          <div class="poke-card overflow-hidden p-0 flex flex-col justify-between border-2 border-slate-800">
+            <div class="relative w-full h-20 sm:h-24 bg-slate-900 overflow-hidden border-b border-slate-800">
+              <canvas data-exp-stage-preview="${previewKey}" class="w-full h-full block pixel-sprite object-cover"></canvas>
+              <div class="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent pointer-events-none"></div>
+              <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-slate-950/85 text-amber-300 font-pixel text-[8px] font-black border border-amber-400/70">${ch.isFinalChapter ? 'FINAL' : `ACT ${idx + 1}`} · ${wRange}</span>
+              <div class="absolute bottom-1 left-1.5 right-1.5 font-black text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${ch.name}</div>
+            </div>
+            <div class="px-1.5 py-1 bg-white text-[9px] font-bold text-slate-700 leading-tight truncate">${buffText}</div>
+          </div>
+        `;
+      }).join("");
+      if (typeof MapEngine !== "undefined" && typeof MapEngine.renderStagePreviewCanvas === "function") {
+        stageCardsEl.querySelectorAll("canvas[data-exp-stage-preview]").forEach(can => {
+          MapEngine.renderStagePreviewCanvas(can, can.getAttribute("data-exp-stage-preview"));
+        });
+      }
     }
     const cpBox = document.getElementById("expeditionCheckpointBanner");
     const cp = this.saveData && this.saveData.expeditionCheckpoint;
@@ -1735,7 +1770,8 @@ Object.assign(window.GameApp, {
       return;
     }
     if (this.selectedGameMode === "expedition") {
-      btn.textContent = "展開關都大遠征 (10波 RPG) →";
+      const totW = (typeof ModeExpedition !== "undefined" && ModeExpedition.getChapterSummary) ? ModeExpedition.getChapterSummary().totalWaves : 10;
+      btn.textContent = `展開關都大遠征 (${totW}關 RPG) →`;
       return;
     }
     const totalCost = this.getSelectedLoadoutsTotalCost();
@@ -2964,8 +3000,22 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.8 關都大遠征 2.0 ＆ 大廳模式重構版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.9 關都大遠征透明行軍演出與介面精修版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">行軍演出與戰前流程升級</div>
+            <div>• <strong>透明戰場火車站長卷（兩段式）</strong>：波次通關後先於上方透明浮層清晰觀看訓練家與主角慢步向右行軍（2.1s，點擊可加速），後方透出真實 GBA 戰場背景，抵達下一站月台後再平順展開 2×2 整備商店！</div>
+            <div>• <strong>AREA CLEAR 完整定格</strong>：擊破最後一隻怪後延後升級彈窗 1.15 秒，完整展現 AREA CLEAR 印章與吸晶音效，再依序升級與行軍。</div>
+            <div>• <strong>開戰 WAVE ?/10 ＋ 3-2-1 START</strong>：倒數正上方清楚標示當前波次與關卡名，並修復左上角路牌與過場橫幅重疊。</div>
+            <div class="text-amber-300 font-black pt-1">介面精簡與手機適配修復</div>
+            <div>• <strong>STEP 3 單模式聚焦 (STAGE)</strong>：隱藏多餘模式切換列，大遠征改以 8 分鐘同款 GBA 實景地圖卡清楚展示全部遠征章節。</div>
+            <div>• <strong>頂部 HUD 緊湊化</strong>：將剩餘怪數移至計時欄下方，徹底修復 iPhone 直屏右側暫停按鈕被擠出畫面的問題。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.8 關都大遠征 2.0 ＆ 大廳模式重構版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">關都大遠征 2.0（可擴充章節架構）</div>
@@ -3164,7 +3214,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.8";
+    const curVer = this.APP_VERSION || "v7.2.9";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

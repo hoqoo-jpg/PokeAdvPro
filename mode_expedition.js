@@ -640,18 +640,16 @@ window.ModeExpedition = {
       if (bossHud) bossHud.classList.add("hidden");
     }
 
-    // 4. 新章節第一關滑入 GBA 左上角地名木牌／石牌
+    // 4. 新章節第一關滑入 GBA 左上角地名木牌／石牌（不再同時彈置中橫幅，徹底根除重疊）
     if (cfg.isFirstWaveOfChapter) {
       this.showRegionSign(cfg);
+    } else {
+      this.dismissRegionSign();
     }
 
-    app.battleCountdownTimer = 1.14;
+    // 完整 3 ➔ 2 ➔ 1 ➔ BATTLE START! 四拍倒數（正上方同步顯示 WAVE ?/10 徽章）
+    app.battleCountdownTimer = 1.52;
     app._lastCountdownBeat = 4;
-    app.showCutsceneBanner(
-      `【WAVE ${waveNum}/${st.totalWaves} ‧ ${cfg.title}】`,
-      cfg.subtitle,
-      2600
-    );
     app.state = "PLAYING";
     app.refreshHUD();
   },
@@ -682,18 +680,23 @@ window.ModeExpedition = {
       app.areaClearStampTimer = Math.max(0, app.areaClearStampTimer - dt);
     }
 
-    // 波次淨空後的 0.85s 吸晶與 AREA CLEAR 緩衝
+    // 波次淨空後的 1.15s AREA CLEAR 印章 ＋ 全場磁力吸晶演出緩衝（期間暫緩彈出升級視窗）
     if (st.waveCleared) {
       st.clearDelayTimer -= dt;
       if (st.clearDelayTimer <= 0) {
-        // 收尾兜底：把還沒吸進來的殘留水晶一次補算
+        // 補算尚未吸完的殘留水晶
         if (app.gems.length > 0) {
           let remExp = 0;
           app.gems.forEach(g => { remExp += (g.val || 15); });
           app.gems = [];
           if (remExp > 0) app.gainExp(remExp);
         }
-        if (app.state === "PAUSED" || app.state === "EVOLVING") {
+        app._deferLevelUpDuringClear = false;
+        if ((app._deferredLevelUps || 0) > 0) {
+          app._deferredLevelUps -= 1;
+          app._pendingExpeditionIntermission = true;
+          app.openLevelUpModal();
+        } else if (app.state === "PAUSED" || app.state === "EVOLVING") {
           app._pendingExpeditionIntermission = true;
         } else {
           this.openIntermissionModal(app);
@@ -839,11 +842,13 @@ window.ModeExpedition = {
     const st = app.expeditionState;
     if (!st || st.waveCleared) return;
     st.waveCleared = true;
-    st.clearDelayTimer = 0.85;
+    st.clearDelayTimer = 1.15;
+    app._deferLevelUpDuringClear = true;
+    app._deferredLevelUps = 0;
 
-    // 尾刀爽感閉環：0.22s 微慢動作 ＋ AREA CLEAR 印章 ＋ 全場經驗水晶磁力音階吸入
+    // 尾刀爽感閉環：0.22s 微慢動作 ＋ 1.15s AREA CLEAR 印章 ＋ 全場經驗水晶磁力音階吸入
     app.killSlowmoTimer = Math.max(app.killSlowmoTimer || 0, 0.22);
-    app.areaClearStampTimer = 0.90;
+    app.areaClearStampTimer = 1.15;
     app.enemies.forEach(en => {
       app.spawnParticleCluster(en.x, en.y, "#FACC15", "#FFFFFF", 5, "star", 0.9);
     });
@@ -1021,7 +1026,7 @@ window.ModeExpedition = {
     const isCrossingAct = !!(clearedCfg && nextCfg && clearedCfg.act !== nextCfg.act);
 
     const titleEl = document.getElementById("expModalTitle");
-    if (titleEl) titleEl.textContent = `EXPEDITION · WAVE ${clearedWave}/${st.totalWaves} CLEAR`;
+    if (titleEl) titleEl.textContent = `W${clearedWave}/${st.totalWaves} CLEAR`;
 
     const coinEl = document.getElementById("expCoinsDisplay");
     if (coinEl) coinEl.textContent = app.runCoins.toLocaleString();
@@ -1167,17 +1172,55 @@ window.ModeExpedition = {
     }).join("");
   },
 
+  revealPrepPanel() {
+    const walkHint = document.getElementById("expWalkingStatusRow");
+    const prepCard = document.getElementById("expPrepPanelCard");
+    if (walkHint) walkHint.classList.add("hidden");
+    if (prepCard) {
+      prepCard.classList.remove("hidden");
+      prepCard.classList.add("lobby-pop-in");
+    }
+  },
+
+  skipRouteWalkAnim() {
+    if (!this._walkAnimState) return;
+    const ws = this._walkAnimState;
+    this._walkAnimState = null;
+    this.stopRouteWalkAnim();
+    if (ws.isCrossingAct && !ws.healChimePlayed && typeof SoundFX !== "undefined") {
+      SoundFX.play("pokecenter_heal");
+    }
+    this.drawScrollingRouteMap(ws.canvas, ws.app, ws.clearedWave, ws.nextWave, 1.0, ws.isCrossingAct);
+    this.revealPrepPanel();
+  },
+
   startRouteWalkAnimation(canvas, app, clearedWave, nextWave, isCrossingAct) {
     this.stopRouteWalkAnim();
+    const walkHint = document.getElementById("expWalkingStatusRow");
+    const prepCard = document.getElementById("expPrepPanelCard");
+    if (prepCard) {
+      prepCard.classList.add("hidden");
+      prepCard.classList.remove("lobby-pop-in");
+    }
+    if (walkHint) {
+      walkHint.classList.remove("hidden");
+      const nextCfg = app.expeditionState && app.expeditionState.plan[nextWave - 1];
+      walkHint.textContent = isCrossingAct
+        ? `正在跨越區域前往【${nextCfg ? nextCfg.chapterShortName : '下一站'}】……（點擊加速）`
+        : `正在前往第 ${nextWave} 站【${nextCfg ? nextCfg.title : ''}】……（點擊加速）`;
+    }
+
     const startTs = performance.now();
-    const durationMs = 1350;
-    let healChimePlayed = false;
+    const durationMs = 2150;
+    const ws = { canvas, app, clearedWave, nextWave, isCrossingAct, healChimePlayed: false };
+    this._walkAnimState = ws;
 
     const tick = (nowTs) => {
+      if (this._walkAnimState !== ws) return;
       const elapsed = nowTs - startTs;
       const t = Math.min(1, elapsed / durationMs);
-      if (isCrossingAct && !healChimePlayed && t >= 0.48) {
-        healChimePlayed = true;
+      if (isCrossingAct && !ws.healChimePlayed && t >= 0.48) {
+        ws.healChimePlayed = true;
         if (typeof SoundFX !== "undefined") SoundFX.play("pokecenter_heal");
       }
       this.drawScrollingRouteMap(canvas, app, clearedWave, nextWave, t, isCrossingAct);
@@ -1185,6 +1228,8 @@ window.ModeExpedition = {
         this._walkAnimRaf = requestAnimationFrame(tick);
       } else {
         this._walkAnimRaf = null;
+        this._walkAnimState = null;
+        this.revealPrepPanel();
       }
     };
     this._walkAnimRaf = requestAnimationFrame(tick);
@@ -1196,8 +1241,8 @@ window.ModeExpedition = {
     if (!st || !st.plan) return;
     const plan = st.plan;
     const total = plan.length;
-    const vpW = canvas.width = 440;
-    const vpH = canvas.height = 122;
+    const vpW = canvas.width = 460;
+    const vpH = canvas.height = 132;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
 

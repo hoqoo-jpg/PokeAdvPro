@@ -722,6 +722,36 @@ const MapEngine = {
       if (sign) ctx.drawImage(sign, 116, 48, 20, 20);
       if (fRed) { ctx.drawImage(fRed, 86, 66, 14, 14); ctx.drawImage(fRed, 152, 92, 14, 14); }
       if (fWhite) { ctx.drawImage(fWhite, 22, 64, 14, 14); ctx.drawImage(fWhite, 170, 96, 14, 14); }
+    } else if (stageId === "arena") {
+      // 石英大會鬥技場縮圖預覽（紅藍對戰半場 ＋ 中央精靈球圖騰 ＋ 四角石柱）
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "#CBD5E1";
+      ctx.fillRect(10, 8, w - 20, h - 16);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+      ctx.fillRect(10, 8, (w - 20) / 2, h - 16);
+      ctx.fillStyle = "rgba(239, 68, 68, 0.22)";
+      ctx.fillRect(10 + (w - 20) / 2, 8, (w - 20) / 2, h - 16);
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(16, 14, w - 32, h - 28);
+      ctx.beginPath(); ctx.moveTo(w / 2, 14); ctx.lineTo(w / 2, h - 14); ctx.stroke();
+      ctx.fillStyle = "rgba(239, 68, 68, 0.32)";
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 22, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 22, 0, Math.PI); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 22, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath(); ctx.arc(w / 2, h / 2, 6, 0, Math.PI * 2); ctx.fill();
+      // 四角石柱
+      [[34, 24], [w - 48, 24], [34, h - 38], [w - 48, h - 38]].forEach(([px, py]) => {
+        ctx.fillStyle = "#475569"; ctx.fillRect(px, py, 14, 14);
+        ctx.fillStyle = "#94A3B8"; ctx.fillRect(px + 2, py + 2, 10, 5);
+        ctx.strokeStyle = "#0F172A"; ctx.lineWidth = 1.5; ctx.strokeRect(px, py, 14, 14);
+      });
+      ctx.strokeStyle = "#F59E0B";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(10, 8, w - 20, h - 16);
     } else if (stageId === "cerulean_bay") {
       // 1. 碧藍深海與階梯狀像素海浪
       ctx.fillStyle = "#0284C7";

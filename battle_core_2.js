@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.8",
+  APP_VERSION: "v7.2.9",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1155,6 +1155,8 @@ window.GameApp = {
     this.fieldPowerups = [];
     this.fieldPowerupTimer = 38.0;
     this.areaClearStampTimer = 0;
+    this._deferLevelUpDuringClear = false;
+    this._deferredLevelUps = 0;
     this.activeMode = this.isExpeditionMode
       ? (typeof ModeExpedition !== "undefined" ? ModeExpedition : ModeSurvivor)
       : (this.isArenaMode
@@ -4912,19 +4914,24 @@ window.GameApp = {
       }
 
       // 若達到進化等級，先記錄待執行的進化目標，優先彈出「升級三選一」，選完後緊接著播放進化光影演出！
-      this._pendingEvolutionTarget = null;
-      if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
-        if (p.id === 133) {
-          this._pendingEvolutionTarget = "eevee";
-        } else if (p.data.evo_to) {
-          this._pendingEvolutionTarget = p.data.evo_to;
+      if (!this._pendingEvolutionTarget) {
+        if (p.data.evo_level !== "None" && p.level >= p.data.evo_level) {
+          if (p.id === 133) {
+            this._pendingEvolutionTarget = "eevee";
+          } else if (p.data.evo_to) {
+            this._pendingEvolutionTarget = p.data.evo_to;
+          }
+        } else if (p.id >= 144 && p.id < 10000 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
+          this._pendingEvolutionTarget = "awaken_legendary";
+        } else if (p.isPureSingleStage && p.level >= 18 && !p.singleStageAwakened) {
+          this._pendingEvolutionTarget = "awaken_single";
         }
-      } else if (p.id >= 144 && p.id < 10000 && ((p.level >= 12 && !p.legendaryAwaken12) || (p.level >= 24 && !p.legendaryAwaken24))) {
-        // 排入三選一之後播放 1.35 秒傳說共鳴特寫（不再被升級彈窗遮蔽）
-        this._pendingEvolutionTarget = "awaken_legendary";
-      } else if (p.isPureSingleStage && p.level >= 18 && !p.singleStageAwakened) {
-        // 排入三選一之後播放 1.35 秒單階潛能突破特寫（體型放大 1.12x + 金白流光 + ★覺醒徽章）
-        this._pendingEvolutionTarget = "awaken_single";
+      }
+
+      // AREA CLEAR 期間延後彈出升級三選一，確保玩家看清楚 AREA CLEAR 印章與吸晶演出
+      if (this._deferLevelUpDuringClear) {
+        this._deferredLevelUps = (this._deferredLevelUps || 0) + 1;
+        return;
       }
       this.openLevelUpModal();
     }
@@ -5133,6 +5140,9 @@ window.GameApp = {
       this.checkMegaEvolutionReady();
 
       if (shouldOpenLvl) {
+        this.openLevelUpModal();
+      } else if ((this._deferredLevelUps || 0) > 0) {
+        this._deferredLevelUps -= 1;
         this.openLevelUpModal();
       } else if (this._pendingExpeditionIntermission && typeof ModeExpedition !== "undefined") {
         this._pendingExpeditionIntermission = false;
@@ -5663,6 +5673,12 @@ window.GameApp = {
       return;
     }
 
+    if ((this._deferredLevelUps || 0) > 0) {
+      this._deferredLevelUps -= 1;
+      this.openLevelUpModal();
+      return;
+    }
+
     if (this._pendingExpeditionIntermission && typeof ModeExpedition !== "undefined") {
       this._pendingExpeditionIntermission = false;
       ModeExpedition.openIntermissionModal(this);
@@ -6002,17 +6018,25 @@ window.GameApp = {
     document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
     document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
 
+    const waveRemBadge = document.getElementById("hudWaveRemainBadge");
     if (this.isExpeditionMode && this.expeditionState) {
       const est = this.expeditionState;
       const totW = est.totalWaves || est.plan.length;
       const wCfg = est.plan[est.currentWave - 1];
-      if (wCfg && wCfg.isBossWave) {
-        document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW} BOSS`;
-      } else {
-        const rem = Math.max(0, (est.killQuota || 0) - (est.killsInWave || 0));
-        document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW} · 剩${rem}`;
+      document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW}`;
+      if (waveRemBadge) {
+        waveRemBadge.classList.remove("hidden");
+        if (wCfg && wCfg.isBossWave) {
+          waveRemBadge.textContent = "BOSS";
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-rose-600 text-white font-pixel text-[7px] font-black";
+        } else {
+          const rem = Math.max(0, (est.killQuota || 0) - (est.killsInWave || 0));
+          waveRemBadge.textContent = `剩${rem}`;
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-emerald-700 text-emerald-100 font-black text-[8px]";
+        }
       }
     } else {
+      if (waveRemBadge) waveRemBadge.classList.add("hidden");
       const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
       const secs = String(Math.floor(this.runTime % 60)).padStart(2, "0");
       document.getElementById("hudTimer").textContent = `${mins}:${secs}`;

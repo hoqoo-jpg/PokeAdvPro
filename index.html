@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.2.8');
+      background-image: url('images/skills_icons_sheet.png?v=7.2.9');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -595,7 +595,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.2.8
+      v7.2.9
     </div>
   </div>
 
@@ -761,10 +761,11 @@
         </div>
       </div>
 
-      <!-- 中央：8分鐘計時鐘、殺敵、代幣與下方懸浮 FPS 膠囊 (零水平佔位，絕不擠壓右側按鈕) -->
-      <div class="relative flex flex-col items-center bg-slate-900/85 px-2 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl shrink-0">
-        <div id="hudTimer" class="font-pixel text-amber-400 text-xs sm:text-base font-black leading-none">00:00</div>
-        <div class="flex items-center gap-1.5 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-1 leading-none">
+      <!-- 中央：計時／波次、剩餘怪數、殺敵、代幣（緊湊不擠壓右側按鈕） -->
+      <div class="relative flex flex-col items-center bg-slate-900/85 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-2xl border-2 border-slate-700 shadow-xl shrink-0">
+        <div id="hudTimer" class="font-pixel text-amber-400 text-[11px] sm:text-base font-black leading-none">00:00</div>
+        <div class="flex items-center gap-1 sm:gap-2 text-[9px] sm:text-[10px] font-bold text-white mt-1 leading-none">
+          <span id="hudWaveRemainBadge" class="hidden px-1 py-0.2 rounded bg-emerald-700 text-emerald-100 font-black text-[8px]">剩22</span>
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-skull text-red-400 text-[8px] sm:text-[9px]"></i> <span id="hudKills">0</span></span>
           <span class="flex items-center gap-0.5"><i class="fa-solid fa-coins text-amber-400 text-[8px] sm:text-[9px]"></i> <span id="hudCoins">0</span></span>
         </div>
@@ -945,7 +946,7 @@
     <div class="grid grid-cols-3 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
       <button id="stepTab1" onclick="GameApp.setWizardStep(1)" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
       <button id="stepTab2" onclick="GameApp.setWizardStep(2)" class="py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
-      <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 關卡與模式</button>
+      <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 關卡與設定 (STAGE)</button>
     </div>
 
     <!-- 選角智慧常駐條（第1行：陣容＋羈絆＋STEP2快捷王冠突破；第2行：STEP2極簡特性與滿星特典條） -->
@@ -987,18 +988,20 @@
       <div id="wizardStep1" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
       <div id="wizardStep2" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
       <div id="wizardStep3" class="hidden space-y-3">
-        <div>
-          <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-compass text-emerald-600"></i> 冒險模式（8分鐘標準 ／ 關都大遠征 10波 ／ 無盡深淵 ／ 1vs1 鬥技場）</h3>
+        <div class="hidden">
           <div id="gameModeGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
         </div>
 
-        <!-- 關都大遠征路線簡介與自動續關條（動態讀取 EXPEDITION_CHAPTERS） -->
-        <div id="expeditionPreviewPanel" class="hidden space-y-2 bg-emerald-50/85 border-2 border-emerald-400 rounded-2xl p-2.5">
-          <div class="font-black text-xs text-emerald-900 flex items-center gap-1.5">
-            <i class="fa-solid fa-route text-emerald-600"></i>
-            <span id="expeditionDynamicRouteText">常磐密林 ➔ 華藍海岬 ➔ 石英高原 ➔ 鬥技場</span>
-          </div>
+        <!-- 關都大遠征 Stage 地圖總覽與自動續關條（8分鐘同款 GBA 實景地圖預覽卡） -->
+        <div id="expeditionPreviewPanel" class="hidden space-y-2.5">
           <div id="expeditionCheckpointBanner" class="hidden space-y-1"></div>
+          <div>
+            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5">
+              <i class="fa-solid fa-route text-emerald-600"></i>
+              <span id="expeditionDynamicRouteText">關都大遠征路線（4 大區域 ‧ 10 關推進）</span>
+            </h3>
+            <div id="expeditionStageCardsGrid" class="grid grid-cols-2 gap-2"></div>
+          </div>
         </div>
 
         <!-- 1vs1 石英大會鬥技場專屬設定面板 -->
@@ -1253,48 +1256,42 @@
   </div>
 </div>
 
-  <!-- 13C. 關都大遠征 GBA 路線圖與波間整備商店彈窗 (Expedition Intermission Modal) -->
-  <div id="expeditionModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/90 backdrop-blur-sm select-none">
-    <div class="poke-card w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-3 sm:p-4 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl">
-      <!-- 頂部 GBA 標題與即時狀態列 -->
-      <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-2 shrink-0 gap-2">
-        <div class="min-w-0">
-          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 truncate">KANTO EXPEDITION · WAVE 1/10 CLEAR</div>
-        </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <span id="expHpDisplay" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 font-pixel text-[9px] text-emerald-300">HP 100/100</span>
-          <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite" alt="Coins" />
-            <span id="expCoinsDisplay" class="font-pixel text-[10px] text-amber-300">0</span>
+  <!-- 13C. 關都大遠征：透明戰場浮層（上方火車站路線長卷慢步演出 ➔ 抵達後下方展開戰前整備） -->
+  <div id="expeditionModal" class="absolute inset-0 z-50 hidden flex flex-col items-center justify-start pt-3 sm:pt-5 pb-4 px-2.5 sm:px-4 bg-slate-950/38 select-none overflow-y-auto">
+    <div class="w-full max-w-lg flex flex-col gap-2.5 my-auto">
+      <!-- 1. 外置透明感火車站長卷區塊（直接浮在遊戲戰場上，點擊可加速行軍） -->
+      <div onclick="ModeExpedition.skipRouteWalkAnim()" class="cursor-pointer rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900/90 shadow-2xl">
+        <div class="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-slate-700 gap-2">
+          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 whitespace-nowrap">W1/10 CLEAR</div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span id="expHpDisplay" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 font-pixel text-[9px] text-emerald-300">HP 100/100</span>
+            <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
+              <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite" alt="Coins" />
+              <span id="expCoinsDisplay" class="font-pixel text-[10px] text-amber-300">0</span>
+            </div>
           </div>
+        </div>
+        <canvas id="expeditionRouteCanvas" class="w-full h-auto block pixel-sprite"></canvas>
+        <div id="expWalkingStatusRow" class="px-3 py-1.5 bg-slate-950/90 text-center text-[11px] font-black text-amber-200 animate-pulse">
+          正在前往下一站……（點擊加速）
         </div>
       </div>
 
-      <!-- 中央可捲動內容：GBA 像素路線圖 ＋ 下波敵情預告 ＋ 波間整備商店 -->
-      <div class="flex-1 overflow-y-auto space-y-2.5 pr-0.5 min-h-0">
-        <!-- GBA 像素關都遠征路線圖 Canvas -->
-        <div class="rounded-xl overflow-hidden border-2 border-slate-700 bg-slate-950 shadow-inner">
-          <canvas id="expeditionRouteCanvas" class="w-full h-auto block pixel-sprite"></canvas>
-        </div>
+      <!-- 2. 抵達下一站後展開的戰前整備面板（2×2 商店 ＋ 下一站敵情 ＋ 出發按鈕） -->
+      <div id="expPrepPanelCard" class="hidden poke-card flex flex-col overflow-hidden p-3 sm:p-3.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-2xl space-y-2.5">
+        <div id="expNextWaveIntelBox" class="bg-slate-800/95 border border-sky-500/70 rounded-xl p-2"></div>
 
-        <!-- 下波敵情預告卡 -->
-        <div id="expNextWaveIntelBox" class="bg-slate-800/95 border border-sky-500/70 rounded-xl p-2.5"></div>
-
-        <!-- 波間整備商店 -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between px-0.5">
-            <span class="font-black text-xs text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-store text-sky-400"></i> 遠征整備站（可多項採購）</span>
+            <span class="font-black text-xs text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-store text-sky-400"></i> 戰前整備站（可多項採購）</span>
             <button onclick="ModeExpedition.rerollShop()" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/70 text-[10px] font-black text-amber-200 flex items-center gap-1">
               <i class="fa-solid fa-arrows-rotate text-[9px]"></i>
               <span>刷新 (<span id="expRerollCostText">40</span>金)</span>
             </button>
           </div>
-          <div id="expShopContainer" class="space-y-1.5"></div>
+          <div id="expShopContainer" class="grid grid-cols-2 gap-1.5"></div>
         </div>
-      </div>
 
-      <!-- 底部出發按鈕 -->
-      <div class="mt-2.5 pt-2.5 border-t border-slate-700 shrink-0">
         <button id="btnExpStartNextWave" onclick="ModeExpedition.proceedToNextWave()" class="poke-btn-red w-full py-2.5 text-xs sm:text-sm font-black shadow-xl">
           出發！下一波 →
         </button>
@@ -1465,7 +1462,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.8</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.9</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1513,7 +1510,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.8</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.9</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1546,14 +1543,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.2.8"></script>
-  <script src="map_v11_engine.js?v=7.2.8"></script>
-  <script src="skills_engine.js?v=7.2.8"></script>
-  <script src="battle_core_2.js?v=7.2.8"></script>
-  <script src="battle_renderer.js?v=7.2.8"></script>
-  <script src="mode_survivor.js?v=7.2.8"></script>
-  <script src="mode_arena.js?v=7.2.8"></script>
-  <script src="mode_expedition.js?v=7.2.8"></script>
-  <script src="game_ui.js?v=7.2.8"></script>
+  <script src="pokedex_data.js?v=7.2.9"></script>
+  <script src="map_v11_engine.js?v=7.2.9"></script>
+  <script src="skills_engine.js?v=7.2.9"></script>
+  <script src="battle_core_2.js?v=7.2.9"></script>
+  <script src="battle_renderer.js?v=7.2.9"></script>
+  <script src="mode_survivor.js?v=7.2.9"></script>
+  <script src="mode_arena.js?v=7.2.9"></script>
+  <script src="mode_expedition.js?v=7.2.9"></script>
+  <script src="game_ui.js?v=7.2.9"></script>
 </body>
 </html>

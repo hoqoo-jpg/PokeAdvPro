@@ -2926,6 +2926,34 @@ Object.assign(window.GameApp, {
   renderBattleCountdownOverlay(ctx) {
     const t = this.battleCountdownTimer || 0;
     if (t <= 0) return;
+
+    // 關都大遠征專屬：於 3-2-1 START 正上方清楚展示 WAVE ?/10 與關卡名（不與左上角路牌重疊）
+    if (this.isExpeditionMode && this.expeditionState) {
+      const est = this.expeditionState;
+      const totW = est.totalWaves || est.plan.length;
+      const wCfg = est.plan[est.currentWave - 1];
+      ctx.save();
+      const pillY = this.height * 0.27;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = (wCfg && wCfg.isBossWave) ? "#F43F5E" : "#FACC15";
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.roundRect(this.width / 2 - 122, pillY - 24, 244, 48, 12);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "900 13px 'Press Start 2P', monospace";
+      ctx.fillStyle = (wCfg && wCfg.isBossWave) ? "#FDA4AF" : "#FEF08A";
+      ctx.fillText(`WAVE ${est.currentWave} / ${totW}`, this.width / 2, pillY - 6);
+
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#E0F2FE";
+      ctx.fillText(wCfg ? `${wCfg.chapterShortName} · ${wCfg.title}` : "", this.width / 2, pillY + 13);
+      ctx.restore();
+    }
+
     const beatDur = 0.38;
     const beatIdx = Math.min(3, Math.floor(t / beatDur)); // 3="3", 2="2", 1="1", 0="BATTLE START!"
     const localElapsed = beatDur - (t - beatIdx * beatDur);
