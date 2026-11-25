@@ -315,7 +315,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.4.2";
+        const ver = this.APP_VERSION || "v7.5.5p1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -560,7 +560,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.4.2";
+      const curVer = this.APP_VERSION || "v7.5.5p1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1367,7 +1367,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.4.2",
+      lastSeenVersion: this.APP_VERSION || "v7.5.5p1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2616,19 +2616,19 @@ Object.assign(window.GameApp, {
       "C":      "bg-slate-800 text-slate-300 border-slate-500"
     };
     const bestRecordsHtml = `
-      <div class="bg-slate-900 text-white p-3 rounded-2xl border-2 border-sky-400/80 shadow space-y-2">
-        <div class="flex items-center justify-between text-xs font-black">
-          <span class="flex items-center gap-1.5 text-sky-300"><i class="fa-solid fa-chart-simple"></i> 歷史最佳戰績總覽</span>
-          <span class="font-pixel text-[8px] text-slate-400">BEST RATINGS</span>
+      <div class="poke-card p-3 bg-white space-y-2">
+        <div class="flex items-center justify-between text-xs font-black border-b border-slate-200 pb-1.5">
+          <span class="flex items-center gap-1.5 text-slate-800"><i class="fa-solid fa-chart-simple text-blue-600"></i> 歷史最佳戰績總覽</span>
+          <span class="font-pixel text-[8px] text-slate-500">BEST RATINGS</span>
         </div>
         <div class="grid grid-cols-2 gap-1.5">
           ${modeCardsDef.map(mc => {
             const rec = brMap[mc.key];
             if (!rec) {
               return `
-                <div class="bg-slate-950/80 rounded-xl p-2 border border-slate-800 flex flex-col justify-between min-h-[64px]">
-                  <div class="text-[10px] font-black text-slate-300 truncate">${mc.label}</div>
-                  <div class="text-[10px] font-bold text-slate-500 mt-1">尚無評級紀錄</div>
+                <div class="bg-slate-50 rounded-xl p-2 border border-slate-200 flex flex-col justify-between min-h-[62px]">
+                  <div class="text-[10px] font-black text-slate-700 truncate">${mc.label}</div>
+                  <div class="text-[10px] font-bold text-slate-400 mt-1">尚無評級紀錄</div>
                 </div>
               `;
             }
@@ -2636,16 +2636,16 @@ Object.assign(window.GameApp, {
             const sprUrl = pObj ? SpriteCache.resolveUrl((rec.build && rec.build.isShiny && pObj.shiny_forward_sprite) ? pObj.shiny_forward_sprite : pObj.forward_sprite) : "";
             const rCls = rankColorMap[rec.rank] || rankColorMap.C;
             return `
-              <div class="bg-slate-950/90 rounded-xl p-2 border ${mc.accent} flex flex-col justify-between gap-1">
+              <div class="bg-slate-50 rounded-xl p-2 border-2 border-slate-200 flex flex-col justify-between gap-1">
                 <div class="flex items-center justify-between gap-1">
-                  <span class="text-[10px] font-black text-slate-200 truncate">${mc.label}</span>
+                  <span class="text-[10px] font-black text-slate-800 truncate">${mc.label}</span>
                   <span class="px-1.5 py-0.2 rounded-md border font-black italic text-[10px] leading-tight shrink-0 ${rCls}">${rec.rank}</span>
                 </div>
                 <div class="flex items-center gap-1.5">
-                  ${sprUrl ? `<img src="${sprUrl}" class="w-7 h-7 pixel-sprite object-contain bg-slate-900 rounded-lg border border-slate-700 shrink-0"/>` : ''}
+                  ${sprUrl ? `<img src="${sprUrl}" class="w-7 h-7 pixel-sprite object-contain bg-white rounded-lg border border-slate-300 shrink-0"/>` : ''}
                   <div class="min-w-0 flex-1">
-                    <div class="font-pixel text-[9px] text-amber-300 leading-tight">${(rec.score || 0).toLocaleString()} <span class="text-[7px] text-slate-400">PTS</span></div>
-                    <div class="text-[9px] font-bold text-indigo-300 truncate mt-0.5">${rec.title || '關都挑戰者'}</div>
+                    <div class="font-pixel text-[9px] text-amber-600 leading-tight">${(rec.score || 0).toLocaleString()} <span class="text-[7px] text-slate-400">PTS</span></div>
+                    <div class="text-[9px] font-bold text-indigo-600 truncate mt-0.5">${rec.title || '關都挑戰者'}</div>
                   </div>
                 </div>
               </div>
@@ -2656,9 +2656,9 @@ Object.assign(window.GameApp, {
     `;
 
     const summaryBar = `
-      <div class="bg-slate-900 text-white px-3.5 py-2.5 rounded-2xl border-2 border-amber-400 flex items-center justify-between text-xs font-black shadow">
-        <span class="flex items-center gap-1.5"><i class="fa-solid fa-trophy text-amber-400"></i> 榮譽達成進度</span>
-        <span class="font-pixel text-[11px] text-amber-300">${completedCount} / ${ACHIEVEMENTS.length}</span>
+      <div class="poke-card px-3.5 py-2.5 bg-white flex items-center justify-between text-xs font-black">
+        <span class="flex items-center gap-1.5 text-slate-800"><i class="fa-solid fa-trophy text-amber-500"></i> 榮譽達成進度</span>
+        <span class="font-pixel text-[11px] text-amber-600">${completedCount} / ${ACHIEVEMENTS.length}</span>
       </div>
     `;
     box.innerHTML = bestRecordsHtml + summaryBar + sorted.map(a => {
@@ -2669,23 +2669,23 @@ Object.assign(window.GameApp, {
       const targetVal = Math.max(1, progPair[1]);
       const pct = Math.min(100, Math.round((curVal / targetVal) * 100));
       return `
-        <div class="rounded-2xl p-3 border-2 flex items-center justify-between gap-3 shadow-md ${unlocked && !claimed ? 'border-amber-400 bg-slate-900 shadow-[0_0_14px_rgba(250,204,21,0.22)]' : (claimed ? 'border-slate-800 bg-slate-900/65 opacity-80' : 'border-slate-700/90 bg-slate-900/90')}">
+        <div class="poke-card p-3 flex items-center justify-between gap-3 ${unlocked && !claimed ? 'border-amber-400 bg-amber-50/40' : (claimed ? 'opacity-80 bg-slate-50' : 'bg-white')}">
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-black text-sm text-white">${a.name}</span>
-              <span class="text-[10px] font-black text-amber-300 bg-amber-950/90 border border-amber-500/60 px-1.5 py-0.2 rounded-full">+${a.reward} 金</span>
+              <span class="font-black text-sm text-slate-800">${a.name}</span>
+              <span class="text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded-full">+${a.reward} 金</span>
             </div>
-            <div class="text-xs font-bold text-slate-300 mt-0.5">${a.desc}</div>
+            <div class="text-xs font-bold text-slate-600 mt-0.5">${a.desc}</div>
             <div class="mt-1.5 flex items-center gap-2">
-              <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                <div class="h-full rounded-full ${unlocked ? 'bg-emerald-400' : 'bg-sky-500'}" style="width:${pct}%"></div>
+              <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${unlocked ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
               </div>
-              <span class="font-pixel text-[9px] text-slate-400 shrink-0">${curVal}/${targetVal}</span>
+              <span class="font-pixel text-[9px] text-slate-500 shrink-0">${curVal}/${targetVal}</span>
             </div>
           </div>
           ${unlocked && !claimed
             ? `<button onclick="GameApp.claimAchievement('${a.id}', ${a.reward})" class="poke-btn-red px-3.5 py-1.5 text-xs font-black shrink-0 min-h-[38px] whitespace-nowrap">領取賞金</button>`
-            : `<span class="text-xs font-black ${claimed ? 'text-emerald-400' : 'text-slate-500'} shrink-0 whitespace-nowrap">${claimed ? '✓ 已領取' : '進行中'}</span>`
+            : `<span class="text-xs font-black ${claimed ? 'text-emerald-600' : 'text-slate-400'} shrink-0 whitespace-nowrap">${claimed ? '✓ 已領取' : '進行中'}</span>`
           }
         </div>
       `;
@@ -2886,7 +2886,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.4.2",
+      version: this.APP_VERSION || "v7.5.5p1",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3321,8 +3321,12 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "85"
+        skillAlpha: "85",
+        uiTheme: "gba"
       };
+    }
+    if (!this.saveData.settings.uiTheme) {
+      this.saveData.settings.uiTheme = "gba";
     }
     if (!this.saveData.settings.skillAlpha) {
       this.saveData.settings.skillAlpha = "85";
@@ -3350,6 +3354,9 @@ Object.assign(window.GameApp, {
     }
     if (canvas) {
       canvas.classList.toggle("canvas-vivid-boost", s.screenFilter === "vivid");
+    }
+    if (document.body) {
+      document.body.classList.toggle("theme-dark-gold", s.uiTheme === "dark_gold");
     }
   },
 
@@ -3396,7 +3403,8 @@ Object.assign(window.GameApp, {
       procNoticeMode: "icon",
       screenShake: "normal",
       fourthSlotPoolMode: "affinity",
-      skillAlpha: "85"
+      skillAlpha: "85",
+      uiTheme: "gba"
     };
     this.debugMobCap = 0;
     SoundFX.play("levelup");
@@ -3429,6 +3437,18 @@ Object.assign(window.GameApp, {
     };
 
     box.innerHTML = `
+      <!-- 0. 全局介面主題風格切換 (v7.5.5) -->
+      <div class="bg-slate-950/70 p-3 rounded-2xl border border-amber-500/50 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-palette"></i> 全局介面主題風格</span>
+          <span class="text-[10px] font-bold text-emerald-400">即時切換生效</span>
+        </div>
+        <div class="grid grid-cols-2 gap-1.5">
+          ${renderOptionBtn("uiTheme", "gba", "🎮 經典 GBA 掌機風", "明亮白卡＋深藍描邊", true)}
+          ${renderOptionBtn("uiTheme", "dark_gold", "✨ 深藍黑金戰術風", "全介面統一深色護眼")}
+        </div>
+      </div>
+
       <!-- 1. 跨裝置怪量與效能分流 -->
       <div class="bg-slate-950/70 p-3 rounded-2xl border border-slate-800 space-y-2">
         <div class="flex items-center justify-between">
@@ -3535,8 +3555,23 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.4.2 攜帶物上限＆經濟遞增 ‧ 難度張力重校 ‧ UI 統一版</span>
+            <span class="font-black text-sm text-amber-300">v7.5.5 五大屬性新招式補完 ＆ 全局雙主題切換版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">新增 5 大屬性招式 ＆ 5 套專屬終極超武（總計 25 招）</div>
+            <div>• <strong>岩系・岩崩</strong> ➔ 超武【大陸板塊崩落】（柔軟沙子）：範圍巨岩天墜高擊退，填補岩系空白！</div>
+            <div>• <strong>蟲系・十字剪</strong> ➔ 超武【終極十字星斬】（毒針）：高速翡翠十字雙斬 ＋15% 暴擊，填補 12 隻蟲系空白！</div>
+            <div>• <strong>毒系・毒擊</strong> ➔ 超武【劇毒新星】（毒針）：扇形毒針連射，命中中毒敵人額外觸發 +40% 毒爆！</div>
+            <div>• <strong>電系・電球</strong> ➔ 超武【超載磁暴球】（磁鐵）：隨移速最高增傷 +35% 穿透電球 ＋ 濺射電弧！</div>
+            <div>• <strong>幽靈系・暗影爪</strong> ➔ 超武【冥界裂空爪】（詛咒之符）：+25% 高暴擊三連利爪（Mega 耿鬼享專屬紅紫幻影）！</div>
+            <div class="text-amber-300 font-black pt-1">系統設定新增【全局介面主題風格切換】</div>
+            <div>• 隨時在【設定】一鍵切換 <strong>🎮 經典 GBA 掌機風</strong> 與 <strong>✨ 深藍黑金戰術風</strong>，大廳、選角、151 圖鑑、研究所、道館榮譽全站即時統一！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.4.2 攜帶物上限＆經濟遞增 ‧ 難度張力重校 ‧ UI 統一版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">根治雪球膨脹：攜帶物上限 ＆ 動態經濟</div>
@@ -3879,7 +3914,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.4.2";
+    const curVer = this.APP_VERSION || "v7.5.5p1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -149,8 +149,19 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.4.2');
+      background-image: url('images/skills_icons_sheet.png?v=7.5.5p1');
       background-size: 500% 400%;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      vertical-align: middle;
+    }
+
+    /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
+    .skill-sheet-icon-extra {
+      background-image: url('images/skills_icons_extra5.png?v=7.5.5p1');
+      background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
       image-rendering: -moz-crisp-edges;
@@ -495,6 +506,111 @@
         display: none !important;
       }
     }
+
+    /* ========================================================================
+     * v7.5.5 全局介面主題切換：深藍黑金戰術風 (body.theme-dark-gold)
+     * 一鍵將大廳、選角、151 圖鑑、研究所、道館榮譽全面統一為深藍黑金視覺
+     * ======================================================================== */
+    body.theme-dark-gold #titleScreen .poke-card,
+    body.theme-dark-gold #setupModal .poke-card,
+    body.theme-dark-gold #pokedexModal .poke-card,
+    body.theme-dark-gold #skillTreeModal .poke-card,
+    body.theme-dark-gold #achievementModal .poke-card {
+      background-color: rgba(15, 23, 42, 0.94) !important;
+      border-color: rgba(251, 191, 36, 0.55) !important;
+      color: #F8FAFC !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55) !important;
+    }
+    body.theme-dark-gold #setupModal > div:first-child,
+    body.theme-dark-gold #pokedexModal > div:first-child,
+    body.theme-dark-gold #skillTreeModal > div:first-child,
+    body.theme-dark-gold #achievementModal > div:first-child {
+      background-color: #0F172A !important;
+      border-bottom-color: rgba(251, 191, 36, 0.75) !important;
+      color: #F8FAFC !important;
+    }
+    body.theme-dark-gold #setupModal > div:first-child span,
+    body.theme-dark-gold #pokedexModal > div:first-child span,
+    body.theme-dark-gold #skillTreeModal > div:first-child span,
+    body.theme-dark-gold #achievementModal > div:first-child span {
+      color: #FDE68A !important;
+    }
+    body.theme-dark-gold #setupModal .bg-slate-100,
+    body.theme-dark-gold #pokedexModal .bg-slate-100,
+    body.theme-dark-gold #skillTreeModal .bg-slate-100,
+    body.theme-dark-gold #achievementModal .bg-slate-100,
+    body.theme-dark-gold #pokedexFilterTabs {
+      background-color: #020617 !important;
+      border-color: #1E293B !important;
+    }
+    body.theme-dark-gold #setupModal .bg-white,
+    body.theme-dark-gold #pokedexModal .bg-white,
+    body.theme-dark-gold #skillTreeModal .bg-white,
+    body.theme-dark-gold #achievementModal .bg-white,
+    body.theme-dark-gold #titleScreen .bg-white\/95 {
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      border-color: rgba(251, 191, 36, 0.55) !important;
+      color: #F1F5F9 !important;
+    }
+    body.theme-dark-gold #setupModal .bg-slate-50,
+    body.theme-dark-gold #pokedexModal .bg-slate-50,
+    body.theme-dark-gold #skillTreeModal .bg-slate-50,
+    body.theme-dark-gold #achievementModal .bg-slate-50,
+    body.theme-dark-gold #titleScreen .bg-slate-50 {
+      background-color: rgba(30, 41, 59, 0.85) !important;
+      border-color: #334155 !important;
+      color: #E2E8F0 !important;
+    }
+    body.theme-dark-gold #titleScreen .text-slate-900,
+    body.theme-dark-gold #titleScreen .text-slate-800,
+    body.theme-dark-gold #setupModal .text-slate-900,
+    body.theme-dark-gold #setupModal .text-slate-800,
+    body.theme-dark-gold #pokedexModal .text-slate-900,
+    body.theme-dark-gold #pokedexModal .text-slate-800,
+    body.theme-dark-gold #skillTreeModal .text-slate-900,
+    body.theme-dark-gold #skillTreeModal .text-slate-800,
+    body.theme-dark-gold #achievementModal .text-slate-900,
+    body.theme-dark-gold #achievementModal .text-slate-800 {
+      color: #F8FAFC !important;
+    }
+    body.theme-dark-gold #titleScreen .text-slate-600,
+    body.theme-dark-gold #titleScreen .text-slate-500,
+    body.theme-dark-gold #setupModal .text-slate-600,
+    body.theme-dark-gold #setupModal .text-slate-500,
+    body.theme-dark-gold #pokedexModal .text-slate-600,
+    body.theme-dark-gold #pokedexModal .text-slate-500,
+    body.theme-dark-gold #skillTreeModal .text-slate-600,
+    body.theme-dark-gold #skillTreeModal .text-slate-500,
+    body.theme-dark-gold #achievementModal .text-slate-600,
+    body.theme-dark-gold #achievementModal .text-slate-500 {
+      color: #CBD5E1 !important;
+    }
+    body.theme-dark-gold #titleScreen .poke-btn-white,
+    body.theme-dark-gold #setupModal .poke-btn-white,
+    body.theme-dark-gold #pokedexModal .poke-btn-white,
+    body.theme-dark-gold #skillTreeModal .poke-btn-white,
+    body.theme-dark-gold #achievementModal .poke-btn-white {
+      background-color: #1E293B !important;
+      border-color: rgba(251, 191, 36, 0.7) !important;
+      color: #FEF08A !important;
+    }
+    body.theme-dark-gold #achievementModal .bg-amber-100,
+    body.theme-dark-gold #skillTreeModal .bg-amber-50 {
+      background-color: rgba(120, 53, 15, 0.65) !important;
+      border-color: rgba(251, 191, 36, 0.65) !important;
+      color: #FDE68A !important;
+    }
+    body.theme-dark-gold #achievementModal .text-amber-700,
+    body.theme-dark-gold #achievementModal .text-amber-600,
+    body.theme-dark-gold #titleScreen .text-amber-600 {
+      color: #FACC15 !important;
+    }
+    body.theme-dark-gold #achievementModal .text-indigo-600 {
+      color: #A5B4FC !important;
+    }
+    body.theme-dark-gold #achievementModal .bg-slate-200 {
+      background-color: #1E293B !important;
+    }
   </style>
   <script>
     (function () {
@@ -595,7 +711,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.4.2
+      v7.5.5p1
     </div>
   </div>
 
@@ -1147,12 +1263,12 @@
     </div>
   </div>
 
-  <!-- 11. 道館榮譽成就館彈窗 (Achievement Modal - 方案 A 統一深藍黑金風格＋單行防換行頂欄) -->
-  <div id="achievementModal" class="absolute inset-0 z-50 hidden flex flex-col bg-slate-950 text-white">
-    <div class="bg-slate-900 border-b-2 border-amber-400/80 px-2.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-1.5 shadow-lg shrink-0">
+  <!-- 11. 道館榮譽成就館彈窗 (Achievement Modal - 統一對齊 151 圖鑑與研究所淺色 GBA 風格＋單行防換行頂欄) -->
+  <div id="achievementModal" class="absolute inset-0 z-50 hidden flex flex-col bg-slate-900 text-slate-800">
+    <div class="bg-white border-b-2 border-slate-800 px-2.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-1.5 shadow-md shrink-0">
       <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
         <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-2.5 py-1 text-[11px] sm:text-xs font-black whitespace-nowrap shrink-0 flex items-center gap-1"><i class="fa-solid fa-arrow-left text-[10px]"></i><span>返回</span></button>
-        <span class="font-black text-xs sm:text-sm text-amber-300 tracking-wide whitespace-nowrap truncate">道館榮譽</span>
+        <span class="font-pixel text-[11px] sm:text-sm text-slate-900 font-black whitespace-nowrap truncate">GYM HONORS</span>
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <button onclick="GameApp.exportSaveDataCode()" class="poke-btn-blue px-2 py-1 text-[10px] sm:text-[11px] font-black whitespace-nowrap shrink-0 flex items-center gap-1"><i class="fa-solid fa-file-export text-[9px]"></i><span>匯出</span></button>
@@ -1160,7 +1276,7 @@
         <button onclick="GameApp.resetToNewbieSave()" class="poke-btn-red px-2 py-1 text-[10px] sm:text-[11px] font-black whitespace-nowrap shrink-0 flex items-center gap-1" title="回復純淨新手開局進度"><i class="fa-solid fa-rotate-left text-[9px]"></i><span>重置</span></button>
       </div>
     </div>
-    <div class="flex-1 overflow-y-auto p-3 sm:p-4 bg-slate-950">
+    <div class="flex-1 overflow-y-auto p-3 sm:p-4 bg-slate-100">
       <div id="achievementListContainer" class="max-w-xl mx-auto space-y-2.5"></div>
     </div>
   </div>
@@ -1523,7 +1639,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.4.2</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.5.5p1</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1571,7 +1687,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.4.2</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.5.5p1</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1604,14 +1720,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.4.2"></script>
-  <script src="map_v11_engine.js?v=7.4.2"></script>
-  <script src="skills_engine.js?v=7.4.2"></script>
-  <script src="skills_vfx.js?v=7.4.2"></script>
-  <script src="battle_core_2.js?v=7.4.2"></script>
-  <script src="battle_renderer.js?v=7.4.2"></script>
-  <script src="modes_arcade.js?v=7.4.2"></script>
-  <script src="mode_expedition.js?v=7.4.2"></script>
-  <script src="game_ui.js?v=7.4.2"></script>
+  <script src="pokedex_data.js?v=7.5.5p1"></script>
+  <script src="map_v11_engine.js?v=7.5.5p1"></script>
+  <script src="skills_engine.js?v=7.5.5p1"></script>
+  <script src="skills_vfx.js?v=7.5.5p1"></script>
+  <script src="battle_core_2.js?v=7.5.5p1"></script>
+  <script src="battle_renderer.js?v=7.5.5p1"></script>
+  <script src="modes_arcade.js?v=7.5.5p1"></script>
+  <script src="mode_expedition.js?v=7.5.5p1"></script>
+  <script src="game_ui.js?v=7.5.5p1"></script>
 </body>
 </html>

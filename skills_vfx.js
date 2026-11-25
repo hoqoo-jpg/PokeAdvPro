@@ -2567,7 +2567,78 @@ Object.assign(window.SkillsEngine, {
       ctx.save();
       ctx.globalAlpha = (Math.max(0, 1 - prog * 0.72)) * sAlpha;
 
-      if (m.style === "hydro_pump_beam") {
+      if (m.style === "rock_slide_impact") {
+        const sx = toSx(m.x), sy = toSy(m.y);
+        const r = m.radius || 55;
+        const dropFrac = Math.min(1, prog / 0.32);
+        const fallY = (1 - dropFrac) * 95;
+        ctx.save();
+        ctx.translate(sx, sy);
+        if (dropFrac >= 0.85) {
+          const ringP = (prog - 0.25) / 0.75;
+          ctx.strokeStyle = `rgba(217, 119, 6, ${Math.max(0, 1 - ringP) * 0.9})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.ellipse(0, 4, r * (0.45 + ringP * 0.55), r * 0.36 * (0.45 + ringP * 0.55), 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.translate(0, -fallY);
+        ctx.fillStyle = "#78350F";
+        ctx.strokeStyle = "#FEF3C7";
+        ctx.lineWidth = 2;
+        const br = r * 0.42;
+        ctx.beginPath();
+        ctx.moveTo(-br, br * 0.4); ctx.lineTo(-br * 0.6, -br * 0.85);
+        ctx.lineTo(br * 0.55, -br * 0.95); ctx.lineTo(br, -br * 0.1);
+        ctx.lineTo(br * 0.45, br * 0.85); ctx.lineTo(-br * 0.5, br * 0.75);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#D97706";
+        ctx.beginPath();
+        ctx.moveTo(-br * 0.55, -br * 0.75); ctx.lineTo(br * 0.45, -br * 0.8);
+        ctx.lineTo(br * 0.1, br * 0.1); ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (m.style === "x_scissor") {
+        const sx = toSx(m.x), sy = toSy(m.y);
+        const r = m.radius || 70;
+        const scale = 0.55 + Math.sin(Math.min(1, prog * 1.4) * Math.PI * 0.5) * 0.55;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(m.angle || 0);
+        [-Math.PI / 4, Math.PI / 4].forEach(armAng => {
+          ctx.save();
+          ctx.rotate(armAng);
+          ctx.fillStyle = m.isUltimate ? "#FEF08A" : "#84CC16";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * scale, r * 0.18 * scale, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#FFFFFF";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, r * 0.78 * scale, r * 0.07 * scale, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+        ctx.restore();
+      } else if (m.style === "shadow_claw") {
+        const sx = toSx(m.x), sy = toSy(m.y);
+        const r = m.radius || 75;
+        const sweep = Math.min(1, prog * 1.6);
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(m.angle || 0);
+        [-18, 0, 18].forEach((yOff, idx) => {
+          ctx.strokeStyle = m.isMegaGengar ? (idx === 1 ? "#FDA4AF" : "#E11D48") : (idx === 1 ? "#F5D0FE" : "#9333EA");
+          ctx.lineWidth = idx === 1 ? 6 : 4;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.65, yOff - 14);
+          ctx.quadraticCurveTo(0, yOff + (idx - 1) * 8, r * (0.2 + sweep * 0.65), yOff + 14);
+          ctx.stroke();
+        });
+        ctx.restore();
+      } else if (m.style === "hydro_pump_beam") {
         // 【水炮（Hydro Pump）】：雙柱加粗高壓水柱 ＋ 水箭龜 (#009) 專屬金青【超級發射器】雙肩平行重炮 ＋ Lv.8+ 三股純白螺旋絞線
         const extendFrac = Math.min(1, prog / 0.22);
         const curLen = Math.max(18, m.length * extendFrac);
@@ -4056,7 +4127,42 @@ Object.assign(window.SkillsEngine, {
       ctx.globalAlpha = projAlpha;
       ctx.translate(sx, sy);
 
-      if (pr.vfx === "ember_spark") {
+      if (pr.vfx === "poison_jab") {
+        ctx.rotate(pr.angle || 0);
+        ctx.fillStyle = "#581C87";
+        ctx.beginPath();
+        ctx.moveTo(r * 1.45, 0); ctx.lineTo(-r * 1.1, -r * 0.55); ctx.lineTo(-r * 0.65, 0); ctx.lineTo(-r * 1.1, r * 0.55);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#C084FC";
+        ctx.beginPath();
+        ctx.moveTo(r * 1.25, 0); ctx.lineTo(-r * 0.75, -r * 0.34); ctx.lineTo(-r * 0.45, 0); ctx.lineTo(-r * 0.75, r * 0.34);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#4ADE80";
+        ctx.beginPath();
+        ctx.arc(r * 0.35, 0, r * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (pr.vfx === "electro_orb") {
+        const pulse = 1 + Math.sin(now * 24 + pr.x * 0.1) * 0.12;
+        const grad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.25 * pulse);
+        grad.addColorStop(0, "#FFFFFF");
+        grad.addColorStop(0.45, "#FACC15");
+        grad.addColorStop(1, "rgba(234, 179, 8, 0)");
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.25 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = now * 8 + (k * Math.PI) / 3;
+          ctx.moveTo(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45);
+          ctx.lineTo(Math.cos(a + 0.25) * r * 1.1, Math.sin(a + 0.25) * r * 1.1);
+        }
+        ctx.stroke();
+      } else if (pr.vfx === "ember_spark") {
         // 【小火龍・火花（Ember）】：不規則跳動像素火星簇（高溫明黃火芯 ＋ 3 顆錯落閃爍菱形／方形火星）
         const seed = pr.cinderSeed || (pr.x * 0.13);
         const flicker = Math.sin(now * 28 + seed);

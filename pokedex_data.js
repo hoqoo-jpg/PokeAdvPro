@@ -244,6 +244,47 @@ Ember: {
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/metronome.png",
     desc: "隨機搖出全圖鑑任意強力攻擊招式！",
     evoDesc: "【終極超武】全場隨機觸發三重不同屬性超武同時轟炸！"
+  },
+  // v7.5.5 新增 5 大屬性補完招式（岩／蟲／毒／電／幽靈）
+  RockSlide: {
+    id: "RockSlide", name: "岩崩", type: "Rock", baseDmg: 36, baseCd: 1.55, ultMinCd: 3.6, ultPowerBonus: 1.05,
+    knockback: 16, isMelee: false, vfx: "rock_slide", reqItem: "soft_sand",
+    evolvedName: "大陸板塊崩落", color: "#B45309",
+    extraIconCol: 0, svgIcon: "rock",
+    desc: "召喚巨岩從天砸落指定區域，造成範圍岩系重擊與強烈擊退！",
+    evoDesc: "【終極超武】六道巨型板塊隕岩連環天墜，引發全場岩爆震波！"
+  },
+  XScissor: {
+    id: "XScissor", name: "十字剪", type: "Bug", baseDmg: 32, baseCd: 1.08, ultMinCd: 3.2, ultPowerBonus: 1.05,
+    knockback: 10, isMelee: true, style: "x_scissor", reqItem: "poison_barb",
+    evolvedName: "終極十字星斬", color: "#84CC16",
+    extraIconCol: 1, svgIcon: "bug",
+    desc: "雙鐮高速交錯斬出翡翠十字刃，附帶 +15% 暴擊率與破甲打擊！",
+    evoDesc: "【終極超武】釋放三連超巨型翡翠金十字星斬，撕裂周圍一切敵群！"
+  },
+  PoisonJab: {
+    id: "PoisonJab", name: "毒擊", type: "Poison", baseDmg: 27, baseCd: 1.05, ultMinCd: 3.3, ultPowerBonus: 1.05,
+    knockback: 4, isMelee: false, vfx: "poison_jab", reqItem: "poison_barb",
+    evolvedName: "劇毒新星", color: "#A855F7",
+    extraIconCol: 2, svgIcon: "poison",
+    desc: "扇形連射劇毒尖刺；命中已中毒敵人額外觸發 +40% 毒爆重擊！",
+    evoDesc: "【終極超武】向 12 方向齊射劇毒新星針雨並引爆周身毒氣衝擊環！"
+  },
+  ElectroBall: {
+    id: "ElectroBall", name: "電球", type: "Electric", baseDmg: 31, baseCd: 1.25, ultMinCd: 3.4, ultPowerBonus: 1.05,
+    knockback: 6, isMelee: false, vfx: "electro_orb", reqItem: "magnet",
+    evolvedName: "超載磁暴球", color: "#FACC15",
+    extraIconCol: 3, svgIcon: "electric",
+    desc: "發射高壓穿透電球，移動速度越快傷害越高（最高 +35%）並觸發電弧！",
+    evoDesc: "【終極超武】放出三顆超載磁暴巨球貫穿戰場，沿途持續放電鏈擊！"
+  },
+  ShadowClaw: {
+    id: "ShadowClaw", name: "暗影爪", type: "Ghost", baseDmg: 34, baseCd: 1.12, ultMinCd: 3.3, ultPowerBonus: 1.08,
+    knockback: 8, isMelee: true, style: "shadow_claw", reqItem: "spell_tag",
+    evolvedName: "冥界裂空爪", color: "#9333EA",
+    extraIconCol: 4, svgIcon: "ghost",
+    desc: "凝聚暗影利爪三連橫掃，天生附帶 +25% 超高暴擊率！",
+    evoDesc: "【終極超武】四向撕開冥界裂空巨爪，造成毀滅性暗影暴擊收割！"
   }
 };
 
@@ -290,6 +331,21 @@ function renderSkillIconHTML(skillOrId, sizeClass = "w-4 h-4") {
     const posX = (meta.iconCol * 25).toFixed(4);
     const posY = (meta.iconRow * (100 / 3)).toFixed(4);
     return `<span class="skill-sheet-icon ${sizeClass} inline-block shrink-0" style="background-position: ${posX}% ${posY}%;" title="${meta.name || ''}"></span>`;
+  }
+  if (meta.extraIconCol !== undefined) {
+    const posX = (meta.extraIconCol * 25).toFixed(4);
+    return `<span class="skill-sheet-icon-extra ${sizeClass} inline-block shrink-0" style="background-position: ${posX}% 0%;" title="${meta.name || ''}"></span>`;
+  }
+  if (meta.svgIcon) {
+    const svgMap = {
+      rock: `<svg viewBox="0 0 24 24" class="w-full h-full"><rect width="24" height="24" rx="5" fill="#451A03" stroke="#D97706" stroke-width="2"/><polygon points="5,18 9,8 16,7 20,17 13,20" fill="#B45309" stroke="#FEF3C7" stroke-width="1.3"/><polygon points="9,8 13,13 16,7" fill="#F59E0B"/></svg>`,
+      bug: `<svg viewBox="0 0 24 24" class="w-full h-full"><rect width="24" height="24" rx="5" fill="#1A2E05" stroke="#84CC16" stroke-width="2"/><path d="M5 5 L19 19 M19 5 L5 19" stroke="#BEF264" stroke-width="3.2" stroke-linecap="round"/><path d="M5 5 L19 19 M19 5 L5 19" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round"/></svg>`,
+      poison: `<svg viewBox="0 0 24 24" class="w-full h-full"><rect width="24" height="24" rx="5" fill="#3B0764" stroke="#C084FC" stroke-width="2"/><path d="M12 4 L17 14 L12 20 L7 14 Z" fill="#A855F7" stroke="#F3E8FF" stroke-width="1.4"/><circle cx="12" cy="13" r="2.2" fill="#4ADE80"/></svg>`,
+      electric: `<svg viewBox="0 0 24 24" class="w-full h-full"><rect width="24" height="24" rx="5" fill="#422006" stroke="#FACC15" stroke-width="2"/><circle cx="12" cy="12" r="6.5" fill="#FACC15" stroke="#FEF9C3" stroke-width="1.5"/><path d="M13 6 L8.5 12.5 H12 L11 18 L15.5 11.5 H12 Z" fill="#FFFFFF"/></svg>`,
+      ghost: `<svg viewBox="0 0 24 24" class="w-full h-full"><rect width="24" height="24" rx="5" fill="#2E1065" stroke="#A855F7" stroke-width="2"/><path d="M5 7 Q12 4 19 8 M4 12 Q12 9 20 13 M6 17 Q12 15 18 18" fill="none" stroke="#E879F9" stroke-width="2.4" stroke-linecap="round"/></svg>`
+    };
+    const svg = svgMap[meta.svgIcon] || "";
+    if (svg) return `<span class="${sizeClass} inline-flex items-center justify-center shrink-0" title="${meta.name || ''}">${svg}</span>`;
   }
   return meta.sprite ? `<img src="${meta.sprite}" class="${sizeClass} pixel-sprite object-contain shrink-0" alt="${meta.name || ''}"/>` : "";
 }
@@ -2326,7 +2382,12 @@ const TM_CATALOG = {
   ShadowBall:   { id: "ShadowBall",   tmNo: "TM30", name: "暗影球",   type: "Ghost", cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ghost.png", desc: "投擲凝聚暗影之球，可無視所有牆體與障礙穿透打擊。" },
   KarateChop:   { id: "KarateChop",   tmNo: "TM31", name: "空手劈",   type: "Fighting", cost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-fighting.png", desc: "連續極限重拳揮擊，近戰超高硬直與暴擊輸出。" },
   AirSlash:     { id: "AirSlash",     tmNo: "TM40", name: "空氣斬",   type: "Flying", cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-flying.png", desc: "雙翼斬出迴旋風刃，擊退身前逼近的飛行怪與鳥群。" },
-  SludgeBomb:   { id: "SludgeBomb",   tmNo: "TM36", name: "污泥炸彈", type: "Poison", cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-poison.png", desc: "投擲劇毒泥沼，踏入泥沼之敵全體陷入劇毒持續扣血。" }
+  SludgeBomb:   { id: "SludgeBomb",   tmNo: "TM36", name: "污泥炸彈", type: "Poison", cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-poison.png", desc: "投擲劇毒泥沼，踏入泥沼之敵全體陷入劇毒持續扣血。" },
+  RockSlide:    { id: "RockSlide",    tmNo: "TM80", name: "岩崩",     type: "Rock",     cost: 250, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-rock.png", desc: "召喚巨岩從天砸落範圍敵群，造成高擊退岩系重擊。" },
+  XScissor:     { id: "XScissor",     tmNo: "TM81", name: "十字剪",   type: "Bug",      cost: 245, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-bug.png", desc: "高速翡翠十字雙斬，天生 +15% 暴擊率，補齊蟲系近戰火力。" },
+  PoisonJab:    { id: "PoisonJab",    tmNo: "TM84", name: "毒擊",     type: "Poison",   cost: 245, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-poison.png", desc: "扇形連射劇毒尖刺，對中毒目標額外觸發 +40% 毒爆傷害！" },
+  ElectroBall:  { id: "ElectroBall",  tmNo: "TM73", name: "電球",     type: "Electric", cost: 255, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-electric.png", desc: "發射隨移速增傷的高壓穿透電球，命中濺射金色電弧。" },
+  ShadowClaw:   { id: "ShadowClaw",   tmNo: "TM65", name: "暗影爪",   type: "Ghost",    cost: 255, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-ghost.png", desc: "幽靈三連利爪橫掃，附帶 +25% 暴擊率，Mega 耿鬼絕配！" }
 };
 
 // 一階先發精靈天生三招階梯表 (起手 ➔ 中程牽制 ➔ 領域爆發)
@@ -2338,10 +2399,10 @@ const POKEMON_NATURAL_SKILLS = {
   5:   { name: "火恐龍",   skills: ["Flamethrower", "DragonRush", "Ember"] },
   6:   { name: "噴火龍",   skills: ["Flamethrower", "DragonRush", "AirSlash"] },
   7:   { name: "傑尼龜",   skills: ["WaterGun", "HydroPump", "IceBeam"] },
-  10:  { name: "綠毛蟲",   skills: ["Tackle", "RazorLeaf", "AirSlash"] },
-  13:  { name: "獨角蟲",   skills: ["Tackle", "SludgeBomb", "AirSlash"] },
+  10:  { name: "綠毛蟲",   skills: ["XScissor", "RazorLeaf", "AirSlash"] },
+  13:  { name: "獨角蟲",   skills: ["XScissor", "PoisonJab", "SludgeBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
-  25:  { name: "皮卡丘",   skills: ["Thunderbolt", "Tackle", "AirSlash"] },
+  25:  { name: "皮卡丘",   skills: ["Thunderbolt", "ElectroBall", "AirSlash"] },
   29:  { name: "尼多蘭",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
   30:  { name: "尼多娜",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
   31:  { name: "尼多后",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
@@ -2353,9 +2414,9 @@ const POKEMON_NATURAL_SKILLS = {
   69:  { name: "喇叭芽",   skills: ["BulletSeed", "VineWhip", "SludgeBomb"] },
   72:  { name: "瑪瑙水母", skills: ["HydroPump", "SludgeBomb", "IceBeam"] },
   79:  { name: "呆呆獸",   skills: ["HydroPump", "Psystrike", "IceBeam"] },
-  92:  { name: "鬼斯",     skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
-  93:  { name: "鬼斯通",   skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
-  94:  { name: "耿鬼",     skills: ["ShadowBall", "SludgeBomb", "Psystrike"] },
+  92:  { name: "鬼斯",     skills: ["ShadowBall", "ShadowClaw", "SludgeBomb"] },
+  93:  { name: "鬼斯通",   skills: ["ShadowBall", "ShadowClaw", "SludgeBomb"] },
+  94:  { name: "耿鬼",     skills: ["ShadowBall", "ShadowClaw", "SludgeBomb"] },
   102: { name: "蛋蛋",     skills: ["BulletSeed", "Psystrike", "SeedBomb"] },
   113: { name: "吉利蛋",   skills: ["Moonblast", "Metronome", "Earthquake"] },
   114: { name: "蔓藤怪",   skills: ["BulletSeed", "VineWhip", "SeedBomb"] },
@@ -2365,7 +2426,7 @@ const POKEMON_NATURAL_SKILLS = {
   130: { name: "暴鯉龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   132: { name: "百變怪",   skills: ["Metronome", "Tackle", "Psystrike"] },
   133: { name: "伊布",     skills: ["Tackle", "AirSlash", "Metronome"] }, // 撞擊 + 電光風刃 + 天命揮指
-  142: { name: "化石翼龍", skills: ["AirSlash", "DragonRush", "Earthquake"] },
+  142: { name: "化石翼龍", skills: ["RockSlide", "AirSlash", "DragonRush"] },
   124: { name: "迷唇姐",   skills: ["IceBeam", "Psystrike", "Moonblast"] },
   143: { name: "卡比獸",   skills: ["Tackle", "Earthquake", "KarateChop"] },
   144: { name: "急凍鳥",   skills: ["IceBeam", "AirSlash", "Moonblast"] },
@@ -2380,16 +2441,16 @@ const TYPE_SKILL_POOLS = {
   Grass:    ["RazorLeaf", "BulletSeed", "SeedBomb"],
   Fire:     ["Ember", "Flamethrower", "DragonRush"],
   Water:    ["WaterGun", "HydroPump", "IceBeam"],
-  Electric: ["Thunderbolt", "AirSlash", "Tackle"],
+  Electric: ["Thunderbolt", "ElectroBall", "AirSlash"],
   Ice:      ["IceBeam", "WaterGun", "HydroPump"],
   Fighting: ["KarateChop", "Earthquake", "Tackle"],
-  Poison:   ["SludgeBomb", "ShadowBall", "Tackle"],
+  Poison:   ["PoisonJab", "SludgeBomb", "ShadowBall"],
   Ground:   ["Earthquake", "KarateChop", "Tackle"],
   Flying:   ["AirSlash", "DragonRush", "Tackle"],
   Psychic:  ["Psystrike", "Moonblast", "ShadowBall"],
-  Bug:      ["AirSlash", "Tackle", "RazorLeaf"],
-  Rock:     ["Earthquake", "Tackle", "DragonRush"],
-  Ghost:    ["ShadowBall", "SludgeBomb", "Psystrike"],
+  Bug:      ["XScissor", "AirSlash", "RazorLeaf"],
+  Rock:     ["RockSlide", "Earthquake", "DragonRush"],
+  Ghost:    ["ShadowBall", "ShadowClaw", "SludgeBomb"],
   Dragon:   ["DragonRush", "Flamethrower", "Thunderbolt"],
   Steel:    ["Thunderbolt", "Earthquake", "Tackle"],
   Normal:   ["Tackle", "AirSlash", "Earthquake"]
