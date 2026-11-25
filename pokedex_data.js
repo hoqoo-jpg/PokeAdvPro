@@ -2137,6 +2137,48 @@ const SoundFX = {
         gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
         osc.start(now);
         osc.stop(now + 0.45);
+      } else if (type === "boss_encounter") {
+        // 經典掌機 1.85s Boss 遇敵專屬晶片合成前奏（警報急音 ➔ 雙聲部爬升 ➔ 破影重音和弦）
+        const leadNotes = [
+          // Beat 1: 遇敵閃屏急促警報 (0.00 - 0.36s)
+          { f: 1318.5, t: 0.00, d: 0.055, v: 0.14, w: "square" },
+          { f: 1244.5, t: 0.06, d: 0.055, v: 0.14, w: "square" },
+          { f: 1318.5, t: 0.12, d: 0.055, v: 0.14, w: "square" },
+          { f: 1244.5, t: 0.18, d: 0.055, v: 0.14, w: "square" },
+          { f: 1046.5, t: 0.24, d: 0.055, v: 0.15, w: "square" },
+          { f: 987.77, t: 0.30, d: 0.060, v: 0.15, w: "square" },
+          // Beat 2: 剪影滑入張力爬升 (0.38 - 0.90s)
+          { f: 440.00, t: 0.38, d: 0.08, v: 0.15, w: "square" },
+          { f: 493.88, t: 0.47, d: 0.08, v: 0.15, w: "square" },
+          { f: 523.25, t: 0.56, d: 0.08, v: 0.16, w: "square" },
+          { f: 587.33, t: 0.65, d: 0.08, v: 0.16, w: "square" },
+          { f: 659.25, t: 0.74, d: 0.08, v: 0.17, w: "square" },
+          { f: 783.99, t: 0.83, d: 0.09, v: 0.18, w: "square" },
+          // Beat 3: 破影顯形 + 精靈球爆發定音和弦 (0.94 - 1.85s)
+          { f: 880.00, t: 0.94, d: 0.16, v: 0.20, w: "square" },
+          { f: 1046.5, t: 1.12, d: 0.14, v: 0.19, w: "square" },
+          { f: 1174.7, t: 1.28, d: 0.14, v: 0.20, w: "square" },
+          { f: 1318.5, t: 1.44, d: 0.42, v: 0.20, w: "square" },
+          // 低音伴奏與定音鼓衝擊
+          { f: 146.83, t: 0.38, d: 0.16, v: 0.18, w: "sawtooth" },
+          { f: 164.81, t: 0.56, d: 0.16, v: 0.18, w: "sawtooth" },
+          { f: 196.00, t: 0.74, d: 0.16, v: 0.20, w: "sawtooth" },
+          { f: 110.00, t: 0.94, d: 0.32, v: 0.26, w: "sawtooth" },
+          { f: 130.81, t: 1.28, d: 0.16, v: 0.22, w: "sawtooth" },
+          { f: 164.81, t: 1.44, d: 0.44, v: 0.24, w: "triangle" }
+        ];
+        leadNotes.forEach(n => {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = n.w;
+          o.frequency.setValueAtTime(n.f, now + n.t);
+          g.gain.setValueAtTime(n.v, now + n.t);
+          g.gain.exponentialRampToValueAtTime(0.004, now + n.t + n.d);
+          o.connect(g);
+          g.connect(dest);
+          o.start(now + n.t);
+          o.stop(now + n.t + n.d + 0.02);
+        });
       } else if (type === "shiny") {
         osc.type = "sine";
         osc.frequency.setValueAtTime(880, now);

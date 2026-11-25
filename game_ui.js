@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.0";
+        const ver = this.APP_VERSION || "v7.3.1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.0";
+      const curVer = this.APP_VERSION || "v7.3.1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.0",
+      lastSeenVersion: this.APP_VERSION || "v7.3.1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3000,8 +3000,20 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.0 GBA 斜對角遇敵對峙 ＆ 1/3 屏高細節長卷版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.1 2.5秒 HD-2D 四拍遇敵演出 ＆ 原比例高清長卷版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">電影級 Boss 遇敵演出（完整 2.5 秒）</div>
+            <div>• <strong>2/3 屏現代 HD-2D 對峙舞台</strong>：升級為 480×420 大氣場舞台並統一遊戲黑金戰術對話框與銘牌，徹底告別古舊感。</div>
+            <div>• <strong>四拍懷舊動畫 ＋ 專屬前奏音樂</strong>：警報雙閃 ➔ 水平百葉窗撕裂 ➔ Boss 黑影壓迫滑入 ➔ 破影閃白與屬性震波 ＋ 紅白精靈球光束放出主角背影，全程搭配全新合成 1.85 秒經典遇敵前奏！</div>
+            <div class="text-amber-300 font-black pt-1">火車站長卷原比例鎖定與高清重構</div>
+            <div>• <strong>0% 變形高清放大</strong>：畫布升級至 640×300，訓練家與寶可夢全面鎖定原始寬高比並放大至 68~72px 清晰漫步於鐵軌上方，華藍海岬重構為自然錯落帆影與礁岩風景！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.0 GBA 斜對角遇敵對峙 ＆ 1/3 屏高細節長卷版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">GBA 原生級儀式感升級</div>
@@ -3224,7 +3236,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.0";
+    const curVer = this.APP_VERSION || "v7.3.1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
