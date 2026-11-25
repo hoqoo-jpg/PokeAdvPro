@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.1";
+        const ver = this.APP_VERSION || "v7.3.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.1";
+      const curVer = this.APP_VERSION || "v7.3.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.1",
+      lastSeenVersion: this.APP_VERSION || "v7.3.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3000,8 +3000,19 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.1 2.5秒 HD-2D 四拍遇敵演出 ＆ 原比例高清長卷版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.2 原生生態道路長卷 ＆ 全場戰利品自動磁吸版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">大遠征長卷回歸原生地圖生態</div>
+            <div>• <strong>去火車站化＋原生道路</strong>：移除鐵軌與月台棚架，改以戰場同款【常磐暖黃碎石土路／華藍跨海木棧道長橋／石英神殿大理石大道／鬥技場紅金冠軍地毯】串連，並升級雙色棋盤草皮、草叢簇、海波與神殿方磚地面質感；標籤統一改為 <strong>WAVE 1 / WAVE 2 / W3 BOSS</strong>。</div>
+            <div class="text-amber-300 font-black pt-1">AREA CLEAR 全戰利品自動磁吸（方案 A）</div>
+            <div>• <strong>0 漏撿神奇糖果與寶箱</strong>：波次淨空觸發 AREA CLEAR 時，地上所有神奇糖果、雙打夥伴球與黃金進化寶箱同步高速磁吸飛向主角（1.4 秒演出緩衝＋結束保底結算），絕不再遺漏戰利品！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.1 2.5秒 HD-2D 四拍遇敵演出 ＆ 原比例高清長卷版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">電影級 Boss 遇敵演出（完整 2.5 秒）</div>
@@ -3236,7 +3247,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.1";
+    const curVer = this.APP_VERSION || "v7.3.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

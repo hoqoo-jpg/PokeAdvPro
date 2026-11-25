@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.3.1",
+  APP_VERSION: "v7.3.2",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -4822,21 +4822,29 @@ window.GameApp = {
       const it = this.mapItems[i];
       if (it.id === "poke_mart") continue; // 商店絕不被碰撞拾取邏輯刪除
 
-      const distToItem = Math.hypot(p.x - it.x, p.y - it.y);
-      // 經驗磁鐵走遠超過 1200px 直接回收清除，不再強制瞬移尾隨；重要寶箱/糖果才自動折疊
-      if (it.id === "magnet" && distToItem > 1200) {
-        this.mapItems.splice(i, 1);
-        continue;
-      }
-      if (distToItem > 1400) {
-        const rAng = Math.random() * Math.PI * 2;
-        it.x = p.x + Math.cos(rAng) * 340;
-        it.y = p.y + Math.sin(rAng) * 340;
-        continue;
+      let distToItem = Math.hypot(p.x - it.x, p.y - it.y);
+      if (it.magnetized) {
+        const d = distToItem || 1;
+        const flySpd = 560;
+        it.x += ((p.x - it.x) / d) * flySpd * dt;
+        it.y += ((p.y - it.y) / d) * flySpd * dt;
+        distToItem = Math.hypot(p.x - it.x, p.y - it.y);
+      } else {
+        // 經驗磁鐵走遠超過 1200px 直接回收清除，不再強制瞬移尾隨；重要寶箱/糖果才自動折疊
+        if (it.id === "magnet" && distToItem > 1200) {
+          this.mapItems.splice(i, 1);
+          continue;
+        }
+        if (distToItem > 1400) {
+          const rAng = Math.random() * Math.PI * 2;
+          it.x = p.x + Math.cos(rAng) * 340;
+          it.y = p.y + Math.sin(rAng) * 340;
+          continue;
+        }
       }
 
       it.bobPhase += dt * 4;
-      if (distToItem < 30) {
+      if (distToItem < 32) {
         this.mapItems.splice(i, 1);
         if (it.id === "magnet") {
           this.gems.forEach(g => { g.magnetized = true; });

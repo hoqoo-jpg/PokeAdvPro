@@ -1077,7 +1077,7 @@ window.ModeExpedition = {
       app.areaClearStampTimer = Math.max(0, app.areaClearStampTimer - dt);
     }
 
-    // 波次淨空後的 1.15s AREA CLEAR 印章 ＋ 全場磁力吸晶演出緩衝（期間暫緩彈出升級視窗）
+    // 波次淨空後的 1.40s AREA CLEAR 印章 ＋ 全場水晶與戰利品（糖果／夥伴球／寶箱）磁力回收緩衝
     if (st.waveCleared) {
       st.clearDelayTimer -= dt;
       if (st.clearDelayTimer <= 0) {
@@ -1087,6 +1087,20 @@ window.ModeExpedition = {
           app.gems.forEach(g => { remExp += (g.val || 15); });
           app.gems = [];
           if (remExp > 0) app.gainExp(remExp);
+        }
+        // 方案A 保底回收所有尚未飛抵的地上神奇糖果、雙打夥伴球與黃金進化寶箱，絕對 0 漏撿！
+        if (app.mapItems && app.mapItems.length > 0) {
+          const leftovers = app.mapItems.filter(it => it.id !== "poke_mart");
+          app.mapItems = app.mapItems.filter(it => it.id === "poke_mart");
+          leftovers.forEach(it => {
+            if (it.id === "rare_candy" && app.player) {
+              app.gainExp(app.player.nextExp - app.player.exp);
+            } else if (it.id === "partner_ball") {
+              app.summonOrUpgradePartner();
+            } else if (it.id === "evo_chest") {
+              app.openGoldenEvoChest();
+            }
+          });
         }
         app._deferLevelUpDuringClear = false;
         if ((app._deferredLevelUps || 0) > 0) {
@@ -1239,13 +1253,13 @@ window.ModeExpedition = {
     const st = app.expeditionState;
     if (!st || st.waveCleared) return;
     st.waveCleared = true;
-    st.clearDelayTimer = 1.15;
+    st.clearDelayTimer = 1.40;
     app._deferLevelUpDuringClear = true;
     app._deferredLevelUps = 0;
 
-    // 尾刀爽感閉環：0.22s 微慢動作 ＋ 1.15s AREA CLEAR 印章 ＋ 全場經驗水晶磁力音階吸入
+    // 尾刀爽感閉環：0.22s 微慢動作 ＋ 1.40s AREA CLEAR 印章 ＋ 全場水晶與糖果／寶箱磁力高速吸入
     app.killSlowmoTimer = Math.max(app.killSlowmoTimer || 0, 0.22);
-    app.areaClearStampTimer = 1.15;
+    app.areaClearStampTimer = 1.40;
     app.enemies.forEach(en => {
       app.spawnParticleCluster(en.x, en.y, "#FACC15", "#FFFFFF", 5, "star", 0.9);
     });
@@ -1273,8 +1287,16 @@ window.ModeExpedition = {
       app.spawnFloatingText(p.x, p.y - 34, `WAVE ${cfg.wave} 淨空！+${bonusCoins} 金 ‧ +${healAmt} HP`, "#34D399", 15);
     }
 
-    // 讓所有地上水晶立即磁力飛向主角（伴隨升調音效），未飛完的在 0.85s 結束時自動結算
+    // 方案A：讓所有地上水晶 ＋ 神奇糖果／夥伴球／黃金寶箱同步磁力高速飛向主角，0 漏撿！
     app.gems.forEach(g => { g.magnetized = true; });
+    if (app.mapItems && app.mapItems.length > 0) {
+      app.mapItems.forEach(it => {
+        if (it.id !== "poke_mart") {
+          it.magnetized = true;
+          app.spawnParticleCluster(it.x, it.y, "#38BDF8", "#FACC15", 8, "star", 0.85);
+        }
+      });
+    }
 
     SoundFX.play("area_clear");
     this.saveCheckpoint(app, st.currentWave + 1);
@@ -1438,7 +1460,7 @@ window.ModeExpedition = {
     if (nextBtnEl) {
       nextBtnEl.textContent = nextCfg.isFinalChapter
         ? `踏入${nextCfg.chapterShortName} · 最終決戰 →`
-        : `出發！第 ${nextWave}/${st.totalWaves} 站（${nextCfg.title}） →`;
+        : `出發！WAVE ${nextWave}/${st.totalWaves}（${nextCfg.title}） →`;
     }
 
     // 1. 啟動或靜態繪製「火車站式局部捲動 GBA 路線長卷 ＋ 訓練家與主角向右漫步」
@@ -1606,8 +1628,8 @@ window.ModeExpedition = {
       walkHint.classList.remove("hidden");
       const nextCfg = app.expeditionState && app.expeditionState.plan[nextWave - 1];
       walkHint.textContent = isCrossingAct
-        ? `正在跨越區域前往【${nextCfg ? nextCfg.chapterShortName : '下一站'}】……（點擊加速）`
-        : `正在前往第 ${nextWave} 站【${nextCfg ? nextCfg.title : ''}】……（點擊加速）`;
+        ? `正在跨越區域前往【${nextCfg ? nextCfg.chapterShortName : '下一關'}】……（點擊加速）`
+        : `正在前往 WAVE ${nextWave}【${nextCfg ? nextCfg.title : ''}】……（點擊加速）`;
     }
 
     const startTs = performance.now();
@@ -1636,7 +1658,7 @@ window.ModeExpedition = {
     this._walkAnimRaf = requestAnimationFrame(tick);
   },
 
-  // 火車站式高細節 GBA 橫向卷軸長卷（高清 640x300 佔 1/3 屏高 ➔ 整備期收斂 640x176，嚴格鎖定原比例絕不變形）
+  // 原生生態 GBA 橫向冒險路線長卷（高清 640x300 佔 1/3 屏高 ➔ 整備期收斂 640x176，原生地圖道路與地形質感）
   drawScrollingRouteMap(canvas, app, clearedWave, nextWave, walkT = 1.0, isCrossingAct = false, expanded = false) {
     const st = app.expeditionState;
     if (!st || !st.plan) return;
@@ -1650,11 +1672,11 @@ window.ModeExpedition = {
     const spacing = expanded ? 204 : 182;
     const padLeft = 108;
     const worldW = padLeft * 2 + (total - 1) * spacing;
-    const horizonY = expanded ? 96 : 48;
-    const trackY = expanded ? 214 : 116;
+    const horizonY = expanded ? 92 : 46;
+    const roadY = expanded ? 214 : 116;
 
     const nodeX = (idx) => padLeft + idx * spacing;
-    const nodeY = () => trackY;
+    const nodeY = () => roadY;
 
     const ease = 1 - Math.pow(1 - Math.min(1, walkT), 2.1);
     const fromIdx = Math.max(0, clearedWave - 1);
@@ -1666,7 +1688,6 @@ window.ModeExpedition = {
     const camX = Math.max(0, Math.min(Math.max(0, worldW - vpW), desiredCamX));
     const props = (typeof MapEngine !== "undefined" && MapEngine.spritePropCache) ? MapEngine.spritePropCache : null;
 
-    // 固定雜湊函式：產生自然錯落的生態物件座標（不隨幀閃爍，打破等距排排站）
     const detHash = (n) => {
       const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
       return x - Math.floor(x);
@@ -1675,7 +1696,7 @@ window.ModeExpedition = {
     ctx.save();
     ctx.translate(-Math.round(camX), 0);
 
-    // 1. 三層視差天空、自然生態遠景與錯落微縮 GBA 物件
+    // 1. 分章節繪製：天空遠景 ＋ 原生紋理地面（棋盤草皮／海波／神殿方磚／競技場石板）＋ 原生道路（土路／跨海木橋／神殿大理石道／紅金地毯）
     const chapters = window.EXPEDITION_CHAPTERS || [];
     let cursorWave = 0;
     chapters.forEach((ch, chIdx) => {
@@ -1686,6 +1707,7 @@ window.ModeExpedition = {
       const segW = endX - startX;
       const th = ch.theme || { bg: "#3E6B38", accent: "#2E5229", text: "#BBF7D0" };
 
+      // 1A. 漸層天空帶與浮雲
       const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
       if (ch.stageId === "pallet") {
         skyGrad.addColorStop(0, "#0284C7"); skyGrad.addColorStop(1, "#BAE6FD");
@@ -1705,63 +1727,180 @@ window.ModeExpedition = {
         for (let ci = 0; ci < 6; ci++) {
           const cx = startX + 35 + ci * 128 + detHash(chIdx * 31 + ci) * 40 - cloudDrift * 0.4;
           if (cx > endX - 30) continue;
-          const cy = expanded ? (22 + detHash(ci * 13 + chIdx) * 34) : 12;
+          const cy = expanded ? (20 + detHash(ci * 13 + chIdx) * 32) : 10;
           ctx.fillRect(Math.round(cx), Math.round(cy), 34, 8);
           ctx.fillRect(Math.round(cx + 8), Math.round(cy - 5), 18, 5);
         }
       }
 
+      // 1B. 生態地平線與原生紋理地面（告別單調純色塊！）
       if (ch.stageId === "pallet") {
+        // 遠山樹海剪影
         ctx.fillStyle = "#166534";
-        for (let mx = startX - 16; mx < endX + 24; mx += 64) {
-          const mr = 28 + detHash(mx) * 14;
-          ctx.beginPath(); ctx.arc(mx + 30, horizonY + 4, mr, Math.PI, 0); ctx.fill();
+        for (let mx = startX - 16; mx < endX + 24; mx += 60) {
+          const mr = 26 + detHash(mx) * 14;
+          ctx.beginPath(); ctx.arc(mx + 28, horizonY + 4, mr, Math.PI, 0); ctx.fill();
         }
-        ctx.fillStyle = "#4A7C44";
-        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
-        ctx.fillStyle = "#3E6B38";
-        ctx.fillRect(startX, horizonY + (expanded ? 42 : 20), segW, vpH - horizonY);
+        // 雙色 GBA 棋盤格草皮地面
+        const tileSz = expanded ? 24 : 18;
+        for (let gy = horizonY; gy < vpH; gy += tileSz) {
+          const rowI = Math.floor((gy - horizonY) / tileSz);
+          for (let gx = Math.floor(startX / tileSz) * tileSz; gx < endX; gx += tileSz) {
+            const colI = Math.floor(gx / tileSz);
+            const drawX = Math.max(startX, gx);
+            const drawW = Math.min(endX, gx + tileSz) - drawX;
+            if (drawW <= 0) continue;
+            ctx.fillStyle = ((rowI + colI) % 2 === 0) ? "#4E8245" : "#44743C";
+            ctx.fillRect(drawX, gy, drawW, tileSz + 1);
+          }
+        }
+        // 零星深綠草叢簇紋理（還原戰場草叢手感）
+        ctx.fillStyle = "#26532B";
+        for (let k = 0; k < 24; k++) {
+          const tx = startX + 14 + detHash(k * 17 + 3) * (segW - 28);
+          const ty = horizonY + 12 + detHash(k * 29 + 7) * (vpH - horizonY - 22);
+          if (Math.abs(ty - roadY) < 22) continue;
+          ctx.fillRect(Math.round(tx), Math.round(ty), 3, 7);
+          ctx.fillRect(Math.round(tx + 5), Math.round(ty - 2), 3, 9);
+          ctx.fillRect(Math.round(tx + 10), Math.round(ty), 3, 7);
+        }
+
+        // ACT 1 原生道路：真新鎮暖黃碎石土路（與背景戰場土路 100% 一致）
+        ctx.fillStyle = "#8C6B32";
+        ctx.fillRect(startX, roadY - 17, segW, 34);
+        ctx.fillStyle = "#E5C687";
+        ctx.fillRect(startX, roadY - 14, segW, 28);
+        ctx.fillStyle = "#D4B06A";
+        ctx.fillRect(startX, roadY - 14, segW, 4);
+        ctx.fillRect(startX, roadY + 10, segW, 4);
+        // 土路碎石顆粒
+        for (let px = startX + 10; px < endX - 10; px += 22) {
+          const pyOff = (detHash(px * 3) - 0.5) * 16;
+          ctx.fillStyle = (Math.floor(px) % 44 === 0) ? "#B89352" : "#F3DFB6";
+          ctx.fillRect(Math.round(px), Math.round(roadY + pyOff), 4, 3);
+        }
       } else if (ch.stageId === "cerulean_bay") {
+        // 碧海漸層 + 像素波光紋 + 遠方帆影
         const seaGrad = ctx.createLinearGradient(0, horizonY, 0, vpH);
         seaGrad.addColorStop(0, "#0284C7");
-        seaGrad.addColorStop(0.55, "#0369A1");
-        seaGrad.addColorStop(1, "#075985");
+        seaGrad.addColorStop(0.50, "#0369A1");
+        seaGrad.addColorStop(1, "#0C4A6E");
         ctx.fillStyle = seaGrad;
         ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
         ctx.fillStyle = "rgba(224, 242, 254, 0.55)";
         ctx.fillRect(startX, horizonY, segW, 3);
-        for (let si = 0; si < 4; si++) {
-          const sx = startX + 52 + si * 155 + detHash(si * 19) * 35;
-          if (sx > endX - 30) continue;
-          if (expanded && si % 2 === 0) {
+        // 動態水波紋
+        const waveDrift = Math.round((walkT * 36) % 48);
+        ctx.fillStyle = "rgba(186, 230, 253, 0.42)";
+        for (let wy = horizonY + 14; wy < vpH - 10; wy += 24) {
+          for (let wx = startX + 8; wx < endX - 24; wx += 58) {
+            const ox = wx + ((wy % 48 === 0) ? waveDrift * 0.5 : -waveDrift * 0.3);
+            if (ox >= startX && ox + 20 <= endX) {
+              ctx.fillRect(Math.round(ox), wy, 20, 2);
+            }
+          }
+        }
+        // 遠方白帆
+        if (expanded) {
+          for (let si = 0; si < 3; si++) {
+            const sx = startX + 68 + si * 185 + detHash(si * 19) * 35;
+            if (sx > endX - 30) continue;
             ctx.fillStyle = "#F8FAFC";
             ctx.beginPath(); ctx.moveTo(sx, horizonY - 2); ctx.lineTo(sx + 10, horizonY - 2); ctx.lineTo(sx + 2, horizonY - 18); ctx.closePath(); ctx.fill();
             ctx.fillStyle = "#78350F";
             ctx.fillRect(sx - 3, horizonY - 2, 16, 4);
           }
-          ctx.fillStyle = "rgba(186, 230, 253, 0.52)";
-          ctx.fillRect(Math.round(sx - 12), horizonY + 24 + (si % 2) * 18, 28, 2);
-          ctx.fillRect(Math.round(sx + 28), vpH - 28 - (si % 2) * 10, 22, 2);
         }
-      } else if (ch.isArena) {
-        ctx.fillStyle = "#1E293B";
-        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
-        ctx.fillStyle = "#991B1B";
-        ctx.fillRect(startX + 4, trackY - 24, segW - 8, 48);
+
+        // ACT 2 原生道路：華藍海岬跨海木棧道長橋（帶木板接縫、護欄、橋柱與水波倒影）
+        // 橋下木樁柱與水面反光
+        for (let bx = startX + 22; bx < endX - 10; bx += 44) {
+          ctx.fillStyle = "#451A03";
+          ctx.fillRect(Math.round(bx), roadY + 15, 8, expanded ? 24 : 14);
+          ctx.fillStyle = "rgba(186, 230, 253, 0.55)";
+          ctx.fillRect(Math.round(bx - 5), roadY + (expanded ? 37 : 27), 18, 2);
+        }
+        // 橋身護欄與木板面
+        ctx.fillStyle = "#451A03";
+        ctx.fillRect(startX, roadY - 17, segW, 34);
+        ctx.fillStyle = "#B45309";
+        ctx.fillRect(startX, roadY - 13, segW, 26);
+        ctx.fillStyle = "#D97706";
+        ctx.fillRect(startX, roadY - 11, segW, 22);
+        // 縱向木板接縫與鉚釘
+        ctx.fillStyle = "#78350F";
+        for (let px = startX + 4; px < endX; px += 14) {
+          ctx.fillRect(Math.round(px), roadY - 13, 2, 26);
+        }
+        // 橋面上下木護欄高光
         ctx.fillStyle = "#F59E0B";
-        ctx.fillRect(startX + 4, trackY - 27, segW - 8, 4);
-        ctx.fillRect(startX + 4, trackY + 24, segW - 8, 4);
+        ctx.fillRect(startX, roadY - 16, segW, 3);
+        ctx.fillRect(startX, roadY + 13, segW, 3);
+      } else if (ch.isArena) {
+        // FINAL 鬥技場：深灰石板格紋 ＋ 聚光燈 ＋ 紅金冠軍地毯
+        const tileSz = expanded ? 28 : 20;
+        for (let gy = horizonY; gy < vpH; gy += tileSz) {
+          const rowI = Math.floor((gy - horizonY) / tileSz);
+          for (let gx = Math.floor(startX / tileSz) * tileSz; gx < endX; gx += tileSz) {
+            const colI = Math.floor(gx / tileSz);
+            const drawX = Math.max(startX, gx);
+            const drawW = Math.min(endX, gx + tileSz) - drawX;
+            if (drawW <= 0) continue;
+            ctx.fillStyle = ((rowI + colI) % 2 === 0) ? "#1E293B" : "#172033";
+            ctx.fillRect(drawX, gy, drawW, tileSz + 1);
+          }
+        }
+        // 聚光燈光束
+        ctx.fillStyle = "rgba(250, 204, 21, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(startX + segW * 0.5, 0);
+        ctx.lineTo(startX + segW * 0.2, vpH);
+        ctx.lineTo(startX + segW * 0.8, vpH);
+        ctx.closePath();
+        ctx.fill();
+        // 紅金冠軍地毯大道
+        ctx.fillStyle = "#7F1D1D";
+        ctx.fillRect(startX, roadY - 19, segW, 38);
+        ctx.fillStyle = "#B91C1C";
+        ctx.fillRect(startX, roadY - 15, segW, 30);
+        ctx.fillStyle = "#FACC15";
+        ctx.fillRect(startX, roadY - 16, segW, 3);
+        ctx.fillRect(startX, roadY + 13, segW, 3);
       } else {
+        // ACT 3 石英高原：古神殿遠柱剪影 ＋ 紫灰方磚地板 ＋ 大理石鑲金大道
         ctx.fillStyle = "#3B0764";
         for (let px = startX + 24; px < endX - 24; px += 76) {
           const ph = 24 + detHash(px) * 14;
           ctx.fillRect(px, horizonY - ph, 14, ph + 2);
           ctx.fillRect(px - 4, horizonY - ph - 4, 22, 5);
         }
-        ctx.fillStyle = "#2E2447";
-        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
+        const tileSz = expanded ? 26 : 20;
+        for (let gy = horizonY; gy < vpH; gy += tileSz) {
+          const rowI = Math.floor((gy - horizonY) / tileSz);
+          for (let gx = Math.floor(startX / tileSz) * tileSz; gx < endX; gx += tileSz) {
+            const colI = Math.floor(gx / tileSz);
+            const drawX = Math.max(startX, gx);
+            const drawW = Math.min(endX, gx + tileSz) - drawX;
+            if (drawW <= 0) continue;
+            ctx.fillStyle = ((rowI + colI) % 2 === 0) ? "#2E2447" : "#251C3B";
+            ctx.fillRect(drawX, gy, drawW, tileSz + 1);
+          }
+        }
+        // 大理石鑲金大道
+        ctx.fillStyle = "#475569";
+        ctx.fillRect(startX, roadY - 17, segW, 34);
+        ctx.fillStyle = "#CBD5E1";
+        ctx.fillRect(startX, roadY - 13, segW, 26);
+        ctx.fillStyle = "#94A3B8";
+        for (let sx = startX + 8; sx < endX; sx += 28) {
+          ctx.fillRect(Math.round(sx), roadY - 13, 2, 26);
+        }
+        ctx.fillStyle = "#F59E0B";
+        ctx.fillRect(startX, roadY - 15, segW, 2.5);
+        ctx.fillRect(startX, roadY + 12.5, segW, 2.5);
       }
 
+      // 1C. 錯落有致的預烘焙微縮 GBA 物件佈景（嚴格鎖定原比例）
       if (props) {
         const treeImg  = props.get("oak_tree_full");
         const houseImg = props.get("house_full");
@@ -1776,7 +1915,7 @@ window.ModeExpedition = {
           for (let k = 0; k < 9; k++) {
             const px = startX + 28 + k * 74 + (detHash(k * 7 + 1) - 0.5) * 26;
             if (px > endX - 28) continue;
-            const py = horizonY + (expanded ? (36 + detHash(k * 11) * 28) : 26);
+            const py = horizonY + (expanded ? (38 + detHash(k * 11) * 26) : 26);
             if (expanded && houseImg && k % 4 === 1) {
               this.drawSpriteFitHeight(ctx, houseImg, px, py + 4, 52, false);
             } else if (treeImg) {
@@ -1785,7 +1924,7 @@ window.ModeExpedition = {
             }
             if (expanded && (fRed || fWhite) && k % 2 === 0) {
               const fl = k % 4 === 0 ? fRed : fWhite;
-              if (fl) this.drawSpriteFitHeight(ctx, fl, px + 18, vpH - 12 - detHash(k * 9) * 14, 16, false);
+              if (fl) this.drawSpriteFitHeight(ctx, fl, px + 18, vpH - 10 - detHash(k * 9) * 14, 16, false);
             }
           }
         } else if (ch.stageId === "cerulean_bay") {
@@ -1795,10 +1934,10 @@ window.ModeExpedition = {
             const depthOff = detHash(k * 23);
             if (reefImg && k % 2 === 0) {
               const rH = expanded ? (30 + Math.round(depthOff * 16)) : 24;
-              this.drawSpriteFitHeight(ctx, reefImg, px, horizonY + (expanded ? (34 + depthOff * 34) : 26), rH, false);
+              this.drawSpriteFitHeight(ctx, reefImg, px, horizonY + (expanded ? (36 + depthOff * 30) : 26), rH, false);
             }
             if (expanded && starImg && k % 2 === 1) {
-              this.drawSpriteFitHeight(ctx, starImg, px + 16, vpH - 14 - depthOff * 14, 16, false);
+              this.drawSpriteFitHeight(ctx, starImg, px + 16, vpH - 12 - depthOff * 14, 16, false);
             }
           }
         } else if (!ch.isArena) {
@@ -1814,12 +1953,14 @@ window.ModeExpedition = {
         }
       }
 
+      // 區域交界柔和分隔線
       if (cursorWave > 0) {
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.72)";
+        ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, vpH); ctx.stroke();
       }
 
+      // 區域頂部黑金標題牌
       const visL = Math.max(startX + 8, camX + 10);
       const visR = Math.min(endX - 8, camX + vpW - 10);
       if (visR - visL > 100) {
@@ -1838,27 +1979,21 @@ window.ModeExpedition = {
       cursorWave += len;
     });
 
-    // 2. 繪製火車站式高細節鐵道（碎石路基 ＋ 木枕木 ＋ 銀灰雙軌 ＋ 發光金軌）
-    const railStartX = nodeX(0) - 36;
-    const railEndX = nodeX(total - 1) + 36;
-    ctx.fillStyle = "#1E293B";
-    ctx.fillRect(railStartX, trackY - 12, railEndX - railStartX, 24);
-    ctx.fillStyle = "#475569";
-    ctx.fillRect(railStartX, trackY - 9, railEndX - railStartX, 18);
-    ctx.fillStyle = "#5C2D0C";
-    for (let tx = railStartX + 6; tx < railEndX; tx += 16) {
-      ctx.fillRect(tx, trackY - 10, 6, 20);
-    }
-    ctx.fillStyle = "#CBD5E1";
-    ctx.fillRect(railStartX, trackY - 6, railEndX - railStartX, 3);
-    ctx.fillRect(railStartX, trackY + 3, railEndX - railStartX, 3);
-    if (duoX > railStartX) {
-      ctx.fillStyle = "#FACC15";
-      ctx.fillRect(railStartX, trackY - 6, duoX - railStartX, 3);
-      ctx.fillRect(railStartX, trackY + 3, duoX - railStartX, 3);
+    // 2. 道路中央已走過的發光行軍進度線（點綴於原生道路中央，自然融入不搶景）
+    const pathStartX = nodeX(0);
+    if (duoX > pathStartX) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.85)";
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 6]);
+      ctx.beginPath();
+      ctx.moveTo(pathStartX, roadY);
+      ctx.lineTo(duoX, roadY);
+      ctx.stroke();
+      ctx.restore();
     }
 
-    // 3. 繪製 GBA 車站月台屋簷、站點圓章、站牌與 Boss 預覽
+    // 3. 繪製簡潔 RPG 關卡節點圓章、WAVE 標籤與 Boss 頭像（完全去除火車站月台屋簷）
     plan.forEach((cfg, idx) => {
       const sx = nodeX(idx), sy = nodeY(idx);
       if (sx < camX - 90 || sx > camX + vpW + 90) return;
@@ -1866,20 +2001,6 @@ window.ModeExpedition = {
       const isBoss = !!cfg.isBossWave;
       const isCleared = wNum <= clearedWave;
       const isNext = wNum === nextWave;
-
-      if (expanded) {
-        const roofW = isBoss ? 68 : 52;
-        const roofY = sy - 76;
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(sx - roofW / 2 - 2, roofY - 2, roofW + 4, 14);
-        ctx.fillStyle = isBoss ? "#991B1B" : (isCleared ? "#15803D" : "#0369A1");
-        ctx.fillRect(sx - roofW / 2, roofY, roofW, 10);
-        ctx.fillStyle = isBoss ? "#F59E0B" : "#E0F2FE";
-        ctx.fillRect(sx - roofW / 2, roofY, roofW, 3);
-        ctx.fillStyle = "#1E293B";
-        ctx.fillRect(sx - roofW / 2 + 5, roofY + 10, 4, 52);
-        ctx.fillRect(sx + roofW / 2 - 9, roofY + 10, 4, 52);
-      }
 
       const r = isBoss ? 16 : 13;
       ctx.fillStyle = "#0F172A";
@@ -1897,30 +2018,30 @@ window.ModeExpedition = {
         ctx.strokeRect(sx - 22, sy - 22, 44, 44);
       }
 
+      // 未通關 Boss 節點上方顯示原比例 Boss 頭像
       if (isBoss && !isCleared && cfg.previewIds && cfg.previewIds[0]) {
         const bData = POKEMON_MAP.get(cfg.previewIds[0]);
         if (bData && bData.forward_sprite) {
           const rec = SpriteCache.get(bData.forward_sprite);
           if (rec && rec.loaded) {
-            this.drawSpriteFitHeight(ctx, rec.img, sx, sy - (expanded ? 22 : 16), expanded ? 58 : 44, false);
+            this.drawSpriteFitHeight(ctx, rec.img, sx, sy - (expanded ? 22 : 16), expanded ? 60 : 44, false);
           }
         }
       }
 
-      const signY = sy + (expanded ? 28 : 22);
-      ctx.fillStyle = "#1E293B";
-      ctx.fillRect(sx - 2.5, sy + r + 2, 5, signY - (sy + r + 2));
-      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      // 下方關卡標籤（統一使用 WAVE 1 / WAVE 2 / W3 BOSS）
+      const signY = sy + (expanded ? 26 : 20);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
       ctx.strokeStyle = isNext ? "#FACC15" : "#64748B";
       ctx.lineWidth = 2;
-      ctx.fillRect(sx - 52, signY, 104, 24);
-      ctx.strokeRect(sx - 52, signY, 104, 24);
+      ctx.fillRect(sx - 50, signY, 100, 23);
+      ctx.strokeRect(sx - 50, signY, 100, 23);
       ctx.fillStyle = isNext ? "#FEF08A" : (isCleared ? "#86EFAC" : "#CBD5E1");
-      ctx.font = "900 12px 'Noto Sans TC', sans-serif";
-      ctx.fillText(isBoss ? `W${wNum} BOSS` : `第 ${wNum} 站`, sx, signY + 16.5);
+      ctx.font = "900 11px 'Press Start 2P', 'Noto Sans TC', monospace";
+      ctx.fillText(isBoss ? `W${wNum} BOSS` : `WAVE ${wNum}`, sx, signY + 16);
     });
 
-    // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（放大且零變形，站位於鐵軌上方不壓紅點）
+    // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（漫步於原生道路上方，清晰無變形）
     const stepPhase = walkT * 12 * Math.PI;
     const isMoving = walkT < 0.99;
     const bobPoke = isMoving ? Math.abs(Math.sin(stepPhase)) * (expanded ? 8 : 5) : 0;
