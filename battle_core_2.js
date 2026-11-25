@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.3.2",
+  APP_VERSION: "v7.3.6",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -925,7 +925,7 @@ window.GameApp = {
     SoundFX.playBgm(stageId, true);
 
     // 徹底隱藏大廳、結算、過場以及所有局內可能殘留的全屏遮罩彈窗（根除第二局黑屏）
-    ["preloader-screen", "splashScreen", "cutInLayer", "setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "settingsModal", "unlock-confirm-modal", "pokedexModal", "skillTreeModal", "achievementModal", "megaInfoModal"].forEach(mId => {
+    ["preloader-screen", "splashScreen", "cutInLayer", "setupModal", "titleScreen", "endModal", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "expeditionModal", "expExChoiceModal", "settingsModal", "unlock-confirm-modal", "pokedexModal", "skillTreeModal", "achievementModal", "megaInfoModal"].forEach(mId => {
       const el = document.getElementById(mId);
       if (el) { el.classList.add("hidden"); el.style.display = "none"; }
     });
@@ -4629,7 +4629,7 @@ window.GameApp = {
       this.hitStopTimer = Math.max(this.hitStopTimer || 0, 0.035);
       this.spawnParticleCluster(e.x, e.y, "#FACC15", "#EF4444", 18, "star", 1.15);
       if (!e.noEliteDrop) {
-        const dropId = e.guaranteedRareCandy ? "rare_candy" : (Math.random() < 0.22 ? "partner_ball" : "rare_candy");
+        const dropId = e.guaranteedRareCandy ? "rare_candy" : (this.isExpeditionMode ? (Math.random() < 0.65 ? "rare_candy" : "partner_ball") : (Math.random() < 0.22 ? "partner_ball" : "rare_candy"));
         this.spawnMapLoot(dropId, e.x, e.y);
         if (!hasActiveMagnet && Math.random() < 0.25) {
           this.spawnMapLoot("magnet", e.x + 26, e.y);
@@ -4906,7 +4906,8 @@ window.GameApp = {
       p.exp = Math.min(p.nextExp - 1, p.exp + amount);
       return;
     }
-    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0));
+    const expModeMod = this.isExpeditionMode ? 1.25 : 1.0;
+    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0)) * expModeMod;
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
@@ -6315,7 +6316,7 @@ window.GameApp = {
     if (this.isExpeditionMode) {
       if (!isVictory && typeof ModeExpedition !== "undefined") ModeExpedition.clearCheckpoint(this);
       const curW = (this.expeditionState && this.expeditionState.currentWave) || 1;
-      const totW = (this.expeditionState && this.expeditionState.totalWaves) || 10;
+      const totW = (this.expeditionState && this.expeditionState.totalWaves) || 16;
       const er = this.lastExpeditionResult;
       document.getElementById("endModalTitle").textContent = isVictory ? "EXPEDITION CHAMPION!" : `EXPEDITION FAILED (W${curW}/${totW})`;
       document.getElementById("endModalSubtitle").textContent = (isVictory && er)

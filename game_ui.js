@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.2";
+        const ver = this.APP_VERSION || "v7.3.6";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.2";
+      const curVer = this.APP_VERSION || "v7.3.6";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -572,7 +572,7 @@ Object.assign(window.GameApp, {
 
     const expMetaEl = document.getElementById("lobbyExpMetaText");
     if (expMetaEl) {
-      expMetaEl.textContent = `${summary.chapterCount} 大區域 ‧ ${summary.totalWaves} 關推進 ‧ 波間整備`;
+      expMetaEl.textContent = `${summary.chapterCount} 大區域 ‧ 15+1 關推進 ‧ 隨機小王＆EX連戰`;
     }
     const expActionsEl = document.getElementById("lobbyExpActionRow");
     if (expActionsEl) {
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.2",
+      lastSeenVersion: this.APP_VERSION || "v7.3.6",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2651,7 +2651,7 @@ Object.assign(window.GameApp, {
     }
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
     const modeTag = this.isExpeditionMode
-      ? ` [關都大遠征 W${(this.expeditionState && this.expeditionState.currentWave) || 1}/10]`
+      ? ` [關都大遠征 W${(this.expeditionState && this.expeditionState.currentWave) || 1}/${(this.expeditionState && this.expeditionState.totalWaves) || 16}]`
       : (this.isArenaMode
           ? ` [1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
           : (this.isEndlessMode ? " [無盡試煉]" : ""));
@@ -3000,8 +3000,33 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.2 原生生態道路長卷 ＆ 全場戰利品自動磁吸版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.6 關都大遠征 15+1 完整體 ＆ EX 始祖夢夢連戰版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">15+1 五關一循環完整養成曲線（普通難度穩進 💎 MEGA）</div>
+            <div>• <strong>三區各 5 關 ＋ 最終鬥技場</strong>：W3/W8 隨機單小王、W13 隨機雙小王（格鬥雙雄／尼多夫婦／胡地＆耿鬼）、W4/W9 隨機事件波（喵喵車隊／遷徙潮／雷暴潮／吉利蛋護送）與 W14 MEGA 無雙狂潮！</div>
+            <div>• <strong>修復 Boss 掉落早退 ＋ 1.25x 遠征經驗節奏</strong>：大遠征所有小王與大王擊破皆正確掉落粉紅經驗晶群與神奇糖果（區域大王再加掉黃金進化寶箱）並由方案 A 自動磁吸全收，確保 W13～W15 穩定達 Lv.23～25 覺醒 MEGA！</div>
+            <div class="text-pink-300 font-black pt-1">EX 真王連戰 ＆ 三聖鳥接力車輪戰</div>
+            <div>• <strong>W16 王者超夢 ➔ EX 始祖夢夢連戰</strong>：擊破 W16 超夢後自動回復 50% HP 並重置大招，可自由選擇立即登錄殿堂，或挑戰隱藏真王【始祖夢幻 #151】奪取雙倍賞金與 EX 殿堂印記！</div>
+            <div>• <strong>W15 三聖鳥接力戰（困難／地獄）</strong>：急凍鳥 ➔ 閃電鳥 ➔ 火焰鳥依序帶暴雪／雷暴／熱浪接力登場；常規波過場行軍提速至 1.25 秒防整備疲勞！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.5 9 檔架構整理 ＆ 大遠征首輪平衡微調版</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">架構精簡（9 檔方案 B）</div>
+            <div>• <strong>整合街機與單挑模組</strong>：將 <code>mode_survivor.js</code> 與 <code>mode_arena.js</code> 整併為 <code>modes_arcade.js</code>，全專案收斂回 9 個核心程式碼檔案，為後續六邊形評級與新章節地圖預留完整擴充空間。</div>
+            <div class="text-emerald-300 font-black pt-1">關都大遠征首輪平衡微調</div>
+            <div>• <strong>整備站經濟校準</strong>：下修大遠征 TM 學習機（135~175 金）、PP 提升劑（110 金）、極限糖果（210 金）與刷新費（30 金起），並微幅提升各波通關賞金，讓前中期能流暢採購克制招式與道具。</div>
+            <div>• <strong>階梯式 Boss 血量與連戰節奏</strong>：修正 W9 火焰鳥血量與 W6 相同的斷層，重校為 W3 雙首領（~2176×2）➔ W6 神鳥（7,800）➔ W9 火焰鳥（10,800）➔ W10 王者超夢（16,500 ＋ 11% 秒傷護盾），並微幅加快常規波刷怪節奏減少空窗期。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.2 原生生態道路長卷 ＆ 全場戰利品自動磁吸版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">大遠征長卷回歸原生地圖生態</div>
@@ -3247,7 +3272,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.2";
+    const curVer = this.APP_VERSION || "v7.3.6";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.3.2');
+      background-image: url('images/skills_icons_sheet.png?v=7.3.6');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -595,7 +595,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.3.2
+      v7.3.6
     </div>
   </div>
 
@@ -680,7 +680,7 @@
               <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-pixel text-[8px] font-black">主線 RPG</span>
               <span class="font-black text-sm text-amber-300 truncate">關都大遠征</span>
             </div>
-            <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">4 大區域 ‧ 10 關推進 ‧ 波間整備</div>
+            <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">4 大區域 ‧ 15+1 關推進 ‧ 隨機事件</div>
           </div>
           <i class="fa-solid fa-route text-emerald-400 text-lg shrink-0"></i>
         </div>
@@ -998,7 +998,7 @@
           <div>
             <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5">
               <i class="fa-solid fa-route text-emerald-600"></i>
-              <span id="expeditionDynamicRouteText">關都大遠征路線（4 大區域 ‧ 10 關推進）</span>
+              <span id="expeditionDynamicRouteText">關都大遠征路線（4 大區域 ‧ 15+1 關推進）</span>
             </h3>
             <div id="expeditionStageCardsGrid" class="grid grid-cols-2 gap-2"></div>
           </div>
@@ -1262,7 +1262,7 @@
       <!-- 1. 外置透明感火車站長卷區塊（直接浮在遊戲戰場上，點擊可加速行軍） -->
       <div onclick="ModeExpedition.skipRouteWalkAnim()" class="cursor-pointer rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900/90 shadow-2xl">
         <div class="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-slate-700 gap-2">
-          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 whitespace-nowrap">W1/10 CLEAR</div>
+          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 whitespace-nowrap">W1/16 CLEAR</div>
           <div class="flex items-center gap-1.5 shrink-0">
             <span id="expHpDisplay" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 font-pixel text-[9px] text-emerald-300">HP 100/100</span>
             <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
@@ -1286,7 +1286,7 @@
             <span class="font-black text-xs text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-store text-sky-400"></i> 戰前整備站（可多項採購）</span>
             <button onclick="ModeExpedition.rerollShop()" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/70 text-[10px] font-black text-amber-200 flex items-center gap-1">
               <i class="fa-solid fa-arrows-rotate text-[9px]"></i>
-              <span>刷新 (<span id="expRerollCostText">40</span>金)</span>
+              <span>刷新 (<span id="expRerollCostText">30</span>金)</span>
             </button>
           </div>
           <div id="expShopContainer" class="grid grid-cols-2 gap-1.5"></div>
@@ -1310,6 +1310,35 @@
           <span class="text-[9px] font-bold text-amber-300/80 animate-pulse">▼ 點擊畫面立即開戰</span>
         </div>
         <div id="bossEncounterDialogText" class="font-black text-xs sm:text-sm text-white min-h-[22px] leading-snug tracking-wide">……偵測到高能頭目反應！</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13E. W16 王者超夢擊破後：EX 始祖夢夢連戰抉擇視窗 -->
+  <div id="expExChoiceModal" class="fixed inset-0 z-[66] hidden flex items-center justify-center bg-slate-950/85 backdrop-blur-sm select-none px-4">
+    <div class="w-full max-w-md rounded-2xl overflow-hidden border-[3px] border-pink-400 bg-slate-900 text-white shadow-[0_0_40px_rgba(244,114,182,0.45)] p-4 sm:p-5 text-center space-y-3">
+      <div class="inline-block px-3 py-0.5 rounded-full bg-pink-600/90 border border-pink-200 font-pixel text-[9px] text-white tracking-widest">EX CHALLENGE UNLOCKED</div>
+      <div class="flex items-center justify-center py-1">
+        <div class="w-20 h-20 rounded-2xl bg-slate-950 border-2 border-pink-400/80 flex items-center justify-center shadow-inner">
+          <img src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/151.png" class="w-16 h-16 pixel-sprite object-contain drop-shadow-[0_0_12px_rgba(244,114,182,0.85)]" alt="夢幻" />
+        </div>
+      </div>
+      <div>
+        <h3 class="font-black text-base sm:text-lg text-amber-300">王者超夢已敗退！始祖氣息現身！</h3>
+        <p class="text-xs font-bold text-slate-300 mt-1 leading-relaxed">
+          你已達成遠征冠軍資格！是否乘勝追擊，迎接隱藏真王【始祖夢幻 #151】的終極連戰，奪取雙倍冠軍賞金與 EX 殿堂印記？
+        </p>
+        <div id="exChoiceHpStatus" class="mt-2 px-2.5 py-1 rounded-xl bg-emerald-950/80 border border-emerald-500/70 text-[10px] font-black text-emerald-300">
+          已回復 50% HP ＆ 訓練家大招冷卻歸零！
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 pt-1">
+        <button onclick="ModeExpedition.startExMewBattle()" class="poke-btn-red w-full py-2.5 text-xs sm:text-sm font-black shadow-xl">
+          ✨ 迎接 EX 真王【始祖夢夢】連戰！（賞金 +350 金）
+        </button>
+        <button onclick="ModeExpedition.acceptVictoryWithoutEx()" class="poke-btn-yellow w-full py-2 text-xs font-black">
+          🏆 見好就收・立即登錄關都殿堂
+        </button>
       </div>
     </div>
   </div>
@@ -1455,7 +1484,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.3.2</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.3.6</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1503,7 +1532,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.3.2</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.3.6</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1536,14 +1565,13 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.3.2"></script>
-  <script src="map_v11_engine.js?v=7.3.2"></script>
-  <script src="skills_engine.js?v=7.3.2"></script>
-  <script src="battle_core_2.js?v=7.3.2"></script>
-  <script src="battle_renderer.js?v=7.3.2"></script>
-  <script src="mode_survivor.js?v=7.3.2"></script>
-  <script src="mode_arena.js?v=7.3.2"></script>
-  <script src="mode_expedition.js?v=7.3.2"></script>
-  <script src="game_ui.js?v=7.3.2"></script>
+  <script src="pokedex_data.js?v=7.3.6"></script>
+  <script src="map_v11_engine.js?v=7.3.6"></script>
+  <script src="skills_engine.js?v=7.3.6"></script>
+  <script src="battle_core_2.js?v=7.3.6"></script>
+  <script src="battle_renderer.js?v=7.3.6"></script>
+  <script src="modes_arcade.js?v=7.3.6"></script>
+  <script src="mode_expedition.js?v=7.3.6"></script>
+  <script src="game_ui.js?v=7.3.6"></script>
 </body>
 </html>

@@ -30,30 +30,81 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [12, 15],
         previewIds: [10, 16, 43],
         killQuota: 22,
-        clearBonus: 65,
+        clearBonus: 70,
         weather: "CLEAR"
       },
       {
-        title: "密林深處・生態遷徙潮",
-        subtitle: "擊破 28 隻飛行與毒系野生精靈，留意遠程毒針！",
+        title: "密林深處・叢林巡獵",
+        subtitle: "擊破 26 隻飛行與毒系野生精靈，留意遠程毒針！",
         enemyTypes: ["Poison", "Flying", "Bug"],
         enemyPool: [12, 15, 17, 23, 41, 48],
         elitePool: [18, 24, 42],
         previewIds: [12, 23, 41],
-        killQuota: 28,
-        spawnTreasure: "meowth",
-        clearBonus: 80,
+        killQuota: 26,
+        clearBonus: 85,
         weather: "CLEAR"
       },
       {
-        title: "關底・火箭隊突襲軍團",
+        title: "密林中繼・隨機精英領主",
+        subtitle: "擊破鎮守密林中段的區域小王，奪取經驗晶群與神奇糖果！",
+        isBossWave: true,
+        isMiniBoss: true,
+        miniBossPool: [
+          { bossIds: [15], title: "小王・劇毒大針蜂領主", enemyTypes: ["Bug", "Poison"] },
+          { bossIds: [18], title: "小王・蒼穹大比鳥領主", enemyTypes: ["Normal", "Flying"] },
+          { bossIds: [45], title: "小王・毒粉霸王花領主", enemyTypes: ["Grass", "Poison"] }
+        ],
+        enemyTypes: ["Bug", "Poison"],
+        enemyPool: [10, 13, 16, 23, 43],
+        bossIds: [15],
+        previewIds: [15],
+        clearBonus: 115,
+        weather: "CLEAR"
+      },
+      {
+        title: "密林異變・隨機事件波",
+        subtitle: "遭遇密林突發事件！淨空敵潮並把握機會收割資源！",
+        isEventWave: true,
+        eventPool: [
+          {
+            title: "事件・聚寶喵喵車隊",
+            subtitle: "擊破 28 隻護衛並攔截雙倍聚寶喵喵，大賺整備代幣！",
+            enemyTypes: ["Normal", "Poison"],
+            enemyPool: [19, 20, 23, 52, 53],
+            elitePool: [24, 53],
+            previewIds: [52, 53, 24],
+            killQuota: 28,
+            spawnTreasure: "meowth",
+            weather: "CLEAR"
+          },
+          {
+            title: "事件・常磐生態遷徙潮",
+            subtitle: "大批草系與飛行系精靈成群遷徙，快速收割升級！",
+            enemyTypes: ["Grass", "Flying", "Bug"],
+            enemyPool: [12, 17, 43, 44, 69, 70],
+            elitePool: [18, 45, 71],
+            previewIds: [17, 44, 70],
+            killQuota: 32,
+            weather: "RAIN"
+          }
+        ],
+        enemyTypes: ["Normal", "Grass"],
+        enemyPool: [19, 43, 69],
+        elitePool: [24],
+        previewIds: [52, 43],
+        killQuota: 30,
+        clearBonus: 105,
+        weather: "CLEAR"
+      },
+      {
+        title: "關底・火箭隊突襲雙王",
         subtitle: "擊破阿柏怪與雙彈瓦斯雙首領即可突圍前往華藍海岬！",
         isBossWave: true,
         enemyTypes: ["Poison", "Normal"],
         enemyPool: [23, 41, 109, 19],
         bossIds: [24, 110],
         previewIds: [24, 110],
-        clearBonus: 135,
+        clearBonus: 155,
         actClearHeal: 0.35,
         weather: "CLEAR"
       }
@@ -71,25 +122,77 @@ window.EXPEDITION_CHAPTERS = [
     waves: [
       {
         title: "華藍海岬・潮汐木棧道",
-        subtitle: "淨空 34 隻海岸精靈！善用木棧道避免涉水減速。",
+        subtitle: "淨空 30 隻海岸精靈！善用木棧道避免涉水減速。",
         enemyTypes: ["Water", "Poison", "Electric"],
         enemyPool: [54, 60, 72, 81, 98, 116],
         elitePool: [62, 73, 117],
         previewIds: [60, 72, 81],
-        killQuota: 34,
-        clearBonus: 95,
+        killQuota: 30,
+        clearBonus: 110,
         weather: "RAIN"
       },
       {
         title: "暴風海峽・冰海精銳潮",
-        subtitle: "擊破 40 隻水系與冰系精銳，搶奪場中增益道具！",
+        subtitle: "擊破 34 隻水系與冰系精銳，搶奪場中增益道具！",
         enemyTypes: ["Water", "Ice", "Flying"],
         enemyPool: [86, 87, 91, 117, 120, 130],
         elitePool: [87, 91, 130],
         previewIds: [87, 91, 130],
-        killQuota: 40,
-        spawnTreasure: "chansey",
-        clearBonus: 115,
+        killQuota: 34,
+        clearBonus: 125,
+        weather: "RAIN"
+      },
+      {
+        title: "海峽中繼・深海霸主小王",
+        subtitle: "討伐隨機鎮守海峽的深海精英領主，衝刺三階進化！",
+        isBossWave: true,
+        isMiniBoss: true,
+        miniBossPool: [
+          { bossIds: [130], title: "小王・狂暴暴鯉龍", enemyTypes: ["Water", "Flying"] },
+          { bossIds: [73],  title: "小王・劇毒刺水母", enemyTypes: ["Water", "Poison"] },
+          { bossIds: [91],  title: "小王・極寒刺甲貝", enemyTypes: ["Water", "Ice"] },
+          { bossIds: [121], title: "小王・閃耀寶石海星", enemyTypes: ["Water", "Psychic"] }
+        ],
+        enemyTypes: ["Water", "Ice"],
+        enemyPool: [60, 72, 86, 116, 120],
+        bossIds: [130],
+        previewIds: [130],
+        clearBonus: 145,
+        weather: "RAIN"
+      },
+      {
+        title: "海峽異變・隨機事件波",
+        subtitle: "海象突變！把握事件機會取得大量經驗或夥伴支援！",
+        isEventWave: true,
+        eventPool: [
+          {
+            title: "事件・狂暴雷暴水潮",
+            subtitle: "雷暴降臨！電系與水系精靈湧入，電系彈射 +1 爽快清場！",
+            enemyTypes: ["Electric", "Water"],
+            enemyPool: [81, 82, 100, 101, 117, 120],
+            elitePool: [82, 101, 125],
+            previewIds: [82, 101, 125],
+            killQuota: 36,
+            weather: "THUNDER"
+          },
+          {
+            title: "事件・幸福吉利蛋護送潮",
+            subtitle: "擊破 34 隻海岬守衛並攔截幸福吉利蛋，必掉神奇糖果與治癒球！",
+            enemyTypes: ["Water", "Normal", "Ice"],
+            enemyPool: [54, 55, 86, 87, 98, 99],
+            elitePool: [55, 87, 99],
+            previewIds: [113, 55, 87],
+            killQuota: 34,
+            spawnTreasure: "chansey",
+            weather: "RAIN"
+          }
+        ],
+        enemyTypes: ["Water", "Electric"],
+        enemyPool: [60, 81, 116],
+        elitePool: [82],
+        previewIds: [82, 113],
+        killQuota: 36,
+        clearBonus: 135,
         weather: "RAIN"
       },
       {
@@ -102,7 +205,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [86, 91, 117, 120],
         bossIds: [144],
         previewIds: [144],
-        clearBonus: 185,
+        clearBonus: 210,
         actClearHeal: 0.40,
         weather: "BLIZZARD"
       }
@@ -120,36 +223,65 @@ window.EXPEDITION_CHAPTERS = [
     waves: [
       {
         title: "石英高原・古神殿柱廊",
-        subtitle: "淨空 44 隻超能與幽靈守衛，善用大理石大道加速！",
+        subtitle: "淨空 38 隻超能與幽靈守衛，善用大理石大道加速！",
         enemyTypes: ["Psychic", "Ghost", "Rock"],
         enemyPool: [64, 75, 93, 95, 105, 111],
         elitePool: [65, 94, 112],
         previewIds: [64, 93, 95],
-        killQuota: 44,
-        clearBonus: 125,
+        killQuota: 38,
+        clearBonus: 145,
         weather: "PSYCHIC"
       },
       {
         title: "冠軍之路・遠古化石覺醒",
-        subtitle: "擊破 48 隻遠古化石霸主與龍系精銳，衝刺 Lv.10 超武！",
+        subtitle: "擊破 42 隻遠古化石霸主與龍系精銳，準備迎接雙小王！",
         enemyTypes: ["Rock", "Dragon", "Fighting"],
         enemyPool: [68, 112, 139, 141, 142, 148],
         elitePool: [139, 141, 142],
         previewIds: [141, 142, 148],
-        killQuota: 48,
-        clearBonus: 150,
+        killQuota: 42,
+        clearBonus: 165,
+        weather: "PSYCHIC"
+      },
+      {
+        title: "神殿中繼・雙雄小王阻擊",
+        subtitle: "一近一遠雙小王並立阻截！擊破雙雄領取豐厚升級糖果！",
+        isBossWave: true,
+        isMiniBoss: true,
+        miniBossPool: [
+          { bossIds: [106, 107], title: "雙小王・格鬥雙雄（飛腿郎＆快拳郎）", enemyTypes: ["Fighting"] },
+          { bossIds: [34, 31],   title: "雙小王・王者夫婦（尼多王＆尼多后）", enemyTypes: ["Poison", "Ground"] },
+          { bossIds: [65, 94],   title: "雙小王・念影雙絕（胡地＆耿鬼）", enemyTypes: ["Psychic", "Ghost"] }
+        ],
+        enemyTypes: ["Fighting", "Psychic"],
+        enemyPool: [64, 67, 93, 111],
+        bossIds: [106, 107],
+        previewIds: [106, 107],
+        clearBonus: 190,
+        weather: "PSYCHIC"
+      },
+      {
+        title: "冠軍之路・MEGA 無雙狂潮",
+        subtitle: "46 隻高階精銳集結！解放 💎 MEGA 與雙超武痛快無雙收割！",
+        enemyTypes: ["Dragon", "Psychic", "Rock"],
+        enemyPool: [59, 65, 68, 94, 112, 142, 148, 149],
+        elitePool: [59, 68, 142, 149],
+        previewIds: [149, 65, 94],
+        killQuota: 46,
+        clearBonus: 185,
         weather: "PSYCHIC"
       },
       {
         title: "關底・烈焰鳥神殿試煉",
-        subtitle: "討伐烈焰神鳥【火焰鳥】，踏入石英大會冠軍競技場！",
+        subtitle: "討伐烈焰神鳥【火焰鳥】（困難以上為三聖鳥接力戰），踏入石英鬥技場！",
         isBossWave: true,
         isLegendaryBoss: true,
+        isAct3RelayBoss: true,
         enemyTypes: ["Fire", "Flying"],
         enemyPool: [59, 78, 126, 142],
         bossIds: [146],
         previewIds: [146],
-        clearBonus: 220,
+        clearBonus: 250,
         actClearHeal: 0.45,
         weather: "HEATWAVE"
       }
@@ -176,7 +308,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [],
         bossIds: [150],
         previewIds: [150],
-        clearBonus: 450,
+        clearBonus: 480,
         weather: "PSYCHIC"
       }
     ]
@@ -210,9 +342,10 @@ window.ModeExpedition = {
     return { chapterCount: chs.length, totalWaves, chapters: chs };
   },
 
-  buildWavePlan(act2BirdId = 144) {
+  buildWavePlan(act2BirdId = 144, seedRolls = null, diffId = "normal") {
     const chapters = window.EXPEDITION_CHAPTERS || [];
     const plan = [];
+    const rolls = seedRolls || {};
     let waveIdx = 0;
 
     chapters.forEach((ch, chIdx) => {
@@ -237,6 +370,41 @@ window.ModeExpedition = {
           isFinalChapter: !!ch.isFinalChapter
         };
 
+        // 隨機小王池抽取（存入 rolls 供斷點續關還原）
+        if (Array.isArray(wDef.miniBossPool) && wDef.miniBossPool.length > 0) {
+          const rKey = `mb_${waveIdx}`;
+          if (rolls[rKey] === undefined) {
+            rolls[rKey] = Math.floor(Math.random() * wDef.miniBossPool.length);
+          }
+          const picked = wDef.miniBossPool[rolls[rKey] % wDef.miniBossPool.length];
+          if (picked) {
+            entry.title = picked.title;
+            entry.bossIds = [...picked.bossIds];
+            entry.previewIds = [...picked.bossIds];
+            if (picked.enemyTypes) entry.enemyTypes = [...picked.enemyTypes];
+          }
+        }
+
+        // 隨機事件波抽取
+        if (Array.isArray(wDef.eventPool) && wDef.eventPool.length > 0) {
+          const rKey = `ev_${waveIdx}`;
+          if (rolls[rKey] === undefined) {
+            rolls[rKey] = Math.floor(Math.random() * wDef.eventPool.length);
+          }
+          const ev = wDef.eventPool[rolls[rKey] % wDef.eventPool.length];
+          if (ev) {
+            entry.title = ev.title;
+            entry.subtitle = ev.subtitle;
+            entry.enemyTypes = [...ev.enemyTypes];
+            entry.enemyPool = [...ev.enemyPool];
+            entry.elitePool = [...(ev.elitePool || [])];
+            entry.previewIds = [...ev.previewIds];
+            entry.killQuota = ev.killQuota;
+            entry.spawnTreasure = ev.spawnTreasure || null;
+            entry.weather = ev.weather || "CLEAR";
+          }
+        }
+
         if (entry.isDynamicAct2Bird) {
           const isZapdos = act2BirdId === 145;
           const bName = isZapdos ? "閃電鳥" : "急凍鳥";
@@ -247,11 +415,23 @@ window.ModeExpedition = {
           entry.previewIds = [act2BirdId];
           entry.weather = isZapdos ? "THUNDER" : "BLIZZARD";
         }
+
+        // W15 困難／地獄難度升級為「三聖鳥接力車輪戰」（急凍鳥 ➔ 閃電鳥 ➔ 火焰鳥，同場始終只有 1 隻神鳥保持清晰彈幕）
+        if (entry.isAct3RelayBoss && (diffId === "hard" || diffId === "hell")) {
+          entry.title = "關底・三聖鳥接力車輪戰";
+          entry.subtitle = "急凍鳥 ➔ 閃電鳥 ➔ 火焰鳥依序帶天候接力降臨！討伐三神踏入石英鬥技場！";
+          entry.enemyTypes = ["Ice", "Electric", "Fire", "Flying"];
+          entry.bossIds = [144];
+          entry.relayQueue = [145, 146];
+          entry.previewIds = [144, 145, 146];
+          entry.weather = "BLIZZARD";
+        }
+
         plan.push(entry);
       });
     });
 
-    return plan;
+    return { plan, rolls };
   },
 
   onStart(app) {
@@ -268,8 +448,10 @@ window.ModeExpedition = {
     const act2BirdId = resumeCp
       ? (resumeCp.act2BirdId || 144)
       : (Math.random() < 0.5 ? 144 : 145);
-
-    const plan = this.buildWavePlan(act2BirdId);
+    const diffId = (app.selectedDifficulty && app.selectedDifficulty.id) || "normal";
+    const built = this.buildWavePlan(act2BirdId, resumeCp ? (resumeCp.seedRolls || null) : null, diffId);
+    const plan = built.plan;
+    const seedRolls = built.rolls;
     const totalWaves = plan.length;
     const startWaveNum = resumeCp
       ? Math.max(1, Math.min(totalWaves, resumeCp.nextWave || 1))
@@ -279,6 +461,7 @@ window.ModeExpedition = {
       currentWave: startWaveNum,
       totalWaves,
       act2BirdId,
+      seedRolls,
       plan,
       spawnedCount: 0,
       killsInWave: 0,
@@ -289,8 +472,11 @@ window.ModeExpedition = {
       powerupSpawned: false,
       waveCleared: false,
       clearDelayTimer: 0,
+      activeRelayQueue: [],
+      inExMewBattle: false,
+      exMewCleared: false,
       shopShelf: [],
-      shopRerollCost: 40,
+      shopRerollCost: 30,
       pendingForgetTm: null
     };
 
@@ -377,6 +563,7 @@ window.ModeExpedition = {
       nextWave,
       totalWaves: st.totalWaves || st.plan.length,
       act2BirdId: st.act2BirdId || 144,
+      seedRolls: { ...(st.seedRolls || {}) },
       trainerId: (app.selectedTrainer && app.selectedTrainer.id) || "ash",
       starterId: app.selectedStarterId || 25,
       difficultyId: (app.selectedDifficulty && app.selectedDifficulty.id) || "normal",
@@ -922,6 +1109,8 @@ window.ModeExpedition = {
     st.powerupSpawned = false;
     st.waveCleared = false;
     st.clearDelayTimer = 0;
+    st.activeRelayQueue = Array.isArray(cfg.relayQueue) ? [...cfg.relayQueue] : [];
+    st.inExMewBattle = false;
     app.areaClearStampTimer = 0;
 
     // 1. 切換地圖、固定邊界與天候
@@ -984,51 +1173,10 @@ window.ModeExpedition = {
       });
     }
 
-    // 3. Boss 波次直接召喚目標首領／神獸
+    // 3. Boss／小王波次召喚目標首領
     if (cfg.isBossWave && Array.isArray(cfg.bossIds)) {
-      const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0 };
       cfg.bossIds.forEach((bId, idx) => {
-        const bData = POKEMON_MAP.get(bId) || POKEMON_MAP.get(150);
-        app.saveData.pokedexSeen[bId] = true;
-        const isLeg = !!cfg.isLegendaryBoss;
-        const waveScale = 1 + (waveNum - 1) * 0.18;
-        const baseHp = bId === 150 ? 13200 : (isLeg ? 7600 : 1450);
-        const scaledHp = Math.round(baseHp * (diff.hpMult || 1.0) * (isLeg ? 1.0 : waveScale));
-        const scaledAtk = Math.round((isLeg ? 28 : 19) * (diff.atkMult || 1.0) * (1 + (waveNum - 1) * 0.05));
-        const bx = isFinalArena ? 130 : (p.x + (idx === 0 ? 220 : -220));
-        const by = isFinalArena ? 0 : (p.y + (idx % 2 === 0 ? -70 : 70));
-
-        const bossObj = {
-          id: bId,
-          data: bData,
-          x: bx,
-          y: by,
-          hp: scaledHp,
-          maxHp: scaledHp,
-          atk: scaledAtk,
-          speed: isLeg ? 96 : 82,
-          radius: isLeg ? 44 : 30,
-          isElite: true,
-          isBoss: true,
-          isExpeditionBoss: true,
-          noEliteDrop: !isLeg,
-          isFinalMewtwo: bId === 150,
-          isShiny: false,
-          treasureType: null,
-          facingX: -1,
-          facingY: 0,
-          status: null,
-          statusTimer: 0,
-          statusTick: 0,
-          ccImmunityTimer: 0,
-          rangedCd: 1.1,
-          whiteFlashTimer: 0,
-          weightTier: isLeg ? "boss" : "heavy",
-          kbResist: isLeg ? 1.0 : 0.80,
-          bossAttackIdx: 0
-        };
-        app.enemies.push(bossObj);
-        if (!app.activeBoss) app.activeBoss = bossObj;
+        this.spawnExpeditionBossEntity(app, cfg, bId, idx, isFinalArena);
       });
       const bossHud = document.getElementById("bossHudContainer");
       if (bossHud) bossHud.classList.remove("hidden");
@@ -1117,14 +1265,10 @@ window.ModeExpedition = {
     }
 
     // 1. 檢查通關條件
-    if (cfg.isBossWave) {
+    if (cfg.isBossWave || st.inExMewBattle) {
       const aliveBosses = app.enemies.filter(e => e.isExpeditionBoss && e.hp > 0);
       if (aliveBosses.length === 0) {
-        if (st.currentWave >= st.totalWaves) {
-          this.handleExpeditionVictory(app);
-        } else {
-          this.completeWave(app, cfg);
-        }
+        this.onBossDefeated(app, null);
         return;
       }
     } else {
@@ -1162,10 +1306,10 @@ window.ModeExpedition = {
         const batch = cfg.isBossWave
           ? 2
           : Math.min(remainToSpawn, Math.min(5, 3 + Math.floor(st.currentWave / 3)));
-        st.spawnCd = cfg.isBossWave ? 2.6 : Math.max(0.85, 1.35 - st.currentWave * 0.05);
+        st.spawnCd = cfg.isBossWave ? 2.4 : Math.max(0.68, 1.22 - st.currentWave * 0.06);
 
         for (let i = 0; i < batch; i++) {
-          const maxElites = Math.min(2, 1 + Math.floor(st.currentWave / 4));
+          const maxElites = 1;
           const needElite = !cfg.isBossWave && cfg.elitePool && cfg.elitePool.length > 0 &&
             st.eliteSpawnedCount < maxElites &&
             st.spawnedCount >= Math.floor(st.killQuota * 0.55) && i === 0;
@@ -1234,19 +1378,233 @@ window.ModeExpedition = {
     });
   },
 
+  spawnExpeditionBossEntity(app, cfg, bId, idx = 0, isFinalArena = false) {
+    const p = app.player;
+    const st = app.expeditionState;
+    const waveNum = cfg.wave || (st ? st.currentWave : 1);
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0 };
+    const bData = POKEMON_MAP.get(bId) || POKEMON_MAP.get(150);
+    app.saveData.pokedexSeen[bId] = true;
+
+    const isLeg = !!cfg.isLegendaryBoss || [144, 145, 146, 150, 151].includes(bId);
+    const isMini = !!cfg.isMiniBoss;
+    const isRelay = !!(cfg.relayQueue && cfg.relayQueue.length > 0);
+    const waveScale = 1 + (waveNum - 1) * 0.16;
+
+    let baseHp = 1750;
+    if (bId === 151) baseHp = 15200; // EX 真王始祖夢幻
+    else if (bId === 150) baseHp = 17800; // W16 王者超夢
+    else if (isLeg) {
+      if (isRelay) baseHp = 5800; // 三聖鳥接力單隻血量（總血量 17400 緊湊不拖泥帶水）
+      else baseHp = waveNum >= 14 ? 11800 : 8200;
+    } else if (isMini) {
+      baseHp = waveNum >= 12 ? 2250 : (waveNum >= 7 ? 1750 : 1200);
+    }
+
+    const scaledHp = Math.round(baseHp * (diff.hpMult || 1.0) * (isLeg ? 1.0 : waveScale));
+    const baseAtk = bId === 151 ? 35 : (bId === 150 ? 33 : (isLeg ? (waveNum >= 14 ? 30 : 27) : (isMini ? 17 : 20)));
+    const scaledAtk = Math.round(baseAtk * (diff.atkMult || 1.0) * (1 + (waveNum - 1) * 0.035));
+    const bx = isFinalArena ? 130 : (p.x + (idx === 0 ? 220 : -220));
+    const by = isFinalArena ? 0 : (p.y + (idx % 2 === 0 ? -70 : 70));
+
+    const bossObj = {
+      id: bId,
+      data: bData,
+      x: bx,
+      y: by,
+      hp: scaledHp,
+      maxHp: scaledHp,
+      atk: scaledAtk,
+      speed: bId === 151 ? 108 : (isLeg ? 96 : (isMini ? 86 : 82)),
+      radius: isLeg ? 44 : 30,
+      isElite: true,
+      isBoss: true,
+      isExpeditionBoss: true,
+      noEliteDrop: true,
+      isFinalMewtwo: bId === 150,
+      isShiny: false,
+      treasureType: null,
+      facingX: -1,
+      facingY: 0,
+      status: null,
+      statusTimer: 0,
+      statusTick: 0,
+      ccImmunityTimer: 0,
+      rangedCd: 1.05,
+      whiteFlashTimer: 0,
+      weightTier: isLeg ? "boss" : "heavy",
+      kbResist: isLeg ? 1.0 : 0.80,
+      arenaDpsCapPct: bId === 150 || bId === 151 ? 0.11 : (isLeg ? 0.13 : 0.16),
+      bossAttackIdx: 0
+    };
+    app.enemies.push(bossObj);
+    if (!app.activeBoss) app.activeBoss = bossObj;
+    return bossObj;
+  },
+
+  dropExpeditionBossLoot(app, boss, isMiniBoss = false) {
+    if (!boss) return;
+    const gemCount = isMiniBoss ? 4 : 8;
+    for (let g = 0; g < gemCount; g++) {
+      const gAng = (g * Math.PI * 2) / gemCount + Math.random() * 0.3;
+      const gDist = 18 + Math.random() * 26;
+      app.gems.push({
+        x: boss.x + Math.cos(gAng) * gDist,
+        y: boss.y + Math.sin(gAng) * gDist,
+        val: 120, tier: 4, size: 11.5,
+        color: "#EC4899", innerColor: "#FBCFE8",
+        magnetized: true
+      });
+    }
+    app.spawnMapLoot("rare_candy", boss.x + 20, boss.y);
+    if (!isMiniBoss) {
+      app.spawnMapLoot("evo_chest", boss.x - 20, boss.y);
+    }
+  },
+
   onBossDefeated(app, boss) {
     if (!app.isExpeditionMode || !app.expeditionState) return false;
     const st = app.expeditionState;
     const cfg = st.plan[st.currentWave - 1];
     if (!cfg) return false;
-    const remainBosses = app.enemies.filter(e => e.isExpeditionBoss && e.hp > 0);
-    if (remainBosses.length > 0) return true;
-    if (st.currentWave >= st.totalWaves) {
-      this.handleExpeditionVictory(app);
+
+    // 1. 若處於 W16 後的 EX 裏關（始祖夢夢 #151）決戰並擊破，直接頒發真結局冠軍！
+    if (st.inExMewBattle) {
+      st.exMewCleared = true;
+      this.handleExpeditionVictory(app, true);
       return true;
     }
+
+    // 2. 若尚有同場雙王存活，先等雙王皆擊破
+    const remainBosses = app.enemies.filter(e => e.isExpeditionBoss && e.hp > 0);
+    if (remainBosses.length > 0) return true;
+
+    // 3. W15 三聖鳥接力車輪戰（困難／地獄難度）：依序切換天候召喚下一隻傳說神鳥
+    if (Array.isArray(st.activeRelayQueue) && st.activeRelayQueue.length > 0) {
+      const nextBirdId = st.activeRelayQueue.shift();
+      const nextBirdData = POKEMON_MAP.get(nextBirdId) || POKEMON_MAP.get(146);
+      const nextW = nextBirdId === 145 ? "THUNDER" : (nextBirdId === 146 ? "HEATWAVE" : "BLIZZARD");
+      if (typeof MapEngine !== "undefined") MapEngine.setWeather(nextW);
+      if (app.updateWeatherUI) app.updateWeatherUI(nextW);
+
+      // 接力中場小回復 +15% HP 並召喚下一隻神鳥
+      if (app.player) {
+        const relayHeal = Math.round(app.player.maxHp * 0.15);
+        app.player.hp = Math.min(app.player.maxHp, app.player.hp + relayHeal);
+        app.spawnFloatingText(app.player.x, app.player.y - 34, `神鳥接力！回復 +${relayHeal} HP`, "#34D399", 14);
+      }
+      this.spawnExpeditionBossEntity(app, cfg, nextBirdId, 0, false);
+      const bossHud = document.getElementById("bossHudContainer");
+      if (bossHud) bossHud.classList.remove("hidden");
+      SoundFX.play("boss");
+      app.showCutsceneBanner(
+        `【⚡ 三聖鳥接力：${nextBirdData.name_zh} 降臨！】`,
+        `天候切換為【${nextW === "THUNDER" ? "狂暴雷暴" : "烈日熱浪"}】！迎戰下一位守護神鳥！`,
+        2400
+      );
+      return true;
+    }
+
+    // 4. W16 王者超夢擊破：開啟「見好就收登錄殿堂 vs. 迎接 EX 始祖夢夢連戰」抉擇視窗！
+    if (st.currentWave >= st.totalWaves) {
+      this.openExMewChoiceModal(app);
+      return true;
+    }
+
+    // 5. W3/W5/W8/W10/W13/W15 擊破正確掉落粉紅經驗晶群 ＋ 神奇糖果（大王加掉黃金進化寶箱），並由方案 A 自動磁吸全收！
+    this.dropExpeditionBossLoot(app, boss, !!cfg.isMiniBoss);
     this.completeWave(app, cfg);
     return true;
+  },
+
+  openExMewChoiceModal(app) {
+    const p = app.player;
+    app.state = "PAUSED";
+    if (app.touchJoy) {
+      app.touchJoy.active = false;
+      app.touchJoy.dx = 0;
+      app.touchJoy.dy = 0;
+    }
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
+
+    // 擊破超夢立即回復 50% HP 並重置訓練家大招冷卻，為連戰做好準備
+    if (p) {
+      const healAmt = Math.round(p.maxHp * 0.50);
+      p.hp = Math.min(p.maxHp, p.hp + healAmt);
+      p.status = null;
+      p.statusTimer = 0;
+      p.trainerSkillCd = 0;
+    }
+    SoundFX.play("levelup");
+    const hpLbl = document.getElementById("exChoiceHpStatus");
+    if (hpLbl && p) hpLbl.textContent = `已回復 50% HP（目前 ${Math.ceil(p.hp)}/${p.maxHp}）＆ 訓練家大招冷卻歸零！`;
+    const modal = document.getElementById("expExChoiceModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+  },
+
+  acceptVictoryWithoutEx() {
+    const modal = document.getElementById("expExChoiceModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
+    this.handleExpeditionVictory(GameApp, false);
+  },
+
+  startExMewBattle() {
+    const app = GameApp;
+    const st = app.expeditionState;
+    const modal = document.getElementById("expExChoiceModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
+    if (!st) return;
+
+    const exCfg = {
+      wave: st.totalWaves,
+      act: 4,
+      chapterShortName: "EX 隱藏真結局",
+      stageId: "sky_pillar",
+      isArena: true,
+      isBossWave: true,
+      isLegendaryBoss: true,
+      bossIds: [151],
+      weather: "PSYCHIC"
+    };
+
+    this.showBossVsOverlay(app, exCfg, () => {
+      st.inExMewBattle = true;
+      app.enemies = [];
+      app.enemyProjectiles = [];
+      app.telegraphs = [];
+      app.activeBoss = null;
+      if (app.player) {
+        app.player.x = -120;
+        app.player.y = 0;
+        app.player.invulnTimer = 1.2;
+      }
+      if (typeof MapEngine !== "undefined") {
+        MapEngine.setArenaMode(true);
+        MapEngine.setWeather("PSYCHIC");
+      }
+      if (app.updateWeatherUI) app.updateWeatherUI("PSYCHIC");
+      if (typeof SoundFX !== "undefined") SoundFX.startBgm("boss");
+
+      this.spawnExpeditionBossEntity(app, exCfg, 151, 0, true);
+      const bossHud = document.getElementById("bossHudContainer");
+      if (bossHud) bossHud.classList.remove("hidden");
+      app.battleCountdownTimer = 1.52;
+      app._lastCountdownBeat = 4;
+      app.state = "PLAYING";
+      app.refreshHUD();
+    });
   },
 
   completeWave(app, cfg) {
@@ -1302,18 +1660,23 @@ window.ModeExpedition = {
     this.saveCheckpoint(app, st.currentWave + 1);
   },
 
-  handleExpeditionVictory(app) {
+  handleExpeditionVictory(app, isExTrueClear = false) {
     this.clearCheckpoint(app);
     const st = app.expeditionState;
     const diffMult = (app.selectedDifficulty && app.selectedDifficulty.coinMult) || 1.0;
-    const clearCoins = Math.round(450 * diffMult);
+    const baseReward = isExTrueClear ? 830 : 480;
+    const clearCoins = Math.round(baseReward * diffMult);
     app.runCoins += clearCoins;
     app.saveData.coins += clearCoins;
     if (!app.saveData.stats.expeditionClears) app.saveData.stats.expeditionClears = 0;
     app.saveData.stats.expeditionClears += 1;
+    if (isExTrueClear) {
+      app.saveData.stats.mewDefeated = (app.saveData.stats.mewDefeated || 0) + 1;
+    }
     app.lastExpeditionResult = {
-      clearedWaves: st ? st.totalWaves : 10,
+      clearedWaves: st ? st.totalWaves : 16,
       totalGain: clearCoins,
+      isExTrueClear: !!isExTrueClear,
       clearTimeSec: Math.round(app.runTime || 0),
       chaptersCleared: (window.EXPEDITION_CHAPTERS || []).map(c => ({
         id: c.id,
@@ -1324,9 +1687,13 @@ window.ModeExpedition = {
     };
     if (app.saveToStorage) app.saveToStorage();
     app.showCutsceneBanner(
-      `關都大遠征 ${st ? st.totalWaves : 10}/${st ? st.totalWaves : 10} 制霸！CHAMPION!`,
-      `貫穿全區域並討伐王者超夢！獲得遠征冠軍賞金 +${clearCoins} 代幣！`,
-      2400
+      isExTrueClear
+        ? `★ TRUE CHAMPION！關都大遠征 15+1 EX 夢夢制霸！`
+        : `關都大遠征 ${st ? st.totalWaves : 16}/${st ? st.totalWaves : 16} 制霸！CHAMPION!`,
+      isExTrueClear
+        ? `連斬王者超夢與始祖夢幻！獲得真結局遠征賞金 +${clearCoins} 代幣！`
+        : `貫穿全區域並討伐王者超夢！獲得遠征冠軍賞金 +${clearCoins} 代幣！`,
+      2500
     );
     app.startVictoryCeremony();
   },
@@ -1348,7 +1715,7 @@ window.ModeExpedition = {
     if (joyBase) joyBase.style.display = "none";
     if (joyStick) joyStick.style.display = "none";
 
-    st.shopRerollCost = 40;
+    st.shopRerollCost = 30;
     st.pendingForgetTm = null;
     this.rollIntermissionShop(app);
     this.renderIntermissionModal(app, true);
@@ -1393,12 +1760,14 @@ window.ModeExpedition = {
     const tmPickPool = counterTMs.length > 0 ? counterTMs : eligibleTMs;
     if (tmPickPool.length > 0) {
       const pickedTm = tmPickPool[Math.floor(Math.random() * tmPickPool.length)];
-      shelf.push({ ...pickedTm, kind: "tm", isCounterRec: counterTMs.includes(pickedTm), bought: false });
+      const expTmCost = Math.min(175, Math.max(135, Math.round((pickedTm.cost || 250) * 0.60)));
+      shelf.push({ ...pickedTm, cost: expTmCost, kind: "tm", isCounterRec: counterTMs.includes(pickedTm), bought: false });
     }
 
-    const candyPick = (st.currentWave >= 5 && specItems.master_candy) ? specItems.master_candy : specItems.pp_up;
+    const isMasterCandy = (st.currentWave >= 5 && specItems.master_candy);
+    const candyPick = isMasterCandy ? specItems.master_candy : specItems.pp_up;
     if (candyPick) {
-      shelf.push({ ...candyPick, kind: "consumable", bought: false });
+      shelf.push({ ...candyPick, cost: isMasterCandy ? 210 : 110, kind: "consumable", bought: false });
     }
 
     const allHeld = typeof HELD_ITEMS !== "undefined" ? Object.values(HELD_ITEMS) : [];
@@ -1418,17 +1787,17 @@ window.ModeExpedition = {
         name: pickedHeld.name,
         desc: pickedHeld.desc,
         sprite: pickedHeld.sprite,
-        cost: 110,
+        cost: 125,
         kind: "held",
         isStageRec: (nextCfg.stageId === "cerulean_bay" && pickedHeld.id === "sharp_beak"),
         bought: false
       });
     } else if (specItems.x_attack) {
-      shelf.push({ ...specItems.x_attack, kind: "consumable", bought: false });
+      shelf.push({ ...specItems.x_attack, cost: 85, kind: "consumable", bought: false });
     }
 
     if (specItems.full_restore) {
-      shelf.push({ ...specItems.full_restore, cost: 65, kind: "consumable", bought: false });
+      shelf.push({ ...specItems.full_restore, cost: 60, kind: "consumable", bought: false });
     }
 
     st.shopShelf = shelf;
@@ -1454,7 +1823,7 @@ window.ModeExpedition = {
     if (hpEl) hpEl.textContent = `HP ${Math.ceil(p.hp)}/${p.maxHp}`;
 
     const rerollCostEl = document.getElementById("expRerollCostText");
-    if (rerollCostEl) rerollCostEl.textContent = st.shopRerollCost || 40;
+    if (rerollCostEl) rerollCostEl.textContent = st.shopRerollCost || 30;
 
     const nextBtnEl = document.getElementById("btnExpStartNextWave");
     if (nextBtnEl) {
@@ -1486,8 +1855,12 @@ window.ModeExpedition = {
           : "";
       }).join("");
       const goalTag = nextCfg.isBossWave
-        ? '<span class="px-1.5 py-0.5 rounded bg-rose-900 border border-rose-400 text-rose-200 font-pixel text-[8px]">BOSS戰</span>'
-        : `<span class="px-1.5 py-0.5 rounded bg-emerald-900 border border-emerald-400 text-emerald-200 font-pixel text-[8px]">殲滅 ${nextCfg.killQuota || 25}隻</span>`;
+        ? (nextCfg.isMiniBoss
+            ? '<span class="px-1.5 py-0.5 rounded bg-amber-800 border border-amber-400 text-amber-200 font-pixel text-[8px]">小王戰</span>'
+            : '<span class="px-1.5 py-0.5 rounded bg-rose-900 border border-rose-400 text-rose-200 font-pixel text-[8px]">區域大王</span>')
+        : (nextCfg.isEventWave
+            ? `<span class="px-1.5 py-0.5 rounded bg-purple-800 border border-purple-400 text-purple-200 font-pixel text-[8px]">事件 ${nextCfg.killQuota || 30}隻</span>`
+            : `<span class="px-1.5 py-0.5 rounded bg-emerald-900 border border-emerald-400 text-emerald-200 font-pixel text-[8px]">殲滅 ${nextCfg.killQuota || 25}隻</span>`);
 
       intelBox.innerHTML = `
         <div class="flex items-center justify-between gap-2">
@@ -1633,7 +2006,7 @@ window.ModeExpedition = {
     }
 
     const startTs = performance.now();
-    const durationMs = 2250;
+    const durationMs = isCrossingAct ? 2250 : 1250;
     const ws = { canvas, app, clearedWave, nextWave, isCrossingAct, healChimePlayed: false };
     this._walkAnimState = ws;
 
@@ -2038,7 +2411,8 @@ window.ModeExpedition = {
       ctx.strokeRect(sx - 50, signY, 100, 23);
       ctx.fillStyle = isNext ? "#FEF08A" : (isCleared ? "#86EFAC" : "#CBD5E1");
       ctx.font = "900 11px 'Press Start 2P', 'Noto Sans TC', monospace";
-      ctx.fillText(isBoss ? `W${wNum} BOSS` : `WAVE ${wNum}`, sx, signY + 16);
+      const lblTxt = isBoss ? (cfg.isMiniBoss ? `W${wNum} MINI` : `W${wNum} BOSS`) : (cfg.isEventWave ? `W${wNum} EVENT` : `WAVE ${wNum}`);
+      ctx.fillText(lblTxt, sx, signY + 16);
     });
 
     // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（漫步於原生道路上方，清晰無變形）
@@ -2252,14 +2626,14 @@ window.ModeExpedition = {
     const app = GameApp;
     const st = app.expeditionState;
     if (!st) return;
-    const cost = st.shopRerollCost || 40;
+    const cost = st.shopRerollCost || 30;
     if (app.runCoins < cost) {
       if (app.pixelToast) app.pixelToast(`代幣不足！刷新需 ${cost} 金`, "warn");
       return;
     }
     app.runCoins -= cost;
     app.saveData.coins = Math.max(0, app.saveData.coins - cost);
-    st.shopRerollCost = cost + 30;
+    st.shopRerollCost = cost + 25;
     SoundFX.play("hit");
     this.rollIntermissionShop(app);
     this.renderIntermissionModal(app, false);
@@ -2296,7 +2670,7 @@ window.ModeExpedition = {
 
     return `
       <div class="mb-3 rounded-2xl bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 border-2 border-amber-400 p-3 text-center shadow-xl">
-        <div class="font-pixel text-[9px] text-amber-300 tracking-widest mb-2">HALL OF FAME · 關都殿堂登錄</div>
+        <div class="font-pixel text-[9px] text-amber-300 tracking-widest mb-2">${res.isExTrueClear ? "★ TRUE HALL OF FAME · EX 始祖夢夢制霸 ★" : "HALL OF FAME · 關都殿堂登錄"}</div>
         <div class="flex items-end justify-center gap-2 py-1.5 bg-slate-900/75 rounded-xl border border-amber-500/40 mb-2">
           <img src="${SpriteCache.resolveUrl(trCos.sprite || tr.sprite)}" class="w-12 h-12 pixel-sprite object-contain" alt="${tr.name}"/>
           <img src="${SpriteCache.resolveUrl(pSpr)}" class="w-16 h-16 pixel-sprite object-contain drop-shadow-[0_0_8px_rgba(250,204,21,0.75)]" alt="${p.data.name_zh}"/>
