@@ -315,7 +315,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.4.0";
+        const ver = this.APP_VERSION || "v7.4.0p1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -558,7 +558,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.4.0";
+      const curVer = this.APP_VERSION || "v7.4.0p1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1365,7 +1365,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.4.0",
+      lastSeenVersion: this.APP_VERSION || "v7.4.0p1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2788,7 +2788,7 @@ Object.assign(window.GameApp, {
     else if (isVictory) title = this.isArenaMode ? "鬥技場勝者" : "關都遠征軍";
 
     const snapshot = {
-      version: this.APP_VERSION || "v7.4.0",
+      version: this.APP_VERSION || "v7.4.0p1",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -2850,7 +2850,7 @@ Object.assign(window.GameApp, {
     const titleEl = document.getElementById("hexTitleBadge");
     if (titleEl) titleEl.textContent = snap.title;
     const newBestEl = document.getElementById("hexNewBestBadge");
-    if (newBestEl) newBestEl.classList.toggle("hidden", !isNewBest);
+    if (newBestEl) newBestEl.classList.toggle("hidden", !(isVictory && isNewBest));
     const testEl = document.getElementById("hexTestRunBadge");
     if (testEl) testEl.classList.toggle("hidden", !snap.isDebugRun);
     const ghostLeg = document.getElementById("hexGhostLegend");
@@ -2865,19 +2865,55 @@ Object.assign(window.GameApp, {
       `;
     }
 
-    // 動態印章樣式設定
+    // 動態街機雙層印章樣式設定（固定 54x54 方章 ＋ 寬幅 MASTER 黑金流光章）
     const stampEl = document.getElementById("hexRankStamp");
     if (stampEl) {
-      const rankStyles = {
-        "MASTER": "border-amber-300 bg-gradient-to-br from-rose-700 via-amber-500 to-purple-700 text-white shadow-[0_0_20px_rgba(250,204,21,0.85)]",
-        "S+":     "border-amber-300 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 shadow-[0_0_16px_rgba(250,204,21,0.65)]",
-        "S":      "border-yellow-400 bg-slate-950 text-amber-300 shadow-[0_0_12px_rgba(250,204,21,0.45)]",
-        "A":      "border-sky-400 bg-slate-950 text-sky-300",
-        "B":      "border-emerald-400 bg-slate-950 text-emerald-300",
-        "C":      "border-slate-500 bg-slate-950 text-slate-300"
+      const isMaster = snap.rank === "MASTER";
+      const rankMeta = {
+        "MASTER": {
+          box: "min-w-[94px] h-[48px] px-2.5 border-amber-300 bg-gradient-to-br from-slate-950 via-rose-900 to-amber-700 shadow-[0_0_22px_rgba(250,204,21,0.85)] ring-1 ring-inset ring-amber-200/70",
+          txt: "text-[14px] tracking-wider bg-gradient-to-b from-white via-amber-200 to-amber-400 bg-clip-text text-transparent drop-shadow-[0_2px_2px_rgba(0,0,0,0.95)]",
+          sub: "text-amber-200",
+          subLabel: "★ GRAND"
+        },
+        "S+": {
+          box: "w-[56px] h-[56px] border-amber-300 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-600 shadow-[0_0_18px_rgba(251,191,36,0.75)] ring-1 ring-inset ring-white/60",
+          txt: "text-[24px] text-white drop-shadow-[0_2px_0_rgba(124,45,18,0.95)]",
+          sub: "text-amber-100",
+          subLabel: "RANK"
+        },
+        "S": {
+          box: "w-[54px] h-[54px] border-amber-400 bg-gradient-to-br from-slate-900 via-amber-950 to-slate-950 shadow-[0_0_15px_rgba(250,204,21,0.55)] ring-1 ring-inset ring-amber-300/45",
+          txt: "text-[28px] text-amber-300 drop-shadow-[0_2px_0_rgba(0,0,0,0.95)]",
+          sub: "text-amber-200/85",
+          subLabel: "RANK"
+        },
+        "A": {
+          box: "w-[54px] h-[54px] border-sky-400 bg-gradient-to-br from-slate-900 via-sky-950 to-slate-950 shadow-[0_0_12px_rgba(56,189,248,0.45)] ring-1 ring-inset ring-sky-300/40",
+          txt: "text-[28px] text-sky-300 drop-shadow-[0_2px_0_rgba(0,0,0,0.95)]",
+          sub: "text-sky-200/80",
+          subLabel: "RANK"
+        },
+        "B": {
+          box: "w-[54px] h-[54px] border-emerald-400 bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.40)] ring-1 ring-inset ring-emerald-300/40",
+          txt: "text-[28px] text-emerald-300 drop-shadow-[0_2px_0_rgba(0,0,0,0.95)]",
+          sub: "text-emerald-200/80",
+          subLabel: "RANK"
+        },
+        "C": {
+          box: "w-[54px] h-[54px] border-slate-400 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 ring-1 ring-inset ring-white/25",
+          txt: "text-[28px] text-slate-200 drop-shadow-[0_2px_0_rgba(0,0,0,0.95)]",
+          sub: "text-slate-400",
+          subLabel: "RANK"
+        }
       };
-      stampEl.textContent = snap.rank;
-      stampEl.className = `px-2.5 py-1 rounded-xl border-2 font-pixel text-sm sm:text-base transform -rotate-6 transition-all duration-300 shrink-0 ${rankStyles[snap.rank] || rankStyles.C}`;
+      const rm = rankMeta[snap.rank] || rankMeta.C;
+      stampEl.className = `relative rounded-xl border-2 flex flex-col items-center justify-center transform -rotate-6 transition-all duration-300 shrink-0 overflow-hidden select-none ${rm.box}`;
+      stampEl.innerHTML = `
+        <div class="pointer-events-none absolute -top-3 -left-3 w-12 h-6 bg-white/15 -rotate-45"></div>
+        <span class="relative z-10 font-black italic leading-none ${rm.txt}">${isMaster ? "MASTER" : snap.rank}</span>
+        <span class="relative z-10 font-pixel text-[6px] tracking-widest mt-1 leading-none ${rm.sub}">${rm.subLabel}</span>
+      `;
       stampEl.style.opacity = "0";
       stampEl.style.transform = "scale(2.1) rotate(-14deg)";
     }
@@ -3060,7 +3096,8 @@ Object.assign(window.GameApp, {
       : (this.isArenaMode
           ? ` [1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
           : (this.isEndlessMode ? " [無盡試煉]" : ""));
-    document.getElementById("endStatPartner").textContent = `${this.selectedTrainer.name} & ${this.player.data.name_zh} (Lv.${this.player.level})${modeTag}`;
+    const trShortName = (this.selectedTrainer && this.selectedTrainer.name ? this.selectedTrainer.name.split(" ")[0] : "小智");
+    document.getElementById("endStatPartner").textContent = `${trShortName} & ${this.player.data.name_zh} Lv.${this.player.level}${modeTag}`;
     document.getElementById("endStatKills").textContent = this.kills;
     document.getElementById("endStatCoins").textContent = `+${this.runCoins}`;
 
@@ -3722,7 +3759,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.4.0";
+    const curVer = this.APP_VERSION || "v7.4.0p1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
