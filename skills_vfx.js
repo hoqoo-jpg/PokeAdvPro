@@ -2872,8 +2872,9 @@ Object.assign(window.SkillsEngine, {
           const drawPixelRock = (ox, oy, rr) => {
             ctx.save();
             ctx.translate(ox, oy);
-            ctx.fillStyle = "#5C2808";
-            ctx.strokeStyle = "#1C0D04";
+            // 對齊地震與岩崩 Icon 暖沙金褐高明度色盤（暗面 #78350F ➔ 主面 #D97706 ➔ 受光面 #FBBF24 ➔ 稜線高光 #FEF3C7）
+            ctx.fillStyle = "#78350F";
+            ctx.strokeStyle = "#451A03";
             ctx.lineWidth = 2.0;
             ctx.beginPath();
             ctx.moveTo(-rr * 0.9, rr * 0.2); ctx.lineTo(-rr * 0.6, -rr * 0.75);
@@ -2882,18 +2883,25 @@ Object.assign(window.SkillsEngine, {
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-            ctx.fillStyle = "#B45309";
+            ctx.fillStyle = "#D97706";
             ctx.beginPath();
-            ctx.moveTo(-rr * 0.72, rr * 0.1); ctx.lineTo(-rr * 0.5, -rr * 0.65);
-            ctx.lineTo(rr * 0.18, -rr * 0.82); ctx.lineTo(rr * 0.38, -rr * 0.05);
+            ctx.moveTo(-rr * 0.78, rr * 0.12); ctx.lineTo(-rr * 0.54, -rr * 0.68);
+            ctx.lineTo(rr * 0.18, -rr * 0.86); ctx.lineTo(rr * 0.56, -rr * 0.05);
+            ctx.lineTo(-rr * 0.15, rr * 0.52);
             ctx.closePath();
             ctx.fill();
-            ctx.fillStyle = "#F59E0B";
+            ctx.fillStyle = "#FBBF24";
             ctx.beginPath();
-            ctx.moveTo(-rr * 0.45, -rr * 0.55); ctx.lineTo(rr * 0.15, -rr * 0.78);
-            ctx.lineTo(rr * 0.55, -rr * 0.25); ctx.lineTo(rr * 0.08, -rr * 0.1);
+            ctx.moveTo(-rr * 0.48, -rr * 0.58); ctx.lineTo(rr * 0.18, -rr * 0.82);
+            ctx.lineTo(rr * 0.66, -rr * 0.25); ctx.lineTo(rr * 0.10, -rr * 0.08);
             ctx.closePath();
             ctx.fill();
+            // 稜線銳利暖金高光
+            ctx.strokeStyle = "#FEF3C7";
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.moveTo(-rr * 0.46, -rr * 0.54); ctx.lineTo(rr * 0.16, -rr * 0.78); ctx.lineTo(rr * 0.56, -rr * 0.26);
+            ctx.stroke();
             ctx.restore();
           };
           drawPixelRock(0, 0, br);
@@ -2911,24 +2919,29 @@ Object.assign(window.SkillsEngine, {
         ctx.save();
         ctx.translate(sx, sy - fallY);
         ctx.globalAlpha = fade * sAlpha;
-        // 尖碑岩柱本體
-        ctx.fillStyle = "#291507";
-        ctx.strokeStyle = "#F59E0B";
+        // 暖岩熔金尖碑本體（提亮對齊地震暖沙金琥珀色盤）
+        ctx.fillStyle = "#78350F";
+        ctx.strokeStyle = "#451A03";
         ctx.lineWidth = 2.6;
         ctx.beginPath();
         ctx.moveTo(-26, 12); ctx.lineTo(-32, -62); ctx.lineTo(0, -96); ctx.lineTo(32, -62); ctx.lineTo(26, 12);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        // 高光熔岩紋路切面
-        ctx.fillStyle = "#78350F";
+        // 受光亮赭褐與琥珀金切面
+        ctx.fillStyle = "#D97706";
         ctx.beginPath();
-        ctx.moveTo(-20, 8); ctx.lineTo(-24, -56); ctx.lineTo(0, -86); ctx.lineTo(4, 8); ctx.closePath();
+        ctx.moveTo(-22, 9); ctx.lineTo(-27, -58); ctx.lineTo(0, -90); ctx.lineTo(4, 9); ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 2.4;
+        ctx.fillStyle = "#FBBF24";
         ctx.beginPath();
-        ctx.moveTo(0, -82); ctx.lineTo(-8, -42); ctx.lineTo(6, -18); ctx.lineTo(-2, 8);
+        ctx.moveTo(-18, -52); ctx.lineTo(0, -88); ctx.lineTo(14, -54); ctx.lineTo(-2, -32); ctx.closePath();
+        ctx.fill();
+        // 耀眼熔金裂紋
+        ctx.strokeStyle = "#FEF3C7";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        ctx.moveTo(0, -84); ctx.lineTo(-8, -42); ctx.lineTo(7, -18); ctx.lineTo(-2, 8);
         ctx.stroke();
         ctx.restore();
       } else if (m.style === "poison_burst_ring") {
@@ -3031,46 +3044,85 @@ Object.assign(window.SkillsEngine, {
         }
         ctx.restore();
       } else if (m.style === "shadow_claw") {
-        // 【暗影爪 v7.5.7】：徹底告別直線射出！近身 110° 大弧度橫掃彎弧利爪撕裂傷口 ＋ 幽火煙霧
+        // 【暗影爪 v7.5.8】：棄用等寬圓弧線！填充兩端收尖貝茲三指利爪（中爪最長最粗、兩側微張）＋ 起手幽靈鬼掌殘影 ＋ 魂火煙霧
         const ox = toSx(m.ox !== undefined ? m.ox : m.x);
         const oy = toSy(m.oy !== undefined ? m.oy : m.y);
-        const r = (m.radius || 76) * 1.05;
-        const sweep = Math.min(1, prog * 1.9);
+        const r = (m.radius || 76) * 1.08;
+        const sweep = Math.min(1, prog * 2.1);
         const isCrimson = !!m.isMegaGengar;
         ctx.save();
         ctx.translate(ox, oy);
         ctx.rotate(m.angle || 0);
 
-        const startA = -0.96;
-        const endA = startA + sweep * 1.92; // 110° 大弧度橫掃
-        [0.68, 0.88, 1.06].forEach((radMul, idx) => {
-          const arcR = r * radMul;
-          // 1. 深紫黑外緣暗影霧
-          ctx.strokeStyle = isCrimson ? "rgba(136, 19, 55, 0.65)" : "rgba(59, 7, 100, 0.65)";
-          ctx.lineWidth = idx === 1 ? 14 : 10;
-          ctx.lineCap = "round";
+        // 1. 起手深紫幽靈鬼掌殘影（僅在揮爪前半段閃現，強化「揮掌抓撓」解剖感）
+        if (prog < 0.55) {
+          const palmAlpha = (1 - prog / 0.55) * 0.52;
+          ctx.save();
+          ctx.globalAlpha *= palmAlpha;
+          ctx.fillStyle = isCrimson ? "#881337" : "#4C1D95";
           ctx.beginPath();
-          ctx.arc(0, 0, arcR, startA, endA);
-          ctx.stroke();
-          // 2. 高飽和紫紅／猩紅彎弧爪痕
-          ctx.strokeStyle = isCrimson ? (idx === 1 ? "#FB7185" : "#E11D48") : (idx === 1 ? "#E879F9" : "#9333EA");
-          ctx.lineWidth = idx === 1 ? 7.5 : 5.0;
+          ctx.ellipse(r * 0.28, -r * 0.36 + sweep * r * 0.28, r * 0.22, r * 0.14, 0.35, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 2. 三根兩端收尖填充貝茲爪刃（外張角度與長短層次：上爪略短、中爪最長最粗、下爪微張）
+        const claws = [
+          { yBase: -r * 0.34, len: r * 0.90, thick: 9.5, curve: -r * 0.26, tilt: -0.22 },
+          { yBase:  0,        len: r * 1.12, thick: 13.0, curve: -r * 0.14, tilt:  0.00 },
+          { yBase:  r * 0.34, len: r * 0.88, thick: 9.0, curve: -r * 0.04, tilt:  0.20 }
+        ];
+        claws.forEach((cl, idx) => {
+          ctx.save();
+          ctx.translate(r * 0.16, cl.yBase);
+          ctx.rotate(cl.tilt);
+          const curL = cl.len * (0.28 + sweep * 0.72);
+          const halfT = cl.thick * 0.5 * (1 - prog * 0.25);
+          // 爪尾起點 (0, -curL*0.42) ➔ 弧頂中段 (curL*0.58, curve) ➔ 鉤尖 (curL*0.92, curL*0.48)
+          const sx0 = -curL * 0.12, sy0 = -curL * 0.44;
+          const mx  =  curL * 0.56, my  = cl.curve;
+          const tx  =  curL * 0.84, ty  =  curL * 0.48;
+
+          // 外層暗影深紫／深紅描邊爪體
+          ctx.fillStyle = isCrimson ? "#4C0519" : "#2E1065";
           ctx.beginPath();
-          ctx.arc(0, 0, arcR, startA + 0.06, endA);
-          ctx.stroke();
-          // 3. 尖端勾曲純白撕裂芯
-          ctx.strokeStyle = "#FDF4FF";
-          ctx.lineWidth = idx === 1 ? 2.6 : 1.6;
+          ctx.moveTo(sx0, sy0);
+          ctx.quadraticCurveTo(mx + halfT * 1.5, my - halfT * 0.9, tx, ty);
+          ctx.quadraticCurveTo(mx - halfT * 1.1, my + halfT * 0.9, sx0, sy0);
+          ctx.closePath();
+          ctx.fill();
+
+          // 中層高飽和紫紅／猩紅漸層利爪（呼應暗影爪 Icon 配色）
+          ctx.fillStyle = isCrimson ? (idx === 1 ? "#FB7185" : "#E11D48") : (idx === 1 ? "#F0ABFC" : "#A855F7");
           ctx.beginPath();
-          ctx.arc(0, 0, arcR, Math.max(startA, endA - 0.85), endA);
-          ctx.stroke();
+          ctx.moveTo(sx0 + 3, sy0 + 3);
+          ctx.quadraticCurveTo(mx + halfT * 0.95, my - halfT * 0.55, tx, ty);
+          ctx.quadraticCurveTo(mx - halfT * 0.55, my + halfT * 0.55, sx0 + 3, sy0 + 3);
+          ctx.closePath();
+          ctx.fill();
+
+          // 內層純白尖銳高光脊線（只畫中段到爪尖，極具撕裂速度感）
+          ctx.fillStyle = "#FDF4FF";
+          ctx.beginPath();
+          ctx.moveTo(mx * 0.35, sy0 * 0.45);
+          ctx.quadraticCurveTo(mx + halfT * 0.35, my - halfT * 0.2, tx, ty);
+          ctx.quadraticCurveTo(mx - halfT * 0.1, my + halfT * 0.18, mx * 0.35, sy0 * 0.45);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
         });
-        // 尾跡像素小幽靈魂火
-        for (let w = 0; w < 5; w++) {
-          const wa = startA + (endA - startA) * (w / 4);
-          const wr = r * (0.72 + (w % 2) * 0.28);
-          ctx.fillStyle = isCrimson ? "#FDA4AF" : "#D8B4FE";
-          ctx.fillRect(Math.cos(wa) * wr - 3, Math.sin(wa) * wr - 3, 6, 6);
+
+        // 3. 飄散小幽靈紫煙粒子（帶點狀高光呼應 Icon）
+        for (let w = 0; w < 4; w++) {
+          const wx = r * (0.35 + w * 0.18);
+          const wy = (w - 1.5) * r * 0.28 + Math.sin(prog * 9 + w) * 8;
+          const wr = (5.5 - w * 0.6) * (1 - prog * 0.45);
+          ctx.fillStyle = isCrimson ? "rgba(225, 29, 72, 0.78)" : "rgba(147, 51, 234, 0.78)";
+          ctx.beginPath();
+          ctx.arc(wx, wy, wr, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#FDF4FF";
+          ctx.fillRect(wx - 1.5, wy - 1.5, 2, 2);
         }
         ctx.restore();
       } else if (m.style === "hydro_pump_beam") {
@@ -4643,8 +4695,8 @@ Object.assign(window.SkillsEngine, {
         ctx.ellipse(0, r * 0.72, r * 0.85, r * 0.32, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.rotate((pr.spin || 0) + now * 12);
-        ctx.fillStyle = "#78350F";
-        ctx.strokeStyle = "#1C0D04";
+        ctx.fillStyle = "#B45309";
+        ctx.strokeStyle = "#451A03";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(-r * 0.85, 0); ctx.lineTo(-r * 0.45, -r * 0.8); ctx.lineTo(r * 0.55, -r * 0.7);

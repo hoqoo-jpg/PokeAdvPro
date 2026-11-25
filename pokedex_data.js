@@ -115,7 +115,7 @@ Ember: {
     evolvedName: "大字爆炎", color: "#F97316",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
     desc: "向身前廣角扇面噴吐 2～4 團跳動火花，短射程高頻壓制並引發灼傷！",
-    evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
+    evoDesc: "【終極超武】向八方推進高溫立體『大』字烈焰，留下炙熱焦土持續灼燒！"
   },
   WaterGun: {
     id: "WaterGun", name: "水槍", type: "Water", baseDmg: 26, baseCd: 0.90, ultMinCd: 3.4, ultPowerBonus: 1.0,
@@ -123,7 +123,7 @@ Ember: {
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
     desc: "射出輕型高壓水流束，穿透身前小群敵人並產生推阻。",
-    evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
+    evoDesc: "【終極超武】於周身展開深海大漩渦持續捲吸並強力擊退敵陣！"
   },
   Tackle: {
     id: "Tackle", name: "撞擊", type: "Normal", baseDmg: 26, baseCd: 1.02, ultMinCd: 2.6, ultPowerBonus: 1.05,
@@ -131,7 +131,7 @@ Ember: {
     evolvedName: "終極衝擊", color: "#CBD5E1",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/silk-scarf.png",
     desc: "向身前猛烈撲擊並強力撞退敵群（零位移干擾走位），升級解鎖二段與三段連環破空震波！",
-    evoDesc: "【終極超武】全屏金白衝擊狂濤，造成 400% 毀滅巨損！"
+    evoDesc: "【終極超武】爆發四向黃金螺旋衝擊錐與動能月牙波，造成毀滅性擊退重創！"
   },
   Flamethrower: {
     id: "Flamethrower", name: "噴射火焰", type: "Fire", baseDmg: 32, baseCd: 1.15, ultMinCd: 3.5, ultPowerBonus: 1.15,
@@ -139,7 +139,7 @@ Ember: {
     evolvedName: "大字爆炎", color: "#EF4444",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/charcoal.png",
     desc: "從口中噴出連續錐形高溫烈焰流，持續兩段灼燒整片扇形敵群，升級大幅拓寬烈焰寬度與射程！",
-    evoDesc: "【終極超武】向八方噴射高溫大字烈焰，並引爆全圖焦土！"
+    evoDesc: "【終極超武】向八方推進高溫立體『大』字烈焰，留下炙熱焦土持續灼燒！"
   },
   HydroPump: {
     id: "Hydro Pump", name: "水炮", type: "Water", baseDmg: 38, baseCd: 1.45, ultMinCd: 3.4, ultPowerBonus: 1.18,
@@ -147,7 +147,7 @@ Ember: {
     evolvedName: "潮旋激流", color: "#38BDF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/mystic-water.png",
     desc: "從炮口射出貫穿式高壓螺旋水柱，持續兩段沖刷並強力擊退整排敵群，Lv.4 雙炮齊射、Lv.8 超壓加粗（水箭龜專屬雙肩平行重炮）！",
-    evoDesc: "【終極超武】10 條深海漩渦光束席捲全場，大幅擊退並撕裂敵陣！"
+    evoDesc: "【終極超武】於周身展開深海大漩渦持續捲吸並強力擊退敵陣！"
   },
   SeedBomb: {
     id: "Seed Bomb", name: "種子炸彈", type: "Grass", baseDmg: 30, baseCd: 1.15, ultMinCd: 3.6, ultPowerBonus: 1.15,
@@ -163,7 +163,7 @@ Ember: {
     evolvedName: "打雷暴風雨", color: "#FACC15",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/magnet.png",
     desc: "釋放金白高頻電漿鏈，無擊退，極致電擊麻痺。",
-    evoDesc: "【終極超武】全屏降下 14 道高壓萬鈞雷霆，附帶全屏白閃！"
+    evoDesc: "【終極超武】召喚 6 道高壓萬鈞天罰雷柱錯落轟炸並強力麻痺敵陣！"
   },
   ShadowBall: {
     id: "Shadow Ball", name: "暗影球", type: "Ghost", baseDmg: 30, baseCd: 1.05, ultMinCd: 3.6, ultPowerBonus: 1.10,
@@ -171,7 +171,7 @@ Ember: {
     evolvedName: "暗影死滅波", color: "#A855F7",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/spell-tag.png",
     desc: "凝縮幽靈黑核射線，純穿透打擊，無擊退。",
-    evoDesc: "【終極超武】全圖暗影鬼影奔襲撕咬，附帶混亂反向！"
+    evoDesc: "【終極超武】腳下浮現冥界陣紋並放出 6 隻惡靈鬼影奔襲撕咬，附帶混亂！"
   },
   Psystrike: {
     id: "Psystrike", name: "精神擊破", type: "Psychic", baseDmg: 36, baseCd: 1.25, ultMinCd: 3.8, ultPowerBonus: 1.12,
@@ -179,7 +179,7 @@ Ember: {
     evolvedName: "精神強念領域", color: "#EC4899",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
     desc: "高壓念力實體穿刺，無擊退，精準索敵。",
-    evoDesc: "【終極超武】釋放引力超能風暴，全屏崩解目標防禦！"
+    evoDesc: "【終極超武】展開引力超能黑洞牽引敵群，並齊射 6 道穿透念力梭！"
   },
   IceBeam: {
     id: "Ice Beam", name: "冷凍光線", type: "Ice", baseDmg: 30, baseCd: 1.15, ultMinCd: 4.8, ultPowerBonus: 1.08,
@@ -187,7 +187,7 @@ Ember: {
     evolvedName: "絕對零度", color: "#67E8F9",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/never-melt-ice.png",
     desc: "瞬間貫穿整條直線的經典 GBA 折線極寒雷射，末端引發六角冰霜爆破並高機率凍結敵群！",
-    evoDesc: "【終極超武】凍結全屏怪物 3 秒，並引發全屏冰爆碎裂！"
+    evoDesc: "【終極超武】展開廣域極光絕對零度領域凍結敵群，並引發二段碎冰巨爆！"
   },
   Earthquake: {
     id: "Earthquake", name: "地震", type: "Ground", baseDmg: 40, baseCd: 1.65, ultMinCd: 3.8, ultPowerBonus: 1.15,
@@ -195,7 +195,7 @@ Ember: {
     evolvedName: "地裂斷層破", color: "#D97706",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soft-sand.png",
     desc: "重踏地面激發環形地震波，大範圍強烈擊退。",
-    evoDesc: "【終極超武】全屏雙層地底深坑岩石爆裂，飛石對空重創飛行系並造成雙倍粉碎重擊！"
+    evoDesc: "【終極超武】瞬間撕開網狀深淵熔岩裂谷，崩裂飛石對空重創飛行系並造成粉碎重擊！"
   },
   KarateChop: {
     id: "Karate Chop", name: "空手劈", type: "Fighting", baseDmg: 26, baseCd: 0.85, ultMinCd: 3.0, ultPowerBonus: 1.15,
@@ -211,7 +211,7 @@ Ember: {
     evolvedName: "暴風驟雨", color: "#818CF8",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sharp-beak.png",
     desc: "快速斬出高頻風刃，微弱擊退。",
-    evoDesc: "【終極超武】全屏生成穿透龍捲風，將怪物扯入風眼！"
+    evoDesc: "【終極超武】召喚 3 道穿透暴風龍捲風巡航戰場，將沿途敵人扯入風眼！"
   },
   SludgeBomb: {
     id: "Sludge Bomb", name: "污泥炸彈", type: "Poison", baseDmg: 30, baseCd: 1.15, ultMinCd: 4.6, ultPowerBonus: 1.08,
@@ -219,7 +219,7 @@ Ember: {
     evolvedName: "劇毒沼澤", color: "#9333EA",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poison-barb.png",
     desc: "投擲劇毒泥漿塊，微擊退，附帶高概率中毒。",
-    evoDesc: "【終極超武】全屏覆蓋腐蝕性毒霧，中毒扣血速率提升 100%！"
+    evoDesc: "【終極超武】展開廣域劇毒腐蝕沼澤，大幅加速圈內敵人中毒扣血！"
   },
   Moonblast: {
     id: "Moonblast", name: "月亮之力", type: "Psychic", baseDmg: 34, baseCd: 1.45, ultMinCd: 3.8, ultPowerBonus: 1.10,
@@ -227,7 +227,7 @@ Ember: {
     evolvedName: "創世極光", color: "#F472B6",
     sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/twisted-spoon.png",
     desc: "汲取月光引力光球，無擊退，具備索敵追蹤能力。",
-    evoDesc: "【終極超武】神聖極光洗禮全屏，超大幅度降低敵人攻擊力！"
+    evoDesc: "【終極超武】降下廣域神聖月華極光天幕洗禮戰場，大幅削弱敵人攻擊力！"
   },
   DragonRush: {
     id: "Dragon Rush", name: "龍之俯衝", type: "Dragon", baseDmg: 44, baseCd: 1.55, ultMinCd: 3.6, ultPowerBonus: 1.15,
@@ -252,7 +252,7 @@ Ember: {
     evolvedName: "大陸板塊崩落", color: "#D97706",
     extraIconCol: 0, svgIcon: "rock",
     desc: "鎖定敵群預警落點，連續砸下 3～5 顆稜角巨岩與碎石震波，造成強擊退重擊！",
-    evoDesc: "【終極超武】震裂熔岩十字斷層，天降黑曜尖碑岩柱並四散 8 顆滾石碾壓！"
+    evoDesc: "【終極超武】震裂熔岩十字斷層，天降暖金巨岩尖碑並四散 8 顆滾石碾壓！"
   },
   XScissor: {
     id: "XScissor", name: "十字剪", type: "Bug", baseDmg: 32, baseCd: 1.05, ultMinCd: 3.2, ultPowerBonus: 1.08,

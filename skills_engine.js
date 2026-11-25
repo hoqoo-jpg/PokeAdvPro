@@ -1176,20 +1176,32 @@ window.SkillsEngine = {
     if (style === "x_scissor") {
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8 + (trait.overgrowAreaBonus || 0) * 0.6;
       const fistCrit = trait.ironFistCritBonus || 0;
-      const reach = Math.min(146, Math.round(102 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
+      const reach = Math.min(148, Math.round(106 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
       const slashCnt = 1 + (level >= 4 ? 1 : 0);
+      const useManual = (caster === GameApp.player && GameApp.manualAimMode);
       for (let s = 0; s < slashCnt; s++) {
         this.scheduleEvent(s * 0.085, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const ang = baseAngle + (s === 1 ? 0.16 : 0);
+          let cx, cy, ang = baseAngle + (s === 1 ? 0.14 : 0);
+          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.15) : null;
+          if (lockT) {
+            const distT = Math.hypot(lockT.x - caster.x, lockT.y - caster.y);
+            ang = Math.atan2(lockT.y - caster.y, lockT.x - caster.x);
+            // 直接鎖定在目標身上斬出 X 交點（最遠不超過 reach * 0.85，貼臉時緊貼主角身前）
+            const clampDist = Math.min(reach * 0.85, Math.max(22, distT));
+            cx = caster.x + Math.cos(ang) * clampDist;
+            cy = caster.y + Math.sin(ang) * clampDist;
+          } else {
+            cx = caster.x + Math.cos(ang) * 44;
+            cy = caster.y + Math.sin(ang) * 44;
+          }
           this.meleeEffects.push({
             style: "x_scissor",
             casterRef: caster,
             ox: caster.x, oy: caster.y,
-            x: caster.x + Math.cos(ang) * (reach * 0.52),
-            y: caster.y + Math.sin(ang) * (reach * 0.52),
+            x: cx, y: cy,
             angle: ang,
-            radius: reach * 0.64,
+            radius: Math.max(58, reach * 0.62),
             dmg: rawDmg * (s === 0 ? 1.02 : 0.86),
             type: "Bug",
             kb: 10,
@@ -1766,7 +1778,154 @@ window.SkillsEngine = {
       radius: 165
     });
 
-    if (meta.type === "Electric") {
+    if (meta.id === "RockSlide") {
+      // 【大陸板塊崩落（岩崩獨立超武）】：地面熔岩十字斷層 ➔ 天降巨型黑曜尖碑岩柱 ➔ 四散 8 顆滾石二次碾壓
+      const tgt = GameApp.findNearestEnemyInViewport(p.x, p.y, 260);
+      const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 110);
+      const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 110);
+      const pillarR = this.getUltRadius(125, 132, 165);
+      this.meleeEffects.push({
+        style: "rock_obelisk_ult",
+        casterRef: p,
+        x: cx, y: cy,
+        radius: pillarR,
+        dmg: ultDmg * 1.45,
+        type: "Rock",
+        kb: 32,
+        extraCrit: 0.25,
+        hitSet: new Set(),
+        timer: 0.82, maxTime: 0.82,
+        color: "#F59E0B"
+      });
+      this.scheduleEvent(0.24, () => {
+        if (GameApp.state !== "PLAYING" || !GameApp.player) return;
+        GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime, 0.22);
+        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude, 7.5);
+        SoundFX.play("hit", "Ground");
+        for (let k = 0; k < 8; k++) {
+          const ang = (k * Math.PI * 2) / 8 + 0.15;
+          this.projectiles.push({
+            x: cx + Math.cos(ang) * 22,
+            y: cy + Math.sin(ang) * 22,
+            vx: Math.cos(ang) * 290, vy: Math.sin(ang) * 290,
+            angle: ang, spin: Math.random() * 6,
+            radius: 15, dmg: ultDmg * 0.52,
+            type: "Rock", skillId: "RockSlide", vfx: "rolling_rock",
+            color: "#D97706", pierce: 5, knockback: 18,
+            life: 0.92, maxLife: 0.92, statusBonus: 0.35,
+            hitSet: new Set(), trailTimer: 0
+          });
+        }
+      });
+    } else if (meta.id === "XScissor") {
+      // 【終極十字星斬（十字剪獨立超武）】：跟隨主角高速自轉的翡翠金十字星手裡劍巨輪 (1.4s) ➔ 收尾八向翡翠劍氣爆散
+      const wheelR = this.getUltRadius(124, 132, 160);
+      this.groundHazards.push({
+        kind: "x_scissor_wheel",
+        casterRef: p,
+        x: p.x, y: p.y,
+        radius: wheelR,
+        dmg: ultDmg * 0.42,
+        type: "Bug",
+        angle: 0,
+        timer: 1.40, maxTime: 1.40,
+        tickTimer: 0.08, tickInterval: 0.24,
+        color: "#BEF264"
+      });
+      this.scheduleEvent(1.36, () => {
+        if (GameApp.state !== "PLAYING" || !GameApp.player) return;
+        const cp = GameApp.player;
+        SoundFX.play("hit", "Bug");
+        for (let k = 0; k < 8; k++) {
+          const ang = (k * Math.PI * 2) / 8;
+          this.projectiles.push({
+            x: cp.x + Math.cos(ang) * 24,
+            y: cp.y + Math.sin(ang) * 24,
+            vx: Math.cos(ang) * 470, vy: Math.sin(ang) * 470,
+            angle: ang, radius: 18, dmg: ultDmg * 0.58,
+            type: "Bug", skillId: "XScissor", vfx: "emerald_wave",
+            color: "#84CC16", pierce: 7, knockback: 14,
+            life: 0.72, maxLife: 0.72, statusBonus: 0.30, extraCritBonus: 0.25,
+            hitSet: new Set(), trailTimer: 0
+          });
+        }
+      });
+    } else if (meta.id === "PoisonJab") {
+      // 【劇毒新星（毒擊獨立超武）】：徹底擺脫毒沼複用！紫綠高壓毒晶核凝聚 ➔ 雙波螺旋齊射 16 根劇毒骨矛 ➔ 插地結晶毒刺陣爆毒
+      this.meleeEffects.push({
+        style: "poison_crystal_core",
+        casterRef: p, followCaster: true,
+        x: p.x, y: p.y, radius: 75,
+        dmg: ultDmg * 0.35, type: "Poison", kb: 10, hitSet: new Set(),
+        timer: 0.34, maxTime: 0.34, color: "#C084FC"
+      });
+      [0.18, 0.34].forEach((delay, waveIdx) => {
+        this.scheduleEvent(delay, () => {
+          if (GameApp.state !== "PLAYING" || !GameApp.player) return;
+          const cp = GameApp.player;
+          SoundFX.play("hit", "Poison");
+          for (let k = 0; k < 8; k++) {
+            const ang = (k * Math.PI * 2) / 8 + waveIdx * (Math.PI / 8);
+            this.projectiles.push({
+              x: cp.x + Math.cos(ang) * 20,
+              y: cp.y + Math.sin(ang) * 20,
+              vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460,
+              angle: ang, radius: 15, dmg: ultDmg * 0.52,
+              type: "Poison", skillId: "PoisonJab", vfx: "toxic_bone_spear",
+              color: "#D946EF", pierce: 6, knockback: 8,
+              life: 0.85, maxLife: 0.85, statusBonus: 0.90, poisonBurstBonus: 1.55,
+              hitSet: new Set(), trailTimer: 0
+            });
+          }
+          if (waveIdx === 1) {
+            this.groundHazards.push({
+              kind: "poison_spike_ring",
+              x: cp.x, y: cp.y,
+              radius: this.getUltRadius(122, 130, 158),
+              dmg: ultDmg * 0.36,
+              type: "Poison",
+              timer: 1.65, maxTime: 1.65,
+              tickTimer: 0.16, tickInterval: 0.42,
+              color: "#4ADE80"
+            });
+          }
+        });
+      });
+    } else if (meta.id === "ElectroBall") {
+      // 【超載磁暴球（電球獨立超武）】：3 顆藍白高壓電磁衛星繞主角公轉 2.4s，實時連接旋轉三角形高壓閃電牢籠！
+      const orbitR = this.getUltRadius(108, 116, 138);
+      this.groundHazards.push({
+        kind: "electro_cage_ult",
+        casterRef: p,
+        x: p.x, y: p.y,
+        radius: orbitR,
+        dmg: ultDmg * 0.38,
+        type: "Electric",
+        angle: Math.random() * Math.PI * 2,
+        timer: 2.40, maxTime: 2.40,
+        tickTimer: 0.10, tickInterval: 0.28,
+        color: "#38BDF8"
+      });
+    } else if (meta.id === "ShadowClaw") {
+      // 【冥界裂空爪（暗影爪獨立超武）】：地面空間裂縫黑洞 ➔ 雙巨型立體幽靈鬼爪由兩側合掌撕裂抓握聚怪並引爆處決！
+      const isMegaGengar = (p.id === 10094);
+      const tgt = GameApp.findNearestEnemyInViewport(p.x, p.y, 260);
+      const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 105);
+      const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 105);
+      const gripR = this.getUltRadius(135, 144, 175);
+      this.groundHazards.push({
+        kind: "shadow_rift_grip",
+        x: cx, y: cy,
+        radius: gripR,
+        dmg: ultDmg * 0.62,
+        type: "Ghost",
+        isMegaGengar,
+        hasClenched: false,
+        timer: 1.05, maxTime: 1.05,
+        tickTimer: 0.12, tickInterval: 0.36,
+        color: isMegaGengar ? "#E11D48" : "#A855F7"
+      });
+    } else if (meta.type === "Electric") {
       // 【點狀／多發型・打雷暴風雨】：收斂至手機 2/3 範圍，6 道天罰雷柱錯落轟炸
       const ultR = this.getUltRadius(150, 155, 195);
       const strikePts = [];
@@ -2107,153 +2266,6 @@ window.SkillsEngine = {
           pierce: 7, knockback: 8, life: 1.35, statusBonus: 0.65, hitSet: new Set(), trailTimer: 0
         });
       }
-    } else if (meta.id === "RockSlide") {
-      // 【大陸板塊崩落（岩崩獨立超武）】：地面熔岩十字斷層 ➔ 天降巨型黑曜尖碑岩柱 ➔ 四散 8 顆滾石二次碾壓
-      const tgt = GameApp.findNearestEnemyInViewport(p.x, p.y, 260);
-      const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 110);
-      const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 110);
-      const pillarR = this.getUltRadius(125, 132, 165);
-      this.meleeEffects.push({
-        style: "rock_obelisk_ult",
-        casterRef: p,
-        x: cx, y: cy,
-        radius: pillarR,
-        dmg: ultDmg * 1.45,
-        type: "Rock",
-        kb: 32,
-        extraCrit: 0.25,
-        hitSet: new Set(),
-        timer: 0.82, maxTime: 0.82,
-        color: "#F59E0B"
-      });
-      this.scheduleEvent(0.24, () => {
-        if (GameApp.state !== "PLAYING" || !GameApp.player) return;
-        GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime, 0.22);
-        GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude, 7.5);
-        SoundFX.play("hit", "Ground");
-        for (let k = 0; k < 8; k++) {
-          const ang = (k * Math.PI * 2) / 8 + 0.15;
-          this.projectiles.push({
-            x: cx + Math.cos(ang) * 22,
-            y: cy + Math.sin(ang) * 22,
-            vx: Math.cos(ang) * 290, vy: Math.sin(ang) * 290,
-            angle: ang, spin: Math.random() * 6,
-            radius: 15, dmg: ultDmg * 0.52,
-            type: "Rock", skillId: "RockSlide", vfx: "rolling_rock",
-            color: "#D97706", pierce: 5, knockback: 18,
-            life: 0.92, maxLife: 0.92, statusBonus: 0.35,
-            hitSet: new Set(), trailTimer: 0
-          });
-        }
-      });
-    } else if (meta.id === "XScissor") {
-      // 【終極十字星斬（十字剪獨立超武）】：跟隨主角高速自轉的翡翠金十字星手裡劍巨輪 (1.4s) ➔ 收尾八向翡翠劍氣爆散
-      const wheelR = this.getUltRadius(124, 132, 160);
-      this.groundHazards.push({
-        kind: "x_scissor_wheel",
-        casterRef: p,
-        x: p.x, y: p.y,
-        radius: wheelR,
-        dmg: ultDmg * 0.42,
-        type: "Bug",
-        angle: 0,
-        timer: 1.40, maxTime: 1.40,
-        tickTimer: 0.08, tickInterval: 0.24,
-        color: "#BEF264"
-      });
-      this.scheduleEvent(1.36, () => {
-        if (GameApp.state !== "PLAYING" || !GameApp.player) return;
-        const cp = GameApp.player;
-        SoundFX.play("hit", "Bug");
-        for (let k = 0; k < 8; k++) {
-          const ang = (k * Math.PI * 2) / 8;
-          this.projectiles.push({
-            x: cp.x + Math.cos(ang) * 24,
-            y: cp.y + Math.sin(ang) * 24,
-            vx: Math.cos(ang) * 470, vy: Math.sin(ang) * 470,
-            angle: ang, radius: 18, dmg: ultDmg * 0.58,
-            type: "Bug", skillId: "XScissor", vfx: "emerald_wave",
-            color: "#84CC16", pierce: 7, knockback: 14,
-            life: 0.72, maxLife: 0.72, statusBonus: 0.30, extraCritBonus: 0.25,
-            hitSet: new Set(), trailTimer: 0
-          });
-        }
-      });
-    } else if (meta.id === "PoisonJab") {
-      // 【劇毒新星（毒擊獨立超武）】：徹底擺脫毒沼複用！紫綠高壓毒晶核凝聚 ➔ 雙波螺旋齊射 16 根劇毒骨矛 ➔ 插地結晶毒刺陣爆毒
-      this.meleeEffects.push({
-        style: "poison_crystal_core",
-        casterRef: p, followCaster: true,
-        x: p.x, y: p.y, radius: 75,
-        dmg: ultDmg * 0.35, type: "Poison", kb: 10, hitSet: new Set(),
-        timer: 0.34, maxTime: 0.34, color: "#C084FC"
-      });
-      [0.18, 0.34].forEach((delay, waveIdx) => {
-        this.scheduleEvent(delay, () => {
-          if (GameApp.state !== "PLAYING" || !GameApp.player) return;
-          const cp = GameApp.player;
-          SoundFX.play("hit", "Poison");
-          for (let k = 0; k < 8; k++) {
-            const ang = (k * Math.PI * 2) / 8 + waveIdx * (Math.PI / 8);
-            this.projectiles.push({
-              x: cp.x + Math.cos(ang) * 20,
-              y: cp.y + Math.sin(ang) * 20,
-              vx: Math.cos(ang) * 460, vy: Math.sin(ang) * 460,
-              angle: ang, radius: 15, dmg: ultDmg * 0.52,
-              type: "Poison", skillId: "PoisonJab", vfx: "toxic_bone_spear",
-              color: "#D946EF", pierce: 6, knockback: 8,
-              life: 0.85, maxLife: 0.85, statusBonus: 0.90, poisonBurstBonus: 1.55,
-              hitSet: new Set(), trailTimer: 0
-            });
-          }
-          if (waveIdx === 1) {
-            this.groundHazards.push({
-              kind: "poison_spike_ring",
-              x: cp.x, y: cp.y,
-              radius: this.getUltRadius(122, 130, 158),
-              dmg: ultDmg * 0.36,
-              type: "Poison",
-              timer: 1.65, maxTime: 1.65,
-              tickTimer: 0.16, tickInterval: 0.42,
-              color: "#4ADE80"
-            });
-          }
-        });
-      });
-    } else if (meta.id === "ElectroBall") {
-      // 【超載磁暴球（電球獨立超武）】：3 顆藍白高壓電磁衛星繞主角公轉 2.4s，實時連接旋轉三角形高壓閃電牢籠！
-      const orbitR = this.getUltRadius(108, 116, 138);
-      this.groundHazards.push({
-        kind: "electro_cage_ult",
-        casterRef: p,
-        x: p.x, y: p.y,
-        radius: orbitR,
-        dmg: ultDmg * 0.38,
-        type: "Electric",
-        angle: Math.random() * Math.PI * 2,
-        timer: 2.40, maxTime: 2.40,
-        tickTimer: 0.10, tickInterval: 0.28,
-        color: "#38BDF8"
-      });
-    } else if (meta.id === "ShadowClaw") {
-      // 【冥界裂空爪（暗影爪獨立超武）】：地面空間裂縫黑洞 ➔ 雙巨型立體幽靈鬼爪由兩側合掌撕裂抓握聚怪並引爆處決！
-      const isMegaGengar = (p.id === 10094);
-      const tgt = GameApp.findNearestEnemyInViewport(p.x, p.y, 260);
-      const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 105);
-      const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 105);
-      const gripR = this.getUltRadius(135, 144, 175);
-      this.groundHazards.push({
-        kind: "shadow_rift_grip",
-        x: cx, y: cy,
-        radius: gripR,
-        dmg: ultDmg * 0.62,
-        type: "Ghost",
-        isMegaGengar,
-        hasClenched: false,
-        timer: 1.05, maxTime: 1.05,
-        tickTimer: 0.12, tickInterval: 0.36,
-        color: isMegaGengar ? "#E11D48" : "#A855F7"
-      });
     } else if (meta.id === "Moonblast") {
       // 【全場控場型・創世極光】：164px 月華極光天幕
       const ultR = this.getUltRadius(164, 168, 210);
@@ -2896,13 +2908,22 @@ window.SkillsEngine = {
             // 等待落定
           } else {
             const hitR = m.radius || 58;
-            const candidates = this.getEnemiesInRadius(m.x, m.y, hitR);
+            const searchR = m.style === "x_scissor" ? (hitR + 46) : hitR;
+            const candidates = this.getEnemiesInRadius(m.x, m.y, searchR);
             for (let j = 0; j < candidates.length; j++) {
               const e = candidates[j];
               if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
               const dx = e.x - m.x, dy = e.y - m.y;
               const rSum = hitR + e.radius * 0.85;
-              if (dx * dx + dy * dy <= rSum * rSum) {
+              let hitOk = (dx * dx + dy * dy <= rSum * rSum);
+              if (!hitOk && m.style === "x_scissor" && m.ox !== undefined) {
+                // 貼身保底：涵蓋主角身前至斬擊交點的揮砍路徑，貼臉怪不漏刀
+                const mx = (m.ox + m.x) * 0.5, my = (m.oy + m.y) * 0.5;
+                const dmx = e.x - mx, dmy = e.y - my;
+                const rMid = hitR * 0.85 + e.radius * 0.85;
+                hitOk = (dmx * dmx + dmy * dmy <= rMid * rMid);
+              }
+              if (hitOk) {
                 m.hitSet.add(e);
                 GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 10, m.extraCrit || 0);
                 if (m.style === "rock_slide_impact" && !e.isBoss) {

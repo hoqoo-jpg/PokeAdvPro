@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.5.7";
+        const ver = this.APP_VERSION || "v7.5.8";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.5.7";
+      const curVer = this.APP_VERSION || "v7.5.8";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1368,7 +1368,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.5.7",
+      lastSeenVersion: this.APP_VERSION || "v7.5.8",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2888,7 +2888,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.5.7",
+      version: this.APP_VERSION || "v7.5.8",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3557,8 +3557,23 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.5.7 五大新招＆獨立超武美術重製 ‧ 測試木樁＆單槽超武面板</span>
+            <span class="font-black text-sm text-amber-300">v7.5.8 新超武優先序修復 ‧ 岩崩/十字剪/暗影爪美術精修 ‧ 25 招說明校準版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">關鍵修復：正式解放電球／毒擊／暗影爪 3 套獨立超武</div>
+            <div>• 修正 <code>triggerUltimateSuperMove()</code> 判定優先序，將 5 招專屬超武移至屬性分支之前，徹底解除舊屬性超武攔截，【超載磁暴球】、【劇毒新星】、【冥界裂空爪】實機 100% 生效！</div>
+            <div class="text-emerald-300 font-black pt-1">美術總監精修：岩崩色盤、十字剪鎖敵、暗影爪三指利爪</div>
+            <div>• <strong>岩崩</strong>：整體提亮 25%，對齊地震與技能 Icon 的暖琥珀金褐高光色盤，告別暗沉。</div>
+            <div>• <strong>十字剪</strong>：普攻改為自動鎖定目標座標作為 X 斬交點並補齊貼身路徑判定；超武手裡劍巨輪鎖定主角自身護體旋轉。</div>
+            <div>• <strong>暗影爪</strong>：棄用等寬圓弧線，重繪兩端收尖貝茲三指利爪（中爪最長最粗）＋起手幽靈鬼掌殘影＋魂火紫煙。</div>
+            <div class="text-amber-300 font-black pt-1">全 25 招超武說明校準</div>
+            <div>• 全面同步水炮、十萬伏特、冷凍光線、地震、空氣斬、污泥炸彈、月亮之力與新 5 招的 <code>evoDesc</code> 文案，確保說明、Icon 與實機演出 100% 一致。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.5.7 五大新招＆獨立超武美術重製 ‧ 測試木樁＆單槽超武面板</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">五大新招去幾何化 ＆ 五套獨立形態終極超武</div>
@@ -3947,7 +3962,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.5.7";
+    const curVer = this.APP_VERSION || "v7.5.8";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
