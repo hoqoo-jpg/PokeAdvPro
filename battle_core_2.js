@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.4.0p1",
+  APP_VERSION: "v7.4.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1130,6 +1130,7 @@ window.GameApp = {
       arenaPowerupsPicked: 0,
       fieldPowerupsPicked: 0,
       treasuresKilled: 0,
+      trainerSkillsUsed: 0,
       isDebugRun: !!this.debugGodMode
     };
     this.lastRunRating = null;
@@ -1537,6 +1538,7 @@ window.GameApp = {
   executeTrainerActiveSkillEffect(tr) {
     const p = this.player;
     if (!p || !tr) return;
+    if (this.runStats) this.runStats.trainerSkillsUsed = (this.runStats.trainerSkillsUsed || 0) + 1;
     p.status = null;
     p.statusTimer = 0;
     // 解凍落地給予 0.65s 安全無敵幀（莉莉艾另設 2.0s），杜絕恢復畫面瞬間被貼臉彈幕偷襲
