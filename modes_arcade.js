@@ -807,6 +807,7 @@ window.ModeArena = {
       pu.bob += dt * 4.5;
       if (Math.hypot(p.x - pu.x, p.y - pu.y) <= 34) {
         app.arenaPowerups.splice(i, 1);
+        if (app.runStats) app.runStats.arenaPowerupsPicked += 1;
         SoundFX.play("levelup");
         app.spawnParticleCluster(p.x, p.y, pu.color, "#FEF08A", 20, "star", 1.15);
         if (pu.id === "sitrus_berry") {

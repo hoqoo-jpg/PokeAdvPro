@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.3.9",
+  APP_VERSION: "v7.4.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -44,6 +44,7 @@ window.GameApp = {
     selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
     unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
     claimedAch: {},
+    bestRatings: {},
     lastSeenVersion: "",
     settings: {
       mobCapProfile: "auto",
@@ -564,6 +565,16 @@ window.GameApp = {
     if (menu) menu.classList.toggle("hidden");
   },
 
+  markDebugRun() {
+    if (this.runStats) this.runStats.isDebugRun = true;
+  },
+
+  recordPlayerHit(dmg) {
+    if (!this.runStats) return;
+    this.runStats.hitsTaken = (this.runStats.hitsTaken || 0) + 1;
+    this.runStats.damageTaken = (this.runStats.damageTaken || 0) + Math.max(0, dmg || 0);
+  },
+
   debugSetWeather(weatherType) {
     if (typeof MapEngine !== "undefined") {
       this.debugWeatherLock = true;
@@ -575,6 +586,7 @@ window.GameApp = {
 
   debugForceLevelUp() {
     if (!this.player) return;
+    this.markDebugRun();
     for (let i = 0; i < 5; i++) {
       this.player.level += 1;
       if (this.player.data.evo_level !== "None" && this.player.level >= this.player.data.evo_level) {
@@ -600,6 +612,7 @@ window.GameApp = {
 
   debugUnlockSuperMove(targetCount = 1) {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     // 若要求雙超武但目前學會的招式不足 2 招，自動從天生三招池補齊第 2 招
     if (targetCount >= 2 && Object.keys(p.skills).length < 2) {
@@ -646,6 +659,7 @@ window.GameApp = {
 
   debugToggleGodMode() {
     this.debugGodMode = !this.debugGodMode;
+    if (this.debugGodMode) this.markDebugRun();
     const btn = document.getElementById("btnDebugGodMode");
     if (btn) {
       btn.textContent = `🛡️ 無敵鎖血: ${this.debugGodMode ? '開' : '關'}`;
@@ -683,6 +697,7 @@ window.GameApp = {
 
   debugClearRegularMobs() {
     if (!this.player) return;
+    this.markDebugRun();
     this.enemies = this.enemies.filter(e => e.isBoss);
     this.enemyProjectiles = [];
     this.spawnFloatingText(this.player.x, this.player.y - 28, "🧹 已清空全場常規小怪與彈幕！", "#34D399", 14);
@@ -690,6 +705,7 @@ window.GameApp = {
 
   debugInstantEvolve() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 133) {
       this.state = "PAUSED";
@@ -712,6 +728,7 @@ window.GameApp = {
 
   debugTriggerMegaCharizardX() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10034) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級噴火龍X】蒼藍冥炎形態！", "#38BDF8", 14);
@@ -728,6 +745,7 @@ window.GameApp = {
 
   debugTriggerMegaBlastoise() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10036) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級水箭龜】重炮形態！", "#38BDF8", 14);
@@ -744,6 +762,7 @@ window.GameApp = {
 
   debugTriggerMegaVenusaur() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10033) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級妙蛙花】霸王花王形態！", "#4ADE80", 14);
@@ -760,6 +779,7 @@ window.GameApp = {
 
   debugTriggerMegaGengar() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10038) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級耿鬼】冥界踩影形態！", "#C084FC", 14);
@@ -776,6 +796,7 @@ window.GameApp = {
 
   debugTriggerMegaGyarados() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10041) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級暴鯉龍】深海狂龍形態！", "#F43F5E", 14);
@@ -792,6 +813,7 @@ window.GameApp = {
 
   debugTriggerMegaAerodactyl() {
     if (!this.player) return;
+    this.markDebugRun();
     const p = this.player;
     if (p.id === 10042) {
       this.spawnFloatingText(p.x, p.y - 28, "已是【超級化石翼龍】太古蒼穹形態！", "#F59E0B", 14);
@@ -812,6 +834,7 @@ window.GameApp = {
   },
 
   debugSkipToTime(sec) {
+    this.markDebugRun();
     this.runTime = sec;
     this.spawnFloatingText(this.player.x, this.player.y - 30, `時間跳轉至 ${Math.floor(sec/60)}分${sec%60}秒`, "#F59E0B", 14);
   },
@@ -833,6 +856,7 @@ window.GameApp = {
 
   debugSpawnPokeMart() {
     if (!this.player) return;
+    this.markDebugRun();
     this.spawnPokeMartEntity(true);
   },
 
@@ -878,6 +902,7 @@ window.GameApp = {
 
   debugAddPartner() {
     if (!this.player) return;
+    this.markDebugRun();
     this.summonOrUpgradePartner();
   },
 
@@ -1095,6 +1120,19 @@ window.GameApp = {
     this.victoryCeremony = null;
     this.pendingMewTimer = 0;
     this.skillDamageStats = {};
+    this.runStats = {
+      hitsTaken: 0,
+      damageTaken: 0,
+      perfectDodges: 0,
+      totalHitsDealt: 0,
+      superEffectiveHits: 0,
+      statusProcs: 0,
+      arenaPowerupsPicked: 0,
+      fieldPowerupsPicked: 0,
+      treasuresKilled: 0,
+      isDebugRun: !!this.debugGodMode
+    };
+    this.lastRunRating = null;
     this._lastHudIdentityKey = null;
     this._lastWasMegaHud = false;
     this._lastHudHpTier = null;
@@ -1348,6 +1386,7 @@ window.GameApp = {
         p.arenaDashPerfectUsed = true;
         p.arenaDashCd = Math.max(0, (p.arenaDashCd || 0) - 1.0);
         p.arenaPerfectCounterTimer = 2.0;
+        if (this.runStats) this.runStats.perfectDodges += 1;
         this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FEF08A", 16, "star", 1.15);
         this.spawnFloatingText(p.x, p.y - 34, "⚡ 完美閃避！CD -1s ‧ 反擊+20%傷", "#38BDF8", 14);
         SoundFX.play("shiny");
@@ -2840,6 +2879,7 @@ window.GameApp = {
       pu.bob += dt * 4.5;
       if (Math.hypot(p.x - pu.x, p.y - pu.y) <= 34) {
         this.fieldPowerups.splice(i, 1);
+        if (this.runStats) this.runStats.fieldPowerupsPicked += 1;
         SoundFX.play("levelup");
         this.spawnParticleCluster(p.x, p.y, pu.color, "#FEF08A", 18, "star", 1.1);
         if (pu.id === "sitrus_berry") {
@@ -3675,6 +3715,7 @@ window.GameApp = {
         const rawContactDmg = Math.max(1, Math.round(e.atk * shieldMult * burnMod));
         const dmg = this.getArenaAdjustedIncomingDmg(rawContactDmg, "contact");
         p.hp -= dmg;
+        this.recordPlayerHit(dmg);
 
         const hasMelee = Object.values(p.skills).some(s => SKILLS_CATALOG[s.id] && SKILLS_CATALOG[s.id].isMelee);
         const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
@@ -4185,6 +4226,7 @@ window.GameApp = {
           const rawTgDmg = Math.max(1, Math.round(tg.dmg * (p.shieldTimer > 0 ? 0.45 : 1.0) * armorMult * dragonScaleMult));
           const dmg = this.getArenaAdjustedIncomingDmg(rawTgDmg, "telegraph");
           p.hp -= dmg;
+        this.recordPlayerHit(dmg);
           p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
           SoundFX.play("hurt");
@@ -4307,6 +4349,7 @@ window.GameApp = {
         const rawProjDmg = Math.max(1, Math.round(ep.dmg * shieldMult));
         const dmg = this.getArenaAdjustedIncomingDmg(rawProjDmg, "bullet");
         p.hp -= dmg;
+        this.recordPlayerHit(dmg);
         p.invulnTimer = 0.55 + scarfBonus; // 賦予無敵硬直時間（含絲綢圍巾加成）
 
         // 狀態賦予判定 (普通怪子彈依 vfx 判定，神獸子彈依 statusEffect 判定)
@@ -4434,6 +4477,7 @@ window.GameApp = {
     const dmg = Math.max(1, Math.round(rawDmg * eff * shieldMult));
     const scarfBonus = (p.heldItems && p.heldItems["silk_scarf"]) ? 0.35 : 0;
     p.hp -= dmg;
+        this.recordPlayerHit(dmg);
     p.invulnTimer = 0.50 + scarfBonus;
     p.whiteFlashTimer = 0.22;
     this.camera.shakeTime = Math.max(this.camera.shakeTime || 0, 0.16);
@@ -4568,6 +4612,10 @@ window.GameApp = {
     }
 
     this.skillDamageStats[moveType] = (this.skillDamageStats[moveType] || 0) + finalDmg;
+    if (this.runStats) {
+      this.runStats.totalHitsDealt += 1;
+      if (eff > 1.1) this.runStats.superEffectiveHits += 1;
+    }
 
     if (enemy.treasureType === "meowth") {
       this.runCoins += 8;
@@ -4607,6 +4655,7 @@ window.GameApp = {
               this.spawnFloatingText(enemy.x, enemy.y - 20, "韌性抵抗!", "#CBD5E1", 11);
             }
           } else if (isHardCC) {
+            if (this.runStats) this.runStats.statusProcs += 1;
             enemy.status = st;
             const durWeightMod = enemy.weightTier === "heavy" ? 0.72 : 1.0;
             const baseDur = (st === "Confusion") ? 1.8 : ((st === "Freeze") ? 2.2 : 2.8);
@@ -4644,6 +4693,7 @@ window.GameApp = {
               }
             } else {
               // 首次掛上灼傷或中毒，設定初始跳傷計時器
+              if (this.runStats) this.runStats.statusProcs += 1;
               enemy.status = st;
               enemy.statusTimer = enemy.isBoss ? 2.8 : 4.2;
               enemy.statusTick = 0.38;
@@ -4760,6 +4810,7 @@ window.GameApp = {
     }
 
     const hasActiveMagnet = this.mapItems.some(it => it.id === "magnet");
+    if (e.treasureType && this.runStats) this.runStats.treasuresKilled += 1;
     if (e.treasureType === "meowth") {
       const jackpot = Math.round(180 * diffCoinMult);
       this.runCoins += jackpot;
@@ -5647,6 +5698,8 @@ window.GameApp = {
       document.getElementById("endModalTitle").textContent = "GAME PAUSED";
       document.getElementById("endModalSubtitle").textContent = "冒險暫停中，隨時可返回挑戰！";
       document.getElementById("btnResumeGame").classList.remove("hidden");
+      const rBox = document.getElementById("endHexRatingBox");
+      if (rBox) rBox.classList.add("hidden");
       if (this.populateEndModalStats) this.populateEndModalStats();
       if (endEl) {
         endEl.classList.remove("hidden");
@@ -5696,6 +5749,7 @@ window.GameApp = {
         : "前往寶可夢中心強化能力後再次挑戰！";
     }
     document.getElementById("btnResumeGame").classList.add("hidden");
+    if (this.evaluateAndRenderPostGameRating) this.evaluateAndRenderPostGameRating(!!isVictory);
     if (this.populateEndModalStats) this.populateEndModalStats();
     const endEl = document.getElementById("endModal");
     if (endEl) {

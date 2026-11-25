@@ -69,6 +69,7 @@ Object.assign(window.GameApp, {
           selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short", ...(this.saveData.selectedCostumes || {}), ...(parsed.selectedCostumes || {}) },
           unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true }, ...(this.saveData.unlockedCostumes || {}), ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
+          bestRatings: { ...(this.saveData.bestRatings || {}), ...(parsed.bestRatings || {}) },
           lastSetup: parsed.lastSetup ? { ...parsed.lastSetup } : (this.saveData.lastSetup || null),
           lastSeenVersion: parsed.lastSeenVersion || "",
           settings: {
@@ -314,7 +315,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.9";
+        const ver = this.APP_VERSION || "v7.4.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +558,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.9";
+      const curVer = this.APP_VERSION || "v7.4.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1329,7 +1330,8 @@ Object.assign(window.GameApp, {
           megaUnlocked: { ...(parsed.megaUnlocked || {}) },
           selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short", ...(parsed.selectedCostumes || {}) },
           unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true }, ...(parsed.unlockedCostumes || {}) },
-          claimedAch: { ...(parsed.claimedAch || {}) }
+          claimedAch: { ...(parsed.claimedAch || {}) },
+          bestRatings: { ...(parsed.bestRatings || {}) }
         };
         this.selectedTrainer = TRAINERS[0];
         this.selectedStarterId = 25;
@@ -1362,7 +1364,8 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.9",
+      bestRatings: {},
+      lastSeenVersion: this.APP_VERSION || "v7.4.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2640,6 +2643,408 @@ Object.assign(window.GameApp, {
     this.renderAchievements();
   },
 
+
+  // ==========================================================================
+  // v7.4.0 戰後六邊形評級系統 MVP（15+1 關都大遠征 ＆ 1vs1 石英鬥技場）
+  // ==========================================================================
+  computePostGameRating(isVictory) {
+    if (!this.isExpeditionMode && !this.isArenaMode) return null;
+    const p = this.player;
+    if (!p) return null;
+
+    const rs = this.runStats || {
+      hitsTaken: 0, damageTaken: 0, perfectDodges: 0,
+      totalHitsDealt: 0, superEffectiveHits: 0, statusProcs: 0,
+      arenaPowerupsPicked: 0, fieldPowerupsPicked: 0, treasuresKilled: 0,
+      isDebugRun: false
+    };
+    const clamp = (v, lo = 10, hi = 100) => Math.max(lo, Math.min(hi, Math.round(v)));
+    const totalDmg = Object.values(this.skillDamageStats || {}).reduce((s, v) => s + v, 0);
+    const runSec = Math.max(5, this.runTime || 5);
+    const dps = totalDmg / runSec;
+    const seRatio = rs.totalHitsDealt > 0 ? (rs.superEffectiveHits / rs.totalHitsDealt) : 0;
+    const evolvedSkills = Object.values(p.skills || {}).filter(s => s && s.evolved).length;
+    const heldCount = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
+    const isMega = !!(p.megaEvolved || p.id >= 10000);
+    const isFinalForm = isMega || !p.data.evo_to || p.data.evo_level === "None";
+
+    const modeKey = this.isExpeditionMode ? "expedition" : "arena";
+    let diffId = "normal";
+    let diffMult = 1.0;
+    let hex = { atk: 50, sur: 50, spd: 50, tac: 50, bld: 50, eco: 50 };
+    let hardcoreMasterGate = false;
+    let isExTrueClear = false;
+    let modeLabel = "EXPEDITION 15+1";
+
+    if (this.isExpeditionMode) {
+      const df = this.selectedDifficulty || { id: "normal" };
+      diffId = df.id || "normal";
+      const diffMultMap = { easy: 0.85, normal: 1.0, hard: 1.25, hell: 1.50 };
+      diffMult = diffMultMap[diffId] || 1.0;
+      const st = this.expeditionState || { currentWave: 1, totalWaves: 16 };
+      const totW = st.totalWaves || 16;
+      const clearedW = isVictory ? totW : Math.max(0, (st.currentWave || 1) - 1);
+      isExTrueClear = !!(this.lastExpeditionResult && this.lastExpeditionResult.isExTrueClear);
+      modeLabel = isExTrueClear ? "EXPEDITION EX CLEAR" : "EXPEDITION 15+1";
+
+      // 1. 火力 (ATK): 基準 650 DPS = 85分, 950+ DPS = 100分
+      hex.atk = clamp(28 + (dps / 950) * 72, 12, 100);
+      // 2. 生存 (SUR): 0 受擊直接 100 分，隨受擊次數與承傷比例遞減
+      const dmgRatio = rs.damageTaken / Math.max(1, p.maxHp);
+      hex.sur = rs.hitsTaken === 0 && isVictory
+        ? 100
+        : clamp(100 - rs.hitsTaken * 3.2 - dmgRatio * 20 - (isVictory ? 0 : 18), 15, 100);
+      // 3. 效率 (SPD): 通關 <= 420s (7分) 滿分，每多 1 分鐘扣 6.5 分；未通關按進度計
+      if (isVictory) {
+        hex.spd = clamp(100 - Math.max(0, runSec - 420) * 0.11, 55, 100);
+      } else {
+        hex.spd = clamp((clearedW / totW) * 68, 12, 68);
+      }
+      // 4. 戰術 (TAC): 屬性克制命中佔比 + 異常狀態觸發率
+      const statusRate = Math.min(1, rs.statusProcs / Math.max(12, this.kills * 0.35));
+      hex.tac = clamp(34 + seRatio * 115 + statusRate * 26, 20, 100);
+      // 5. 成型 (BLD): 等級 + 進化/MEGA + 超武 + 攜帶物
+      const lvPts = Math.min(35, (p.level / 24) * 35);
+      const evoPts = isMega ? 28 : (isFinalForm ? 18 : 8);
+      const superPts = Math.min(24, evolvedSkills * 14);
+      const heldPts = Math.min(15, heldCount * 5);
+      hex.bld = clamp(lvPts + evoPts + superPts + heldPts, 15, 100);
+      // 6. 破界/營運 (ECO): 金幣營運 + 搶點/寶藏怪 + EX 始祖夢夢加權
+      const coinPts = Math.min(62, ((this.runCoins || 0) / 1800) * 62);
+      const bonusPts = Math.min(20, rs.fieldPowerupsPicked * 5 + rs.treasuresKilled * 8);
+      const exPts = isExTrueClear ? 28 : (isVictory ? 12 : 0);
+      hex.eco = clamp(16 + coinPts + bonusPts + exPts, 15, 100);
+
+      hardcoreMasterGate = isExTrueClear || diffId === "hard" || diffId === "hell" || rs.hitsTaken === 0;
+    } else {
+      // 1vs1 石英鬥技場
+      const ad = this.arenaDiff || { id: "standard", name: "標準試煉" };
+      diffId = ad.id || "standard";
+      const diffMultMap = { standard: 1.0, master: 1.3, champion: 1.6 };
+      diffMult = diffMultMap[diffId] || 1.0;
+      modeLabel = `1VS1 ARENA · ${ad.name || "標準試煉"}`;
+
+      const parSecMap = { standard: 36, master: 56, champion: 78 };
+      const parSec = parSecMap[diffId] || 40;
+      const parDpsMap = { standard: 520, master: 680, champion: 840 };
+      const parDps = parDpsMap[diffId] || 560;
+
+      // 1. 火力 (ATK)
+      hex.atk = clamp(25 + (dps / parDps) * 75, 15, 100);
+      // 2. 生存 (SUR)
+      const dmgRatio = rs.damageTaken / Math.max(1, p.maxHp);
+      hex.sur = rs.hitsTaken === 0 && isVictory
+        ? 100
+        : clamp(100 - rs.hitsTaken * 7.5 - dmgRatio * 28 - (isVictory ? 0 : 20), 12, 100);
+      // 3. 效率 (SPD)
+      if (isVictory) {
+        const clearSec = (this.lastArenaResult && this.lastArenaResult.clearSec) || runSec;
+        hex.spd = clamp(100 - Math.max(0, clearSec - parSec) * 0.85, 52, 100);
+      } else {
+        const bossRemainPct = (this.activeBoss && this.activeBoss.maxHp > 0) ? (this.activeBoss.hp / this.activeBoss.maxHp) : 0.7;
+        hex.spd = clamp((1 - bossRemainPct) * 65, 12, 65);
+      }
+      // 4. 戰術 (TAC): 完美閃避 + 屬性克制
+      hex.tac = clamp(32 + Math.min(44, rs.perfectDodges * 18) + seRatio * 55, 20, 100);
+      // 5. 成型 (BLD): 攜帶物本系契合 + MEGA/超武/訓練家羈絆
+      const stabBonus = seRatio >= 0.35 ? 18 : 8;
+      hex.bld = clamp(56 + (isMega ? 24 : 0) + evolvedSkills * 12 + (p.isTrainerBond ? 10 : 0) + stabBonus, 35, 100);
+      // 6. 破界 (ECO): 難度含金量 + 場地補給搶點
+      const tierBase = diffId === "champion" ? 90 : (diffId === "master" ? 76 : 62);
+      hex.eco = clamp(tierBase + rs.arenaPowerupsPicked * 8 - (isVictory ? 0 : 18), 20, 100);
+
+      hardcoreMasterGate = diffId === "master" || diffId === "champion" || rs.hitsTaken === 0;
+    }
+
+    const avgHex = (hex.atk + hex.sur + hex.spd + hex.tac + hex.bld + hex.eco) / 6;
+    const compositeScore = Math.round(avgHex * 100 * diffMult);
+
+    // 評級印章判定（未通關最高鎖定 A）
+    let rank = "C";
+    if (!isVictory) {
+      if (avgHex >= 72) rank = "A";
+      else if (avgHex >= 54) rank = "B";
+      else rank = "C";
+    } else {
+      if (avgHex >= 90 && hardcoreMasterGate) rank = "MASTER";
+      else if (avgHex >= 86) rank = "S+";
+      else if (avgHex >= 74) rank = "S";
+      else if (avgHex >= 60) rank = "A";
+      else if (avgHex >= 46) rank = "B";
+      else rank = "C";
+    }
+
+    // 戰後專屬稱號判定
+    const allHigh = Object.values(hex).every(v => v >= 85);
+    let title = "關都挑戰者";
+    if (isExTrueClear) title = "EX 破界者";
+    else if (rs.hitsTaken === 0 && isVictory) title = "無傷幻影";
+    else if (allHigh && isVictory) title = "六邊形戰士";
+    else if (this.isArenaMode && rs.perfectDodges >= 3 && isVictory) title = "閃避宗師";
+    else if (hex.spd >= 94 && isVictory) title = "極速斬神";
+    else if (hex.tac >= 92) title = "克制大師";
+    else if (hex.atk >= 94) title = "火力霸主";
+    else if (hex.bld >= 95) title = "滿配大宗師";
+    else if (isVictory) title = this.isArenaMode ? "鬥技場勝者" : "關都遠征軍";
+
+    const snapshot = {
+      version: this.APP_VERSION || "v7.4.0",
+      mode: modeKey,
+      difficulty: diffId,
+      score: compositeScore,
+      avgHex: Math.round(avgHex),
+      rank,
+      title,
+      hex,
+      metrics: {
+        hitsTaken: rs.hitsTaken,
+        perfectDodges: rs.perfectDodges,
+        sePct: Math.round(seRatio * 100),
+        dps: Math.round(dps)
+      },
+      build: {
+        trainer: (this.selectedTrainer && this.selectedTrainer.id) || "ash",
+        pokemonId: p.id,
+        isShiny: !!p.isShiny,
+        level: p.level,
+        skills: Object.values(p.skills || {}).map(s => ({ id: s.id, lv: s.level, evo: !!s.evolved })),
+        heldItems: Object.keys(p.heldItems || {}).filter(k => p.heldItems[k])
+      },
+      isDebugRun: !!rs.isDebugRun,
+      isVictory: !!isVictory,
+      modeLabel,
+      timestamp: Date.now()
+    };
+
+    return snapshot;
+  },
+
+  evaluateAndRenderPostGameRating(isVictory) {
+    const box = document.getElementById("endHexRatingBox");
+    if (!box) return;
+    if (!this.isExpeditionMode && !this.isArenaMode) {
+      box.classList.add("hidden");
+      return;
+    }
+
+    const snap = this.computePostGameRating(isVictory);
+    if (!snap) {
+      box.classList.add("hidden");
+      return;
+    }
+    this.lastRunRating = snap;
+
+    if (!this.saveData.bestRatings) this.saveData.bestRatings = {};
+    const prevBest = this.saveData.bestRatings[snap.mode] || null;
+    const isNewBest = !snap.isDebugRun && (!prevBest || snap.score > (prevBest.score || 0));
+    if (isNewBest) {
+      this.saveData.bestRatings[snap.mode] = snap;
+      this.saveToStorage();
+    }
+
+    box.classList.remove("hidden");
+    const modeEl = document.getElementById("hexModeLabel");
+    if (modeEl) modeEl.textContent = snap.modeLabel;
+    const scoreEl = document.getElementById("hexTotalScore");
+    if (scoreEl) scoreEl.textContent = snap.score.toLocaleString();
+    const titleEl = document.getElementById("hexTitleBadge");
+    if (titleEl) titleEl.textContent = snap.title;
+    const newBestEl = document.getElementById("hexNewBestBadge");
+    if (newBestEl) newBestEl.classList.toggle("hidden", !isNewBest);
+    const testEl = document.getElementById("hexTestRunBadge");
+    if (testEl) testEl.classList.toggle("hidden", !snap.isDebugRun);
+    const ghostLeg = document.getElementById("hexGhostLegend");
+    if (ghostLeg) ghostLeg.classList.toggle("hidden", !prevBest);
+
+    const subRow = document.getElementById("hexSubMetricsRow");
+    if (subRow && snap.metrics) {
+      subRow.innerHTML = `
+        <div class="bg-slate-900/90 rounded-lg py-1 border border-slate-800">受擊 <span class="${snap.metrics.hitsTaken === 0 ? 'text-emerald-400' : 'text-amber-300'} font-black">${snap.metrics.hitsTaken}</span> 次</div>
+        <div class="bg-slate-900/90 rounded-lg py-1 border border-slate-800">克制 <span class="text-sky-300 font-black">${snap.metrics.sePct}%</span></div>
+        <div class="bg-slate-900/90 rounded-lg py-1 border border-slate-800">${snap.mode === "arena" ? `閃避 <span class="text-cyan-300 font-black">${snap.metrics.perfectDodges}</span>` : `DPS <span class="text-rose-300 font-black">${snap.metrics.dps}</span>`}</div>
+      `;
+    }
+
+    // 動態印章樣式設定
+    const stampEl = document.getElementById("hexRankStamp");
+    if (stampEl) {
+      const rankStyles = {
+        "MASTER": "border-amber-300 bg-gradient-to-br from-rose-700 via-amber-500 to-purple-700 text-white shadow-[0_0_20px_rgba(250,204,21,0.85)]",
+        "S+":     "border-amber-300 bg-gradient-to-br from-amber-500 to-orange-600 text-slate-950 shadow-[0_0_16px_rgba(250,204,21,0.65)]",
+        "S":      "border-yellow-400 bg-slate-950 text-amber-300 shadow-[0_0_12px_rgba(250,204,21,0.45)]",
+        "A":      "border-sky-400 bg-slate-950 text-sky-300",
+        "B":      "border-emerald-400 bg-slate-950 text-emerald-300",
+        "C":      "border-slate-500 bg-slate-950 text-slate-300"
+      };
+      stampEl.textContent = snap.rank;
+      stampEl.className = `px-2.5 py-1 rounded-xl border-2 font-pixel text-sm sm:text-base transform -rotate-6 transition-all duration-300 shrink-0 ${rankStyles[snap.rank] || rankStyles.C}`;
+      stampEl.style.opacity = "0";
+      stampEl.style.transform = "scale(2.1) rotate(-14deg)";
+    }
+
+    const canvas = document.getElementById("hexRatingCanvas");
+    if (canvas) {
+      this.animateHexRatingChart(canvas, snap.hex, prevBest ? prevBest.hex : null, snap.rank, stampEl);
+    }
+  },
+
+  animateHexRatingChart(canvas, curHex, ghostHex, rank, stampEl) {
+    if (this._hexRadarRaf) {
+      cancelAnimationFrame(this._hexRadarRaf);
+      this._hexRadarRaf = null;
+    }
+    const startTs = performance.now();
+    const durationMs = 760;
+    let stampPopped = false;
+
+    const tick = (nowTs) => {
+      const rawT = Math.min(1, (nowTs - startTs) / durationMs);
+      // 彈性展開曲線 (easeOutBack 微幅回彈)
+      const c1 = 1.35;
+      const c3 = c1 + 1;
+      const ease = 1 + c3 * Math.pow(rawT - 1, 3) + c1 * Math.pow(rawT - 1, 2);
+
+      this.drawHexRatingCanvas(canvas, curHex, ghostHex, Math.max(0, ease));
+
+      if (!stampPopped && rawT >= 0.65 && stampEl) {
+        stampPopped = true;
+        stampEl.style.opacity = "1";
+        stampEl.style.transform = "scale(1) rotate(-6deg)";
+        if (typeof SoundFX !== "undefined") {
+          SoundFX.play(rank === "MASTER" || rank === "S+" ? "shiny" : "levelup");
+        }
+      }
+
+      if (rawT < 1) {
+        this._hexRadarRaf = requestAnimationFrame(tick);
+      } else {
+        this._hexRadarRaf = null;
+        this.drawHexRatingCanvas(canvas, curHex, ghostHex, 1.0);
+      }
+    };
+    this._hexRadarRaf = requestAnimationFrame(tick);
+  },
+
+  drawHexRatingCanvas(canvas, curHex, ghostHex, progress = 1.0) {
+    const w = canvas.width = 320;
+    const h = canvas.height = 230;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w * 0.5;
+    const cy = h * 0.51;
+    const maxR = 76;
+    const axes = [
+      { key: "atk", label: "火力" },
+      { key: "sur", label: "生存" },
+      { key: "spd", label: "效率" },
+      { key: "tac", label: "戰術" },
+      { key: "bld", label: "成型" },
+      { key: "eco", label: "破界" }
+    ];
+
+    const ptAt = (idx, ratio) => {
+      const ang = -Math.PI / 2 + (idx * Math.PI * 2) / 6;
+      return {
+        x: cx + Math.cos(ang) * maxR * ratio,
+        y: cy + Math.sin(ang) * maxR * ratio,
+        ang
+      };
+    };
+
+    // 1. 4 層六角同心網格與軸線
+    [0.25, 0.50, 0.75, 1.0].forEach((lv, ringIdx) => {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const pt = ptAt(i, lv);
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = ringIdx === 3 ? "rgba(15, 23, 42, 0.72)" : "rgba(30, 41, 59, 0.25)";
+      ctx.fill();
+      ctx.strokeStyle = ringIdx === 3 ? "rgba(148, 163, 184, 0.55)" : "rgba(100, 116, 139, 0.30)";
+      ctx.lineWidth = ringIdx === 3 ? 1.5 : 1;
+      ctx.stroke();
+    });
+
+    ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 6; i++) {
+      const pt = ptAt(i, 1.0);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+    }
+
+    // 2. 歷史最佳虛線疊影（Ghost Overlay）
+    if (ghostHex) {
+      ctx.save();
+      ctx.beginPath();
+      axes.forEach((ax, i) => {
+        const val = Math.max(0.08, Math.min(1, (ghostHex[ax.key] || 0) / 100));
+        const pt = ptAt(i, val);
+        if (i === 0) ctx.moveTo(pt.x, pt.y);
+        else ctx.lineTo(pt.x, pt.y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = "rgba(250, 204, 21, 0.10)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.80)";
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([5, 4]);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. 本次六邊形實心多邊形（彈性展開動畫）
+    const curPts = axes.map((ax, i) => {
+      const val = Math.max(0.06, Math.min(1, ((curHex[ax.key] || 0) / 100) * progress));
+      return ptAt(i, val);
+    });
+    const polyGrad = ctx.createRadialGradient(cx, cy, 4, cx, cy, maxR);
+    polyGrad.addColorStop(0, "rgba(56, 189, 248, 0.58)");
+    polyGrad.addColorStop(1, "rgba(16, 185, 129, 0.32)");
+
+    ctx.beginPath();
+    curPts.forEach((pt, i) => {
+      if (i === 0) ctx.moveTo(pt.x, pt.y);
+      else ctx.lineTo(pt.x, pt.y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = polyGrad;
+    ctx.fill();
+    ctx.strokeStyle = "#38BDF8";
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+
+    // 頂點發光點
+    curPts.forEach((pt, i) => {
+      const v = curHex[axes[i].key] || 0;
+      ctx.fillStyle = v >= 90 ? "#FACC15" : "#E0F2FE";
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, v >= 90 ? 4.2 : 3.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    });
+
+    // 4. 六角標籤與實時數值
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    axes.forEach((ax, i) => {
+      const v = Math.round(curHex[ax.key] || 0);
+      const lblPt = ptAt(i, 1.27);
+      const lx = lblPt.x + (i === 1 || i === 2 ? 12 : (i === 4 || i === 5 ? -12 : 0));
+      const ly = lblPt.y + (i === 0 ? -4 : (i === 3 ? 5 : 0));
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = v >= 90 ? "#FEF08A" : "#E2E8F0";
+      ctx.fillText(`${ax.label} ${v}`, lx, ly);
+    });
+  },
+
   populateEndModalStats() {
     const fpsEl = document.getElementById("endStatFps");
     if (fpsEl) {
@@ -3000,8 +3405,20 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.9 緊急熱修：修復拆檔後戰鬥角色與敵人隱形 Bug</span>
+            <span class="font-black text-sm text-amber-300">v7.4.0 戰後六邊形評級系統 MVP（大遠征 ＆ 1vs1 鬥技場）</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-cyan-300 font-black pt-0.5">六邊形戰力雷達圖 ＆ 動態評級印章（C ～ MASTER）</div>
+            <div>• <strong>六大維度實戰體檢</strong>：於【15+1 關都大遠征】與【1vs1 石英鬥技場】結算時，依【火力／生存／效率／戰術／成型／破界】即時繪製彈性展開六角雷達圖，並頒發 <code>C / B / A / S / S+ / MASTER</code> 動態印章與戰後專屬稱號！</div>
+            <div>• <strong>個人最佳虛線疊影（Ghost Overlay）</strong>：自動將本局形狀與歷史最高分虛線疊圖對比，破紀錄跳出 <strong>★ NEW BEST!</strong> 徽章。</div>
+            <div class="text-amber-300 font-black pt-1">全球排行榜前置快照 ＆ 測試污點防呆</div>
+            <div>• 本地自動記錄標準化 Build 快照（含版本號、難度係數、技能與攜帶物）；若該局啟用過開發者測試作弊鍵，將標註 <code>[TEST RUN]</code> 且不污染個人最佳紀錄！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.9 緊急熱修：修復拆檔後戰鬥角色與敵人隱形 Bug</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">關鍵作用域修復</div>
@@ -3305,7 +3722,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.9";
+    const curVer = this.APP_VERSION || "v7.4.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -3428,6 +3845,7 @@ Object.assign(window.GameApp, {
 
   quitToTitle() {
     this.saveToStorage();
+    if (this._hexRadarRaf) { cancelAnimationFrame(this._hexRadarRaf); this._hexRadarRaf = null; }
     this.evoSequence = null;
     this.victoryCeremony = null;
     this.bossDeathAnims = [];
