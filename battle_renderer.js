@@ -911,6 +911,38 @@ Object.assign(window.GameApp, {
     // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
     SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
 
+    // 戰場限時增益道具渲染（大遠征與 8 分鐘共用：像素道具圖標 ＋ 柔和光暈 ＋ 倒數環，最後 3 秒閃爍，無雜亂大字）
+    if (this.fieldPowerups && this.fieldPowerups.length > 0) {
+      this.fieldPowerups.forEach(pu => {
+        if (pu.life < 3.0 && Math.floor(pu.life * 8) % 2 === 0) return;
+        const psx = toSx(pu.x), psy = toSy(pu.y);
+        const bobY = Math.sin(pu.bob || 0) * 4;
+        const pct = Math.max(0, Math.min(1, pu.life / (pu.maxLife || 14.0)));
+        ctx.save();
+        const halo = ctx.createRadialGradient(psx, psy + bobY, 4, psx, psy + bobY, 26);
+        halo.addColorStop(0, `${pu.color}55`);
+        halo.addColorStop(1, `${pu.color}00`);
+        ctx.fillStyle = halo;
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 26, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.72)";
+        ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 17, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = pu.color;
+        ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 17, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct); ctx.stroke();
+
+        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.beginPath(); ctx.arc(psx, psy + bobY, 14, 0, Math.PI * 2); ctx.fill();
+        const rec = pu.sprite ? SpriteCache.get(pu.sprite) : null;
+        if (rec && rec.loaded) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(rec.img, psx - 11, psy + bobY - 11, 22, 22);
+        }
+        ctx.restore();
+      });
+    }
+
     // 1vs1 鬥技場臨時戰術道具渲染（光柱 ＋ 倒數環 ＋ 圖示標籤）
     if (this.isArenaMode && this.arenaPowerups && this.arenaPowerups.length > 0) {
       this.arenaPowerups.forEach(pu => {
@@ -2809,6 +2841,48 @@ Object.assign(window.GameApp, {
       ctx.fillText(fullLabel, cx, cy + rad + 12);
       ctx.restore();
     };
+
+    // 關都大遠征殲滅收尾指引：剩餘 ≤3 隻目標怪時於畫面邊緣顯示紅色箭頭指引，杜絕找怪冷場
+    if (this.isExpeditionMode && this.expeditionState) {
+      const est = this.expeditionState;
+      const wCfg = est.plan[est.currentWave - 1];
+      if (wCfg && !wCfg.isBossWave && est.spawnedCount >= est.killQuota) {
+        const remMobs = this.enemies.filter(en => en.isQuotaMob && en.hp > 0);
+        if (remMobs.length > 0 && remMobs.length <= 3) {
+          remMobs.forEach(en => {
+            const sprRec = en.data ? SpriteCache.get(en.data.forward_sprite) : null;
+            const iconImg = (sprRec && sprRec.loaded) ? sprRec.img : null;
+            drawEdgeIconIndicator(en.x, en.y, "#F43F5E", "殘敵", iconImg, 24);
+          });
+        }
+      }
+    }
+
+    // 關都大遠征：擊破最後一隻怪瞬間蓋上 GBA 像素 AREA CLEAR 印章
+    if (this.areaClearStampTimer > 0) {
+      const t = Math.min(1, this.areaClearStampTimer / 0.90);
+      const scale = t > 0.78 ? (1.35 - (1 - t) * 1.6) : 1.0;
+      ctx.save();
+      ctx.translate(this.width / 2, this.height * 0.34);
+      ctx.scale(scale, scale);
+      ctx.globalAlpha = Math.min(1, t * 2.2);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(-118, -28, 236, 56, 12);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = "900 18px 'Press Start 2P', monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#FEF08A";
+      ctx.fillText("AREA CLEAR!", 0, -4);
+      ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+      ctx.fillStyle = "#6EE7B7";
+      ctx.fillText("區域淨空 ‧ 回收全場水晶中", 0, 16);
+      ctx.restore();
+    }
 
     // 僅顯示高價值首領與寶藏精靈（Boss / 聚寶喵喵 / 幸福吉利蛋），移除常規精英與事件怪洗版
     this.enemies.forEach(e => {

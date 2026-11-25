@@ -2153,6 +2153,43 @@ const SoundFX = {
         gain.gain.exponentialRampToValueAtTime(0.01, now + 0.11);
         osc.start(now);
         osc.stop(now + 0.11);
+      } else if (type === "pokecenter_heal") {
+        // 致敬寶可夢中心經典 5 連音回復音效 (B4-B4-B4-G#4-E5)
+        const notes = [
+          { f: 493.88, t: 0.00, d: 0.11 },
+          { f: 493.88, t: 0.13, d: 0.11 },
+          { f: 493.88, t: 0.26, d: 0.11 },
+          { f: 415.30, t: 0.39, d: 0.12 },
+          { f: 659.25, t: 0.53, d: 0.30 }
+        ];
+        notes.forEach(n => {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = "triangle";
+          o.frequency.setValueAtTime(n.f, now + n.t);
+          g.gain.setValueAtTime(0.18, now + n.t);
+          g.gain.exponentialRampToValueAtTime(0.005, now + n.t + n.d);
+          o.connect(g);
+          g.connect(dest);
+          o.start(now + n.t);
+          o.stop(now + n.t + n.d + 0.02);
+        });
+        return;
+      } else if (type === "area_clear") {
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+        notes.forEach((f, idx) => {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = "square";
+          o.frequency.setValueAtTime(f, now + idx * 0.065);
+          g.gain.setValueAtTime(0.13, now + idx * 0.065);
+          g.gain.exponentialRampToValueAtTime(0.005, now + idx * 0.065 + 0.14);
+          o.connect(g);
+          g.connect(dest);
+          o.start(now + idx * 0.065);
+          o.stop(now + idx * 0.065 + 0.15);
+        });
+        return;
       } else if (type === "countdown_go") {
         osc.type = "square";
         osc.frequency.setValueAtTime(783.99, now);

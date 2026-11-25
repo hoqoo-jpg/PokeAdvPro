@@ -66,8 +66,18 @@ const MapEngine = {
     { x:  135, y:   85, w: 40, h: 40 }
   ],
 
+  boundedMap: { enabled: false, halfW: 580, halfH: 440 },
+
   setArenaMode(enabled) {
     this.isArenaMode = !!enabled;
+  },
+
+  setBoundedMap(enabled, halfW = 580, halfH = 440) {
+    this.boundedMap = {
+      enabled: !!enabled,
+      halfW: halfW || 580,
+      halfH: halfH || 440
+    };
   },
 
   hitArenaPillar(x, y, radius = 0) {
@@ -997,6 +1007,17 @@ const MapEngine = {
       }
       return;
     }
+    if (this.boundedMap && this.boundedMap.enabled) {
+      const r = radius || 18;
+      const minX = -this.boundedMap.halfW + r;
+      const maxX =  this.boundedMap.halfW - r;
+      const minY = -this.boundedMap.halfH + r;
+      const maxY =  this.boundedMap.halfH - r;
+      if (ent.x < minX) ent.x = minX;
+      if (ent.x > maxX) ent.x = maxX;
+      if (ent.y < minY) ent.y = minY;
+      if (ent.y > maxY) ent.y = maxY;
+    }
     const cx = Math.floor(ent.x / 600);
     const cy = Math.floor(ent.y / 600);
 
@@ -1684,8 +1705,82 @@ const MapEngine = {
     }
   },
 
+  renderBoundedPerimeter(ctx, camX, camY, width, height) {
+    if (!this.boundedMap || !this.boundedMap.enabled || this.isArenaMode) return;
+    const hw = this.boundedMap.halfW;
+    const hh = this.boundedMap.halfH;
+    const left   = Math.round(-hw - camX + width / 2);
+    const right  = Math.round( hw - camX + width / 2);
+    const top    = Math.round(-hh - camY + height / 2);
+    const bottom = Math.round( hh - camY + height / 2);
+    const stId = (this.currentStage && this.currentStage.id) || "pallet";
+
+    ctx.save();
+    // 1. 區域外圍暗角遮罩（清楚界定可活動戰場邊界）
+    ctx.fillStyle = stId === "cerulean_bay" ? "rgba(7, 45, 76, 0.58)" : (stId === "sky_pillar" ? "rgba(18, 12, 34, 0.62)" : "rgba(14, 38, 18, 0.58)");
+    if (top > 0) ctx.fillRect(0, 0, width, top);
+    if (bottom < height) ctx.fillRect(0, bottom, width, height - bottom);
+    if (left > 0) ctx.fillRect(0, Math.max(0, top), left, Math.max(0, Math.min(height, bottom) - Math.max(0, top)));
+    if (right < width) ctx.fillRect(right, Math.max(0, top), width - right, Math.max(0, Math.min(height, bottom) - Math.max(0, top)));
+
+    // 2. GBA 生態天然邊界圍牆（森林密木 / 海岬礁岩木欄 / 神殿石牆 / 未來新章節通用石木牆）
+    const borderW = right - left;
+    const borderH = bottom - top;
+    const step = 44;
+
+    if (stId === "pallet") {
+      // 常磐密林：深綠像素灌木樹牆
+      const drawBush = (bx, by) => {
+        if (bx < -40 || bx > width + 40 || by < -40 || by > height + 40) return;
+        ctx.fillStyle = "#14532D";
+        ctx.beginPath(); ctx.arc(bx, by, 20, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#166534";
+        ctx.beginPath(); ctx.arc(bx - 5, by - 5, 13, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#22C55E";
+        ctx.beginPath(); ctx.arc(bx - 7, by - 8, 6, 0, Math.PI * 2); ctx.fill();
+      };
+      for (let x = left; x <= right; x += step) { drawBush(x, top - 10); drawBush(x, bottom + 10); }
+      for (let y = top; y <= bottom; y += step) { drawBush(left - 10, y); drawBush(right + 10, y); }
+    } else if (stId === "cerulean_bay") {
+      // 華藍海岬：木棧護欄 ＋ 暗礁浮標
+      ctx.strokeStyle = "#78350F";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(left - 4, top - 4, borderW + 8, borderH + 8);
+      ctx.strokeStyle = "#D97706";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(left - 4, top - 4, borderW + 8, borderH + 8);
+      for (let x = left; x <= right; x += step) {
+        ctx.fillStyle = "#451A03";
+        ctx.fillRect(x - 5, top - 12, 10, 14);
+        ctx.fillRect(x - 5, bottom - 2, 10, 14);
+      }
+      for (let y = top; y <= bottom; y += step) {
+        ctx.fillStyle = "#451A03";
+        ctx.fillRect(left - 12, y - 5, 14, 10);
+        ctx.fillRect(right - 2, y - 5, 14, 10);
+      }
+    } else {
+      // 石英高原古神殿（及未來第 4/5 章節通用石砌古牆）
+      ctx.strokeStyle = "#1E1B4B";
+      ctx.lineWidth = 10;
+      ctx.strokeRect(left - 5, top - 5, borderW + 10, borderH + 10);
+      ctx.strokeStyle = stId === "sky_pillar" ? "#A855F7" : "#F59E0B";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([14, 8]);
+      ctx.strokeRect(left - 2, top - 2, borderW + 4, borderH + 4);
+      ctx.setLineDash([]);
+    }
+
+    // 內側微亮區域邊界導引線
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.28)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(left, top, borderW, borderH);
+    ctx.restore();
+  },
+
   renderForegroundCanopies(ctx, camX, camY, width, height, player, trainer) {
     if (this.isArenaMode) return;
+    this.renderBoundedPerimeter(ctx, camX, camY, width, height);
     const startCx = Math.floor((camX - width / 2) / 600) - 1;
     const endCx = Math.floor((camX + width / 2) / 600) + 1;
     const startCy = Math.floor((camY - height / 2) / 600) - 1;

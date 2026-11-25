@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.2.7",
+  APP_VERSION: "v7.2.8",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1152,6 +1152,9 @@ window.GameApp = {
     this.arenaHealEff = 1.0;
     this.arenaDiff = null;
     this.arenaPowerups = [];
+    this.fieldPowerups = [];
+    this.fieldPowerupTimer = 38.0;
+    this.areaClearStampTimer = 0;
     this.activeMode = this.isExpeditionMode
       ? (typeof ModeExpedition !== "undefined" ? ModeExpedition : ModeSurvivor)
       : (this.isArenaMode
@@ -1256,6 +1259,9 @@ window.GameApp = {
     const megaWrap = document.getElementById("btnManualMegaWrap");
     if (megaWrap) megaWrap.classList.add("hidden");
 
+    if (typeof MapEngine !== "undefined" && MapEngine.setBoundedMap) {
+      MapEngine.setBoundedMap(false);
+    }
     if (this.activeMode && typeof this.activeMode.onStart === "function") {
       this.activeMode.onStart(this);
     } else if (typeof MapEngine !== "undefined" && MapEngine.setArenaMode) {
@@ -1381,11 +1387,18 @@ window.GameApp = {
 
   tryConsumeArenaShield() {
     const p = this.player;
-    if (!this.isArenaMode || !p || (p.arenaShieldTimer || 0) <= 0) return false;
+    if (!p || (p.arenaShieldTimer || 0) <= 0) return false;
     p.arenaShieldTimer = 0;
     p.invulnTimer = Math.max(p.invulnTimer || 0, 0.55);
     this.spawnParticleCluster(p.x, p.y, "#C084FC", "#E0F2FE", 18, "star", 1.1);
-    this.spawnFloatingText(p.x, p.y - 32, "🛡️ 折射護盾抵擋！", "#C084FC", 14);
+    this.enemies.forEach(en => {
+      if (en && !en.isBoss && Math.hypot(en.x - p.x, en.y - p.y) < 135) {
+        const a = Math.atan2(en.y - p.y, en.x - p.x);
+        en.x += Math.cos(a) * 65;
+        en.y += Math.sin(a) * 65;
+      }
+    });
+    this.spawnFloatingText(p.x, p.y - 32, "折射護盾抵擋！", "#C084FC", 14);
     SoundFX.play("super");
     return true;
   },
@@ -2688,6 +2701,7 @@ window.GameApp = {
     this.updateEnemyProjectiles(dt);
     this.updateEnemies(dt);
     this.updateLootAndGems(dt);
+    this.updateFieldPowerups(dt);
     this.updateMartInteraction(dt);
     this.updateParticlesAndTexts(dt);
     this._hudRefreshTimer = (this._hudRefreshTimer || 0) - dt;
@@ -2805,6 +2819,80 @@ window.GameApp = {
       return Math.min(120, Math.round(62 + minutes * 10));
     }
     return Math.min(190, Math.round(80 + minutes * 16));
+  },
+
+  spawnFieldPowerup(wx, wy) {
+    if (!this.fieldPowerups) this.fieldPowerups = [];
+    if (this.fieldPowerups.length >= 1) return;
+    const p = this.player;
+    const lowHp = p && (p.hp / p.maxHp) < 0.55;
+    const catalog = [
+      { id: "fury_core",     name: "力量核心", short: "ATK+35%", color: "#EF4444", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-attack.png" },
+      { id: "gale_feather",  name: "疾風羽毛", short: "SPD+30%", color: "#38BDF8", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/x-speed.png" },
+      { id: "mirror_shield", name: "折射護盾", short: "SHIELD",  color: "#C084FC", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/guard-spec.png" },
+      { id: "sitrus_berry",  name: "特大文柚果", short: "+25%HP", color: "#4ADE80", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png" }
+    ];
+    const pool = lowHp ? [catalog[3], catalog[3], catalog[0], catalog[1], catalog[2]] : catalog;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    this.fieldPowerups.push({
+      ...pick,
+      x: wx,
+      y: wy,
+      life: 14.0,
+      maxLife: 14.0,
+      bob: 0
+    });
+    this.spawnParticleCluster(wx, wy, pick.color, "#FFFFFF", 12, "star", 0.85);
+    SoundFX.play("gem");
+  },
+
+  updateFieldPowerups(dt) {
+    const p = this.player;
+    if (!p) return;
+    if (!this.fieldPowerups) this.fieldPowerups = [];
+
+    // 8 分鐘標準 ／ 無盡深淵模式每 42 秒於玩家視野附近刷出 1 顆限時增益道具
+    if (!this.isArenaMode && !this.isExpeditionMode && this.fieldPowerups.length === 0) {
+      this.fieldPowerupTimer = (this.fieldPowerupTimer !== undefined ? this.fieldPowerupTimer : 38.0) - dt;
+      if (this.fieldPowerupTimer <= 0) {
+        this.fieldPowerupTimer = 42.0;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 210 + Math.random() * 90;
+        this.spawnFieldPowerup(p.x + Math.cos(ang) * dist, p.y + Math.sin(ang) * dist);
+      }
+    }
+
+    for (let i = this.fieldPowerups.length - 1; i >= 0; i--) {
+      const pu = this.fieldPowerups[i];
+      pu.life -= dt;
+      pu.bob += dt * 4.5;
+      if (Math.hypot(p.x - pu.x, p.y - pu.y) <= 34) {
+        this.fieldPowerups.splice(i, 1);
+        SoundFX.play("levelup");
+        this.spawnParticleCluster(p.x, p.y, pu.color, "#FEF08A", 18, "star", 1.1);
+        if (pu.id === "sitrus_berry") {
+          const healAmt = Math.round(p.maxHp * 0.25);
+          p.hp = Math.min(p.maxHp, p.hp + healAmt);
+          p.status = null;
+          p.statusTimer = 0;
+          this.spawnItemProcFeedback(null, p.x, p.y - 30, `+${healAmt} HP`, `特大文柚果：回復 +${healAmt} HP ＆ 淨化！`, pu.color, "fp_berry", pu.sprite);
+        } else if (pu.id === "fury_core") {
+          p.arenaFuryTimer = Math.max(p.arenaFuryTimer || 0, 8.0);
+          this.spawnItemProcFeedback(null, p.x, p.y - 30, "ATK+35%", "力量核心：8秒全傷 +35%！", pu.color, "fp_fury", pu.sprite);
+        } else if (pu.id === "gale_feather") {
+          p.arenaGaleTimer = Math.max(p.arenaGaleTimer || 0, 8.0);
+          p.xSpeedTimer = Math.max(p.xSpeedTimer || 0, 8.0);
+          this.spawnItemProcFeedback(null, p.x, p.y - 30, "SPD+30%", "疾風羽毛：8秒疾速 ＆ 涉水免疫！", pu.color, "fp_gale", pu.sprite);
+        } else if (pu.id === "mirror_shield") {
+          p.arenaShieldTimer = Math.max(p.arenaShieldTimer || 0, 10.0);
+          this.spawnItemProcFeedback(null, p.x, p.y - 30, "SHIELD", "折射護盾：抵擋下次攻擊！", pu.color, "fp_shield", pu.sprite);
+        }
+        continue;
+      }
+      if (pu.life <= 0) {
+        this.fieldPowerups.splice(i, 1);
+      }
+    }
   },
 
   updateMartInteraction(dt) {
@@ -4463,6 +4551,9 @@ window.GameApp = {
     this.enemies.pop();
     this.kills += 1;
     this.saveData.stats.totalKills += 1;
+    if (this.isExpeditionMode && typeof ModeExpedition !== "undefined" && ModeExpedition.onEnemyKilled) {
+      ModeExpedition.onEnemyKilled(this, e);
+    }
     if (this.isEndlessMode && this.kills >= (this.endlessNextKillMilestone || 150)) {
       this.endlessNextKillMilestone = this.kills + 150;
       const dropLoot = (this.kills % 300 === 0) ? "evo_chest" : "rare_candy";
@@ -5913,12 +6004,13 @@ window.GameApp = {
 
     if (this.isExpeditionMode && this.expeditionState) {
       const est = this.expeditionState;
+      const totW = est.totalWaves || est.plan.length;
       const wCfg = est.plan[est.currentWave - 1];
       if (wCfg && wCfg.isBossWave) {
-        document.getElementById("hudTimer").textContent = `W${est.currentWave}/10 BOSS`;
+        document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW} BOSS`;
       } else {
-        const rem = Math.max(0, Math.ceil(est.waveTimer || 0));
-        document.getElementById("hudTimer").textContent = `W${est.currentWave}/10 · ${String(rem).padStart(2, "0")}s`;
+        const rem = Math.max(0, (est.killQuota || 0) - (est.killsInWave || 0));
+        document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW} · 剩${rem}`;
       }
     } else {
       const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
@@ -6186,14 +6278,20 @@ window.GameApp = {
       this.saveData.stats.bestEndlessKills = Math.max(this.saveData.stats.bestEndlessKills || 0, this.kills);
     }
     if (this.saveToStorage) this.saveToStorage();
+    const hofBox = document.getElementById("endHallOfFameBox");
+    if (hofBox) hofBox.innerHTML = "";
     if (this.isExpeditionMode) {
       if (!isVictory && typeof ModeExpedition !== "undefined") ModeExpedition.clearCheckpoint(this);
       const curW = (this.expeditionState && this.expeditionState.currentWave) || 1;
+      const totW = (this.expeditionState && this.expeditionState.totalWaves) || 10;
       const er = this.lastExpeditionResult;
-      document.getElementById("endModalTitle").textContent = isVictory ? "EXPEDITION CHAMPION!" : `EXPEDITION FAILED (W${curW}/10)`;
+      document.getElementById("endModalTitle").textContent = isVictory ? "EXPEDITION CHAMPION!" : `EXPEDITION FAILED (W${curW}/${totW})`;
       document.getElementById("endModalSubtitle").textContent = (isVictory && er)
-        ? `完成 10 波關都四區域遠征並討伐王者超夢！冠軍賞金 +${er.totalGain} 金`
-        : `止步於第 ${curW}/10 波，調整陣容或強化天賦後再次啟程！`;
+        ? `完成全 ${totW} 關遠征並討伐王者超夢！冠軍賞金 +${er.totalGain} 金`
+        : `止步於第 ${curW}/${totW} 關，調整陣容或強化天賦後再次啟程！`;
+      if (isVictory && hofBox && typeof ModeExpedition !== "undefined" && ModeExpedition.renderHallOfFameHtml) {
+        hofBox.innerHTML = ModeExpedition.renderHallOfFameHtml(this);
+      }
     } else if (this.isArenaMode) {
       const ar = this.lastArenaResult;
       document.getElementById("endModalTitle").textContent = isVictory ? "⚔️ ARENA VICTORY!" : "⚔️ ARENA DEFEAT";

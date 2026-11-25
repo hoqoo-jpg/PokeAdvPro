@@ -22,7 +22,7 @@ Object.assign(window.GameApp, {
   pokedexShowBack: {},
   pokedexShowMega: {},
   pokedexShowShiny: {},
-  selectedGameMode: "standard",
+  selectedGameMode: "expedition",
   selectedArenaBossId: 144,
   selectedArenaDifficultyId: "standard",
   selectedArenaHeldItem: "silk_scarf",
@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.7";
+        const ver = this.APP_VERSION || "v7.2.8";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,9 +557,65 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.7";
+      const curVer = this.APP_VERSION || "v7.2.8";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
+    if (this.updateLobbyModeHub) this.updateLobbyModeHub();
+  },
+
+  updateLobbyModeHub() {
+    const summary = (typeof ModeExpedition !== "undefined" && ModeExpedition.getChapterSummary)
+      ? ModeExpedition.getChapterSummary()
+      : { chapterCount: 4, totalWaves: 10 };
+    const cp = this.saveData && this.saveData.expeditionCheckpoint;
+    const hasCp = !!(cp && cp.nextWave >= 2 && cp.nextWave <= summary.totalWaves);
+
+    const expMetaEl = document.getElementById("lobbyExpMetaText");
+    if (expMetaEl) {
+      expMetaEl.textContent = `${summary.chapterCount} 大區域 ‧ ${summary.totalWaves} 關推進 ‧ 波間整備`;
+    }
+    const expActionsEl = document.getElementById("lobbyExpActionRow");
+    if (expActionsEl) {
+      if (hasCp) {
+        expActionsEl.innerHTML = `
+          <button onclick="event.stopPropagation(); GameApp.resumeSavedExpedition()" class="poke-btn-yellow flex-1 py-2 text-xs font-black shadow">繼續第 ${cp.nextWave}/${summary.totalWaves} 關</button>
+          <button onclick="event.stopPropagation(); GameApp.openModeFromLobby('expedition')" class="poke-btn-red px-3 py-2 text-xs font-black shadow">新開遠征</button>
+        `;
+      } else {
+        expActionsEl.innerHTML = `
+          <button onclick="event.stopPropagation(); GameApp.openModeFromLobby('expedition')" class="poke-btn-red w-full py-2 text-xs sm:text-sm font-black shadow flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-play text-[10px]"></i> 展開關都大遠征 →
+          </button>
+        `;
+      }
+    }
+
+    const arenaTimes = (this.saveData && this.saveData.stats && this.saveData.stats.arenaBestTimes) || {};
+    const arenaCleared = (typeof ARENA_BOSSES !== "undefined")
+      ? ARENA_BOSSES.filter(b => arenaTimes[b.id] !== undefined).length : 0;
+    const arenaSub = document.getElementById("lobbyArenaSubText");
+    if (arenaSub) arenaSub.textContent = `5大神獸 (${arenaCleared}/5)`;
+
+    const bestSec = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessTime) || 0;
+    const bm = String(Math.floor(bestSec / 60)).padStart(2, "0");
+    const bs = String(bestSec % 60).padStart(2, "0");
+    const endSub = document.getElementById("lobbyEndlessSubText");
+    if (endSub) endSub.textContent = bestSec > 0 ? `最高 ${bm}:${bs}` : "8分後無限波";
+  },
+
+  openModeFromLobby(modeId) {
+    this.selectedGameMode = modeId || "expedition";
+    this.saveLastSetup();
+    this.openSetupFlow(3);
+  },
+
+  toggleLoadoutAccordion() {
+    const grid = document.getElementById("tacticalLoadoutGrid");
+    const icon = document.getElementById("loadoutAccordionIcon");
+    if (!grid) return;
+    const willOpen = grid.classList.contains("hidden");
+    grid.classList.toggle("hidden", !willOpen);
+    if (icon) icon.className = willOpen ? "fa-solid fa-chevron-up text-[10px]" : "fa-solid fa-chevron-down text-[10px]";
   },
 
   openSetupFlow(startStep = 3) {
@@ -990,18 +1046,10 @@ Object.assign(window.GameApp, {
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
       return `
-        <div onclick="GameApp.selectDifficulty('${d.id}')" class="poke-card cursor-pointer p-2.5 flex flex-col justify-between ${sel ? 'selected' : ''}">
-          <div>
-            <div class="flex items-center justify-between gap-1 mb-0.5">
-              <span class="font-black text-xs text-slate-800">${d.name}</span>
-              <span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 font-black text-[9px] rounded-full shrink-0">${d.badge}</span>
-            </div>
-            <p class="text-[10px] font-bold text-slate-600 leading-snug">${d.desc}</p>
-          </div>
-          <div class="mt-1 text-right">
-            <span class="text-[9px] font-black ${sel ? 'text-red-600' : 'text-slate-400'}">${sel ? '✓ 已選用' : '點擊切換'}</span>
-          </div>
-        </div>
+        <button type="button" onclick="GameApp.selectDifficulty('${d.id}')" class="px-2 py-2 rounded-xl border-2 text-center transition-all ${sel ? 'bg-red-600 text-white border-red-800 shadow-md' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'}">
+          <div class="font-black text-xs leading-tight">${d.name}</div>
+          <div class="text-[9px] font-bold ${sel ? 'text-amber-200' : 'text-amber-700'} mt-0.5">${d.badge}</div>
+        </button>
       `;
     }).join("");
 
@@ -1049,10 +1097,10 @@ Object.assign(window.GameApp, {
         },
         {
           id: "expedition",
-          name: "關都大遠征 (RPG 10波)",
-          badge: "NEW",
+          name: "關都大遠征 (主打)",
+          badge: "主線",
           badgeCls: "bg-emerald-600 text-white",
-          desc: `四區域串連 10 波推進 ＋ 波間整備商店（通關 ${expClears} 次）`
+          desc: `${(typeof ModeExpedition !== "undefined" ? ModeExpedition.getChapterSummary().chapterCount : 4)}區 ${(typeof ModeExpedition !== "undefined" ? ModeExpedition.getChapterSummary().totalWaves : 10)}關殲滅推進（通關 ${expClears} 次）`
         },
         {
           id: "endless",
@@ -1307,7 +1355,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.7",
+      lastSeenVersion: this.APP_VERSION || "v7.2.8",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1490,23 +1538,32 @@ Object.assign(window.GameApp, {
   },
 
   renderExpeditionSetupPreview() {
+    const summary = (typeof ModeExpedition !== "undefined" && ModeExpedition.getChapterSummary)
+      ? ModeExpedition.getChapterSummary()
+      : { chapterCount: 4, totalWaves: 10, chapters: [] };
+    const routeTextEl = document.getElementById("expeditionDynamicRouteText");
+    if (routeTextEl && summary.chapters.length > 0) {
+      routeTextEl.textContent = summary.chapters.map(c => c.shortName || c.name).join(" ➔ ");
+    }
     const cpBox = document.getElementById("expeditionCheckpointBanner");
     const cp = this.saveData && this.saveData.expeditionCheckpoint;
     if (cpBox) {
-      if (cp && cp.nextWave >= 2 && cp.nextWave <= 10) {
+      if (cp && cp.nextWave >= 2 && cp.nextWave <= summary.totalWaves) {
         const pk = POKEMON_MAP.get(cp.player ? cp.player.id : cp.starterId) || POKEMON_MAP.get(25);
+        const df = DIFFICULTIES.find(d => d.id === cp.difficultyId);
         cpBox.classList.remove("hidden");
         cpBox.innerHTML = `
           <div class="flex items-center justify-between gap-2 bg-slate-900 text-white p-2.5 rounded-xl border-2 border-amber-400">
             <div class="flex items-center gap-2 min-w-0">
               <img src="${SpriteCache.resolveUrl(pk.forward_sprite)}" class="w-9 h-9 pixel-sprite bg-slate-800 rounded-lg border border-slate-600 p-0.5 shrink-0"/>
               <div class="min-w-0">
-                <div class="font-pixel text-[9px] text-amber-300">AUTO-SAVE CHECKPOINT</div>
-                <div class="font-black text-xs text-white truncate">上次進度：第 ${cp.nextWave}/10 波（${pk.name_zh} Lv.${cp.player ? cp.player.level : 1}）</div>
+                <div class="font-pixel text-[8px] text-amber-300">續關存檔（沿用原難度：${df ? df.name : '標準'}）</div>
+                <div class="font-black text-xs text-white truncate">第 ${cp.nextWave}/${summary.totalWaves} 關（${pk.name_zh} Lv.${cp.player ? cp.player.level : 1}）</div>
               </div>
             </div>
             <button onclick="GameApp.resumeSavedExpedition()" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0">繼續遠征</button>
           </div>
+          <div class="text-[10px] font-bold text-slate-600 pt-1">若要重新開局，請調整下方難度／補給後按右下角出發（將覆蓋舊進度）。</div>
         `;
       } else {
         cpBox.classList.add("hidden");
@@ -2907,8 +2964,21 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.7 關都大遠征（RPG 10波串連地圖）＆ 超武精修版</span>
+            <span class="font-black text-sm text-amber-300">v7.2.8 關都大遠征 2.0 ＆ 大廳模式重構版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">關都大遠征 2.0（可擴充章節架構）</div>
+            <div>• <strong>波次殲滅進度制</strong>：取消 35 秒強制倒數，改為清光該波目標怪獸即蓋上 AREA CLEAR 印章並磁力吸乾全場水晶；剩餘 ≤3 隻自動顯示紅箭頭指引。</div>
+            <div>• <strong>固定生態戰場（1160×880）＆ 限時增益搶點</strong>：森林密木／海岬護欄／神殿石牆自然圍邊，波中與 8 分鐘地圖新增 4 種像素增益道具（力量核心／疾風羽毛／折射護盾／特大文柚果）。</div>
+            <div>• <strong>火車站捲動路線長卷 ＆ 雙人漫步儀式</strong>：波間打開整備站時鏡頭向右捲動，訓練家與主角一步步走去下一站；跨區觸發營地 5 連音回復與 GBA 左上角路牌，Boss 戰新增 VS 對峙橫幅與通關殿堂紀念卡。</div>
+            <div class="text-amber-300 font-black pt-1">大廳與 STEP 3 瘦身</div>
+            <div>• 大廳直接展示「關都大遠征主推大卡 ＋ 3 格副模式入口」；波間商店改 2×2 免捲動網格；STEP 3 難度改單行切換、開局補給預設摺疊；底層支援隨時無縫追加第四、第五章地圖！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.7 關都大遠征（RPG 10波串連地圖）＆ 超武精修版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">全新旗艦模式：關都大遠征（RPG 10 波串連地圖）</div>
@@ -3094,7 +3164,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.7";
+    const curVer = this.APP_VERSION || "v7.2.8";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -3239,8 +3309,15 @@ Object.assign(window.GameApp, {
         el.style.display = "none";
       }
     });
+    if (typeof ModeExpedition !== "undefined") {
+      ModeExpedition.stopRouteWalkAnim();
+      ModeExpedition.dismissRegionSign();
+    }
+    const vsOv = document.getElementById("bossVsOverlay");
+    if (vsOv) { vsOv.classList.add("hidden"); vsOv.style.display = "none"; }
     if (typeof MapEngine !== "undefined") {
       if (MapEngine.setArenaMode) MapEngine.setArenaMode(false);
+      if (MapEngine.setBoundedMap) MapEngine.setBoundedMap(false);
       MapEngine.setWeather("CLEAR");
       MapEngine.lightningFlashAlpha = 0;
     }

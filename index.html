@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.2.7');
+      background-image: url('images/skills_icons_sheet.png?v=7.2.8');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -595,7 +595,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.2.7
+      v7.2.8
     </div>
   </div>
 
@@ -670,12 +670,40 @@
       </div>
     </div>
 
-    <!-- 底部主要功能按鈕群 (確保在手機直向視口完整展現) -->
+    <!-- 底部主要模式直達入口群（1 主打大遠征 ＋ 3 副模式一眼看懂全內容） -->
     <div class="w-full max-w-md mx-auto flex flex-col gap-2 z-10 shrink-0 mb-1">
-      <!-- 立即出發冒險 (主按鈕) -->
-      <button onclick="GameApp.openSetupFlow(3)" class="poke-btn-red w-full py-2.5 sm:py-3.5 text-sm sm:text-base font-black flex items-center justify-center gap-2 shadow-xl active:scale-95">
-        <i class="fa-solid fa-play"></i> 立即出發冒險
-      </button>
+      <!-- 主推模式大卡：關都大遠征 -->
+      <div onclick="GameApp.openModeFromLobby('expedition')" class="poke-card cursor-pointer p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-pixel text-[8px] font-black">主線 RPG</span>
+              <span class="font-black text-sm text-amber-300 truncate">關都大遠征</span>
+            </div>
+            <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">4 大區域 ‧ 10 關推進 ‧ 波間整備</div>
+          </div>
+          <i class="fa-solid fa-route text-emerald-400 text-lg shrink-0"></i>
+        </div>
+        <div id="lobbyExpActionRow" class="flex items-center gap-1.5">
+          <button onclick="event.stopPropagation(); GameApp.openModeFromLobby('expedition')" class="poke-btn-red w-full py-2 text-xs sm:text-sm font-black shadow">展開關都大遠征 →</button>
+        </div>
+      </div>
+
+      <!-- 3 格副模式直達卡 -->
+      <div class="grid grid-cols-3 gap-1.5">
+        <button onclick="GameApp.openModeFromLobby('standard')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
+          <span class="font-black text-[11px] text-slate-900 leading-tight">8分鐘標準</span>
+          <span class="text-[9px] font-bold text-blue-700">3張生態地圖</span>
+        </button>
+        <button onclick="GameApp.openModeFromLobby('arena')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
+          <span class="font-black text-[11px] text-slate-900 leading-tight">1vs1 鬥技場</span>
+          <span id="lobbyArenaSubText" class="text-[9px] font-bold text-rose-700">5大神獸 (0/5)</span>
+        </button>
+        <button onclick="GameApp.openModeFromLobby('endless')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
+          <span class="font-black text-[11px] text-slate-900 leading-tight">無盡深淵</span>
+          <span id="lobbyEndlessSubText" class="text-[9px] font-bold text-purple-700">8分後無限波</span>
+        </button>
+      </div>
 
       <!-- 輔助三大功能列：151圖鑑、中心天賦、道館榮譽 -->
       <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -865,6 +893,12 @@
     <div id="touchJoyBase" class="absolute w-28 h-28 rounded-full border-2 border-white/40 bg-slate-900/30 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden z-10"></div>
     <div id="touchJoyStick" class="absolute w-12 h-12 rounded-full bg-white/70 shadow-lg -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden z-20"></div>
 
+    <!-- GBA 跨區左上角地名木牌／石牌（點擊可提前隱藏） -->
+    <div id="gbaRegionSign" onclick="ModeExpedition.dismissRegionSign()" class="hidden absolute top-[86px] left-2 z-30 px-3 py-1.5 rounded-r-xl border-l-4 border-2 shadow-2xl cursor-pointer pointer-events-auto">
+      <div id="gbaRegionSignTitle" class="font-pixel text-[10px] font-black tracking-wide">ACT 1 · 真新鎮</div>
+      <div id="gbaRegionSignSub" class="text-[10px] font-bold opacity-90 mt-0.5">常磐密林・外圍探索</div>
+    </div>
+
     <!-- 過場宣傳條橫幅 (Cutscene / Event Banner - 精煉高度不遮戰場) -->
     <div id="cutsceneBanner" class="hidden absolute top-[88px] sm:top-24 left-0 right-0 py-1.5 bg-gradient-to-r from-transparent via-slate-950/88 to-transparent border-y border-amber-400/80 text-center shadow-xl pointer-events-none">
       <div id="cutsceneTitle" class="font-pixel text-sm sm:text-lg text-amber-300 font-black">【火箭隊突襲】</div>
@@ -958,13 +992,13 @@
           <div id="gameModeGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
         </div>
 
-        <!-- 關都大遠征 10波 RPG 路線簡介與自動續關條 -->
-        <div id="expeditionPreviewPanel" class="hidden space-y-2 bg-emerald-50/80 border-2 border-emerald-400 rounded-2xl p-3">
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <span class="font-black text-xs sm:text-sm text-emerald-900 flex items-center gap-1.5"><i class="fa-solid fa-route text-emerald-600"></i> 關都大遠征路線：真新鎮(W1-3) ➔ 華藍海岬(W4-6) ➔ 石英高原(W7-9) ➔ 鬥技場決戰(W10)</span>
+        <!-- 關都大遠征路線簡介與自動續關條（動態讀取 EXPEDITION_CHAPTERS） -->
+        <div id="expeditionPreviewPanel" class="hidden space-y-2 bg-emerald-50/85 border-2 border-emerald-400 rounded-2xl p-2.5">
+          <div class="font-black text-xs text-emerald-900 flex items-center gap-1.5">
+            <i class="fa-solid fa-route text-emerald-600"></i>
+            <span id="expeditionDynamicRouteText">常磐密林 ➔ 華藍海岬 ➔ 石英高原 ➔ 鬥技場</span>
           </div>
-          <p class="text-[11px] font-bold text-slate-700 leading-snug">每波通關後自動吸取全場經驗並進入 GBA 路線圖整備商店，預告下一波地形與敵人屬性，並自動記錄斷點進度！</p>
-          <div id="expeditionCheckpointBanner" class="hidden"></div>
+          <div id="expeditionCheckpointBanner" class="hidden space-y-1"></div>
         </div>
 
         <!-- 1vs1 石英大會鬥技場專屬設定面板 -->
@@ -991,18 +1025,21 @@
           <div id="stageGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2"></div>
         </div>
         <div id="difficultySectionWrap">
-          <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
-          <div id="difficultyGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
+          <h3 class="font-black text-xs text-slate-800 mb-1 flex items-center gap-1.5"><i class="fa-solid fa-gauge-high text-red-600"></i> 挑戰難度</h3>
+          <div id="difficultyGrid" class="grid grid-cols-4 gap-1.5"></div>
         </div>
-        <div id="loadoutSectionWrap">
-          <div class="flex items-center justify-between gap-1.5 mb-1.5 flex-wrap">
+        <div id="loadoutSectionWrap" class="bg-white rounded-2xl border-2 border-slate-300 p-2.5">
+          <button type="button" onclick="GameApp.toggleLoadoutAccordion()" class="w-full flex items-center justify-between gap-1.5 text-left">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <h3 class="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術補給（可複選）</h3>
-              <span id="loadoutFirstFreeBadge" class="hidden px-2 py-0.5 bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[10px] font-black rounded-full shadow animate-pulse">🎁 首次免費體驗 1 項</span>
+              <span class="font-black text-xs text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-briefcase-medical text-amber-600"></i> 開局戰術補給（可選）</span>
+              <span id="loadoutFirstFreeBadge" class="hidden px-2 py-0.5 bg-gradient-to-r from-rose-500 to-amber-500 text-white text-[9px] font-black rounded-full shadow">首試免費</span>
             </div>
-            <span id="loadoutTotalCostBadge" class="text-[11px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">已選 0 項 (0 金)</span>
-          </div>
-          <div id="tacticalLoadoutGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <span id="loadoutTotalCostBadge" class="text-[10px] font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300">已選 0 項 (0 金)</span>
+              <i id="loadoutAccordionIcon" class="fa-solid fa-chevron-down text-[10px] text-slate-500"></i>
+            </div>
+          </button>
+          <div id="tacticalLoadoutGrid" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-200"></div>
         </div>
       </div>
     </div>
@@ -1265,6 +1302,28 @@
     </div>
   </div>
 
+  <!-- 13D. Boss 戰斜切 VS 對峙橫幅（點擊立即跳過） -->
+  <div id="bossVsOverlay" onclick="ModeExpedition.skipBossVsOverlay()" class="fixed inset-0 z-[65] hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-[2px] cursor-pointer select-none px-3">
+    <div class="w-full max-w-lg rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900 shadow-2xl">
+      <div id="vsSubTag" class="bg-red-700 text-amber-200 font-pixel text-[9px] text-center py-1 tracking-widest">BOSS BATTLE</div>
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-2 p-3 bg-gradient-to-r from-blue-950 via-slate-900 to-rose-950">
+        <div class="flex flex-col items-center gap-1 min-w-0">
+          <div class="flex items-end gap-1">
+            <img id="vsLeftTrainerImg" src="" class="w-12 h-12 rounded-lg object-cover object-top border border-sky-400 bg-slate-800" alt="Trainer"/>
+            <img id="vsLeftPokeImg" src="" class="w-12 h-12 pixel-sprite object-contain" alt="Starter"/>
+          </div>
+          <div id="vsLeftName" class="font-black text-[11px] text-sky-200 truncate max-w-full">小智 ＆ 皮卡丘</div>
+        </div>
+        <div class="font-pixel text-2xl sm:text-3xl text-amber-400 italic drop-shadow-[0_3px_0_#7f1d1d] px-1">VS</div>
+        <div class="flex flex-col items-center gap-1 min-w-0">
+          <img id="vsRightBossImg" src="" class="w-16 h-16 pixel-sprite object-contain drop-shadow-[0_0_12px_rgba(244,63,94,0.8)]" alt="Boss"/>
+          <div id="vsRightName" class="font-black text-xs text-rose-300 truncate max-w-full">BOSS</div>
+        </div>
+      </div>
+      <div class="bg-slate-950 text-slate-400 text-[9px] font-bold text-center py-1">點擊畫面立即開戰</div>
+    </div>
+  </div>
+
   <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal - 支援手機端限高與內部獨立垂直滑動，底部按鈕永不擠出畫面) -->
   <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm">
     <div class="poke-card w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden p-4 sm:p-5 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
@@ -1273,6 +1332,7 @@
         <p id="endModalSubtitle" class="text-xs text-slate-300 font-bold mt-1">冒險已暫停或結算完成</p>
       </div>
 
+      <div id="endHallOfFameBox" class="shrink-0"></div>
       <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3 flex-1 overflow-y-auto min-h-0">
         <div class="flex justify-between items-center gap-2 border-b border-slate-700/70 pb-1">
           <span class="text-slate-400 shrink-0 whitespace-nowrap">即時效能：</span>
@@ -1405,7 +1465,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.7</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.2.8</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1453,7 +1513,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.7</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.2.8</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1486,14 +1546,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.2.7"></script>
-  <script src="map_v11_engine.js?v=7.2.7"></script>
-  <script src="skills_engine.js?v=7.2.7"></script>
-  <script src="battle_core_2.js?v=7.2.7"></script>
-  <script src="battle_renderer.js?v=7.2.7"></script>
-  <script src="mode_survivor.js?v=7.2.7"></script>
-  <script src="mode_arena.js?v=7.2.7"></script>
-  <script src="mode_expedition.js?v=7.2.7"></script>
-  <script src="game_ui.js?v=7.2.7"></script>
+  <script src="pokedex_data.js?v=7.2.8"></script>
+  <script src="map_v11_engine.js?v=7.2.8"></script>
+  <script src="skills_engine.js?v=7.2.8"></script>
+  <script src="battle_core_2.js?v=7.2.8"></script>
+  <script src="battle_renderer.js?v=7.2.8"></script>
+  <script src="mode_survivor.js?v=7.2.8"></script>
+  <script src="mode_arena.js?v=7.2.8"></script>
+  <script src="mode_expedition.js?v=7.2.8"></script>
+  <script src="game_ui.js?v=7.2.8"></script>
 </body>
 </html>
