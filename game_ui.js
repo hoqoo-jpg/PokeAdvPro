@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.2.9";
+        const ver = this.APP_VERSION || "v7.3.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.2.9";
+      const curVer = this.APP_VERSION || "v7.3.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.2.9",
+      lastSeenVersion: this.APP_VERSION || "v7.3.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3000,8 +3000,18 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.2.9 關都大遠征透明行軍演出與介面精修版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.0 GBA 斜對角遇敵對峙 ＆ 1/3 屏高細節長卷版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">GBA 原生級儀式感升級</div>
+            <div>• <strong>Boss 戰斜對角遇敵演出</strong>：重製為經典掌機斜對角雙台座構圖——右上角生態圓台滑入 Boss（雙首領錯位並立）、左下角圓台滑入主角背影（back_sprite）與訓練家背影，搭配 GBA 雙框打字機遇敵字幕。</div>
+            <div>• <strong>1/3 屏高細節火車站長卷</strong>：行軍階段視窗放大至 1/3 螢幕高，升級為三層視差天空遠景、預烘焙微縮樹屋／礁岩／神殿佈景、碎石木枕雙軌鐵道、帶屋簷車站月台、46px 放大角色漫步與下一站天氣預告粒子；抵達月台後自動平滑收斂展開 2×2 整備商店！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.2.9 關都大遠征透明行軍演出與介面精修版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">行軍演出與戰前流程升級</div>
@@ -3214,7 +3224,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.2.9";
+    const curVer = this.APP_VERSION || "v7.3.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -430,39 +430,51 @@ window.ModeExpedition = {
 
   showBossVsOverlay(app, cfg, onDone) {
     const ov = document.getElementById("bossVsOverlay");
-    if (!ov) {
+    const can = document.getElementById("bossEncounterCanvas");
+    if (!ov || !can) {
       if (typeof onDone === "function") onDone();
       return;
     }
     app.state = "PAUSED";
     const tr = app.selectedTrainer || TRAINERS[0];
     const trCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(tr, app.saveData) : tr;
-    const pData = (app.player && app.player.data) || POKEMON_MAP.get(25);
-    const bossId = cfg.bossIds[0];
-    const bData = POKEMON_MAP.get(bossId) || POKEMON_MAP.get(150);
+    const p = app.player;
+    const pData = (p && p.data) || POKEMON_MAP.get(25);
+    const bossIds = (cfg.bossIds && cfg.bossIds.length > 0) ? cfg.bossIds : [150];
+    const bossList = bossIds.map(id => POKEMON_MAP.get(id) || POKEMON_MAP.get(150));
 
-    const leftTrImg = document.getElementById("vsLeftTrainerImg");
-    const leftPkImg = document.getElementById("vsLeftPokeImg");
-    const leftName  = document.getElementById("vsLeftName");
-    const rightBossImg = document.getElementById("vsRightBossImg");
-    const rightName = document.getElementById("vsRightName");
-    const subTag    = document.getElementById("vsSubTag");
+    // 預熱所需像素圖（主角背影、訓練家背/側身、Boss 正面）
+    const pBackUrl = (p && p.isShiny && pData.shiny_back_sprite) ? pData.shiny_back_sprite : (pData.back_sprite || pData.forward_sprite);
+    SpriteCache.get(pBackUrl);
+    if (trCos.walkSheet) SpriteCache.get(trCos.walkSheet);
+    if (trCos.sprites && trCos.sprites.up) SpriteCache.get(trCos.sprites.up);
+    if (trCos.sprite) SpriteCache.get(trCos.sprite);
+    bossList.forEach(b => { if (b && b.forward_sprite) SpriteCache.get(b.forward_sprite); });
 
-    if (leftTrImg) leftTrImg.src = SpriteCache.resolveUrl(trCos.cutin || trCos.sprite);
-    if (leftPkImg) leftPkImg.src = SpriteCache.resolveUrl(pData.forward_sprite);
-    if (leftName)  leftName.textContent = `${tr.name.split(" ")[0]} ＆ ${pData.name_zh}`;
-    if (rightBossImg) rightBossImg.src = SpriteCache.resolveUrl(bData.forward_sprite);
-    if (rightName) rightName.textContent = cfg.bossIds.length > 1 ? `${bData.name_zh} 聯軍` : bData.name_zh;
-    if (subTag) subTag.textContent = `ACT ${cfg.act} · WAVE ${cfg.wave}/${app.expeditionState.totalWaves} BOSS BATTLE`;
+    const bossNames = bossList.map(b => b.name_zh).join(" ＆ ");
+    const fullDialog = cfg.isLegendaryBoss
+      ? `傳說的【${bossNames}】現身了！準備迎接決戰！`
+      : `關底首領【${bossNames}】擋住了去路！`;
+    const subTagEl = document.getElementById("vsSubTag");
+    if (subTagEl) {
+      subTagEl.textContent = `ACT ${cfg.act} · WAVE ${cfg.wave}/${app.expeditionState.totalWaves} · ${cfg.chapterShortName}`;
+    }
+    const dlgEl = document.getElementById("bossEncounterDialogText");
+    if (dlgEl) dlgEl.textContent = "";
 
     ov.classList.remove("hidden");
     ov.style.display = "flex";
     SoundFX.play("boss");
 
     let finished = false;
+    let rafId = null;
+    const startTs = performance.now();
+    const totalMs = 1750;
+
     const finish = () => {
       if (finished) return;
       finished = true;
+      if (rafId) cancelAnimationFrame(rafId);
       clearTimeout(this._vsTimer);
       this._vsSkipCallback = null;
       ov.classList.add("hidden");
@@ -470,8 +482,216 @@ window.ModeExpedition = {
       if (typeof onDone === "function") onDone();
     };
     this._vsSkipCallback = finish;
-    clearTimeout(this._vsTimer);
-    this._vsTimer = setTimeout(finish, 1180);
+
+    const renderEncounterFrame = (nowTs) => {
+      if (finished) return;
+      const elapsed = nowTs - startTs;
+      const t = Math.min(1, elapsed / totalMs);
+      this.drawGbaBossEncounterScene(can, app, cfg, tr, trCos, p, pData, pBackUrl, bossList, t);
+      if (dlgEl) {
+        const charCount = Math.min(fullDialog.length, Math.floor((elapsed / 950) * fullDialog.length));
+        dlgEl.textContent = fullDialog.slice(0, charCount);
+      }
+      if (t < 1) {
+        rafId = requestAnimationFrame(renderEncounterFrame);
+      } else {
+        this._vsTimer = setTimeout(finish, 320);
+      }
+    };
+    rafId = requestAnimationFrame(renderEncounterFrame);
+  },
+
+  drawGbaBossEncounterScene(canvas, app, cfg, tr, trCos, p, pData, pBackUrl, bossList, t) {
+    const w = canvas.width = 440;
+    const h = canvas.height = 236;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+
+    const slideT = Math.min(1, t / 0.34);
+    const ease = 1 - Math.pow(1 - slideT, 3);
+    const stId = cfg.isArena ? "arena" : (cfg.stageId || "pallet");
+
+    // 1. GBA 經典分層天空與生態地平線
+    const skyPalettes = {
+      pallet:       ["#38BDF8", "#7DD3FC", "#BAE6FD", "#86EFAC", "#4ADE80", "#22C55E"],
+      cerulean_bay: ["#0284C7", "#38BDF8", "#BAE6FD", "#0369A1", "#0284C7", "#075985"],
+      sky_pillar:   ["#1E1B4B", "#4C1D95", "#7C3AED", "#3B0764", "#2E1065", "#1E1B4B"],
+      arena:        ["#0F172A", "#1E293B", "#334155", "#475569", "#334155", "#1E293B"]
+    };
+    const pal = skyPalettes[stId] || skyPalettes.pallet;
+
+    // 頂部天空色帶（像素分層漸層）
+    const bandH = 26;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = pal[i];
+      ctx.fillRect(0, i * bandH, w, bandH + 1);
+    }
+    // 遠景地平線條紋與地板
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = pal[3 + i];
+      ctx.fillRect(0, 78 + i * 54, w, 55);
+    }
+
+    // 橫向 GBA 遇敵動感速度線
+    ctx.fillStyle = "rgba(255, 255, 255, 0.14)";
+    const lineOff = Math.round((t * 320) % 120);
+    for (let y = 14; y < h - 10; y += 22) {
+      ctx.fillRect((y * 19 + lineOff) % w - 60, y, 75, 2);
+      ctx.fillRect((y * 37 + lineOff * 1.4) % w - 40, y + 8, 42, 2);
+    }
+
+    // 生態遠景細節（樹海剪影 / 海浪線 / 古殿石柱 / 鬥技場光束）
+    if (stId === "pallet") {
+      ctx.fillStyle = "#15803D";
+      for (let x = -10; x < w + 20; x += 34) {
+        ctx.beginPath(); ctx.arc(x, 78, 22, Math.PI, 0); ctx.fill();
+      }
+    } else if (stId === "cerulean_bay") {
+      ctx.fillStyle = "rgba(224, 242, 254, 0.45)";
+      for (let y = 94; y < h; y += 26) {
+        for (let x = (y % 52 === 0 ? 18 : 48); x < w; x += 68) {
+          ctx.fillRect(x, y, 24, 2);
+        }
+      }
+    } else if (stId === "arena") {
+      ctx.fillStyle = "rgba(250, 204, 21, 0.14)";
+      ctx.beginPath(); ctx.moveTo(w * 0.25, 0); ctx.lineTo(w * 0.12, h); ctx.lineTo(w * 0.36, h); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(w * 0.75, 0); ctx.lineTo(w * 0.62, h); ctx.lineTo(w * 0.88, h); ctx.closePath(); ctx.fill();
+    }
+
+    // 共用 GBA 圓形像素台座繪製器（參考圖同款草坪／石板橢圓台座＋齒狀邊緣）
+    const drawBattlePlatform = (cx, cy, rx, ry) => {
+      const rimCol = stId === "cerulean_bay" ? "#0369A1" : (stId === "sky_pillar" ? "#6D28D9" : (stId === "arena" ? "#F59E0B" : "#B45309"));
+      const topCol = stId === "cerulean_bay" ? "#38BDF8" : (stId === "sky_pillar" ? "#4C1D95" : (stId === "arena" ? "#CBD5E1" : "#4ADE80"));
+      const inCol  = stId === "cerulean_bay" ? "#7DD3FC" : (stId === "sky_pillar" ? "#6D28D9" : (stId === "arena" ? "#E2E8F0" : "#86EFAC"));
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.38)";
+      ctx.beginPath(); ctx.ellipse(cx, cy + 7, rx + 4, ry + 2, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = rimCol;
+      ctx.beginPath(); ctx.ellipse(cx, cy + 3, rx + 3, ry + 2, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = topCol;
+      ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = inCol;
+      ctx.beginPath(); ctx.ellipse(cx, cy - 2, rx * 0.82, ry * 0.74, 0, 0, Math.PI * 2); ctx.fill();
+
+      // 草地／台座邊緣像素小齒點綴
+      if (stId === "pallet") {
+        ctx.fillStyle = "#15803D";
+        for (let a = 0; a < Math.PI * 2; a += 0.38) {
+          const gx = Math.round(cx + Math.cos(a) * rx * 0.94);
+          const gy = Math.round(cy + Math.sin(a) * ry * 0.92);
+          ctx.fillRect(gx - 2, gy - 3, 4, 4);
+        }
+      }
+    };
+
+    // 2. 右上角：敵方圓形台座（從左側滑入至右上）＋ Boss 正面立繪
+    const enemyBaseX = -120 + (w * 0.72 + 120) * ease;
+    const enemyBaseY = 120;
+    drawBattlePlatform(enemyBaseX, enemyBaseY, 92, 27);
+
+    const idleBob = Math.sin(t * Math.PI * 6) * 3;
+    if (bossList.length >= 2) {
+      // 雙 Boss 前後錯位並立（如 W3 阿柏怪 ＋ 雙彈瓦斯）
+      const b0 = bossList[0], b1 = bossList[1];
+      const r0 = SpriteCache.get(b0.forward_sprite);
+      const r1 = SpriteCache.get(b1.forward_sprite);
+      if (r1 && r1.loaded) {
+        ctx.drawImage(r1.img, Math.round(enemyBaseX + 4), Math.round(enemyBaseY - 82 - idleBob * 0.7), 82, 82);
+      }
+      if (r0 && r0.loaded) {
+        ctx.drawImage(r0.img, Math.round(enemyBaseX - 66), Math.round(enemyBaseY - 76 + idleBob * 0.7), 88, 88);
+      }
+    } else {
+      const b0 = bossList[0];
+      const r0 = b0 ? SpriteCache.get(b0.forward_sprite) : null;
+      if (r0 && r0.loaded) {
+        ctx.drawImage(r0.img, Math.round(enemyBaseX - 54), Math.round(enemyBaseY - 98 + idleBob), 108, 108);
+      }
+    }
+
+    // 3. 左下角：我方圓形台座（從右側滑入至左下）＋ 訓練家背/側身 ＋ 主角精靈背影 (back_sprite)
+    const playerBaseX = w + 120 - (w + 120 - w * 0.28) * ease;
+    const playerBaseY = 212;
+    drawBattlePlatform(playerBaseX, playerBaseY, 106, 30);
+
+    // 隨行訓練家站立於台座左後方（優先取 walkSheet 背影 row=3 或 右側面 row=2）
+    const sheetUrl = trCos.walkSheet || tr.walkSheet;
+    const sheetRec = sheetUrl ? SpriteCache.get(sheetUrl) : null;
+    if (sheetRec && sheetRec.loaded && sheetRec.img.naturalWidth > 0) {
+      const fw = Math.floor(sheetRec.img.naturalWidth / 3);
+      const fh = Math.floor(sheetRec.img.naturalHeight / 4);
+      const row = 3; // 背對鏡頭望向右上 Boss（與參考圖一致！）
+      ctx.drawImage(sheetRec.img, fw, row * fh, fw, fh, Math.round(playerBaseX - 88), Math.round(playerBaseY - 82), 68, 82);
+    } else if (trCos.sprites && trCos.sprites.up) {
+      const upRec = SpriteCache.get(trCos.sprites.up);
+      if (upRec && upRec.loaded) {
+        ctx.drawImage(upRec.img, Math.round(playerBaseX - 88), Math.round(playerBaseY - 80), 68, 80);
+      }
+    } else if (trCos.sprite) {
+      const trRec = SpriteCache.get(trCos.sprite);
+      if (trRec && trRec.loaded) {
+        ctx.drawImage(trRec.img, Math.round(playerBaseX - 88), Math.round(playerBaseY - 80), 68, 80);
+      }
+    }
+
+    // 主角精靈背影 (back_sprite) 站於台座右前方迎敵
+    const pBackRec = SpriteCache.get(pBackUrl);
+    if (pBackRec && pBackRec.loaded) {
+      ctx.drawImage(pBackRec.img, Math.round(playerBaseX - 18), Math.round(playerBaseY - 90 - idleBob * 0.6), 96, 96);
+    }
+
+    // 4. 復古 GBA 雙邊資訊銘牌（左上：敵方 Boss 銘牌；右下：我方搭檔銘牌）
+    if (ease > 0.65) {
+      const cardA = Math.min(1, (ease - 0.65) / 0.35);
+      ctx.save();
+      ctx.globalAlpha = cardA;
+
+      // 左上敵方 Boss 銘牌
+      ctx.fillStyle = "rgba(248, 250, 252, 0.95)";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.roundRect(10, 12, 178, 42, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#DC2626";
+      ctx.fillRect(14, 16, 4, 34);
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "900 12px 'Noto Sans TC', sans-serif";
+      ctx.textAlign = "left";
+      const bossTitle = bossList.length > 1 ? `${bossList[0].name_zh} ＆ ${bossList[1].name_zh}` : bossList[0].name_zh;
+      ctx.fillText(bossTitle, 24, 30);
+      ctx.fillStyle = "#991B1B";
+      ctx.font = "bold 9px monospace";
+      ctx.fillText("BOSS HP", 24, 45);
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(72, 38, 106, 8);
+      ctx.fillStyle = "#EF4444";
+      ctx.fillRect(74, 40, 102, 4);
+
+      // 右下我方銘牌
+      ctx.fillStyle = "rgba(248, 250, 252, 0.95)";
+      ctx.strokeStyle = "#0F172A";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.roundRect(w - 178, h - 54, 168, 42, 8); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#0284C7";
+      ctx.fillRect(w - 174, h - 50, 4, 34);
+      ctx.fillStyle = "#0F172A";
+      ctx.font = "900 12px 'Noto Sans TC', sans-serif";
+      ctx.fillText(`${pData.name_zh}`, w - 164, h - 36);
+      ctx.fillStyle = "#0369A1";
+      ctx.font = "bold 10px monospace";
+      ctx.textAlign = "right";
+      ctx.fillText(`Lv.${p ? p.level : 1}`, w - 18, h - 36);
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(w - 164, h - 26, 146, 8);
+      ctx.fillStyle = "#22C55E";
+      const hpPct = p ? Math.max(0.05, Math.min(1, p.hp / (p.maxHp || 100))) : 1;
+      ctx.fillRect(w - 162, h - 24, Math.round(142 * hpPct), 4);
+
+      ctx.restore();
+    }
   },
 
   skipBossVsOverlay() {
@@ -1172,10 +1392,14 @@ window.ModeExpedition = {
     }).join("");
   },
 
-  revealPrepPanel() {
+  revealPrepPanel(canvas, app, clearedWave, nextWave, isCrossingAct) {
     const walkHint = document.getElementById("expWalkingStatusRow");
     const prepCard = document.getElementById("expPrepPanelCard");
     if (walkHint) walkHint.classList.add("hidden");
+    if (canvas && app) {
+      // 階段二：平滑收斂為緊湊高度 (128px)，保留圖3免捲動黃金比例
+      this.drawScrollingRouteMap(canvas, app, clearedWave, nextWave, 1.0, isCrossingAct, false);
+    }
     if (prepCard) {
       prepCard.classList.remove("hidden");
       prepCard.classList.add("lobby-pop-in");
@@ -1190,8 +1414,7 @@ window.ModeExpedition = {
     if (ws.isCrossingAct && !ws.healChimePlayed && typeof SoundFX !== "undefined") {
       SoundFX.play("pokecenter_heal");
     }
-    this.drawScrollingRouteMap(ws.canvas, ws.app, ws.clearedWave, ws.nextWave, 1.0, ws.isCrossingAct);
-    this.revealPrepPanel();
+    this.revealPrepPanel(ws.canvas, ws.app, ws.clearedWave, ws.nextWave, ws.isCrossingAct);
   },
 
   startRouteWalkAnimation(canvas, app, clearedWave, nextWave, isCrossingAct) {
@@ -1211,7 +1434,7 @@ window.ModeExpedition = {
     }
 
     const startTs = performance.now();
-    const durationMs = 2150;
+    const durationMs = 2250;
     const ws = { canvas, app, clearedWave, nextWave, isCrossingAct, healChimePlayed: false };
     this._walkAnimState = ws;
 
@@ -1223,50 +1446,53 @@ window.ModeExpedition = {
         ws.healChimePlayed = true;
         if (typeof SoundFX !== "undefined") SoundFX.play("pokecenter_heal");
       }
-      this.drawScrollingRouteMap(canvas, app, clearedWave, nextWave, t, isCrossingAct);
+      // 階段一：放大至約 1/3 螢幕高度 (expanded = true) 清楚展示高細節 GBA 長卷與雙人漫步
+      this.drawScrollingRouteMap(canvas, app, clearedWave, nextWave, t, isCrossingAct, true);
       if (t < 1) {
         this._walkAnimRaf = requestAnimationFrame(tick);
       } else {
         this._walkAnimRaf = null;
         this._walkAnimState = null;
-        this.revealPrepPanel();
+        this.revealPrepPanel(canvas, app, clearedWave, nextWave, isCrossingAct);
       }
     };
     this._walkAnimRaf = requestAnimationFrame(tick);
   },
 
-  // 火車站式局部捲動 GBA 路線長卷（動態適配任意章節數與總站數）
-  drawScrollingRouteMap(canvas, app, clearedWave, nextWave, walkT = 1.0, isCrossingAct = false) {
+  // 火車站式高細節 GBA 橫向卷軸長卷（行軍期 460x216 佔 1/3 屏高 ➔ 整備期收斂 460x128）
+  drawScrollingRouteMap(canvas, app, clearedWave, nextWave, walkT = 1.0, isCrossingAct = false, expanded = false) {
     const st = app.expeditionState;
     if (!st || !st.plan) return;
     const plan = st.plan;
     const total = plan.length;
     const vpW = canvas.width = 460;
-    const vpH = canvas.height = 132;
+    const vpH = canvas.height = expanded ? 216 : 128;
     const ctx = canvas.getContext("2d");
     ctx.imageSmoothingEnabled = false;
 
-    const spacing = 128;
-    const padLeft = 72;
+    const spacing = expanded ? 148 : 132;
+    const padLeft = 78;
     const worldW = padLeft * 2 + (total - 1) * spacing;
+    const horizonY = expanded ? 72 : 34;
+    const trackY = expanded ? 152 : 84;
 
     const nodeX = (idx) => padLeft + idx * spacing;
-    const nodeY = (idx) => 70 + (idx % 2 === 0 ? 4 : -4);
+    const nodeY = () => trackY;
 
-    const ease = 1 - Math.pow(1 - Math.min(1, walkT), 2.2);
+    const ease = 1 - Math.pow(1 - Math.min(1, walkT), 2.1);
     const fromIdx = Math.max(0, clearedWave - 1);
     const toIdx = Math.min(total - 1, nextWave - 1);
     const duoX = nodeX(fromIdx) + (nodeX(toIdx) - nodeX(fromIdx)) * ease;
-    const duoY = nodeY(fromIdx) + (nodeY(toIdx) - nodeY(fromIdx)) * ease;
+    const duoY = nodeY(fromIdx);
 
-    // 鏡頭平滑跟隨雙人主角（讓當前進度落在畫面偏中左，清楚看見前方 1~2 站與關底 Boss）
     const desiredCamX = duoX - vpW * 0.42;
     const camX = Math.max(0, Math.min(Math.max(0, worldW - vpW), desiredCamX));
+    const props = (typeof MapEngine !== "undefined" && MapEngine.spritePropCache) ? MapEngine.spritePropCache : null;
 
     ctx.save();
     ctx.translate(-Math.round(camX), 0);
 
-    // 1. 動態依章節繪製橫向 GBA 生態風景背景帶
+    // 1. 分層遠景天空 ＋ 遠山／海平線／古殿剪影 ＋ 近景生態地面與微縮 GBA 物件
     const chapters = window.EXPEDITION_CHAPTERS || [];
     let cursorWave = 0;
     chapters.forEach((ch, chIdx) => {
@@ -1277,148 +1503,244 @@ window.ModeExpedition = {
       const segW = endX - startX;
       const th = ch.theme || { bg: "#3E6B38", accent: "#2E5229", text: "#BBF7D0" };
 
-      ctx.fillStyle = th.bg;
-      ctx.fillRect(startX, 0, segW, vpH);
-
-      // 依生態繪製像素地景紋理
-      ctx.fillStyle = th.accent;
+      // 1A. 漸層天空帶
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
       if (ch.stageId === "pallet") {
-        for (let x = startX + 12; x < endX - 10; x += 28) {
-          ctx.fillRect(x, 22, 14, 10);
-          ctx.fillRect(x + 8, 98, 14, 10);
+        skyGrad.addColorStop(0, "#0284C7"); skyGrad.addColorStop(1, "#BAE6FD");
+      } else if (ch.stageId === "cerulean_bay") {
+        skyGrad.addColorStop(0, "#0369A1"); skyGrad.addColorStop(1, "#7DD3FC");
+      } else if (ch.isArena) {
+        skyGrad.addColorStop(0, "#0F172A"); skyGrad.addColorStop(1, "#334155");
+      } else {
+        skyGrad.addColorStop(0, "#1E1B4B"); skyGrad.addColorStop(1, "#6D28D9");
+      }
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(startX, 0, segW, horizonY);
+
+      // 緩慢飄動的像素浮雲（行軍放大時更豐富）
+      if (!ch.isArena) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+        const cloudDrift = Math.round((walkT * 18) % 60);
+        for (let cx = startX + 26; cx < endX - 20; cx += 92) {
+          const cy = expanded ? (18 + ((cx * 7) % 24)) : 10;
+          ctx.fillRect(cx - cloudDrift * 0.4, cy, 24, 6);
+          ctx.fillRect(cx + 5 - cloudDrift * 0.4, cy - 4, 14, 4);
+        }
+      }
+
+      // 1B. 中景遠山／海平線／神殿剪影
+      if (ch.stageId === "pallet") {
+        ctx.fillStyle = "#166534";
+        for (let mx = startX - 10; mx < endX + 20; mx += 44) {
+          ctx.beginPath(); ctx.arc(mx + 22, horizonY + 2, 26, Math.PI, 0); ctx.fill();
+        }
+        ctx.fillStyle = "#4E8245";
+        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
+        ctx.fillStyle = "#3D5E38";
+        for (let gx = startX; gx < endX; gx += 32) {
+          ctx.fillRect(gx, horizonY + 12, 16, vpH - horizonY);
         }
       } else if (ch.stageId === "cerulean_bay") {
-        for (let x = startX + 10; x < endX - 12; x += 30) {
-          ctx.fillRect(x, 26, 16, 3);
-          ctx.fillRect(x + 12, 102, 16, 3);
+        ctx.fillStyle = "#0369A1";
+        ctx.fillRect(startX, horizonY - 8, segW, 10);
+        ctx.fillStyle = "#0284C7";
+        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
+        ctx.fillStyle = "rgba(224, 242, 254, 0.62)";
+        for (let wx = startX + 12; wx < endX - 16; wx += 36) {
+          ctx.fillRect(wx, horizonY + 14, 16, 2);
+          ctx.fillRect(wx + 12, vpH - 22, 18, 2);
         }
       } else if (ch.isArena) {
+        ctx.fillStyle = "#1E293B";
+        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
         ctx.fillStyle = "#B91C1C";
-        ctx.fillRect(startX + 4, 58, segW - 8, 24);
+        ctx.fillRect(startX + 4, trackY - 18, segW - 8, 36);
         ctx.fillStyle = "#F59E0B";
-        ctx.fillRect(startX + 4, 56, segW - 8, 3);
-        ctx.fillRect(startX + 4, 81, segW - 8, 3);
+        ctx.fillRect(startX + 4, trackY - 20, segW - 8, 3);
+        ctx.fillRect(startX + 4, trackY + 17, segW - 8, 3);
       } else {
-        for (let x = startX + 12; x < endX - 12; x += 26) {
-          ctx.fillRect(x, 24, 12, 6);
-          ctx.fillRect(x, 96, 12, 6);
+        ctx.fillStyle = "#3B0764";
+        for (let px = startX + 16; px < endX - 16; px += 48) {
+          ctx.fillRect(px, horizonY - 22, 12, 24);
+          ctx.fillRect(px - 3, horizonY - 24, 18, 4);
+        }
+        ctx.fillStyle = "#2B243D";
+        ctx.fillRect(startX, horizonY, segW, vpH - horizonY);
+      }
+
+      // 1C. 複用 MapEngine 預烘焙像素微縮物件佈景（樹、紅頂木屋、小花、礁岩、雕像、斷柱）
+      if (props) {
+        const treeImg = props.get("oak_tree_full");
+        const houseImg = props.get("house_full");
+        const fRed = props.get("flower_red");
+        const fWhite = props.get("flower_white");
+        const reefImg = props.get("reef_pixel");
+        const starImg = props.get("starfish_pixel");
+        const statImg = props.get("statue_full");
+        const pilImg = props.get("broken_pillar_pixel");
+
+        if (ch.stageId === "pallet") {
+          for (let px = startX + 18; px < endX - 28; px += 62) {
+            if (expanded && houseImg && ((Math.floor(px) % 124) < 62)) {
+              ctx.drawImage(houseImg, px, horizonY - 6, 46, 42);
+            } else if (treeImg) {
+              ctx.drawImage(treeImg, px, horizonY - 8, expanded ? 40 : 28, expanded ? 42 : 30);
+            }
+            if (fRed && expanded) ctx.drawImage(fRed, px + 20, vpH - 26, 14, 14);
+            if (fWhite && expanded) ctx.drawImage(fWhite, px + 44, vpH - 22, 14, 14);
+          }
+        } else if (ch.stageId === "cerulean_bay") {
+          for (let px = startX + 20; px < endX - 24; px += 68) {
+            if (reefImg) ctx.drawImage(reefImg, px, horizonY + 2, expanded ? 36 : 24, expanded ? 36 : 24);
+            if (starImg && expanded) ctx.drawImage(starImg, px + 28, vpH - 26, 15, 15);
+          }
+        } else if (!ch.isArena) {
+          for (let px = startX + 22; px < endX - 24; px += 64) {
+            const pImg = ((Math.floor(px) % 128) < 64) ? statImg : pilImg;
+            if (pImg) ctx.drawImage(pImg, px, horizonY - 6, expanded ? 34 : 24, expanded ? 42 : 30);
+          }
         }
       }
 
       // 區域分界線
       if (cursorWave > 0) {
-        ctx.strokeStyle = "rgba(15, 23, 42, 0.78)";
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.85)";
         ctx.lineWidth = 3;
         ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, vpH); ctx.stroke();
       }
 
-      // 區域頂部 GBA 招牌（固定跟隨該章節可視區中央）
+      // 區域頂部 GBA 招牌（固定跟隨可視區中央）
       const visL = Math.max(startX + 4, camX + 6);
       const visR = Math.min(endX - 4, camX + vpW - 6);
-      if (visR - visL > 64) {
+      if (visR - visL > 68) {
         const labelCx = (visL + visR) * 0.5;
-        ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
-        ctx.fillRect(labelCx - 46, 5, 92, 15);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.84)";
+        ctx.strokeStyle = "rgba(250, 204, 21, 0.7)";
+        ctx.lineWidth = 1.2;
+        ctx.fillRect(labelCx - 54, 6, 108, 17);
+        ctx.strokeRect(labelCx - 54, 6, 108, 17);
         ctx.fillStyle = th.text || "#FFFFFF";
         ctx.font = "bold 9px 'Noto Sans TC', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(`ACT ${chIdx + 1} · ${ch.shortName || ch.name}`, labelCx, 16);
+        ctx.fillText(`ACT ${chIdx + 1} · ${ch.shortName || ch.name}`, labelCx, 18);
       }
 
       cursorWave += len;
     });
 
-    // 2. 繪製火車站式 GBA 像素軌道／冒險小徑
-    ctx.lineCap = "round";
-    for (let i = 0; i < total - 1; i++) {
-      const ax = nodeX(i), ay = nodeY(i);
-      const bx = nodeX(i + 1), by = nodeY(i + 1);
-      const passed = (i + 1) < clearedWave;
-      const walkingSeg = (i + 1) === clearedWave;
-
-      ctx.strokeStyle = "#0F172A";
-      ctx.lineWidth = 10;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-
-      ctx.strokeStyle = passed ? "#FACC15" : "#64748B";
-      ctx.lineWidth = 5;
-      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-
-      if (walkingSeg) {
-        ctx.strokeStyle = "#FACC15";
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(ax, ay);
-        ctx.lineTo(ax + (bx - ax) * ease, ay + (by - ay) * ease);
-        ctx.stroke();
-      }
+    // 2. 繪製火車站式鐵道（碎石路基 ＋ 暗褐木枕木 ＋ 銀灰雙軌鋼軌 ＋ 已走過金軌）
+    const railStartX = nodeX(0) - 24;
+    const railEndX = nodeX(total - 1) + 24;
+    // 碎石路基
+    ctx.fillStyle = "#334155";
+    ctx.fillRect(railStartX, trackY - 9, railEndX - railStartX, 18);
+    ctx.fillStyle = "#475569";
+    ctx.fillRect(railStartX, trackY - 7, railEndX - railStartX, 14);
+    // 木枕木
+    ctx.fillStyle = "#5C2D0C";
+    for (let tx = railStartX + 4; tx < railEndX; tx += 12) {
+      ctx.fillRect(tx, trackY - 8, 5, 16);
+    }
+    // 雙軌鋼軌
+    ctx.fillStyle = "#CBD5E1";
+    ctx.fillRect(railStartX, trackY - 5, railEndX - railStartX, 2.5);
+    ctx.fillRect(railStartX, trackY + 2.5, railEndX - railStartX, 2.5);
+    // 已走過＋行進中的發光金軌
+    const goldEndX = duoX;
+    if (goldEndX > railStartX) {
+      ctx.fillStyle = "#FACC15";
+      ctx.fillRect(railStartX, trackY - 5, goldEndX - railStartX, 2.5);
+      ctx.fillRect(railStartX, trackY + 2.5, goldEndX - railStartX, 2.5);
     }
 
-    // 3. 繪製站點月台圓章、站名與前方 Boss 預覽
+    // 3. 繪製 GBA 車站月台、屋簷棚架、站牌與前方 Boss 預覽
     plan.forEach((cfg, idx) => {
       const sx = nodeX(idx), sy = nodeY(idx);
-      if (sx < camX - 60 || sx > camX + vpW + 60) return;
+      if (sx < camX - 70 || sx > camX + vpW + 70) return;
       const wNum = idx + 1;
       const isBoss = !!cfg.isBossWave;
       const isCleared = wNum <= clearedWave;
       const isNext = wNum === nextWave;
-      const r = isBoss ? 12 : 9;
 
+      // 月台底座與小亭屋簷（行軍放大期展現完整屋頂棚架）
+      if (expanded) {
+        const roofW = isBoss ? 48 : 38;
+        const roofY = sy - 58;
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(sx - roofW / 2 - 2, roofY - 2, roofW + 4, 12);
+        ctx.fillStyle = isBoss ? "#991B1B" : (isCleared ? "#15803D" : "#0369A1");
+        ctx.fillRect(sx - roofW / 2, roofY, roofW, 8);
+        ctx.fillStyle = isBoss ? "#F59E0B" : "#E0F2FE";
+        ctx.fillRect(sx - roofW / 2, roofY, roofW, 2);
+        // 月台支柱
+        ctx.fillStyle = "#1E293B";
+        ctx.fillRect(sx - roofW / 2 + 4, roofY + 8, 3, 38);
+        ctx.fillRect(sx + roofW / 2 - 7, roofY + 8, 3, 38);
+      }
+
+      // 站點圓章
+      const r = isBoss ? 12 : 9.5;
       ctx.fillStyle = "#0F172A";
       ctx.beginPath(); ctx.arc(sx, sy, r + 3, 0, Math.PI * 2); ctx.fill();
-
-      ctx.fillStyle = isCleared ? "#22C55E" : (isNext ? "#EF4444" : (isBoss ? "#7F1D1D" : "#334155"));
+      ctx.fillStyle = isCleared ? "#22C55E" : (isNext ? "#EF4444" : (isBoss ? "#991B1B" : "#334155"));
       ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
-
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 9px monospace";
       ctx.textAlign = "center";
       ctx.fillText(isCleared ? "OK" : String(wNum), sx, sy + 3);
 
-      // 下一站亮黃游標框
+      // 下一站亮黃對焦框
       if (isNext) {
         ctx.strokeStyle = "#FEF08A";
         ctx.lineWidth = 2.4;
         ctx.strokeRect(sx - 16, sy - 16, 32, 32);
       }
 
-      // 未通關 Boss 站點在上方顯示 Boss 像素頭像
+      // 未通關 Boss 站點在月台上方顯示 Boss 像素頭像
       if (isBoss && !isCleared && cfg.previewIds && cfg.previewIds[0]) {
         const bData = POKEMON_MAP.get(cfg.previewIds[0]);
         if (bData && bData.forward_sprite) {
           const rec = SpriteCache.get(bData.forward_sprite);
           if (rec && rec.loaded) {
-            ctx.drawImage(rec.img, sx - 16, sy - 46, 32, 32);
+            const bSz = expanded ? 42 : 32;
+            ctx.drawImage(rec.img, sx - bSz / 2, sy - (expanded ? 46 : 44), bSz, bSz);
           }
         }
       }
 
-      // 下方站牌編號與簡稱
-      ctx.fillStyle = "rgba(15, 23, 42, 0.76)";
-      ctx.fillRect(sx - 36, 94, 72, 16);
+      // 下方 GBA 鐵道站牌（立柱＋白底深框站名）
+      const signY = sy + (expanded ? 22 : 17);
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(sx - 2, sy + r + 2, 4, signY - (sy + r + 2));
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = isNext ? "#FACC15" : "#64748B";
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(sx - 38, signY, 76, 17);
+      ctx.strokeRect(sx - 38, signY, 76, 17);
       ctx.fillStyle = isNext ? "#FEF08A" : (isCleared ? "#86EFAC" : "#CBD5E1");
       ctx.font = "bold 9px 'Noto Sans TC', sans-serif";
-      const shortLbl = isBoss ? `W${wNum} BOSS` : `第 ${wNum} 站`;
-      ctx.fillText(shortLbl, sx, 105);
+      ctx.fillText(isBoss ? `W${wNum} BOSS` : `第 ${wNum} 站`, sx, signY + 12);
     });
 
-    // 4. 繪製「訓練家 ＋ 主角寶可夢」向右一步一步走去下一站！
-    const stepPhase = walkT * 10 * Math.PI;
+    // 4. 高清放大「訓練家 ＋ 主角寶可夢」向右一步一步走去下一站！
+    const stepPhase = walkT * 12 * Math.PI;
     const isMoving = walkT < 0.99;
-    const bobPoke = isMoving ? Math.abs(Math.sin(stepPhase)) * 5 : 0;
-    const bobTrainer = isMoving ? Math.abs(Math.sin(stepPhase + 1.2)) * 3.5 : 0;
+    const bobPoke = isMoving ? Math.abs(Math.sin(stepPhase)) * (expanded ? 6.5 : 4.5) : 0;
+    const bobTrainer = isMoving ? Math.abs(Math.sin(stepPhase + 1.2)) * (expanded ? 4.5 : 3) : 0;
+    const trW = expanded ? 38 : 30, trH = expanded ? 46 : 36;
+    const pkSz = expanded ? 46 : 34;
 
     // 腳底像素塵土（移動中）
     if (isMoving) {
-      ctx.fillStyle = "rgba(255, 255, 255, 0.65)";
-      const d1 = (walkT * 45) % 14;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+      const d1 = (walkT * 52) % 16;
       ctx.beginPath();
-      ctx.arc(duoX - 24 - d1, duoY + 4, 2.6, 0, Math.PI * 2);
-      ctx.arc(duoX - 10 - d1 * 0.7, duoY + 5, 2.0, 0, Math.PI * 2);
+      ctx.arc(duoX - 30 - d1, duoY + 3, expanded ? 3.4 : 2.5, 0, Math.PI * 2);
+      ctx.arc(duoX - 12 - d1 * 0.7, duoY + 4, expanded ? 2.6 : 2.0, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // 訓練家（跟在主角左後方 22px，優先使用 3×4 行走圖集向右行 [row=2]）
+    // 訓練家（3×4 行走圖集向右行 [row=2]）
     const tr = app.selectedTrainer || TRAINERS[0];
     const trCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(tr, app.saveData) : tr;
     const sheetUrl = trCos.walkSheet || tr.walkSheet;
@@ -1426,13 +1748,12 @@ window.ModeExpedition = {
     if (sheetRec && sheetRec.loaded && sheetRec.img.naturalWidth > 0) {
       const fw = Math.floor(sheetRec.img.naturalWidth / 3);
       const fh = Math.floor(sheetRec.img.naturalHeight / 4);
-      const col = isMoving ? [0, 1, 2, 1][Math.floor(walkT * 12) % 4] : 1;
-      const row = 2; // 向右行走列
-      ctx.drawImage(sheetRec.img, col * fw, row * fh, fw, fh, Math.round(duoX - 38), Math.round(duoY - 40 - bobTrainer), 30, 36);
+      const col = isMoving ? [0, 1, 2, 1][Math.floor(walkT * 14) % 4] : 1;
+      ctx.drawImage(sheetRec.img, col * fw, 2 * fh, fw, fh, Math.round(duoX - trW - 6), Math.round(duoY - trH - 2 - bobTrainer), trW, trH);
     } else if (trCos.sprite) {
       const trRec = SpriteCache.get(trCos.sprite);
       if (trRec && trRec.loaded) {
-        ctx.drawImage(trRec.img, Math.round(duoX - 38), Math.round(duoY - 38 - bobTrainer), 30, 34);
+        ctx.drawImage(trRec.img, Math.round(duoX - trW - 6), Math.round(duoY - trH - 2 - bobTrainer), trW, trH);
       }
     }
 
@@ -1443,29 +1764,67 @@ window.ModeExpedition = {
       const pRec = SpriteCache.get(pUrl);
       if (pRec && pRec.loaded) {
         ctx.save();
-        ctx.translate(Math.round(duoX + 2), Math.round(duoY - 22 - bobPoke));
+        ctx.translate(Math.round(duoX + 6), Math.round(duoY - pkSz * 0.56 - bobPoke));
         ctx.scale(-1, 1);
-        ctx.drawImage(pRec.img, -17, -17, 34, 34);
+        ctx.drawImage(pRec.img, -pkSz / 2, -pkSz / 2, pkSz, pkSz);
         ctx.restore();
       }
     }
 
-    // 跨區休整營地治癒星光（跨 Act 過境中段閃耀）
-    if (isCrossingAct && walkT > 0.38 && walkT < 0.88) {
-      const spAlpha = Math.sin(((walkT - 0.38) / 0.50) * Math.PI);
+    // 跨區休整營地治癒星光
+    if (isCrossingAct && walkT > 0.36 && walkT < 0.88) {
+      const spAlpha = Math.sin(((walkT - 0.36) / 0.52) * Math.PI);
       ctx.save();
       ctx.globalAlpha = spAlpha;
       ctx.fillStyle = "#4ADE80";
-      for (let k = 0; k < 5; k++) {
-        const sxp = duoX - 18 + k * 9;
-        const syp = duoY - 46 - ((walkT * 30 + k * 5) % 14);
-        ctx.fillRect(sxp - 1.5, syp - 4, 3, 8);
-        ctx.fillRect(sxp - 4, syp - 1.5, 8, 3);
+      for (let k = 0; k < 6; k++) {
+        const sxp = duoX - 24 + k * 10;
+        const syp = duoY - (expanded ? 62 : 46) - ((walkT * 36 + k * 6) % 18);
+        ctx.fillRect(sxp - 1.5, syp - 4.5, 3, 9);
+        ctx.fillRect(sxp - 4.5, syp - 1.5, 9, 3);
       }
       ctx.restore();
     }
 
     ctx.restore();
+
+    // 5. 下一站天氣預告微粒（雨絲／極光／雪花／火星）
+    const nextCfg = plan[Math.min(total - 1, nextWave - 1)];
+    const nw = nextCfg && nextCfg.weather;
+    if (nw && nw !== "CLEAR") {
+      ctx.save();
+      if (nw === "RAIN" || nw === "THUNDER") {
+        ctx.strokeStyle = "rgba(186, 230, 253, 0.50)";
+        ctx.lineWidth = 1.4;
+        for (let r = 0; r < 18; r++) {
+          const rx = ((r * 37 + walkT * 180) % vpW);
+          const ry = ((r * 29 + walkT * 260) % vpH);
+          ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx - 5, ry + 12); ctx.stroke();
+        }
+      } else if (nw === "BLIZZARD") {
+        ctx.fillStyle = "rgba(224, 242, 254, 0.78)";
+        for (let s = 0; s < 20; s++) {
+          const sx = ((s * 43 + walkT * 90) % vpW);
+          const sy = ((s * 31 + walkT * 140) % vpH);
+          ctx.fillRect(sx, sy, 2.5, 2.5);
+        }
+      } else if (nw === "PSYCHIC") {
+        ctx.fillStyle = "rgba(232, 121, 249, 0.65)";
+        for (let a = 0; a < 14; a++) {
+          const ax = ((a * 51 + walkT * 60) % vpW);
+          const ay = ((a * 37 + Math.sin(walkT * 6 + a) * 20) % vpH);
+          ctx.fillRect(ax, ay, 3, 3);
+        }
+      } else if (nw === "HEATWAVE") {
+        ctx.fillStyle = "rgba(251, 146, 60, 0.70)";
+        for (let f = 0; f < 14; f++) {
+          const fx = ((f * 47) % vpW);
+          const fy = vpH - ((f * 23 + walkT * 110) % vpH);
+          ctx.fillRect(fx, fy, 2.5, 2.5);
+        }
+      }
+      ctx.restore();
+    }
 
     // 視窗外框 GBA 金邊
     ctx.strokeStyle = "#F59E0B";
