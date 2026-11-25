@@ -80,6 +80,7 @@ Object.assign(window.GameApp, {
             screenShake: "normal",
             fourthSlotPoolMode: "affinity",
             skillAlpha: "85",
+            uiTheme: "gba",
             ...(this.saveData.settings || {}),
             ...(parsed.settings || {})
           }
@@ -315,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.5.5p1";
+        const ver = this.APP_VERSION || "v7.5.6";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -560,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.5.5p1";
+      const curVer = this.APP_VERSION || "v7.5.6";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1367,7 +1368,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.5.5p1",
+      lastSeenVersion: this.APP_VERSION || "v7.5.6",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1375,7 +1376,8 @@ Object.assign(window.GameApp, {
         procNoticeMode: "icon",
         screenShake: "normal",
         fourthSlotPoolMode: "affinity",
-        skillAlpha: "85"
+        skillAlpha: "85",
+        uiTheme: "gba"
       }
     };
   },
@@ -2886,7 +2888,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.5.5p1",
+      version: this.APP_VERSION || "v7.5.6",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3555,8 +3557,23 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.5.5 五大屬性新招式補完 ＆ 全局雙主題切換版</span>
+            <span class="font-black text-sm text-amber-300">v7.5.6 新 5 招深度重構 ‧ 全 151 原作配表＆特性聯動 ‧ 黑金主題精修版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">五大新招普攻與專屬超武全面重構（非通用全屏）</div>
+            <div>• <strong>十字剪／暗影爪</strong>：修復近戰樣式欄位，實裝多層翡翠雙鐮 X 斬與三道幽靈爪痕（Mega 耿鬼享猩紅冥火）；超武分別為跟隨旋轉 3 連【終極十字星斬】與陣紋收束【冥界裂空爪】。</div>
+            <div>• <strong>岩崩</strong>：重繪立體三面稜角巨岩斜向天墜＋地面震裂陰影與飛濺碎石；超武【大陸板塊崩落】震裂斷層連墜 8 道巨岩。</div>
+            <div>• <strong>毒擊／電球</strong>：毒擊命中中毒目標觸發 +40% 毒爆並傳染周圍 65px 敵群；電球飛行中每 0.25s 自動抽射電弧，超武【超載磁暴球】球間拉出高壓閃電網！</div>
+            <div class="text-amber-300 font-black pt-1">全 151 圖鑑忠於原作天生招重校 ＆ 8 大特性聯動</div>
+            <div>• 雙屬性精靈優先各取 1 招主／副屬性核心本系招，徹底消除岩石系放龍之俯衝、飛行鳥類放地震等違合配置，並全面打通 8 大先天特性與第 4 槽本系優先卡池。</div>
+            <div class="text-sky-300 font-black pt-1">深藍黑金戰術風反差修復 ＆ 設定同步</div>
+            <div>• 徹底修復大廳 6 鍵、進化鏈與選角頁在黑金主題下的白底白字反差問題，並統一新手存檔與匯入設定的主題預設值。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.5.5 五大屬性新招式補完 ＆ 全局雙主題切換版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">新增 5 大屬性招式 ＆ 5 套專屬終極超武（總計 25 招）</div>
@@ -3914,7 +3931,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.5.5p1";
+    const curVer = this.APP_VERSION || "v7.5.6";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4310,13 +4327,13 @@ Object.assign(window.GameApp, {
           const poolMode = (this.saveData && this.saveData.settings && this.saveData.settings.fourthSlotPoolMode) || "affinity";
           const traitAffinityMap = {
             heavy_slam:         ["Ground", "Rock", "Normal", "Fighting", "Fire", "Dragon"],
-            quick_attack:       ["Electric", "Flying", "Normal", "Fighting", "Psychic"],
-            iron_fist:          ["Fighting", "Normal", "Ground", "Rock", "Fire", "Electric"],
+            quick_attack:       ["Electric", "Flying", "Bug", "Normal", "Fighting", "Psychic"],
+            iron_fist:          ["Fighting", "Bug", "Ghost", "Normal", "Ground", "Rock"],
             mega_launcher:      ["Water", "Ice", "Dragon", "Psychic"],
             overgrow_thorn:     ["Grass", "Poison", "Bug"],
-            dragon_maw:         ["Fire", "Dragon", "Flying", "Ground"],
+            dragon_maw:         ["Fire", "Dragon", "Flying", "Rock", "Ground"],
             psychic_surge:      ["Psychic", "Ghost", "Poison", "Electric"],
-            legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying"]
+            legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying", "Rock"]
           };
           const traitId = p.innateTrait ? p.innateTrait.id : "";
           const traitTypes = traitAffinityMap[traitId] || [];

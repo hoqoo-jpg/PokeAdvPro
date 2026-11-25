@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.5.5p1",
+  APP_VERSION: "v7.5.6",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -2669,7 +2669,7 @@ window.GameApp = {
         }
         SkillsEngine.fireSkill(p, skSlot.id, skSlot.level, false, 1.0, slotIdx);
         const lvCdBonus = skSlot.level >= 9 ? 0.75 : (skSlot.level >= 4 ? 0.88 : 1.0);
-        const isQuickSkill = ["Tackle", "AirSlash", "Air Slash", "Thunderbolt"].includes(skSlot.id);
+        const isQuickSkill = ["Tackle", "AirSlash", "Air Slash", "Thunderbolt", "ElectroBall", "XScissor"].includes(skSlot.id);
         const traitCdMod = (p.innateTrait && (isQuickSkill || p.innateTrait.id === "legendary_pressure"))
           ? (p.innateTrait.quickAttackCdMult || 1.0)
           : 1.0;

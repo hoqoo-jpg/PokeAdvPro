@@ -24,7 +24,29 @@ Object.assign(window.SkillsEngine, {
       const prog = Math.max(0, Math.min(1, 1 - (hz.timer / (hz.maxTime || 0.45))));
       ctx.save();
 
-      if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
+      if (hz.kind === "shadow_rune_circle") {
+        const alpha = Math.min(1, hz.timer * 2.2);
+        const rx = hz.radius;
+        const ry = hz.radius * 0.68;
+        const mainC = hz.isMegaGengar ? `rgba(225, 29, 72, ${alpha * 0.85})` : `rgba(168, 85, 247, ${alpha * 0.85})`;
+        const fillG = ctx.createRadialGradient(sx, sy, rx * 0.1, sx, sy, rx);
+        fillG.addColorStop(0, hz.isMegaGengar ? `rgba(136, 19, 55, ${alpha * 0.55})` : `rgba(88, 28, 135, ${alpha * 0.55})`);
+        fillG.addColorStop(1, "rgba(15, 23, 42, 0)");
+        ctx.fillStyle = fillG;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = mainC;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, rx * (0.75 + prog * 0.25), ry * (0.75 + prog * 0.25), 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, rx * 0.52, ry * 0.52, now * 2.2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      } else       if (hz.kind === "poison_puddle" || hz.kind === "toxic_swamp") {
         const isUltSwamp = (hz.kind === "toxic_swamp");
         const isCrimson = !!hz.isMegaGengarPuddle || hz.color === "#E11D48" || hz.color === "#EC4899";
         const alpha = Math.min(1, hz.timer * 1.2);
@@ -2568,75 +2590,217 @@ Object.assign(window.SkillsEngine, {
       ctx.globalAlpha = (Math.max(0, 1 - prog * 0.72)) * sAlpha;
 
       if (m.style === "rock_slide_impact") {
+        // 【岩崩（RockSlide）】：地面震裂落點陰影 ➔ 斜向天墜多面稜角巨岩＋飛濺碎石 ➔ 砸地爆開像素塵煙環與金星
         const sx = toSx(m.x), sy = toSy(m.y);
-        const r = m.radius || 55;
-        const dropFrac = Math.min(1, prog / 0.32);
-        const fallY = (1 - dropFrac) * 95;
+        const r = m.radius || 56;
+        const dropFrac = Math.min(1, prog / 0.28);
+        const easeDrop = dropFrac * dropFrac;
+        const fallX = (1 - easeDrop) * 42;
+        const fallY = (1 - easeDrop) * 115;
+        const seed = m.seed || 1.7;
         ctx.save();
         ctx.translate(sx, sy);
-        if (dropFrac >= 0.85) {
-          const ringP = (prog - 0.25) / 0.75;
-          ctx.strokeStyle = `rgba(217, 119, 6, ${Math.max(0, 1 - ringP) * 0.9})`;
-          ctx.lineWidth = 4;
+
+        // 1. 地面落點陰影（隨巨岩逼近擴大變深）
+        ctx.fillStyle = `rgba(30, 15, 5, ${0.28 + easeDrop * 0.42})`;
+        ctx.beginPath();
+        ctx.ellipse(0, 6, r * (0.32 + easeDrop * 0.45), r * 0.22 * (0.32 + easeDrop * 0.45), 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. 砸地衝擊波、放射裂紋與飛散碎石塊
+        if (dropFrac >= 0.88) {
+          const ringP = Math.max(0, (prog - 0.24) / 0.76);
+          const fade = Math.max(0, 1 - ringP);
+          // 塵煙震波環
+          ctx.strokeStyle = m.isUltimate ? `rgba(251, 191, 36, ${fade * 0.95})` : `rgba(217, 119, 6, ${fade * 0.9})`;
+          ctx.lineWidth = 4.5 * fade + 1;
           ctx.beginPath();
-          ctx.ellipse(0, 4, r * (0.45 + ringP * 0.55), r * 0.36 * (0.45 + ringP * 0.55), 0, 0, Math.PI * 2);
+          ctx.ellipse(0, 5, r * (0.35 + ringP * 0.72), r * 0.34 * (0.35 + ringP * 0.72), 0, 0, Math.PI * 2);
+          ctx.stroke();
+          // 地面放射裂縫
+          ctx.strokeStyle = `rgba(69, 26, 3, ${fade * 0.85})`;
+          ctx.lineWidth = 2.2;
+          for (let c = 0; c < 5; c++) {
+            const ca = seed + c * 1.25;
+            ctx.beginPath();
+            ctx.moveTo(0, 4);
+            ctx.lineTo(Math.cos(ca) * r * (0.35 + ringP * 0.45), 4 + Math.sin(ca) * r * 0.26 * (0.35 + ringP * 0.45));
+            ctx.stroke();
+          }
+          // 飛濺像素碎石塊 + 十字金星
+          for (let pIdx = 0; pIdx < 6; pIdx++) {
+            const pa = seed * 2 + pIdx * 1.05;
+            const pd = r * (0.25 + ringP * 0.75);
+            const px = Math.cos(pa) * pd;
+            const py = Math.sin(pa) * pd * 0.48 - Math.sin(ringP * Math.PI) * 28;
+            ctx.fillStyle = pIdx % 2 === 0 ? "#B45309" : "#F59E0B";
+            ctx.fillRect(px - 4, py - 4, 8, 7);
+            ctx.strokeStyle = "#291507";
+            ctx.lineWidth = 1.2;
+            ctx.strokeRect(px - 4, py - 4, 8, 7);
+          }
+          // 十字衝擊金星
+          if (ringP < 0.45) {
+            const st = (1 - ringP / 0.45) * r * 0.55;
+            ctx.fillStyle = "#FEF08A";
+            ctx.beginPath();
+            ctx.moveTo(0, -st); ctx.lineTo(st * 0.22, -st * 0.22); ctx.lineTo(st, 0);
+            ctx.lineTo(st * 0.22, st * 0.22); ctx.lineTo(0, st); ctx.lineTo(-st * 0.22, st * 0.22);
+            ctx.lineTo(-st, 0); ctx.lineTo(-st * 0.22, -st * 0.22); ctx.closePath();
+            ctx.fill();
+          }
+        }
+
+        // 3. 主巨岩本體（立體三面像素切面＋深褐描邊＋斜向落石速度線）
+        const rockAlpha = prog < 0.72 ? 1.0 : Math.max(0, (1 - prog) / 0.28);
+        ctx.globalAlpha *= rockAlpha;
+        ctx.translate(fallX, -fallY);
+        if (dropFrac < 0.95) {
+          ctx.strokeStyle = "rgba(253, 224, 71, 0.55)";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(8, -10); ctx.lineTo(34, -46);
+          ctx.moveTo(-10, -6); ctx.lineTo(14, -40);
           ctx.stroke();
         }
-        ctx.translate(0, -fallY);
-        ctx.fillStyle = "#78350F";
-        ctx.strokeStyle = "#FEF3C7";
-        ctx.lineWidth = 2;
-        const br = r * 0.42;
+        const br = r * (m.isUltimate ? 0.50 : 0.44);
+        // 暗部底塊
+        ctx.fillStyle = "#5C2808";
+        ctx.strokeStyle = "#1C0D04";
+        ctx.lineWidth = 2.6;
         ctx.beginPath();
-        ctx.moveTo(-br, br * 0.4); ctx.lineTo(-br * 0.6, -br * 0.85);
-        ctx.lineTo(br * 0.55, -br * 0.95); ctx.lineTo(br, -br * 0.1);
-        ctx.lineTo(br * 0.45, br * 0.85); ctx.lineTo(-br * 0.5, br * 0.75);
+        ctx.moveTo(-br * 0.95, br * 0.25); ctx.lineTo(-br * 0.65, -br * 0.75);
+        ctx.lineTo(br * 0.15, -br * 1.02); ctx.lineTo(br * 0.92, -br * 0.35);
+        ctx.lineTo(br * 0.78, br * 0.65); ctx.lineTo(-br * 0.25, br * 0.90);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle = "#D97706";
+        // 中間岩面
+        ctx.fillStyle = "#B45309";
         ctx.beginPath();
-        ctx.moveTo(-br * 0.55, -br * 0.75); ctx.lineTo(br * 0.45, -br * 0.8);
-        ctx.lineTo(br * 0.1, br * 0.1); ctx.closePath();
+        ctx.moveTo(-br * 0.80, br * 0.12); ctx.lineTo(-br * 0.55, -br * 0.68);
+        ctx.lineTo(br * 0.15, -br * 0.92); ctx.lineTo(br * 0.42, -br * 0.05);
+        ctx.lineTo(-br * 0.15, br * 0.45); ctx.closePath();
+        ctx.fill();
+        // 高光受光切面
+        ctx.fillStyle = m.isUltimate ? "#FBBF24" : "#F59E0B";
+        ctx.beginPath();
+        ctx.moveTo(-br * 0.52, -br * 0.62); ctx.lineTo(br * 0.12, -br * 0.86);
+        ctx.lineTo(br * 0.62, -br * 0.32); ctx.lineTo(br * 0.12, -br * 0.12); ctx.closePath();
         ctx.fill();
         ctx.restore();
       } else if (m.style === "x_scissor") {
+        // 【十字剪（XScissor）】：雙層翡翠彎月光鐮 X 交錯斬擊 ＋ 中心爆裂菱形星芒 ＋ 音爆氣環
         const sx = toSx(m.x), sy = toSy(m.y);
-        const r = m.radius || 70;
-        const scale = 0.55 + Math.sin(Math.min(1, prog * 1.4) * Math.PI * 0.5) * 0.55;
+        const r = m.radius || 72;
+        const burst = Math.min(1, prog / 0.35);
+        const scale = 0.55 + Math.sin(burst * Math.PI * 0.5) * 0.55;
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(m.angle || 0);
-        [-Math.PI / 4, Math.PI / 4].forEach(armAng => {
+
+        if (m.isUltimate) {
+          ctx.strokeStyle = `rgba(190, 242, 100, ${Math.max(0, 1 - prog) * 0.85})`;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * (0.45 + prog * 0.65), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        [-Math.PI / 4, Math.PI / 4].forEach((armAng, aIdx) => {
           ctx.save();
           ctx.rotate(armAng);
-          ctx.fillStyle = m.isUltimate ? "#FEF08A" : "#84CC16";
+          const L = r * scale;
+          const W = r * (m.isUltimate ? 0.24 : 0.20) * scale;
+          // 外層螢光綠光暈
+          ctx.fillStyle = m.isUltimate ? "rgba(250, 204, 21, 0.45)" : "rgba(74, 222, 128, 0.45)";
           ctx.beginPath();
-          ctx.ellipse(0, 0, r * scale, r * 0.18 * scale, 0, 0, Math.PI * 2);
+          ctx.moveTo(-L * 1.06, 0);
+          ctx.quadraticCurveTo(0, -W * 1.45, L * 1.06, 0);
+          ctx.quadraticCurveTo(0, W * 0.55, -L * 1.06, 0);
           ctx.fill();
+          // 中層高飽和翡翠鐮刃
+          ctx.fillStyle = m.isUltimate ? "#BEF264" : "#84CC16";
+          ctx.strokeStyle = "#14532D";
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          ctx.moveTo(-L, 0);
+          ctx.quadraticCurveTo(0, -W, L, 0);
+          ctx.quadraticCurveTo(0, W * 0.28, -L, 0);
+          ctx.fill();
+          ctx.stroke();
+          // 內層純白銳利刃心
           ctx.fillStyle = "#FFFFFF";
           ctx.beginPath();
-          ctx.ellipse(0, 0, r * 0.78 * scale, r * 0.07 * scale, 0, 0, Math.PI * 2);
+          ctx.moveTo(-L * 0.82, -W * 0.08);
+          ctx.quadraticCurveTo(0, -W * 0.55, L * 0.82, -W * 0.08);
+          ctx.quadraticCurveTo(0, -W * 0.12, -L * 0.82, -W * 0.08);
           ctx.fill();
           ctx.restore();
         });
+
+        // 交叉點爆裂菱形星芒
+        const starR = r * 0.36 * (1 - prog * 0.4);
+        ctx.fillStyle = "#FEF9C3";
+        ctx.beginPath();
+        ctx.moveTo(0, -starR); ctx.lineTo(starR * 0.26, -starR * 0.26); ctx.lineTo(starR, 0);
+        ctx.lineTo(starR * 0.26, starR * 0.26); ctx.lineTo(0, starR); ctx.lineTo(-starR * 0.26, starR * 0.26);
+        ctx.lineTo(-starR, 0); ctx.lineTo(-starR * 0.26, -starR * 0.26); ctx.closePath();
+        ctx.fill();
         ctx.restore();
       } else if (m.style === "shadow_claw") {
+        // 【暗影爪（ShadowClaw）】：三道紫紅漸層巨型鬼爪裂痕 ＋ 純白撕裂芯 ＋ 飄散幽靈魂火
         const sx = toSx(m.x), sy = toSy(m.y);
-        const r = m.radius || 75;
-        const sweep = Math.min(1, prog * 1.6);
+        const r = m.radius || 76;
+        const sweep = Math.min(1, prog * 1.85);
+        const isCrimson = !!m.isMegaGengar;
         ctx.save();
         ctx.translate(sx, sy);
         ctx.rotate(m.angle || 0);
-        [-18, 0, 18].forEach((yOff, idx) => {
-          ctx.strokeStyle = m.isMegaGengar ? (idx === 1 ? "#FDA4AF" : "#E11D48") : (idx === 1 ? "#F5D0FE" : "#9333EA");
-          ctx.lineWidth = idx === 1 ? 6 : 4;
+
+        const clawOffsets = [-22, 0, 22];
+        clawOffsets.forEach((yOff, idx) => {
+          const lenScale = idx === 1 ? 1.08 : 0.88;
+          const x0 = -r * 0.72 * lenScale;
+          const x1 = (-r * 0.15 + sweep * r * 0.95) * lenScale;
+          const midX = (x0 + x1) * 0.5;
+          const curveY = yOff + (idx - 1) * 10;
+
+          // 外層暗影紫/猩紅發光拖尾
+          ctx.strokeStyle = isCrimson ? "rgba(190, 18, 60, 0.55)" : "rgba(126, 34, 206, 0.55)";
+          ctx.lineWidth = idx === 1 ? 14 : 10;
           ctx.lineCap = "round";
           ctx.beginPath();
-          ctx.moveTo(-r * 0.65, yOff - 14);
-          ctx.quadraticCurveTo(0, yOff + (idx - 1) * 8, r * (0.2 + sweep * 0.65), yOff + 14);
+          ctx.moveTo(x0, yOff - 12);
+          ctx.quadraticCurveTo(midX, curveY, x1, yOff + 14);
+          ctx.stroke();
+
+          // 中層高飽和紫紅爪刃
+          ctx.strokeStyle = isCrimson ? (idx === 1 ? "#FB7185" : "#E11D48") : (idx === 1 ? "#E879F9" : "#9333EA");
+          ctx.lineWidth = idx === 1 ? 7.5 : 5.5;
+          ctx.beginPath();
+          ctx.moveTo(x0, yOff - 12);
+          ctx.quadraticCurveTo(midX, curveY, x1, yOff + 14);
+          ctx.stroke();
+
+          // 內層純白尖銳裂痕芯
+          ctx.strokeStyle = "#FDF4FF";
+          ctx.lineWidth = idx === 1 ? 2.6 : 1.8;
+          ctx.beginPath();
+          ctx.moveTo(x0 + 8, yOff - 10);
+          ctx.quadraticCurveTo(midX, curveY, x1 - 4, yOff + 12);
           ctx.stroke();
         });
+
+        // 飄散像素幽靈魂火粒子
+        for (let w = 0; w < 4; w++) {
+          const wx = (w - 1.5) * r * 0.34;
+          const wy = Math.sin(prog * 10 + w * 2) * 16 - prog * 18;
+          ctx.fillStyle = isCrimson ? "#FDA4AF" : "#D8B4FE";
+          ctx.beginPath();
+          ctx.arc(wx, wy, 3.5 * (1 - prog * 0.5), 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       } else if (m.style === "hydro_pump_beam") {
         // 【水炮（Hydro Pump）】：雙柱加粗高壓水柱 ＋ 水箭龜 (#009) 專屬金青【超級發射器】雙肩平行重炮 ＋ Lv.8+ 三股純白螺旋絞線
@@ -4128,40 +4292,65 @@ Object.assign(window.SkillsEngine, {
       ctx.translate(sx, sy);
 
       if (pr.vfx === "poison_jab") {
+        // 【毒擊（PoisonJab）】：高飽和紫紅毒矛 ＋ 螢光綠毒液拖尾與飛沫毒泡
         ctx.rotate(pr.angle || 0);
-        ctx.fillStyle = "#581C87";
+        // 拖尾毒氣束
+        const tGrad = ctx.createLinearGradient(-r * 2.2, 0, r * 1.4, 0);
+        tGrad.addColorStop(0, "rgba(88, 28, 135, 0)");
+        tGrad.addColorStop(1, "rgba(192, 132, 252, 0.85)");
+        ctx.fillStyle = tGrad;
         ctx.beginPath();
-        ctx.moveTo(r * 1.45, 0); ctx.lineTo(-r * 1.1, -r * 0.55); ctx.lineTo(-r * 0.65, 0); ctx.lineTo(-r * 1.1, r * 0.55);
+        ctx.moveTo(r * 1.2, 0); ctx.lineTo(-r * 2.2, -r * 0.42); ctx.lineTo(-r * 2.2, r * 0.42); ctx.closePath();
+        ctx.fill();
+        // 深紫黑像素描邊矛尖
+        ctx.fillStyle = "#3B0764";
+        ctx.beginPath();
+        ctx.moveTo(r * 1.65, 0); ctx.lineTo(-r * 0.95, -r * 0.62); ctx.lineTo(-r * 0.55, 0); ctx.lineTo(-r * 0.95, r * 0.62);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = "#C084FC";
+        // 高飽和紫紅矛身
+        ctx.fillStyle = "#D946EF";
         ctx.beginPath();
-        ctx.moveTo(r * 1.25, 0); ctx.lineTo(-r * 0.75, -r * 0.34); ctx.lineTo(-r * 0.45, 0); ctx.lineTo(-r * 0.75, r * 0.34);
+        ctx.moveTo(r * 1.42, 0); ctx.lineTo(-r * 0.72, -r * 0.40); ctx.lineTo(-r * 0.40, 0); ctx.lineTo(-r * 0.72, r * 0.40);
         ctx.closePath();
         ctx.fill();
+        // 螢光綠毒液高光點＋滴落毒泡
         ctx.fillStyle = "#4ADE80";
         ctx.beginPath();
-        ctx.arc(r * 0.35, 0, r * 0.22, 0, Math.PI * 2);
+        ctx.arc(r * 0.45, 0, r * 0.22, 0, Math.PI * 2);
+        ctx.arc(-r * 0.65, -r * 0.48, r * 0.16, 0, Math.PI * 2);
+        ctx.arc(-r * 1.05, r * 0.42, r * 0.14, 0, Math.PI * 2);
         ctx.fill();
       } else if (pr.vfx === "electro_orb") {
-        const pulse = 1 + Math.sin(now * 24 + pr.x * 0.1) * 0.12;
-        const grad = ctx.createRadialGradient(0, 0, r * 0.15, 0, 0, r * 1.25 * pulse);
+        // 【電球（ElectroBall）】：純白高熱球心 ＋ 雙層跳動金黃等離子環 ＋ 鋸齒放電電弧
+        const pulse = 1 + Math.sin(now * 26 + pr.x * 0.12) * 0.12;
+        const grad = ctx.createRadialGradient(0, 0, r * 0.12, 0, 0, r * 1.38 * pulse);
         grad.addColorStop(0, "#FFFFFF");
-        grad.addColorStop(0.45, "#FACC15");
+        grad.addColorStop(0.38, "#FEF08A");
+        grad.addColorStop(0.72, "#F59E0B");
         grad.addColorStop(1, "rgba(234, 179, 8, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 1.25 * pulse, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 1.38 * pulse, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 2;
+        // 外圈跳動電漿環
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = pr.isUltOrb ? 2.6 : 1.8;
         ctx.beginPath();
-        for (let k = 0; k < 6; k++) {
-          const a = now * 8 + (k * Math.PI) / 3;
-          ctx.moveTo(Math.cos(a) * r * 0.45, Math.sin(a) * r * 0.45);
-          ctx.lineTo(Math.cos(a + 0.25) * r * 1.1, Math.sin(a + 0.25) * r * 1.1);
-        }
+        ctx.arc(0, 0, r * 0.78 * pulse, 0, Math.PI * 2);
         ctx.stroke();
+        // 鋸齒金色放電爪
+        ctx.strokeStyle = "#FEF08A";
+        ctx.lineWidth = pr.isUltOrb ? 2.8 : 2.0;
+        for (let k = 0; k < 6; k++) {
+          const a = now * 9 + (k * Math.PI) / 3;
+          const midA = a + 0.22;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r * 0.42, Math.sin(a) * r * 0.42);
+          ctx.lineTo(Math.cos(midA) * r * 0.85, Math.sin(midA) * r * 0.85);
+          ctx.lineTo(Math.cos(a - 0.12) * r * 1.28, Math.sin(a - 0.12) * r * 1.28);
+          ctx.stroke();
+        }
       } else if (pr.vfx === "ember_spark") {
         // 【小火龍・火花（Ember）】：不規則跳動像素火星簇（高溫明黃火芯 ＋ 3 顆錯落閃爍菱形／方形火星）
         const seed = pr.cinderSeed || (pr.x * 0.13);

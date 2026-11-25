@@ -245,46 +245,46 @@ Ember: {
     desc: "隨機搖出全圖鑑任意強力攻擊招式！",
     evoDesc: "【終極超武】全場隨機觸發三重不同屬性超武同時轟炸！"
   },
-  // v7.5.5 新增 5 大屬性補完招式（岩／蟲／毒／電／幽靈）
+  // v7.5.6 重構 5 大屬性補完招式（岩／蟲／毒／電／幽靈）
   RockSlide: {
-    id: "RockSlide", name: "岩崩", type: "Rock", baseDmg: 36, baseCd: 1.55, ultMinCd: 3.6, ultPowerBonus: 1.05,
-    knockback: 16, isMelee: false, vfx: "rock_slide", reqItem: "soft_sand",
-    evolvedName: "大陸板塊崩落", color: "#B45309",
+    id: "RockSlide", name: "岩崩", type: "Rock", baseDmg: 36, baseCd: 1.52, ultMinCd: 3.6, ultPowerBonus: 1.08,
+    knockback: 18, isMelee: false, vfx: "rock_slide", reqItem: "soft_sand",
+    evolvedName: "大陸板塊崩落", color: "#D97706",
     extraIconCol: 0, svgIcon: "rock",
-    desc: "召喚巨岩從天砸落指定區域，造成範圍岩系重擊與強烈擊退！",
-    evoDesc: "【終極超武】六道巨型板塊隕岩連環天墜，引發全場岩爆震波！"
+    desc: "鎖定敵群預警落點，連續砸下 3～5 顆稜角巨岩與碎石震波，造成強擊退重擊！",
+    evoDesc: "【終極超武】震裂地面斷層並召喚 8 道巨型板塊隕岩連環天墜，引發岩爆震波！"
   },
   XScissor: {
-    id: "XScissor", name: "十字剪", type: "Bug", baseDmg: 32, baseCd: 1.08, ultMinCd: 3.2, ultPowerBonus: 1.05,
-    knockback: 10, isMelee: true, style: "x_scissor", reqItem: "poison_barb",
+    id: "XScissor", name: "十字剪", type: "Bug", baseDmg: 32, baseCd: 1.05, ultMinCd: 3.2, ultPowerBonus: 1.08,
+    knockback: 10, isMelee: true, meleeStyle: "x_scissor", reqItem: "poison_barb",
     evolvedName: "終極十字星斬", color: "#84CC16",
     extraIconCol: 1, svgIcon: "bug",
-    desc: "雙鐮高速交錯斬出翡翠十字刃，附帶 +15% 暴擊率與破甲打擊！",
-    evoDesc: "【終極超武】釋放三連超巨型翡翠金十字星斬，撕裂周圍一切敵群！"
+    desc: "雙鐮高速交錯斬出翡翠彎月十字刃，附帶 +15% 暴擊率與兩段破甲切割！",
+    evoDesc: "【終極超武】跟隨主角旋轉爆發三連超巨型翡翠白金 X 字星斬與音爆氣環！"
   },
   PoisonJab: {
-    id: "PoisonJab", name: "毒擊", type: "Poison", baseDmg: 27, baseCd: 1.05, ultMinCd: 3.3, ultPowerBonus: 1.05,
-    knockback: 4, isMelee: false, vfx: "poison_jab", reqItem: "poison_barb",
+    id: "PoisonJab", name: "毒擊", type: "Poison", baseDmg: 27, baseCd: 1.04, ultMinCd: 3.3, ultPowerBonus: 1.06,
+    knockback: 5, isMelee: false, vfx: "poison_jab", reqItem: "poison_barb",
     evolvedName: "劇毒新星", color: "#A855F7",
     extraIconCol: 2, svgIcon: "poison",
-    desc: "扇形連射劇毒尖刺；命中已中毒敵人額外觸發 +40% 毒爆重擊！",
-    evoDesc: "【終極超武】向 12 方向齊射劇毒新星針雨並引爆周身毒氣衝擊環！"
+    desc: "扇形連射貫穿毒矛；命中已中毒敵人觸發 +40% 毒爆並將中毒傳染周圍敵群！",
+    evoDesc: "【終極超武】向 12 方向齊射貫穿劇毒長矛，並於地面展開沸騰腐蝕領域連鎖毒爆！"
   },
   ElectroBall: {
-    id: "ElectroBall", name: "電球", type: "Electric", baseDmg: 31, baseCd: 1.25, ultMinCd: 3.4, ultPowerBonus: 1.05,
+    id: "ElectroBall", name: "電球", type: "Electric", baseDmg: 31, baseCd: 1.24, ultMinCd: 3.4, ultPowerBonus: 1.06,
     knockback: 6, isMelee: false, vfx: "electro_orb", reqItem: "magnet",
     evolvedName: "超載磁暴球", color: "#FACC15",
     extraIconCol: 3, svgIcon: "electric",
-    desc: "發射高壓穿透電球，移動速度越快傷害越高（最高 +35%）並觸發電弧！",
-    evoDesc: "【終極超武】放出三顆超載磁暴巨球貫穿戰場，沿途持續放電鏈擊！"
+    desc: "高壓等離子球推進，移速越快球越大且最高增傷 +35%，飛行中自動抽射電弧！",
+    evoDesc: "【終極超武】放出三顆超載磁暴巨球螺旋推進，球體間拉出高壓閃電網麻痺敵群！"
   },
   ShadowClaw: {
-    id: "ShadowClaw", name: "暗影爪", type: "Ghost", baseDmg: 34, baseCd: 1.12, ultMinCd: 3.3, ultPowerBonus: 1.08,
-    knockback: 8, isMelee: true, style: "shadow_claw", reqItem: "spell_tag",
+    id: "ShadowClaw", name: "暗影爪", type: "Ghost", baseDmg: 34, baseCd: 1.10, ultMinCd: 3.3, ultPowerBonus: 1.08,
+    knockback: 9, isMelee: true, meleeStyle: "shadow_claw", reqItem: "spell_tag",
     evolvedName: "冥界裂空爪", color: "#9333EA",
     extraIconCol: 4, svgIcon: "ghost",
-    desc: "凝聚暗影利爪三連橫掃，天生附帶 +25% 超高暴擊率！",
-    evoDesc: "【終極超武】四向撕開冥界裂空巨爪，造成毀滅性暗影暴擊收割！"
+    desc: "撕開三道紫紅幽靈爪痕橫掃，天生 +25% 暴擊（Mega 耿鬼享猩紅冥火 +35% 暴擊）！",
+    evoDesc: "【終極超武】腳下浮現冥界陣紋，四象限撕開裂空巨爪並同步收束引爆收割！"
   }
 };
 
@@ -2403,14 +2403,14 @@ const POKEMON_NATURAL_SKILLS = {
   13:  { name: "獨角蟲",   skills: ["XScissor", "PoisonJab", "SludgeBomb"] },
   16:  { name: "波波",     skills: ["AirSlash", "Tackle", "DragonRush"] },
   25:  { name: "皮卡丘",   skills: ["Thunderbolt", "ElectroBall", "AirSlash"] },
-  29:  { name: "尼多蘭",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
-  30:  { name: "尼多娜",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
-  31:  { name: "尼多后",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
-  32:  { name: "尼多朗",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
-  33:  { name: "尼多力諾", skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
-  34:  { name: "尼多王",   skills: ["SludgeBomb", "Earthquake", "KarateChop"] },
+  29:  { name: "尼多蘭",   skills: ["PoisonJab", "SludgeBomb", "KarateChop"] },
+  30:  { name: "尼多娜",   skills: ["PoisonJab", "SludgeBomb", "KarateChop"] },
+  31:  { name: "尼多后",   skills: ["PoisonJab", "Earthquake", "SludgeBomb"] },
+  32:  { name: "尼多朗",   skills: ["PoisonJab", "SludgeBomb", "KarateChop"] },
+  33:  { name: "尼多力諾", skills: ["PoisonJab", "SludgeBomb", "KarateChop"] },
+  34:  { name: "尼多王",   skills: ["PoisonJab", "Earthquake", "SludgeBomb"] },
   43:  { name: "走路草",   skills: ["RazorLeaf", "SeedBomb", "SludgeBomb"] },
-  46:  { name: "派拉斯",   skills: ["BulletSeed", "SeedBomb", "SludgeBomb"] },
+  46:  { name: "派拉斯",   skills: ["XScissor", "SeedBomb", "PoisonJab"] },
   69:  { name: "喇叭芽",   skills: ["BulletSeed", "VineWhip", "SludgeBomb"] },
   72:  { name: "瑪瑙水母", skills: ["HydroPump", "SludgeBomb", "IceBeam"] },
   79:  { name: "呆呆獸",   skills: ["HydroPump", "Psystrike", "IceBeam"] },
@@ -2441,19 +2441,19 @@ const TYPE_SKILL_POOLS = {
   Grass:    ["RazorLeaf", "BulletSeed", "SeedBomb"],
   Fire:     ["Ember", "Flamethrower", "DragonRush"],
   Water:    ["WaterGun", "HydroPump", "IceBeam"],
-  Electric: ["Thunderbolt", "ElectroBall", "AirSlash"],
+  Electric: ["Thunderbolt", "ElectroBall", "Tackle"],
   Ice:      ["IceBeam", "WaterGun", "HydroPump"],
-  Fighting: ["KarateChop", "Earthquake", "Tackle"],
+  Fighting: ["KarateChop", "Tackle", "Earthquake"],
   Poison:   ["PoisonJab", "SludgeBomb", "ShadowBall"],
-  Ground:   ["Earthquake", "KarateChop", "Tackle"],
-  Flying:   ["AirSlash", "DragonRush", "Tackle"],
+  Ground:   ["Earthquake", "RockSlide", "Tackle"],
+  Flying:   ["AirSlash", "Tackle", "DragonRush"],
   Psychic:  ["Psystrike", "Moonblast", "ShadowBall"],
-  Bug:      ["XScissor", "AirSlash", "RazorLeaf"],
-  Rock:     ["RockSlide", "Earthquake", "DragonRush"],
+  Bug:      ["XScissor", "PoisonJab", "AirSlash"],
+  Rock:     ["RockSlide", "Earthquake", "Tackle"],
   Ghost:    ["ShadowBall", "ShadowClaw", "SludgeBomb"],
   Dragon:   ["DragonRush", "Flamethrower", "Thunderbolt"],
-  Steel:    ["Thunderbolt", "Earthquake", "Tackle"],
-  Normal:   ["Tackle", "AirSlash", "Earthquake"]
+  Steel:    ["Thunderbolt", "RockSlide", "Tackle"],
+  Normal:   ["Tackle", "KarateChop", "AirSlash"]
 };
 
 function getNaturalSkillsForPokemon(pokeData) {
@@ -2471,14 +2471,16 @@ function getNaturalSkillsForPokemon(pokeData) {
   };
   // 1. 優先放入圖鑑預設主招式
   addUnique(pokeData.skill);
-  // 2. 放入第一屬性代表招式
-  (TYPE_SKILL_POOLS[pokeData.type1] || []).forEach(s => { if (result.length < 3) addUnique(s); });
-  // 3. 放入第二屬性代表招式
-  if (pokeData.type2 && pokeData.type2 !== "None") {
-    (TYPE_SKILL_POOLS[pokeData.type2] || []).forEach(s => { if (result.length < 3) addUnique(s); });
-  }
+  const p1 = TYPE_SKILL_POOLS[pokeData.type1] || [];
+  const p2 = (pokeData.type2 && pokeData.type2 !== "None") ? (TYPE_SKILL_POOLS[pokeData.type2] || []) : [];
+  // 2. 雙屬性精靈優先各取 1 招主／副屬性核心本系招（例如地+岩必得地震+岩崩、普通+飛行必得撞擊+空氣斬）
+  if (p1.length > 0 && result.length < 3) addUnique(p1[0]);
+  if (p2.length > 0 && result.length < 3) addUnique(p2[0]);
+  // 3. 再依序從主屬性、副屬性補齊第 3 招（鳥類飛行系優先取飛行池，絕不誤拿地震）
+  const orderedFill = (pokeData.type2 === "Flying") ? [...p2, ...p1] : [...p1, ...p2];
+  orderedFill.forEach(s => { if (result.length < 3) addUnique(s); });
   // 4. 兜底補齊至 3 招
-  ["Tackle", "AirSlash", "Earthquake"].forEach(s => { if (result.length < 3) addUnique(s); });
+  ["Tackle", "AirSlash", "KarateChop"].forEach(s => { if (result.length < 3) addUnique(s); });
   return result;
 }
 
@@ -2550,21 +2552,21 @@ const INNATE_TRAITS = {
     name: "重量級霸體",
     badgeColor: "#D97706",
     icon: "fa-weight-hanging",
-    summary: (t) => `撞擊/地震範圍+${Math.round(18 * t)}%・擊退+${Math.round(30 * t)}%・近戰減傷${Math.min(12, Math.round(8 * t))}%`
+    summary: (t) => `撞擊/地震/岩崩範圍+${Math.round(18 * t)}%・擊退+${Math.round(30 * t)}%・近戰減傷${Math.min(12, Math.round(8 * t))}%`
   },
   quick_attack: {
     id: "quick_attack",
     name: "電光疾行",
     badgeColor: "#EAB308",
     icon: "fa-bolt-lightning",
-    summary: (t) => `撞擊/風刃/電擊冷卻-${Math.round(10 * t)}%・前撲距離+25%・出招後輕巧加速`
+    summary: (t) => `撞擊/風刃/電系/十字剪冷卻-${Math.round(10 * t)}%・前撲距離+25%・出招後輕巧加速`
   },
   iron_fist: {
     id: "iron_fist",
     name: "鐵拳宗師",
     badgeColor: "#DC2626",
     icon: "fa-hand-fist",
-    summary: (t) => `空手劈/近戰暴擊+${Math.round(8 * t)}%・拳風範圍+${Math.round(12 * t)}%${t >= 1.45 ? '・空手劈額外+1拳' : ''}`
+    summary: (t) => `空手劈/十字剪/暗影爪暴擊+${Math.round(8 * t)}%・近戰範圍+${Math.round(12 * t)}%${t >= 1.45 ? '・空手劈額外+1拳' : ''}`
   },
   mega_launcher: {
     id: "mega_launcher",
@@ -2592,7 +2594,7 @@ const INNATE_TRAITS = {
     name: "超能共鳴",
     badgeColor: "#9333EA",
     icon: "fa-wand-sparkles",
-    summary: (t) => `念力/暗影穿透+${t >= 1.45 ? 2 : 1}・月光柱與毒沼持續+${Math.round(15 * t)}%・異常暴擊+12%`
+    summary: (t) => `念力/暗影/毒擊穿透+${t >= 1.45 ? 2 : 1}・月光柱與毒沼持續+${Math.round(15 * t)}%・異常暴擊+12%`
   },
   legendary_pressure: {
     id: "legendary_pressure",

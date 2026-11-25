@@ -442,18 +442,19 @@ window.SkillsEngine = {
       return;
     }
 
-    // 1A-NEW. 岩崩 (RockSlide)：於目標附近連環砸下 2～4 顆巨岩，造成範圍岩系重擊與強烈擊退
+    // 1A-NEW. 岩崩 (RockSlide)：鎖定敵群預警落點，連環斜砸 3～5 顆稜角巨岩＋飛石震波（受重量級霸體加成）
     if (cleanSkillId === "RockSlide" || meta.vfx === "rock_slide") {
-      const rockCnt = 2 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
-      const areaScale = (caster === GameApp.player ? GameApp.player.areaMult : 1.0);
-      const baseTgtX = target ? target.x : (caster.x + Math.cos(baseAngle) * 155);
-      const baseTgtY = target ? target.y : (caster.y + Math.sin(baseAngle) * 155);
-      const rockR = Math.min(82, Math.round(52 * areaScale * (level >= 7 ? 1.15 : 1.0)));
+      const rockCnt = 3 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const areaScale = (caster === GameApp.player ? GameApp.player.areaMult : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75 + (trait.legendaryAreaBonus || 0));
+      const kbScale = 1 + (trait.tackleQuakeKbBonus || 0);
+      const baseTgtX = target ? target.x : (caster.x + Math.cos(baseAngle) * 150);
+      const baseTgtY = target ? target.y : (caster.y + Math.sin(baseAngle) * 150);
+      const rockR = Math.min(86, Math.round(54 * areaScale * (level >= 7 ? 1.15 : 1.0)));
       for (let rIdx = 0; rIdx < rockCnt; rIdx++) {
-        this.scheduleEvent(rIdx * 0.11, () => {
+        this.scheduleEvent(rIdx * 0.095, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const offAng = rIdx === 0 ? 0 : (Math.random() * Math.PI * 2);
-          const offDist = rIdx === 0 ? 0 : (28 + Math.random() * 58);
+          const offAng = rIdx === 0 ? 0 : ((rIdx * 2.1) + Math.random() * 0.7);
+          const offDist = rIdx === 0 ? 0 : (26 + Math.random() * 58);
           const tx = baseTgtX + Math.cos(offAng) * offDist;
           const ty = baseTgtY + Math.sin(offAng) * offDist;
           this.meleeEffects.push({
@@ -461,11 +462,12 @@ window.SkillsEngine = {
             casterRef: caster,
             x: tx, y: ty,
             radius: rockR,
-            dmg: rawDmg * 1.08,
+            dmg: rawDmg * (rIdx === 0 ? 1.08 : 0.92),
             type: "Rock",
-            kb: 18,
+            kb: Math.round(18 * kbScale),
+            seed: Math.random() * 100,
             hitSet: new Set(),
-            timer: 0.34, maxTime: 0.34,
+            timer: 0.42, maxTime: 0.42,
             color: "#D97706"
           });
           this.spawnElementalHitSpark(tx, ty, "Rock");
@@ -475,28 +477,29 @@ window.SkillsEngine = {
       return;
     }
 
-    // 1A-NEW2. 毒擊 (PoisonJab)：高速 3～5 叉毒針扇射，命中已中毒目標觸發 +40% 毒爆重擊
+    // 1A-NEW2. 毒擊 (PoisonJab)：高速 3～5 叉貫穿毒矛扇射；命中中毒敵人觸發 +40% 毒爆並傳染周圍 65px（受超能共鳴穿透加成）
     if (cleanSkillId === "PoisonJab" || meta.vfx === "poison_jab") {
       const needleCnt = 3 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
-      const spreadArc = Math.min(0.85, 0.32 + needleCnt * 0.08);
+      const spreadArc = Math.min(0.88, 0.30 + needleCnt * 0.085);
+      const extraPierce = trait.psychicExtraPierce || 0;
       for (let k = 0; k < needleCnt; k++) {
         const ang = baseAngle + ((k / Math.max(1, needleCnt - 1)) - 0.5) * spreadArc;
         this.projectiles.push({
           x: caster.x + Math.cos(ang) * 18,
           y: caster.y + Math.sin(ang) * 18,
-          vx: Math.cos(ang) * 510,
-          vy: Math.sin(ang) * 510,
+          vx: Math.cos(ang) * 520,
+          vy: Math.sin(ang) * 520,
           angle: ang,
-          radius: 12 * (caster === GameApp.player ? GameApp.player.areaMult : 1.0),
-          dmg: rawDmg * 0.86,
+          radius: 13 * (caster === GameApp.player ? GameApp.player.areaMult : 1.0),
+          dmg: rawDmg * 0.88,
           type: "Poison",
           skillId,
           vfx: "poison_jab",
           color: "#A855F7",
-          pierce: level >= 6 ? 3 : 2,
+          pierce: (level >= 6 ? 3 : 2) + extraPierce,
           knockback: 5,
-          life: 0.72, maxLife: 0.72,
-          statusBonus: 0.45,
+          life: 0.74, maxLife: 0.74,
+          statusBonus: 0.48,
           poisonBurstBonus: 1.40,
           hitSet: new Set(),
           trailTimer: 0
@@ -506,20 +509,22 @@ window.SkillsEngine = {
       return;
     }
 
-    // 1A-NEW3. 電球 (ElectroBall)：高壓穿透雷球，依移動速度最高增傷 +35% 並濺射電弧
+    // 1A-NEW3. 電球 (ElectroBall)：高壓推進等離子球，移速越快球越大且最高增傷 +35%，飛行中每 0.25s 自動抽射電弧
     if (cleanSkillId === "ElectroBall" || meta.vfx === "electro_orb") {
       const orbCnt = 1 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const pSpd = (caster === GameApp.player && GameApp.player) ? (GameApp.player.speed || 150) : 150;
-      const spdBonusMult = 1 + Math.min(0.35, Math.max(0, (pSpd - 120) / 260));
+      const spdRatio = Math.min(1.0, Math.max(0, (pSpd - 115) / 220));
+      const spdBonusMult = 1 + spdRatio * 0.35;
+      const sizeScale = 1 + spdRatio * 0.22;
       for (let k = 0; k < orbCnt; k++) {
-        const ang = baseAngle + (orbCnt > 1 ? ((k / (orbCnt - 1)) - 0.5) * 0.34 : 0);
+        const ang = baseAngle + (orbCnt > 1 ? ((k / (orbCnt - 1)) - 0.5) * 0.36 : 0);
         this.projectiles.push({
           x: caster.x + Math.cos(ang) * 20,
           y: caster.y + Math.sin(ang) * 20,
-          vx: Math.cos(ang) * 340,
-          vy: Math.sin(ang) * 340,
+          vx: Math.cos(ang) * 295,
+          vy: Math.sin(ang) * 295,
           angle: ang,
-          radius: Math.min(26, (17 + (level >= 7 ? 3 : 0)) * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
+          radius: Math.min(28, (17 + (level >= 7 ? 3 : 0)) * sizeScale * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
           dmg: rawDmg * spdBonusMult,
           type: "Electric",
           skillId,
@@ -527,8 +532,9 @@ window.SkillsEngine = {
           color: "#FACC15",
           pierce: 4 + (level >= 6 ? 2 : 0),
           knockback: 7,
-          life: 1.05, maxLife: 1.05,
+          life: 1.18, maxLife: 1.18,
           statusBonus: 0.35,
+          zapTimer: 0.14,
           hitSet: new Set(),
           trailTimer: 0
         });
@@ -1167,12 +1173,14 @@ window.SkillsEngine = {
 
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "x_scissor") {
-      const reach = Math.min(138, Math.round(98 * areaScale * (level >= 7 ? 1.15 : 1.0)));
-      const slashCnt = 1 + (level >= 5 ? 1 : 0);
+      const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8 + (trait.overgrowAreaBonus || 0) * 0.6;
+      const fistCrit = trait.ironFistCritBonus || 0;
+      const reach = Math.min(146, Math.round(102 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
+      const slashCnt = 1 + (level >= 4 ? 1 : 0);
       for (let s = 0; s < slashCnt; s++) {
-        this.scheduleEvent(s * 0.09, () => {
+        this.scheduleEvent(s * 0.085, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const ang = baseAngle + (s === 1 ? 0.14 : 0);
+          const ang = baseAngle + (s === 1 ? 0.16 : 0);
           this.meleeEffects.push({
             style: "x_scissor",
             casterRef: caster,
@@ -1180,25 +1188,27 @@ window.SkillsEngine = {
             x: caster.x + Math.cos(ang) * (reach * 0.52),
             y: caster.y + Math.sin(ang) * (reach * 0.52),
             angle: ang,
-            radius: reach * 0.62,
-            dmg: rawDmg * (s === 0 ? 1.0 : 0.85),
+            radius: reach * 0.64,
+            dmg: rawDmg * (s === 0 ? 1.02 : 0.86),
             type: "Bug",
             kb: 10,
-            extraCrit: 0.15,
+            extraCrit: 0.15 + fistCrit,
             hitSet: new Set(),
-            timer: 0.28, maxTime: 0.28,
+            timer: 0.30, maxTime: 0.30,
             color: "#84CC16"
           });
           SoundFX.play("hit", "Bug");
         });
       }
-      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 14);
+      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 15);
       return;
     }
 
     if (style === "shadow_claw") {
       const isMegaGengar = (caster === GameApp.player && caster.id === 10094);
-      const reach = Math.min(144, Math.round(104 * areaScale * (level >= 7 ? 1.15 : 1.0)));
+      const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8;
+      const fistCrit = trait.ironFistCritBonus || 0;
+      const reach = Math.min(150, Math.round(108 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
       const clawWaves = level >= 6 ? 2 : 1;
       for (let w = 0; w < clawWaves; w++) {
         this.scheduleEvent(w * 0.10, () => {
@@ -1211,20 +1221,20 @@ window.SkillsEngine = {
             x: caster.x + Math.cos(ang) * (reach * 0.54),
             y: caster.y + Math.sin(ang) * (reach * 0.54),
             angle: ang,
-            radius: reach * 0.65,
-            dmg: rawDmg * (w === 0 ? 1.05 : 0.88),
+            radius: reach * 0.68,
+            dmg: rawDmg * (w === 0 ? 1.06 : 0.88),
             type: "Ghost",
-            kb: 8,
-            extraCrit: isMegaGengar ? 0.35 : 0.25,
+            kb: 9,
+            extraCrit: (isMegaGengar ? 0.35 : 0.25) + fistCrit,
             isMegaGengar,
             hitSet: new Set(),
-            timer: 0.30, maxTime: 0.30,
+            timer: 0.32, maxTime: 0.32,
             color: isMegaGengar ? "#E11D48" : "#A855F7"
           });
           SoundFX.play("hit", "Ghost");
         });
       }
-      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 14);
+      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 15);
       return;
     }
 
@@ -2097,114 +2107,136 @@ window.SkillsEngine = {
         });
       }
     } else if (meta.id === "RockSlide") {
-      // 【大陸板塊崩落（岩崩超武）】：6 道巨型板塊隕岩連環天墜 ＋ 震波
-      const ultR = this.getUltRadius(155, 160, 195);
-      for (let k = 0; k < 6; k++) {
-        this.scheduleEvent(k * 0.14, () => {
+      // 【大陸板塊崩落（岩崩超武）】：地面岩漿斷層 ＋ 8 道超巨型稜角板塊隕岩連環斜砸
+      const ultR = this.getUltRadius(165, 170, 210);
+      this.meleeEffects.push({
+        style: "quake_wave",
+        casterRef: p, x: p.x, y: p.y, radius: ultR * 0.85,
+        dmg: ultDmg * 0.35, type: "Rock", kb: 16, hitSet: new Set(),
+        timer: 0.55, maxTime: 0.55, color: "#D97706"
+      });
+      for (let k = 0; k < 8; k++) {
+        this.scheduleEvent(k * 0.11, () => {
           if (GameApp.state !== "PLAYING" || !GameApp.player) return;
-          const ang = (k * Math.PI * 2) / 6 + Math.random() * 0.25;
-          const dist = 55 + Math.random() * (ultR * 0.65);
+          const ang = (k * Math.PI * 2) / 8 + Math.random() * 0.25;
+          const dist = 48 + Math.random() * (ultR * 0.72);
           const rx = GameApp.player.x + Math.cos(ang) * dist;
           const ry = GameApp.player.y + Math.sin(ang) * dist;
           this.meleeEffects.push({
             style: "rock_slide_impact",
             casterRef: GameApp.player,
             x: rx, y: ry,
-            radius: 86,
-            dmg: ultDmg * 0.72,
+            radius: 90,
+            dmg: ultDmg * 0.68,
             type: "Rock",
             kb: 24,
-            extraCrit: 0.15,
+            extraCrit: 0.18,
+            isUltimate: true,
+            seed: Math.random() * 100,
             hitSet: new Set(),
-            timer: 0.42, maxTime: 0.42,
+            timer: 0.48, maxTime: 0.48,
             color: "#F59E0B"
           });
-          GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime, 0.16);
-          GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude, 6);
+          GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime, 0.14);
+          GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude, 5.5);
           SoundFX.play("hit", "Ground");
         });
       }
     } else if (meta.id === "XScissor") {
-      // 【終極十字星斬（十字剪超武）】：3 連超巨型翡翠金十字星斬，跟隨主角爆發
+      // 【終極十字星斬（十字剪超武）】：跟隨主角旋轉爆發 3 連超巨型翡翠白金 X 字星斬 ＋ 音爆氣環
       for (let s = 0; s < 3; s++) {
-        this.scheduleEvent(s * 0.18, () => {
+        this.scheduleEvent(s * 0.17, () => {
           if (GameApp.state !== "PLAYING" || !GameApp.player) return;
           const ang = (s * Math.PI) / 3;
           this.meleeEffects.push({
             style: "x_scissor",
             casterRef: GameApp.player,
+            followCaster: true,
             ox: GameApp.player.x, oy: GameApp.player.y,
             x: GameApp.player.x, y: GameApp.player.y,
             angle: ang,
-            radius: 138,
-            dmg: ultDmg * 0.62,
+            radius: 146,
+            dmg: ultDmg * 0.64,
             type: "Bug",
             kb: 16,
             extraCrit: 0.30,
             isUltimate: true,
             hitSet: new Set(),
-            timer: 0.38, maxTime: 0.38,
+            timer: 0.40, maxTime: 0.40,
             color: "#BEF264"
           });
           SoundFX.play("hit", "Bug");
         });
       }
     } else if (meta.id === "PoisonJab") {
-      // 【劇毒新星（毒擊超武）】：12 方向劇毒新星齊射 ＋ 毒沼擴散
+      // 【劇毒新星（毒擊超武）】：12 方向貫穿毒矛齊射 ＋ 地面沸騰腐蝕領域連鎖毒爆
       for (let k = 0; k < 12; k++) {
         const ang = (k * Math.PI * 2) / 12;
         this.projectiles.push({
           x: p.x + Math.cos(ang) * 24,
           y: p.y + Math.sin(ang) * 24,
-          vx: Math.cos(ang) * 440, vy: Math.sin(ang) * 440,
-          angle: ang, radius: 15, dmg: ultDmg * 0.56,
+          vx: Math.cos(ang) * 450, vy: Math.sin(ang) * 450,
+          angle: ang, radius: 16, dmg: ultDmg * 0.56,
           type: "Poison", skillId: "PoisonJab", vfx: "poison_jab",
           color: "#C084FC", pierce: 6, knockback: 8,
-          life: 1.05, maxLife: 1.05, statusBonus: 0.80, poisonBurstBonus: 1.50,
+          life: 1.05, maxLife: 1.05, statusBonus: 0.85, poisonBurstBonus: 1.50,
           hitSet: new Set(), trailTimer: 0
         });
       }
       this.groundHazards.push({
         kind: "toxic_swamp",
         x: p.x, y: p.y,
-        radius: this.getUltRadius(148, 152, 185),
-        dmg: ultDmg * 0.30,
+        radius: this.getUltRadius(152, 156, 192),
+        dmg: ultDmg * 0.32,
         type: "Poison",
-        timer: 2.2, maxTime: 2.2,
-        tickTimer: 0.14, tickInterval: 0.42,
+        timer: 2.4, maxTime: 2.4,
+        tickTimer: 0.14, tickInterval: 0.40,
         color: "#A855F7"
       });
     } else if (meta.id === "ElectroBall") {
-      // 【超載磁暴球（電球超武）】：3 顆超載磁暴巨球貫穿戰場並持續放電鏈擊
+      // 【超載磁暴球（電球超武）】：3 顆超載等離子巨球螺旋推進，球間拉出高壓閃電網並持續放電鏈擊
       const baseA = Math.random() * Math.PI * 2;
       for (let k = 0; k < 3; k++) {
         const ang = baseA + (k * Math.PI * 2) / 3;
         this.projectiles.push({
-          x: p.x + Math.cos(ang) * 26,
-          y: p.y + Math.sin(ang) * 26,
-          vx: Math.cos(ang) * 240, vy: Math.sin(ang) * 240,
-          angle: ang, radius: 30, dmg: ultDmg * 0.72,
+          x: p.x + Math.cos(ang) * 28,
+          y: p.y + Math.sin(ang) * 28,
+          vx: Math.cos(ang) * 210, vy: Math.sin(ang) * 210,
+          angle: ang, radius: 32, dmg: ultDmg * 0.70,
           type: "Electric", skillId: "ElectroBall", vfx: "electro_orb",
-          color: "#FEF08A", pierce: 14, knockback: 10,
-          life: 1.85, maxLife: 1.85, statusBonus: 0.65,
+          color: "#FEF08A", pierce: 16, knockback: 10,
+          life: 2.0, maxLife: 2.0, statusBonus: 0.68,
+          zapTimer: 0.10, isUltOrb: true,
           hitSet: new Set(), trailTimer: 0
         });
       }
     } else if (meta.id === "ShadowClaw") {
-      // 【冥界裂空爪（暗影爪超武）】：4 方向冥界裂空巨爪收割
+      // 【冥界裂空爪（暗影爪超武）】：地面冥界陣紋 ＋ 四象限裂空巨爪收束引爆收割
       const isMegaGengar = (p.id === 10094);
+      const ultR = this.getUltRadius(155, 160, 195);
+      this.groundHazards.push({
+        kind: "shadow_rune_circle",
+        x: p.x, y: p.y,
+        radius: ultR,
+        dmg: ultDmg * 0.24,
+        type: "Ghost",
+        isMegaGengar,
+        timer: 0.95, maxTime: 0.95,
+        tickTimer: 0.35, tickInterval: 0.45,
+        color: isMegaGengar ? "#E11D48" : "#A855F7"
+      });
       for (let k = 0; k < 4; k++) {
-        this.scheduleEvent(k * 0.12, () => {
+        this.scheduleEvent(k * 0.10, () => {
           if (GameApp.state !== "PLAYING" || !GameApp.player) return;
           const ang = (k * Math.PI) / 2 + Math.PI / 4;
           this.meleeEffects.push({
             style: "shadow_claw",
             casterRef: GameApp.player,
             ox: GameApp.player.x, oy: GameApp.player.y,
-            x: GameApp.player.x + Math.cos(ang) * 56,
-            y: GameApp.player.y + Math.sin(ang) * 56,
+            x: GameApp.player.x + Math.cos(ang) * 62,
+            y: GameApp.player.y + Math.sin(ang) * 62,
             angle: ang,
-            radius: 125,
+            radius: 132,
             dmg: ultDmg * 0.66,
             type: "Ghost",
             kb: 12,
@@ -2212,7 +2244,7 @@ window.SkillsEngine = {
             isMegaGengar,
             isUltimate: true,
             hitSet: new Set(),
-            timer: 0.38, maxTime: 0.38,
+            timer: 0.42, maxTime: 0.42,
             color: isMegaGengar ? "#E11D48" : "#C084FC"
           });
           SoundFX.play("hit", "Ghost");
@@ -2352,6 +2384,26 @@ window.SkillsEngine = {
           const curAng = pr.angle !== undefined ? pr.angle : Math.atan2(pr.vy, pr.vx);
           pr.vx = Math.cos(curAng) * baseSpd;
           pr.vy = Math.sin(curAng) * baseSpd;
+        }
+      }
+
+      // 電球 (ElectroBall) 飛行中每 0.25s 自動向周圍 95px 敵人抽射細電弧；超載磁暴球額外拉出球間高壓閃電網
+      if (pr.vfx === "electro_orb" && pr.zapTimer !== undefined) {
+        pr.zapTimer -= dt;
+        if (pr.zapTimer <= 0) {
+          pr.zapTimer = pr.isUltOrb ? 0.18 : 0.25;
+          const zapRange = pr.isUltOrb ? 135 : 95;
+          const near = this.getEnemiesInRadius(pr.x, pr.y, zapRange).find(o => o && o.hp > 0);
+          if (near) {
+            this.createLightningArc(pr.x, pr.y, near.x, near.y, pr.isUltOrb ? "#FEF08A" : "#FACC15", false);
+            this.applySkillHit(pr.team || "player", near, pr.dmg * (pr.isUltOrb ? 0.52 : 0.38), "Electric", 0.28, 0, 0);
+          }
+          if (pr.isUltOrb) {
+            const sibling = this.projectiles.find(o => o !== pr && o.isUltOrb && o.vfx === "electro_orb" && Math.hypot(o.x - pr.x, o.y - pr.y) <= 230);
+            if (sibling) {
+              this.createLightningArc(pr.x, pr.y, sibling.x, sibling.y, "#FEF08A", false);
+            }
+          }
         }
       }
 
@@ -2561,6 +2613,17 @@ window.SkillsEngine = {
           if (pr.poisonBurstBonus && e.status === "Poison") {
             hitDmg *= pr.poisonBurstBonus;
             this.spawnElementalHitSpark(e.x, e.y, "Poison");
+            // 毒爆傳染：將劇毒擴散至周圍 65px 敵人
+            const spreadTargets = this.getEnemiesInRadius(e.x, e.y, 65);
+            for (let stIdx = 0; stIdx < spreadTargets.length; stIdx++) {
+              const seEnemy = spreadTargets[stIdx];
+              if (seEnemy && seEnemy !== e && seEnemy.hp > 0 && seEnemy.status !== "Poison") {
+                if (typeof checkStatusImmunity !== "function" || !checkStatusImmunity(seEnemy, "Poison")) {
+                  seEnemy.status = "Poison";
+                  seEnemy.statusTimer = 4.0;
+                }
+              }
+            }
           }
           this.applySkillHit(prTeam, e, hitDmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
           if (pr.vfx === "electro_orb" && Math.random() < 0.55) {
@@ -2812,17 +2875,29 @@ window.SkillsEngine = {
             }
           }
         } else if (m.style === "rock_slide_impact" || m.style === "x_scissor" || m.style === "shadow_claw") {
-          const hitR = m.radius || 58;
-          const candidates = this.getEnemiesInRadius(m.x, m.y, hitR);
-          for (let j = 0; j < candidates.length; j++) {
-            const e = candidates[j];
-            if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
-            const dx = e.x - m.x, dy = e.y - m.y;
-            const rSum = hitR + e.radius * 0.85;
-            if (dx * dx + dy * dy <= rSum * rSum) {
-              m.hitSet.add(e);
-              GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.28, m.kb || 10, m.extraCrit || 0);
-              this.spawnElementalHitSpark(e.x, e.y, m.type);
+          if (m.followCaster && m.casterRef) {
+            m.x = m.casterRef.x;
+            m.y = m.casterRef.y;
+          }
+          // 岩崩：前 25% 為預警墜落階段，落定後才觸發砸地傷害判定與碎石震波
+          if (m.style === "rock_slide_impact" && prog < 0.24) {
+            // 等待落定
+          } else {
+            const hitR = m.radius || 58;
+            const candidates = this.getEnemiesInRadius(m.x, m.y, hitR);
+            for (let j = 0; j < candidates.length; j++) {
+              const e = candidates[j];
+              if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
+              const dx = e.x - m.x, dy = e.y - m.y;
+              const rSum = hitR + e.radius * 0.85;
+              if (dx * dx + dy * dy <= rSum * rSum) {
+                m.hitSet.add(e);
+                GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 10, m.extraCrit || 0);
+                if (m.style === "rock_slide_impact" && !e.isBoss) {
+                  e.hitFlash = Math.max(e.hitFlash || 0, 0.16);
+                }
+                this.spawnElementalHitSpark(e.x, e.y, m.type);
+              }
             }
           }
         } else if (m.style === "quake_wave") {
