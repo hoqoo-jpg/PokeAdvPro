@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.6";
+        const ver = this.APP_VERSION || "v7.3.8";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.6";
+      const curVer = this.APP_VERSION || "v7.3.8";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.6",
+      lastSeenVersion: this.APP_VERSION || "v7.3.8",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3000,8 +3000,32 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.6 關都大遠征 15+1 完整體 ＆ EX 始祖夢夢連戰版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.8 小王與雙王 4 大流派彈幕 AI 重構版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">小王與區域雙王全面實裝 4 大職能流派 AI（告別貼臉送死）</div>
+            <div>• <strong>疾風連射型</strong>（大針蜂／大比鳥／阿柏怪／寶石海星）：中距橫移拉扯 ＋ 3～5 叉高速扇形彈與鎖定俯衝，半血追加二段交錯連射。</div>
+            <div>• <strong>毒霧封鎖型</strong>（霸王花／毒刺水母／雙彈瓦斯／尼多后）：6～8 向旋轉擴散毒環 ＋ 追身三連爆與安全眼毒環。</div>
+            <div>• <strong>重裝猛攻型</strong>（暴鯉龍／刺甲貝／飛腿郎／快拳郎／尼多王）：近中距重型三叉彈 ＋ 骨牌四連地裂與野蠻衝撞（重擊後留 0.45s 反打破綻）。</div>
+            <div>• <strong>念影詭術型</strong>（胡地／耿鬼）：2～3 顆恆速分流追蹤念力球 ＋ 引力黑洞左右夾擊，每 3 輪觸發短距側移閃現。</div>
+            <div class="text-amber-300 font-black pt-1">雙王協同錯峰 ＆ 小王微狂暴</div>
+            <div>• 雙王登場冷卻自動錯開 +0.85 秒防止彈幕糊成死角；小王半血改採不中斷戰鬥的「微狂暴」彈幕加碼與加速！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.7 純架構解耦版（10 檔邏輯／特效／UI 分層重構）</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">核心架構深度解耦（零功能異動）</div>
+            <div>• <strong>第一刀・拆出 <code>skills_vfx.js</code></strong>：將 <code>skills_engine.js</code> 內 4,891 行純 Canvas 地面與空中技能特效渲染層完整抽離，物理判定與美術特效徹底隔離。</div>
+            <div>• <strong>第二刀・核心層剝離 DOM/UI</strong>：將 <code>battle_core_2.js</code> 內 <code>refreshHUD</code>、升級三選一視窗、友好商店彈窗、天候與過場橫幅 DOM 操作全數遷移至 <code>game_ui.js</code>，戰鬥主循環更純粹好維護。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.6 關都大遠征 15+1 完整體 ＆ EX 始祖夢夢連戰版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">15+1 五關一循環完整養成曲線（普通難度穩進 💎 MEGA）</div>
@@ -3272,7 +3296,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.6";
+    const curVer = this.APP_VERSION || "v7.3.8";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -3445,6 +3469,890 @@ Object.assign(window.GameApp, {
     this.updateTitleUI();
     window.scrollTo(0, 0);
     this.resize();
+  },
+
+  // ==========================================================================
+  // v7.3.7 從 battle_core_2.js 解耦移入之戰鬥局內 HUD、升級三選一、友好商店與天候 UI 層
+  // ==========================================================================
+  updateWeatherUI(weatherType) {
+    const iconMap = {
+      CLEAR: "fa-sun text-amber-500",
+      RAIN: "fa-cloud-rain text-sky-400",
+      THUNDER: "fa-bolt text-yellow-400",
+      PSYCHIC: "fa-moon text-purple-400",
+      BLIZZARD: "fa-snowflake text-sky-200",
+      HEATWAVE: "fa-fire text-orange-500"
+    };
+    const textMap = { CLEAR: "晴天", RAIN: "微雨", THUNDER: "雷暴", PSYCHIC: "極光", BLIZZARD: "暴雪", HEATWAVE: "熱浪" };
+    
+    const iconEl = document.getElementById("hudWeatherIcon");
+    const textEl = document.getElementById("hudWeatherText");
+    if (iconEl) iconEl.className = `fa-solid ${iconMap[weatherType] || "fa-sun text-amber-500"}`;
+    if (textEl) textEl.textContent = textMap[weatherType] || weatherType;
+  },
+
+  showWeatherInfoToast() {
+    const w = MapEngine.weather;
+    const descMap = {
+      CLEAR: "【晴天】正常視野與標準戰鬥環境。",
+      RAIN: "【微雨】水系招式威力+25%，火系-20%！",
+      THUNDER: "【狂暴雷暴】電系招式彈射+1，伴隨全屏天頂白閃！",
+      PSYCHIC: "【超能極光】超能/幽靈暴擊率+15%，技能冷卻-8%！",
+      BLIZZARD: "【極寒暴雪】冰系威力+20%，地面精靈移速微緩！",
+      HEATWAVE: "【烈日熱浪】火系威力+25%，灼傷扣血速率提升50%！"
+    };
+    this.showCutsceneBanner(`[當前天候: ${w}]`, descMap[w] || "標準環境", 2500);
+  },
+
+  openPokeMartModal() {
+    this.state = "PAUSED";
+    // 強制重置搖桿與輸入，防止多點觸控狀態殘留死鎖
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
+    const p = this.player;
+    const tmCatalog = typeof TM_CATALOG !== "undefined" ? TM_CATALOG : {};
+    const specItems = typeof MART_SPECIAL_ITEMS !== "undefined" ? MART_SPECIAL_ITEMS : {};
+    
+    const findExistingSkill = (sId) => {
+      const clean = sId.replace(/\s+/g, '');
+      const key = Object.keys(p.skills).find(k => k.replace(/\s+/g, '') === clean);
+      return key ? p.skills[key] : null;
+    };
+
+    const shelf = [];
+    // 允許刷出尚未學習的 TM 或 已學習但尚未滿級 (<Lv.10) 的 TM，讓玩家既能學新招也能直接買 TM 升招式等級
+    const availableTMs = Object.values(tmCatalog).filter(tm => {
+      const ex = findExistingSkill(tm.id);
+      return !ex || ex.level < 10;
+    });
+    if (availableTMs.length > 0) {
+      shelf.push(availableTMs[Math.floor(Math.random() * availableTMs.length)]);
+    }
+
+    const medPool = [specItems.pp_up, specItems.full_restore].filter(Boolean);
+    if (medPool.length > 0) {
+      shelf.push(medPool[Math.floor(Math.random() * medPool.length)]);
+    }
+
+    const buffPool = [specItems.x_attack, specItems.x_speed].filter(Boolean);
+    if (buffPool.length > 0) {
+      shelf.push(buffPool[Math.floor(Math.random() * buffPool.length)]);
+    }
+
+    // 中後期或高代幣時，友好商店加開第 4 格【高階補給】（極限神奇糖果 / 秘傳攜帶物禮盒）
+    const highTierPool = [specItems.master_candy, specItems.mystery_held].filter(Boolean);
+    if (highTierPool.length > 0 && (this.runTime >= 150 || this.runCoins >= 220)) {
+      shelf.push(highTierPool[Math.floor(Math.random() * highTierPool.length)]);
+    }
+
+    if (this.renderMartModal) this.renderMartModal(shelf);
+  },
+
+  // 友好商店購買與關閉邏輯統一由 game_ui.js 接管 (Single Source of Truth)
+  buyTM(skillId, cost) {
+    if (this.buyMartItem) this.buyMartItem(skillId, cost);
+  },
+
+  openLevelUpModal(isFromReroll = false) {
+    this.state = "PAUSED";
+    // 0.45s 防誤觸鎖定期（重抽後 0.18s 短防連點），杜絕戰鬥換手或滑動時秒按錯選項或重抽
+    this._levelUpUnlockAt = performance.now() + (isFromReroll ? 180 : 450);
+    // 強制重置搖桿與輸入，防止多點觸控狀態殘留死鎖
+    this.touchJoy.active = false;
+    this.touchJoy.dx = 0;
+    this.touchJoy.dy = 0;
+    const joyBase = document.getElementById("touchJoyBase");
+    const joyStick = document.getElementById("touchJoyStick");
+    if (joyBase) joyBase.style.display = "none";
+    if (joyStick) joyStick.style.display = "none";
+    const p = this.player;
+    if (this.levelUpRerolls === undefined) {
+      const upgReroll = (this.saveData && this.saveData.upgrades && this.saveData.upgrades.rerollCount) || 0;
+      this.levelUpRerolls = 1 + upgReroll;
+    }
+
+    const buildPool = () => {
+      const pool = [];
+      const addedKeys = new Set();
+
+      const evolvedCount = Object.values(p.skills).filter(s => s.evolved).length;
+      const maxAllowedSupers = (this.runTime >= 300 || (this.saveData && this.saveData.stats.birdsDefeated > 0 && this.birdBossSpawned)) ? 2 : 1;
+      if (evolvedCount < maxAllowedSupers) {
+        Object.values(p.skills).forEach(sk => {
+          const meta = SKILLS_CATALOG[sk.id];
+          if (sk.level >= 10 && !sk.evolved && meta && (!meta.reqItem || p.heldItems[meta.reqItem])) {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight: 100,
+              rarityClass: "rarity-legendary",
+              badge: "究極超武突破",
+              badgeBg: "bg-amber-500 text-slate-950 font-black",
+              title: meta.evolvedName,
+              subTitle: "★ MAX 滿級突破",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite, skillIconMeta: meta,
+              desc: meta.evoDesc,
+              isNew: false,
+              apply: () => {
+                sk.evolved = true;
+                sk.ultMaxCd = 10.0;
+                sk.ultTimer = 0.4;
+                this.saveData.stats.superMoves += 1;
+                this.showCutsceneBanner(`[究極突破] 領悟【${meta.evolvedName}】！`, meta.evoDesc, 3000);
+              }
+            });
+          }
+        });
+      }
+
+      Object.values(p.skills).forEach(sk => {
+        if (sk.level < 10) {
+          const meta = SKILLS_CATALOG[sk.id];
+          const nextLv = sk.level + 1;
+          if (meta && !addedKeys.has(meta.name)) {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight: 42,
+              rarityClass: "rarity-common",
+              badge: "招式階級提升",
+              badgeBg: "bg-slate-700 text-white font-bold",
+              title: meta.name,
+              subTitle: `Lv.${sk.level} ➔ Lv.${nextLv}`,
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite, skillIconMeta: meta,
+              desc: getSkillNextLevelBonusDesc(sk.id, nextLv),
+              isNew: false,
+              apply: () => { sk.level = nextLv; }
+            });
+          }
+        }
+      });
+
+      pool.push(
+        {
+          key: "protein",
+          weight: 30, rarityClass: "rarity-common", badge: "威力提升", badgeBg: "bg-slate-700 text-white",
+          title: "蛋白藥劑", subTitle: "全傷 +5%", typeBadge: "", sprite: ITEM_SPRITES.protein,
+          desc: "全面提升寶可夢所有招式傷害 +5%！", isNew: false, apply: () => { p.dmgMult *= 1.05; }
+        },
+        {
+          key: "hpUp",
+          weight: 30, rarityClass: "rarity-common", badge: "體質強化", badgeBg: "bg-slate-700 text-white",
+          title: "HP提升劑", subTitle: "最大HP +12%", typeBadge: "", sprite: ITEM_SPRITES.hpUp,
+          desc: "最大生命值提升 12%，並立即恢復 25% 已損失生命！", isNew: false,
+          apply: () => { p.maxHp = Math.round(p.maxHp * 1.12); p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.25)); }
+        },
+        {
+          key: "carbos",
+          weight: 28, rarityClass: "rarity-common", badge: "敏捷連動", badgeBg: "bg-slate-700 text-white",
+          title: "敏捷強化劑", subTitle: "移速+5% ＆ CD-3%", typeBadge: "", sprite: ITEM_SPRITES.carbos,
+          desc: "提升移動速度 5%，縮短招式冷卻 -3%！", isNew: false, apply: () => { p.speedMult *= 1.05; p.cdMult *= 0.97; }
+        }
+      );
+
+      const currentCount = Object.keys(p.skills).length;
+      if (currentCount < p.maxSkillSlots) {
+        // 1. 優先推送天生尚未學會的招式 (高權重 60，嚴格去重)
+        const unlearnedNatural = (p.naturalSkills || []).filter(sId => {
+          const m = SKILLS_CATALOG[sId];
+          return m && !Object.values(p.skills).some(existing => existing.id === m.id || existing.id.replace(/\s+/g,'') === m.id.replace(/\s+/g,''));
+        });
+
+        if (unlearnedNatural.length > 0) {
+          unlearnedNatural.forEach(sId => {
+            const meta = SKILLS_CATALOG[sId];
+            if (meta && !addedKeys.has(meta.name)) {
+              addedKeys.add(meta.name);
+              pool.push({
+                key: meta.name,
+                weight: 60,
+                rarityClass: "rarity-rare",
+                badge: `天生招式 (${currentCount + 1}/${p.maxSkillSlots})`,
+                badgeBg: "bg-emerald-600 text-white font-black",
+                title: meta.name,
+                subTitle: "本系領悟 Lv.1",
+                typeBadge: renderTypeBadgeHTML(meta.type),
+                sprite: meta.sprite, skillIconMeta: meta,
+                desc: meta.desc,
+                isNew: true,
+                apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
+              });
+            }
+          });
+        } else {
+          // 2. 天生三招已學齊：依「第 4 招式槽抽卡偏好」決定本系與特性優先（軟鎖保底）或全系自由混搭
+          const poolMode = (this.saveData && this.saveData.settings && this.saveData.settings.fourthSlotPoolMode) || "affinity";
+          const traitAffinityMap = {
+            heavy_slam:         ["Ground", "Rock", "Normal", "Fighting", "Fire", "Dragon"],
+            quick_attack:       ["Electric", "Flying", "Normal", "Fighting", "Psychic"],
+            iron_fist:          ["Fighting", "Normal", "Ground", "Rock", "Fire", "Electric"],
+            mega_launcher:      ["Water", "Ice", "Dragon", "Psychic"],
+            overgrow_thorn:     ["Grass", "Poison", "Bug"],
+            dragon_maw:         ["Fire", "Dragon", "Flying", "Ground"],
+            psychic_surge:      ["Psychic", "Ghost", "Poison", "Electric"],
+            legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying"]
+          };
+          const traitId = p.innateTrait ? p.innateTrait.id : "";
+          const traitTypes = traitAffinityMap[traitId] || [];
+
+          const unlearnedAll = [];
+          const seenMetaNames = new Set();
+          Object.values(SKILLS_CATALOG).forEach(meta => {
+            const alreadyHas = Object.values(p.skills).some(existing => existing.id === meta.id || existing.id.replace(/\s+/g,'') === meta.id.replace(/\s+/g,''));
+            if (!alreadyHas && meta.id !== "Metronome" && !addedKeys.has(meta.name) && !seenMetaNames.has(meta.name)) {
+              seenMetaNames.add(meta.name);
+              unlearnedAll.push(meta);
+            }
+          });
+
+          const pushSkillChoice = (meta, weight, badgeLabel, badgeBg) => {
+            addedKeys.add(meta.name);
+            pool.push({
+              key: meta.name,
+              weight,
+              rarityClass: "rarity-rare",
+              badge: badgeLabel,
+              badgeBg,
+              title: meta.name,
+              subTitle: "新領悟 Lv.1",
+              typeBadge: renderTypeBadgeHTML(meta.type),
+              sprite: meta.sprite, skillIconMeta: meta,
+              desc: meta.desc,
+              isNew: true,
+              apply: () => { const stagger = Object.keys(p.skills).length * 0.22; p.skills[meta.id] = { id: meta.id, level: 1, evolved: false, timer: 0.15 + stagger }; }
+            });
+          };
+
+          if (poolMode === "affinity") {
+            const t1Stab = unlearnedAll.filter(m => m.type === p.data.type1 || (p.data.type2 && p.data.type2 !== "None" && m.type === p.data.type2));
+            const t1Set = new Set(t1Stab.map(m => m.name));
+            const t2Trait = unlearnedAll.filter(m => !t1Set.has(m.name) && traitTypes.includes(m.type));
+
+            if (t1Stab.length > 0 || t2Trait.length > 0) {
+              t1Stab.forEach(meta => pushSkillChoice(meta, 55, `本系進階 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-emerald-600 text-white font-black"));
+              t2Trait.forEach(meta => pushSkillChoice(meta, 35, `特性契合 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-indigo-600 text-white font-black"));
+            } else {
+              // 軟鎖保底：若本系與特性相性招式全數已學會，自動回退全池避免空池
+              unlearnedAll.forEach(meta => pushSkillChoice(meta, 15, `新招式 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-blue-600 text-white font-black"));
+            }
+          } else {
+            unlearnedAll.forEach(meta => pushSkillChoice(meta, 15, `新招式 (${currentCount + 1}/${p.maxSkillSlots})`, "bg-blue-600 text-white font-black"));
+          }
+        }
+      }
+
+      const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
+      const eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
+        const targetSkill = SKILLS_CATALOG[hi.skillReq];
+        return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
+      });
+      if (eligibleHeld.length > 0) {
+        const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
+        if (!addedKeys.has(hi.name)) {
+          addedKeys.add(hi.name);
+          const isHighDiff = this.selectedDifficulty && (this.selectedDifficulty.id === "hard" || this.selectedDifficulty.id === "hell");
+          const hasHighLvSkill = Object.values(p.skills).some(s => s.level >= 8 && !s.evolved);
+          const dynamicHeldWeight = isHighDiff ? (hasHighLvSkill ? 28 : 10) : (hasHighLvSkill ? 12 : 6);
+          pool.push({
+            key: hi.name,
+            weight: dynamicHeldWeight, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
+            title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
+            isNew: true,
+            apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
+          });
+        }
+      }
+
+      return pool;
+    };
+
+    const drawChoices = () => {
+      const pool = buildPool();
+      const choices = [];
+      const temp = [...pool];
+      while (choices.length < 3 && temp.length > 0) {
+        const totalW = temp.reduce((s, x) => s + x.weight, 0);
+        let r = Math.random() * totalW;
+        let picked = 0;
+        for (let i = 0; i < temp.length; i++) {
+          r -= temp[i].weight;
+          if (r <= 0) { picked = i; break; }
+        }
+        choices.push(temp.splice(picked, 1)[0]);
+      }
+      return choices;
+    };
+
+    this._currentUpgradeChoices = drawChoices();
+    this.renderLevelUpModalContent();
+    const modal = document.getElementById("levelUpModal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+  },
+
+  renderLevelUpModalContent() {
+    const box = document.getElementById("upgradeChoicesContainer");
+    if (!box) return;
+    const p = this.player;
+
+    // 頂部超武合成配方速查條 (顯示當前已學招式對應的超武攜帶物與持有狀態)
+    const recipePills = p ? Object.values(p.skills).map(sk => {
+      const meta = SKILLS_CATALOG[sk.id];
+      if (!meta) return "";
+      const reqMeta = meta.reqItem ? HELD_ITEMS[meta.reqItem] : null;
+      const hasItem = reqMeta ? !!(p.heldItems && p.heldItems[reqMeta.id]) : true;
+      return `
+        <div class="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-800/90 border ${sk.evolved ? 'border-amber-400' : (hasItem ? 'border-emerald-500/70' : 'border-slate-700')} text-[10px]">
+          ${renderSkillIconHTML(meta, "w-4 h-4")}
+          <span class="font-bold text-slate-200">${meta.name}</span>
+          <span class="text-slate-500">+</span>
+          ${reqMeta ? `<img src="${reqMeta.sprite}" class="w-3.5 h-3.5 pixel-sprite ${hasItem ? '' : 'opacity-40 grayscale'}"/>` : ''}
+          <span class="${sk.evolved ? 'text-amber-300 font-black' : (hasItem ? 'text-emerald-400 font-black' : 'text-slate-400')}">
+            ${sk.evolved ? '★已突破' : (reqMeta ? `${reqMeta.name}${hasItem ? '✓' : ''}` : '滿級突破')}
+          </span>
+        </div>
+      `;
+    }).join("") : "";
+
+    const curSlots = p ? Object.keys(p.skills).length : 0;
+    const maxSlots = p ? (p.maxSkillSlots || 3) : 3;
+    const heldCount = p ? Object.keys(p.heldItems || {}).length : 0;
+    const totalCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
+    const statusHeaderBar = p ? `
+      <div class="flex items-center justify-between gap-1 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl mb-2 text-[10px] font-black">
+        <span class="text-emerald-400"><i class="fa-solid fa-heart-pulse"></i> HP: ${Math.ceil(p.hp)}/${p.maxHp}</span>
+        <span class="text-sky-300"><i class="fa-solid fa-bolt"></i> 槽: ${curSlots}/${maxSlots}</span>
+        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶: ${heldCount}</span>
+        <span class="text-amber-300" title="本局獲得 ${this.runCoins} 金｜帳號總代幣 ${totalCoins.toLocaleString()} 金"><i class="fa-solid fa-coins"></i> 總 ${totalCoins.toLocaleString()}金</span>
+      </div>
+    ` : "";
+
+    const recipeBarHtml = statusHeaderBar + (recipePills ? `
+      <div class="bg-slate-950/75 border border-slate-800 rounded-xl p-2 mb-2.5">
+        <div class="text-[10px] font-bold text-amber-300/90 mb-1 flex items-center gap-1">
+          <i class="fa-solid fa-flask text-[9px]"></i>
+          <span>超武合成配方提示（招式 Lv.10 ＋ 對應攜帶物 ＝ 究極超武）：</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5">${recipePills}</div>
+      </div>
+    ` : "");
+
+    const choicesHtml = (this._currentUpgradeChoices || []).map((c, idx) => `
+      <div onclick="GameApp.selectUpgradeChoice(${idx})" class="poke-card ${c.rarityClass} cursor-pointer p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 sm:gap-3 hover:-translate-y-0.5 transition-transform relative select-none">
+        ${c.isNew ? `
+          <div class="absolute top-0 left-0 bg-gradient-to-r from-red-600 via-rose-500 to-amber-500 text-white font-pixel text-[9px] px-2.5 py-0.5 rounded-tl-[13px] rounded-br-lg border-b border-r border-white/80 shadow-md flex items-center gap-1 z-10 animate-pulse">
+            <i class="fa-solid fa-sparkles text-[8px] text-amber-200"></i>NEW!
+          </div>
+        ` : ''}
+        <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-slate-900/40 border-2 border-slate-700 flex items-center justify-center shrink-0">
+            ${c.skillIconMeta && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(c.skillIconMeta, "w-8 h-8 sm:w-9 sm:h-9") : `<img src="${c.sprite}" class="w-8 h-8 sm:w-9 sm:h-9 pixel-sprite object-contain" alt="${c.title}" />`}
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-black text-sm sm:text-base text-slate-800 leading-tight whitespace-nowrap">${c.title}</span>
+              ${c.typeBadge || ''}
+              <span class="px-2 py-0.5 rounded-full text-[9px] ${c.badgeBg} whitespace-nowrap">${c.badge}</span>
+            </div>
+            <p class="text-[11px] sm:text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button type="button" class="poke-btn-red px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-black min-h-[36px] flex items-center gap-1 pointer-events-none">
+            <span>選擇</span>
+            <span class="pc-only-hotkey font-pixel text-[10px] text-amber-200 opacity-90">[${idx + 1}]</span>
+          </button>
+        </div>
+      </div>
+    `).join("");
+
+    const freeRerolls = this.levelUpRerolls || 0;
+    const paidCount = this.paidRerollCount || 0;
+    const coinCost = 30 + paidCount * 30;
+    const availableCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
+    const canFreeReroll = freeRerolls > 0;
+    const canCoinReroll = !canFreeReroll && availableCoins >= coinCost;
+    const canReroll = canFreeReroll || canCoinReroll;
+
+    let rerollLabelHtml = "";
+    if (canFreeReroll) {
+      rerollLabelHtml = `<i class="fa-solid fa-dice text-xs"></i><span>重抽 (${freeRerolls})</span><span class="pc-only-hotkey font-pixel text-[9px] opacity-85">[R]</span>`;
+    } else {
+      rerollLabelHtml = `<img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/><span>${coinCost}金重抽</span><span class="pc-only-hotkey font-pixel text-[9px] opacity-85">[R]</span>`;
+    }
+
+    const headerRerollSlot = document.getElementById("levelUpHeaderRerollSlot");
+    if (headerRerollSlot) {
+      headerRerollSlot.innerHTML = `
+        <button type="button" onclick="GameApp.rerollUpgradeChoices()" ${!canReroll ? 'disabled' : ''} class="${canFreeReroll ? 'poke-btn-yellow' : (canCoinReroll ? 'poke-btn-blue' : 'poke-btn-white opacity-50 cursor-not-allowed')} px-2.5 py-1.5 text-[11px] font-black flex items-center gap-1 whitespace-nowrap shadow">
+          ${rerollLabelHtml}
+        </button>
+      `;
+    }
+
+    const rerollErrorHtml = `
+      <div id="levelUpRerollError" class="${!canReroll ? '' : 'hidden'} mt-2 px-2.5 py-1 rounded-xl bg-rose-950/80 border border-rose-500/60 text-center text-[10px] font-black text-rose-300">
+        ⚠️ 總代幣不足：本次重抽需 ${coinCost} 金（目前總計 ${availableCoins.toLocaleString()} 金）
+      </div>
+    `;
+
+    const rerollHintHtml = `
+      <div id="levelUpRerollHint" class="pc-only-hotkey mt-2 pt-1.5 border-t border-slate-800/80 text-center text-[10px] font-bold text-slate-400">
+        鍵盤提示：按 [1][2][3] 選取，[R] 鍵重抽（免費次數用完可用總代幣重抽）
+      </div>
+    `;
+
+    box.innerHTML = recipeBarHtml + choicesHtml + rerollErrorHtml + rerollHintHtml;
+  },
+
+  rerollUpgradeChoices() {
+    if (this._levelUpUnlockAt && performance.now() < this._levelUpUnlockAt) return;
+    const freeRerolls = this.levelUpRerolls || 0;
+    if (freeRerolls > 0) {
+      this.levelUpRerolls -= 1;
+      SoundFX.play("super");
+      this.openLevelUpModal(true);
+      return;
+    }
+
+    const paidCount = this.paidRerollCount || 0;
+    const coinCost = 30 + paidCount * 30;
+    const availableCoins = this.saveData ? (this.saveData.coins || 0) : (this.runCoins || 0);
+
+    if (availableCoins < coinCost) {
+      const errEl = document.getElementById("levelUpRerollError");
+      if (errEl) {
+        errEl.textContent = `⚠️ 總代幣不足：本次重抽需 ${coinCost} 金（目前總計 ${availableCoins.toLocaleString()} 金）`;
+        errEl.classList.remove("hidden");
+        errEl.classList.add("animate-pulse");
+      }
+      return;
+    }
+
+    if (this.saveData) {
+      this.saveData.coins = Math.max(0, (this.saveData.coins || 0) - coinCost);
+      if (this.saveToStorage) this.saveToStorage();
+    }
+    this.runCoins = Math.max(0, (this.runCoins || 0) - coinCost);
+    this.paidRerollCount = paidCount + 1;
+    SoundFX.play("super");
+    this.refreshHUD();
+    this.openLevelUpModal(true);
+  },
+
+  selectUpgradeChoice(idx) {
+    if (this._levelUpUnlockAt && performance.now() < this._levelUpUnlockAt) return;
+    const c = this._currentUpgradeChoices && this._currentUpgradeChoices[idx];
+    if (c && c.apply) c.apply();
+    const lvlModal = document.getElementById("levelUpModal");
+    if (lvlModal) {
+      lvlModal.classList.add("hidden");
+      lvlModal.style.display = "none";
+    }
+    this.refreshHUD();
+
+    // 若本次升級同時達成進化門檻，三選一選完後立即銜接進化演出！
+    const pendingEvo = this._pendingEvolutionTarget;
+    this._pendingEvolutionTarget = null;
+    if (pendingEvo === "eevee") {
+      this.state = "PAUSED";
+      const eeModal = document.getElementById("eevee-evo-modal");
+      if (eeModal) {
+        eeModal.classList.remove("hidden");
+        eeModal.style.display = "flex";
+      }
+      return;
+    } else if (pendingEvo === "awaken_single") {
+      this.startAwakeningMoment("single");
+      return;
+    } else if (pendingEvo === "mega_6") {
+      this.startEvolutionMoment(10034, false, null, true);
+      return;
+    } else if (pendingEvo === "awaken_legendary") {
+      this.startAwakeningMoment("legendary");
+      return;
+    } else if (pendingEvo) {
+      this.startEvolutionMoment(pendingEvo, false);
+      return;
+    }
+
+    if ((this._deferredLevelUps || 0) > 0) {
+      this._deferredLevelUps -= 1;
+      this.openLevelUpModal();
+      return;
+    }
+
+    if (this._pendingExpeditionIntermission && typeof ModeExpedition !== "undefined") {
+      this._pendingExpeditionIntermission = false;
+      ModeExpedition.openIntermissionModal(this);
+      return;
+    }
+
+    this.state = "PLAYING";
+  },
+
+  showCutsceneBanner(title, subtitle, duration = 2600) {
+    const b = document.getElementById("cutsceneBanner");
+    document.getElementById("cutsceneTitle").textContent = title;
+    document.getElementById("cutsceneSubtitle").textContent = subtitle;
+    b.classList.remove("hidden");
+    clearTimeout(this._bannerTimeout);
+    this._bannerTimeout = setTimeout(() => b.classList.add("hidden"), duration);
+  },
+
+  // 零 ctx.filter ＆ 零管線阻塞剪影閃白渲染器：直接讀取 SpriteCache 預烘焙剪影，支援整張圖或精靈圖集單格裁切
+  refreshHUD() {
+    const p = this.player;
+    if (!p) return;
+    const tr = this.selectedTrainer;
+
+    // 1. 頭像與屬性標籤：僅在寶可夢 ID、訓練家或時裝變更時更新 DOM 與圖片 src
+    const activeTrCosHud = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(tr, this.saveData) : tr;
+    const identityKey = `${p.id}_${p.isTrainerBond ? 1 : 0}_${p.megaEvolved ? 1 : 0}_${tr.id}_${activeTrCosHud.id || "classic"}`;
+    if (this._lastHudIdentityKey !== identityKey) {
+      this._lastHudIdentityKey = identityKey;
+      document.getElementById("hudAvatar").src = SpriteCache.resolveUrl((p.isShiny && p.data.shiny_forward_sprite) ? p.data.shiny_forward_sprite : p.data.forward_sprite);
+      const isMegaHud = !!(p.megaEvolved || p.id >= 10000);
+      const wasMegaHud = !!this._lastWasMegaHud;
+      this._lastWasMegaHud = isMegaHud;
+
+      const playerCardEl = document.getElementById("hudPlayerCard");
+      if (playerCardEl) {
+        playerCardEl.classList.toggle("mega-hud-card", isMegaHud);
+        if (isMegaHud && !wasMegaHud) {
+          playerCardEl.classList.remove("mega-hud-sheen");
+          void playerCardEl.offsetWidth;
+          playerCardEl.classList.add("mega-hud-sheen");
+          setTimeout(() => playerCardEl.classList.remove("mega-hud-sheen"), 680);
+        } else if (!isMegaHud) {
+          playerCardEl.classList.remove("mega-hud-sheen");
+        }
+      }
+
+      const avatarFrame = document.getElementById("hudAvatarFrame");
+      if (avatarFrame) {
+        avatarFrame.className = isMegaHud
+          ? "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-950 rounded-xl border-2 border-cyan-400 shadow-[0_0_12px_rgba(56,189,248,0.85)] flex items-center justify-center shrink-0"
+          : "relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0";
+      }
+
+      const megaBadgeEl = document.getElementById("hudMegaBadge");
+      if (megaBadgeEl) megaBadgeEl.classList.toggle("hidden", !isMegaHud);
+
+      const partnerNameEl = document.getElementById("hudPartnerName");
+      if (partnerNameEl) {
+        partnerNameEl.textContent = p.data.name_zh;
+        if (isMegaHud) {
+          const megaThemeGrads = {
+            10034: "linear-gradient(90deg, #38BDF8 0%, #E0F2FE 55%, #67E8F9 100%)",
+            10036: "linear-gradient(90deg, #38BDF8 0%, #FEF08A 55%, #7DD3FC 100%)",
+            10033: "linear-gradient(90deg, #4ADE80 0%, #F472B6 55%, #FEF08A 100%)",
+            10038: "linear-gradient(90deg, #FB7185 0%, #C084FC 55%, #F43F5E 100%)",
+            10041: "linear-gradient(90deg, #F43F5E 0%, #38BDF8 55%, #FDA4AF 100%)",
+            10042: "linear-gradient(90deg, #FACC15 0%, #C084FC 55%, #FDE047 100%)"
+          };
+          partnerNameEl.style.backgroundImage = megaThemeGrads[p.id] || "linear-gradient(90deg, #38BDF8 0%, #C084FC 55%, #FACC15 100%)";
+          partnerNameEl.style.webkitBackgroundClip = "text";
+          partnerNameEl.style.backgroundClip = "text";
+          partnerNameEl.style.color = "transparent";
+        } else {
+          partnerNameEl.style.backgroundImage = "";
+          partnerNameEl.style.webkitBackgroundClip = "";
+          partnerNameEl.style.backgroundClip = "";
+          partnerNameEl.style.color = "#FFFFFF";
+        }
+      }
+
+      const hpBarMegaEl = document.getElementById("hudHpBar");
+      if (hpBarMegaEl) hpBarMegaEl.classList.toggle("mega-hp-bar", isMegaHud);
+      const tb = document.getElementById("hudTypeBadges");
+      if (tb && typeof renderTypeBadgeHTML === "function") {
+        tb.innerHTML = `${renderTypeBadgeHTML(p.data.type1)}${renderTypeBadgeHTML(p.data.type2)}`;
+      }
+      document.getElementById("hudAshBondBadge").classList.toggle("hidden", !p.isTrainerBond);
+      document.getElementById("hudActiveTrainerImg").src = SpriteCache.resolveUrl(activeTrCosHud.sprite || tr.sprite);
+      document.getElementById("hudActiveSkillName").textContent = tr.skillName;
+    }
+
+    document.getElementById("hudLevelText").textContent = `Lv.${p.level}`;
+    const traitBadgeEl = document.getElementById("hudTraitBadge");
+    if (traitBadgeEl) {
+      if (p.innateTrait) {
+        const hasCrownShield = (p.id === 149 || (p.id >= 144 && p.id <= 151));
+        const shieldHtml = hasCrownShield
+          ? (p.multiscaleReady
+              ? `<span class="text-emerald-300 ml-0.5">[🛡️就緒]</span>`
+              : `<span class="text-slate-400 ml-0.5">[${Math.ceil(p.multiscaleTimer || 0)}s]</span>`)
+          : '';
+        const awakenTagHtml = p.legendaryAwaken24
+          ? `<span class="text-pink-300 font-black ml-0.5">★★共鳴II</span>`
+          : (p.legendaryAwaken12
+              ? `<span class="text-amber-300 font-black ml-0.5">★共鳴I</span>`
+              : (p.singleStageAwakened ? `<span class="text-sky-300 font-black ml-0.5">★覺醒</span>` : ''));
+        const awakenKey = p.legendaryAwaken24 ? 'L2' : (p.legendaryAwaken12 ? 'L1' : (p.singleStageAwakened ? 'S1' : '0'));
+        const underdogTagHtml = (p.underdogExpBonus > 0) ? `<span class="text-emerald-300 font-black ml-0.5">🌱+${Math.round(p.underdogExpBonus * 100)}%EXP</span>` : '';
+        const nextBadgeKey = `${p.innateTrait.id}_${p.innateTrait.tier}_${awakenKey}_${p.underdogExpBonus || 0}_${hasCrownShield ? (p.multiscaleReady ? 'R' : Math.ceil(p.multiscaleTimer || 0)) : ''}`;
+        if (this._lastTraitBadgeKey !== nextBadgeKey) {
+          this._lastTraitBadgeKey = nextBadgeKey;
+          traitBadgeEl.innerHTML = `<i class="fa-solid ${p.innateTrait.icon} text-[8px]"></i><span>${p.innateTrait.name}</span>${awakenTagHtml}${underdogTagHtml}${shieldHtml}`;
+          traitBadgeEl.classList.remove("hidden");
+        }
+      } else {
+        traitBadgeEl.classList.add("hidden");
+      }
+    }
+
+    // 2. 血條與經驗條（僅在血量區間變化時切換漸層背景）
+    const hpPct = Math.max(0, (p.hp / p.maxHp) * 100);
+    const hpBarEl = document.getElementById("hudHpBar");
+    hpBarEl.style.width = `${hpPct}%`;
+    const hpTier = hpPct > 50 ? "high" : (hpPct > 22 ? "mid" : "low");
+    if (this._lastHudHpTier !== hpTier) {
+      this._lastHudHpTier = hpTier;
+      if (hpTier === "high") {
+        hpBarEl.style.background = "linear-gradient(90deg, #2EE66B 0%, #1CB34E 100%)";
+      } else if (hpTier === "mid") {
+        hpBarEl.style.background = "linear-gradient(90deg, #F5B041 0%, #D68910 100%)";
+      } else {
+        hpBarEl.style.background = "linear-gradient(90deg, #FF5252 0%, #E74C3C 100%)";
+      }
+    }
+    document.getElementById("hudHpText").textContent = `${Math.ceil(p.hp)}/${p.maxHp}`;
+    document.getElementById("hudExpBar").style.width = `${Math.min(100, (p.exp / p.nextExp) * 100)}%`;
+
+    const waveRemBadge = document.getElementById("hudWaveRemainBadge");
+    if (this.isExpeditionMode && this.expeditionState) {
+      const est = this.expeditionState;
+      const totW = est.totalWaves || est.plan.length;
+      const wCfg = est.plan[est.currentWave - 1];
+      document.getElementById("hudTimer").textContent = `W${est.currentWave}/${totW}`;
+      if (waveRemBadge) {
+        waveRemBadge.classList.remove("hidden");
+        if (wCfg && wCfg.isBossWave) {
+          waveRemBadge.textContent = "BOSS";
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-rose-600 text-white font-pixel text-[7px] font-black";
+        } else {
+          const rem = Math.max(0, (est.killQuota || 0) - (est.killsInWave || 0));
+          waveRemBadge.textContent = `剩${rem}`;
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-emerald-700 text-emerald-100 font-black text-[8px]";
+        }
+      }
+    } else {
+      if (waveRemBadge) waveRemBadge.classList.add("hidden");
+      const mins = String(Math.floor(this.runTime / 60)).padStart(2, "0");
+      const secs = String(Math.floor(this.runTime % 60)).padStart(2, "0");
+      document.getElementById("hudTimer").textContent = `${mins}:${secs}`;
+    }
+    document.getElementById("hudKills").textContent = this.kills;
+    document.getElementById("hudCoins").textContent = this.runCoins;
+
+    const fpsVal = this.currentFps || 60;
+    const mobCount = this.enemies ? this.enemies.length : 0;
+    if (this.showFpsHud) {
+      const fpsBadge = document.getElementById("hudFpsBadge");
+      if (fpsBadge) {
+        fpsBadge.textContent = `${fpsVal} FPS · ${mobCount}怪`;
+        fpsBadge.className = `absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.2 rounded-full bg-slate-950/90 border font-pixel text-[7px] sm:text-[8px] shadow pointer-events-none ${fpsVal >= 50 ? 'border-emerald-500/70 text-emerald-400' : (fpsVal >= 35 ? 'border-amber-500/70 text-amber-300' : 'border-rose-500/80 text-rose-400')}`;
+      }
+    }
+    const debugStatsEl = document.getElementById("debugLiveStatsText");
+    if (debugStatsEl && !document.getElementById("debugDropdown").classList.contains("hidden")) {
+      const projCount = (SkillsEngine.projectiles ? SkillsEngine.projectiles.length : 0) + (this.enemyProjectiles ? this.enemyProjectiles.length : 0);
+      debugStatsEl.textContent = `${fpsVal} FPS | ${mobCount}怪 | ${projCount}彈`;
+      debugStatsEl.className = `font-pixel text-[9px] ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
+    }
+
+    // 3. 雙打夥伴列表：僅在夥伴數量、ID 或等級變化時重建 innerHTML
+    const partnerKey = this.partners.map(pt => `${pt.id}:${pt.level}`).join(",");
+    if (this._lastHudPartnerKey !== partnerKey) {
+      this._lastHudPartnerKey = partnerKey;
+      const partnerBox = document.getElementById("hudPartnerList");
+      if (partnerBox) {
+        partnerBox.innerHTML = this.partners.map(pt => `
+          <div class="flex items-center gap-1 bg-slate-900/85 text-white px-2 py-0.5 rounded-full border border-pink-500 shadow-md">
+            <img src="${pt.data.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain"/>
+            <span class="font-black text-[10px] text-pink-300">${pt.data.name_zh}</span>
+            <span class="font-pixel text-[9px] text-amber-300">Lv.${pt.level}</span>
+          </div>
+        `).join("");
+      }
+    }
+
+    // 4. 攜帶道具與技能膠囊：僅在道具或技能狀態變更時重建 innerHTML
+    const heldKey = Object.keys(p.heldItems || {}).join(",");
+    if (this._lastHudHeldKey !== heldKey) {
+      this._lastHudHeldKey = heldKey;
+      const heldBox = document.getElementById("hudHeldItemList");
+      if (heldBox) {
+        heldBox.innerHTML = Object.keys(p.heldItems || {}).map(itemId => {
+          const itemMeta = HELD_ITEMS[itemId];
+          return itemMeta ? `
+            <div data-held-id="${itemId}" class="w-6 h-6 bg-slate-900/80 rounded-lg border border-amber-400/80 flex items-center justify-center p-0.5 shadow transition-transform" title="${itemMeta.name}">
+              <img src="${itemMeta.sprite}" class="w-4 h-4 pixel-sprite object-contain"/>
+            </div>
+          ` : '';
+        }).join("");
+      }
+    }
+
+    const skillKey = Object.values(p.skills).map(sk => `${sk.id}:${sk.level}:${sk.evolved ? ('1:' + Math.ceil(sk.ultTimer || 0)) : '0'}`).join(",");
+    if (this._lastHudSkillKey !== skillKey) {
+      this._lastHudSkillKey = skillKey;
+      document.getElementById("hudSkillList").innerHTML = Object.values(p.skills).map(sk => {
+        const meta = SKILLS_CATALOG[sk.id];
+        if (!meta) return "";
+        if (sk.evolved) {
+          const maxCd = sk.ultMaxCd || 10.0;
+          const remSec = Math.max(0, Math.ceil(sk.ultTimer || 0));
+          const pct = Math.max(0, Math.min(100, Math.round((1 - (sk.ultTimer || 0) / maxCd) * 100)));
+          const cdBadge = remSec <= 0
+            ? `<span class="text-emerald-300 font-black text-[8px] ml-0.5 animate-pulse">⚡就緒</span>`
+            : `<span class="text-amber-200 font-pixel text-[8px] ml-0.5">${remSec}s</span>`;
+          return `<span style="background: #221604; border: 1.5px solid #FFD700; color: #FFD700; box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);" class="relative overflow-hidden px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1"><span style="width:${pct}%; background: linear-gradient(90deg, rgba(217,119,6,0.42) 0%, rgba(250,204,21,0.52) 100%);" class="absolute inset-y-0 left-0 transition-all duration-300 pointer-events-none"></span><span class="relative z-10 flex items-center gap-1">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.evolvedName}</span>${cdBadge}</span></span>`;
+        }
+        const borderCol = TYPE_COLORS[meta.type] || "#3A8FB7";
+        return `<span style="background: rgba(20, 28, 40, 0.86); border: 1.5px solid ${borderCol}; color: #FFFFFF;" class="px-2.5 py-0.5 rounded-full text-[9px] font-black flex items-center gap-1 shadow-md">${renderSkillIconHTML(meta, "w-4 h-4")}<span>${meta.name}</span><span style="color: #63E2FF;" class="font-pixel text-[8px]">L${sk.level}</span></span>`;
+      }).join("");
+    }
+
+    const btnMode = (p.buffTimer > 0 || p.shieldTimer > 0) ? "active" : (p.trainerSkillCd > 0 ? "cd" : "ready");
+    const btnRemain = btnMode === "active" ? Math.ceil(p.buffTimer || p.shieldTimer) : (btnMode === "cd" ? Math.ceil(p.trainerSkillCd) : 0);
+    const btnStateKey = `${btnMode}_${btnRemain}`;
+    if (this._lastHudBtnStateKey !== btnStateKey) {
+      this._lastHudBtnStateKey = btnStateKey;
+      const btnEl = document.getElementById("btnTrainerActiveSkill");
+      const cdOverlay = document.getElementById("trainerSkillCdOverlay");
+      const cdText = document.getElementById("trainerSkillCdText");
+      const cdSub = document.getElementById("trainerSkillStatusSub");
+      if (btnMode === "active") {
+        btnEl.className = "tactical-btn-active relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-emerald-500 border-3 border-emerald-400 flex items-center justify-center overflow-hidden shadow-xl";
+        cdOverlay.className = "absolute inset-0 bg-emerald-950/70 flex flex-col items-center justify-center text-white";
+        cdText.textContent = `${btnRemain}s`;
+        cdText.className = "font-pixel text-xs text-emerald-300";
+        cdSub.textContent = "生效中";
+      } else if (btnMode === "cd") {
+        btnEl.className = "relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-slate-800 border-3 border-slate-700 flex items-center justify-center overflow-hidden opacity-90 shadow-xl";
+        cdOverlay.className = "absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center text-white";
+        cdText.textContent = `${btnRemain}s`;
+        cdText.className = "font-pixel text-xs text-amber-300";
+        cdSub.textContent = "冷卻中";
+      } else {
+        btnEl.className = "tactical-btn-ready relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
+        cdOverlay.className = "hidden absolute inset-0";
+      }
+    }
+
+    const dashWrap = document.getElementById("btnArenaDashWrap");
+    if (dashWrap) {
+      dashWrap.classList.toggle("hidden", !this.isArenaMode);
+      if (this.isArenaMode) {
+        const dashRem = Math.max(0, p.arenaDashCd || 0);
+        const dashKey = dashRem > 0 ? `cd_${dashRem.toFixed(1)}` : "ready";
+        if (this._lastArenaDashHudKey !== dashKey) {
+          this._lastArenaDashHudKey = dashKey;
+          const dBtn = document.getElementById("btnArenaDashSkill");
+          const dOv = document.getElementById("arenaDashCdOverlay");
+          const dTxt = document.getElementById("arenaDashCdText");
+          if (dashRem > 0) {
+            if (dBtn) dBtn.className = "relative w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-slate-800 border-[3px] border-slate-600 flex items-center justify-center overflow-hidden opacity-85 shadow-xl";
+            if (dOv) dOv.classList.remove("hidden");
+            if (dTxt) dTxt.textContent = `${dashRem.toFixed(1)}s`;
+          } else {
+            if (dBtn) dBtn.className = "relative w-14 h-14 sm:w-15 sm:h-15 rounded-full bg-gradient-to-br from-sky-400 via-cyan-500 to-blue-600 border-[3px] border-white flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-[0_0_16px_rgba(56,189,248,0.8)]";
+            if (dOv) dOv.classList.add("hidden");
+          }
+        }
+      }
+    }
+
+    if (!p.megaEvolved && !p.megaReady) {
+      this.checkMegaEvolutionReady();
+    }
+    const megaWrapEl = document.getElementById("btnManualMegaWrap");
+    if (megaWrapEl) {
+      const mSt = this.getMegaEvolutionStatus();
+      if (!mSt || p.megaEvolved) {
+        megaWrapEl.classList.add("hidden");
+      } else {
+        megaWrapEl.classList.remove("hidden");
+        const megaBtn = document.getElementById("btnManualMegaSkill");
+        const megaImg = document.getElementById("hudManualMegaImg");
+        const megaOv = document.getElementById("megaSkillCdOverlay");
+        const megaIcon = document.getElementById("megaSkillStatusIcon");
+        const megaSub = document.getElementById("megaSkillStatusSub");
+        const megaLbl = document.getElementById("hudManualMegaLabel");
+        const mKey = `${mSt.mf.id}_${mSt.hasRing ? 1 : 0}_${p.megaReady ? 1 : 0}_${mSt.curLv}_${mSt.skillSum}`;
+        if (this._lastMegaHudKey !== mKey) {
+          this._lastMegaHudKey = mKey;
+          if (megaImg && mSt.mf.stoneSprite) megaImg.src = SpriteCache.resolveUrl(mSt.mf.stoneSprite);
+          if (p.megaReady) {
+            if (megaBtn) megaBtn.className = "mega-btn-ready relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-cyan-400 via-blue-600 to-purple-700 border-[3px] border-cyan-200 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-2xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.95)]";
+            if (megaOv) megaOv.classList.add("hidden");
+            if (megaLbl) {
+              megaLbl.textContent = "💎 MEGA";
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/95 border border-cyan-400 text-cyan-200 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          } else if (!mSt.hasRing) {
+            if (megaBtn) megaBtn.className = "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-900/90 border-[3px] border-slate-700 flex items-center justify-center overflow-hidden opacity-75 shadow-xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain grayscale opacity-55";
+            if (megaOv) megaOv.classList.remove("hidden");
+            if (megaIcon) megaIcon.textContent = "🔒";
+            if (megaSub) megaSub.textContent = "手環";
+            if (megaLbl) {
+              megaLbl.textContent = "🔒 需手環";
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-slate-600 text-slate-400 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          } else {
+            if (megaBtn) megaBtn.className = "relative w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-800/90 border-[3px] border-slate-600 flex items-center justify-center overflow-hidden opacity-85 shadow-xl";
+            if (megaImg) megaImg.className = "w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain grayscale opacity-65";
+            if (megaOv) megaOv.classList.remove("hidden");
+            const lvDone = mSt.isFinalForm && mSt.curLv >= mSt.reqLv;
+            if (megaIcon) megaIcon.textContent = "💎";
+            if (megaSub) megaSub.textContent = lvDone ? `技${mSt.skillSum}/${mSt.reqSum}` : `L${mSt.curLv}/${mSt.reqLv}`;
+            if (megaLbl) {
+              megaLbl.textContent = lvDone ? `招式 ${mSt.skillSum}/${mSt.reqSum}` : `Lv.${mSt.curLv}/${mSt.reqLv}`;
+              megaLbl.className = "mt-1 px-2 py-0.5 rounded-full bg-slate-950/90 border border-slate-500 text-sky-300 font-black text-[9px] whitespace-nowrap shadow-md leading-tight";
+            }
+          }
+        }
+      }
+    }
+
+    const aliveBosses = this.enemies ? this.enemies.filter(b => b.isBoss && b.hp > 0) : [];
+    const bossContainer = document.getElementById("bossHudContainer");
+    const bossGrid = document.getElementById("bossHudGrid");
+    const bossSlot2 = document.getElementById("bossHudSlot2");
+    if (aliveBosses.length > 0 && bossContainer) {
+      bossContainer.classList.remove("hidden");
+      const b1 = aliveBosses[0];
+      document.getElementById("bossHudName").textContent = `${b1.data.name_zh} (#${b1.id})`;
+      document.getElementById("bossHudHpText").textContent = `${Math.max(0, Math.ceil(b1.hp))}/${b1.maxHp}`;
+      document.getElementById("bossHudBar").style.width = `${Math.max(0, (b1.hp / b1.maxHp) * 100)}%`;
+
+      if (aliveBosses.length >= 2 && bossSlot2 && bossGrid) {
+        const b2 = aliveBosses[1];
+        bossGrid.className = "grid grid-cols-2 gap-2";
+        bossSlot2.classList.remove("hidden");
+        document.getElementById("bossHudName2").textContent = `${b2.data.name_zh} (#${b2.id})`;
+        document.getElementById("bossHudHpText2").textContent = `${Math.max(0, Math.ceil(b2.hp))}/${b2.maxHp}`;
+        document.getElementById("bossHudBar2").style.width = `${Math.max(0, (b2.hp / b2.maxHp) * 100)}%`;
+      } else if (bossSlot2 && bossGrid) {
+        bossGrid.className = "grid grid-cols-1";
+        bossSlot2.classList.add("hidden");
+      }
+    } else if (bossContainer) {
+      bossContainer.classList.add("hidden");
+    }
   }
 });
 

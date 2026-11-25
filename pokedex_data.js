@@ -514,6 +514,74 @@ const BOSS_ATTACK_PATTERNS = {
   }
 };
 
+// v7.3.8 非神獸小王與雙王 4 大職能流派模板 (Archetype System)
+const BOSS_ARCHETYPES = {
+  sniper: {
+    name: "疾風連射型",
+    idealMin: 150,
+    idealMax: 220,
+    skills: [
+      { id: "sniper_dash",   name: "疾風俯衝", shape: "line", width: 38, length: 300, delay: 0.72, dmgMult: 1.32, speed: 470, color: "#F59E0B" },
+      { id: "sniper_snipe",  name: "三連鎖定爆", shape: "chase_triplet", count: 3, radius: 44, delay: 0.68, stepDelay: 0.16, dmgMult: 1.20, color: "#38BDF8" }
+    ]
+  },
+  toxic_zone: {
+    name: "毒霧封鎖型",
+    idealMin: 95,
+    idealMax: 155,
+    skills: [
+      { id: "toxic_triplet", name: "毒霧三連爆", shape: "chase_triplet", count: 3, radius: 46, delay: 0.72, stepDelay: 0.17, dmgMult: 1.22, color: "#A855F7" },
+      { id: "toxic_ring",    name: "安全眼毒環", shape: "ring", radius: 155, innerRadius: 52, delay: 0.88, dmgMult: 1.25, color: "#C084FC" }
+    ]
+  },
+  juggernaut: {
+    name: "重裝猛攻型",
+    idealMin: 55,
+    idealMax: 125,
+    skills: [
+      { id: "jug_domino",    name: "骨牌連環地裂", shape: "domino_line", count: 4, stepDist: 58, radius: 44, delay: 0.62, stepDelay: 0.14, dmgMult: 1.28, color: "#D97706" },
+      { id: "jug_charge",    name: "重裝野蠻衝撞", shape: "line", width: 44, length: 280, delay: 0.74, dmgMult: 1.38, speed: 450, color: "#EF4444" }
+    ]
+  },
+  trickster: {
+    name: "念影詭術型",
+    idealMin: 170,
+    idealMax: 240,
+    skills: [
+      { id: "trick_suction", name: "重力黑洞夾擊", shape: "suction_flank", radius: 58, flankRadius: 42, delay: 0.82, dmgMult: 1.30, color: "#A855F7" },
+      { id: "trick_ring",    name: "暗影星環", shape: "ring", radius: 145, innerRadius: 48, delay: 0.86, dmgMult: 1.24, color: "#C084FC" }
+    ]
+  }
+};
+
+const BOSS_ARCHETYPE_ID_MAP = {
+  15: "sniper",      // 大針蜂
+  18: "sniper",      // 大比鳥
+  24: "sniper",      // 阿柏怪
+  121: "sniper",     // 寶石海星
+  45: "toxic_zone",  // 霸王花
+  73: "toxic_zone",  // 毒刺水母
+  110: "toxic_zone", // 雙彈瓦斯
+  31: "toxic_zone",  // 尼多后
+  130: "juggernaut", // 暴鯉龍
+  91: "juggernaut",  // 刺甲貝
+  106: "juggernaut", // 飛腿郎
+  107: "juggernaut", // 快拳郎
+  34: "juggernaut",  // 尼多王
+  65: "trickster",   // 胡地
+  94: "trickster"    // 耿鬼
+};
+
+function getBossArchetypeKey(id, data) {
+  if (BOSS_ARCHETYPE_ID_MAP[id]) return BOSS_ARCHETYPE_ID_MAP[id];
+  const t1 = data ? data.type1 : "";
+  const t2 = data ? data.type2 : "";
+  if (t1 === "Psychic" || t1 === "Ghost" || t2 === "Psychic" || t2 === "Ghost") return "trickster";
+  if (t1 === "Poison" || t1 === "Grass" || t2 === "Poison") return "toxic_zone";
+  if (t1 === "Flying" || t1 === "Electric" || t1 === "Bug") return "sniper";
+  return "juggernaut";
+}
+
 // 5. 關都 151 隻完整圖鑑資料庫
 const POKEMON_DB = [
   { id: 1, name_zh: "妙蛙種子", type1: "Grass", type2: "Poison", hp: 120, atk: 49, speed: 45, skill: "VineWhip", weightTier: "light", kbResist: 0.10, evo_level: 12, evo_to: 2 },
