@@ -105,7 +105,7 @@ window.EXPEDITION_CHAPTERS = [
         bossIds: [24, 110],
         previewIds: [24, 110],
         clearBonus: 155,
-        actClearHeal: 0.35,
+        actClearHeal: 0.25,
         weather: "CLEAR"
       }
     ]
@@ -206,7 +206,7 @@ window.EXPEDITION_CHAPTERS = [
         bossIds: [144],
         previewIds: [144],
         clearBonus: 210,
-        actClearHeal: 0.40,
+        actClearHeal: 0.25,
         weather: "BLIZZARD"
       }
     ]
@@ -282,7 +282,7 @@ window.EXPEDITION_CHAPTERS = [
         bossIds: [146],
         previewIds: [146],
         clearBonus: 250,
-        actClearHeal: 0.45,
+        actClearHeal: 0.25,
         weather: "HEATWAVE"
       }
     ]
@@ -477,6 +477,7 @@ window.ModeExpedition = {
       exMewCleared: false,
       shopShelf: [],
       shopRerollCost: 30,
+      shopBoughtCounts: (resumeCp && resumeCp.shopBoughtCounts) ? { ...resumeCp.shopBoughtCounts } : { candy: 0, heal: 0 },
       pendingForgetTm: null
     };
 
@@ -564,6 +565,7 @@ window.ModeExpedition = {
       totalWaves: st.totalWaves || st.plan.length,
       act2BirdId: st.act2BirdId || 144,
       seedRolls: { ...(st.seedRolls || {}) },
+      shopBoughtCounts: { ...(st.shopBoughtCounts || { candy: 0, heal: 0 }) },
       trainerId: (app.selectedTrainer && app.selectedTrainer.id) || "ash",
       starterId: app.selectedStarterId || 25,
       difficultyId: (app.selectedDifficulty && app.selectedDifficulty.id) || "normal",
@@ -1391,14 +1393,14 @@ window.ModeExpedition = {
     const isRelay = !!(cfg.relayQueue && cfg.relayQueue.length > 0);
     const waveScale = 1 + (waveNum - 1) * 0.16;
 
-    let baseHp = 1750;
-    if (bId === 151) baseHp = 15200; // EX 真王始祖夢幻
-    else if (bId === 150) baseHp = 17800; // W16 王者超夢
+    let baseHp = 2150;
+    if (bId === 151) baseHp = 19500; // EX 真王始祖夢幻
+    else if (bId === 150) baseHp = 22500; // W16 王者超夢
     else if (isLeg) {
-      if (isRelay) baseHp = 5800; // 三聖鳥接力單隻血量（總血量 17400 緊湊不拖泥帶水）
-      else baseHp = waveNum >= 14 ? 11800 : 8200;
+      if (isRelay) baseHp = 7200; // 三聖鳥接力單隻血量
+      else baseHp = waveNum >= 14 ? 15500 : 11000;
     } else if (isMini) {
-      baseHp = waveNum >= 12 ? 2250 : (waveNum >= 7 ? 1750 : 1200);
+      baseHp = waveNum >= 12 ? 2900 : (waveNum >= 7 ? 2400 : 1650);
     }
 
     const scaledHp = Math.round(baseHp * (diff.hpMult || 1.0) * (isLeg ? 1.0 : waveScale));
@@ -1437,7 +1439,7 @@ window.ModeExpedition = {
       whiteFlashTimer: 0,
       weightTier: isLeg ? "boss" : "heavy",
       kbResist: isLeg ? 1.0 : 0.80,
-      arenaDpsCapPct: bId === 150 || bId === 151 ? 0.11 : (isLeg ? 0.13 : 0.16),
+      arenaDpsCapPct: bId === 150 || bId === 151 ? 0.095 : (isLeg ? 0.12 : 0.15),
       bossAttackIdx: 0
     };
     app.enemies.push(bossObj);
@@ -1640,7 +1642,7 @@ window.ModeExpedition = {
 
     const p = app.player;
     if (p) {
-      const healPct = cfg.actClearHeal || 0.20;
+      const healPct = cfg.actClearHeal || 0.10;
       const healAmt = Math.round(p.maxHp * healPct);
       p.hp = Math.min(p.maxHp, p.hp + healAmt);
       p.status = null;
@@ -1761,46 +1763,56 @@ window.ModeExpedition = {
       nextEnemyTypes.some(et => typeof calcTypeMultiplier === "function" && calcTypeMultiplier(tm.type, et, "None") > 1.1)
     );
     const tmPickPool = counterTMs.length > 0 ? counterTMs : eligibleTMs;
+    const counts = st.shopBoughtCounts || (st.shopBoughtCounts = { candy: 0, heal: 0 });
+    const ownedHeldCount = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
+
     if (tmPickPool.length > 0) {
       const pickedTm = tmPickPool[Math.floor(Math.random() * tmPickPool.length)];
-      const expTmCost = Math.min(175, Math.max(135, Math.round((pickedTm.cost || 250) * 0.60)));
+      const actNum = nextCfg.act || 1;
+      const expTmCost = actNum >= 3 ? 220 : (actNum === 2 ? 180 : 140);
       shelf.push({ ...pickedTm, cost: expTmCost, kind: "tm", isCounterRec: counterTMs.includes(pickedTm), bought: false });
     }
 
     const isMasterCandy = (st.currentWave >= 5 && specItems.master_candy);
     const candyPick = isMasterCandy ? specItems.master_candy : specItems.pp_up;
     if (candyPick) {
-      shelf.push({ ...candyPick, cost: isMasterCandy ? 210 : 110, kind: "consumable", bought: false });
+      const candyCost = (isMasterCandy ? 210 : 110) + (counts.candy || 0) * 45;
+      shelf.push({ ...candyPick, cost: candyCost, kind: "consumable", bought: false });
     }
 
     const allHeld = typeof HELD_ITEMS !== "undefined" ? Object.values(HELD_ITEMS) : [];
     const unownedHeld = allHeld.filter(hi => !p.heldItems[hi.id]);
     let pickedHeld = null;
-    if (nextCfg.stageId === "cerulean_bay" && !p.heldItems["sharp_beak"] && HELD_ITEMS["sharp_beak"]) {
-      pickedHeld = HELD_ITEMS["sharp_beak"];
-    } else if (unownedHeld.length > 0) {
-      const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
-      const matched = unownedHeld.filter(hi => learnedTypes.has(SKILLS_CATALOG[hi.skillReq]?.type));
-      const hPool = matched.length > 0 ? matched : unownedHeld;
-      pickedHeld = hPool[Math.floor(Math.random() * hPool.length)];
+    if (ownedHeldCount < 4) {
+      if (nextCfg.stageId === "cerulean_bay" && !p.heldItems["sharp_beak"] && HELD_ITEMS["sharp_beak"]) {
+        pickedHeld = HELD_ITEMS["sharp_beak"];
+      } else if (unownedHeld.length > 0) {
+        const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
+        const matched = unownedHeld.filter(hi => learnedTypes.has(SKILLS_CATALOG[hi.skillReq]?.type));
+        const hPool = matched.length > 0 ? matched : unownedHeld;
+        pickedHeld = hPool[Math.floor(Math.random() * hPool.length)];
+      }
     }
-    if (pickedHeld) {
+    if (pickedHeld && ownedHeldCount < 4) {
+      const heldPriceTable = [120, 190, 280, 390];
+      const heldCost = heldPriceTable[Math.min(3, ownedHeldCount)] || 390;
       shelf.push({
         id: pickedHeld.id,
         name: pickedHeld.name,
         desc: pickedHeld.desc,
         sprite: pickedHeld.sprite,
-        cost: 125,
+        cost: heldCost,
         kind: "held",
         isStageRec: (nextCfg.stageId === "cerulean_bay" && pickedHeld.id === "sharp_beak"),
         bought: false
       });
     } else if (specItems.x_attack) {
-      shelf.push({ ...specItems.x_attack, cost: 85, kind: "consumable", bought: false });
+      shelf.push({ ...specItems.x_attack, cost: 90, kind: "consumable", bought: false });
     }
 
     if (specItems.full_restore) {
-      shelf.push({ ...specItems.full_restore, cost: 60, kind: "consumable", bought: false });
+      const healCost = 60 + (counts.heal || 0) * 15;
+      shelf.push({ ...specItems.full_restore, cost: healCost, kind: "consumable", bought: false });
     }
 
     st.shopShelf = shelf;
@@ -2553,15 +2565,22 @@ window.ModeExpedition = {
         p.skills[it.id] = { id: it.id, level: 1, evolved: false, timer: 0.25 };
       }
     } else if (it.kind === "held") {
+      const ownedHeldCount = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
+      if (ownedHeldCount >= 4) {
+        if (app.pixelToast) app.pixelToast("攜帶物已達上限 (4/4)！", "warn");
+        return;
+      }
       app.runCoins -= it.cost;
       app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
       it.bought = true;
       p.heldItems[it.id] = true;
-      p.dmgMult *= 1.12;
+      p.dmgMult += 0.06;
     } else if (it.id === "pp_up") {
       app.runCoins -= it.cost;
       app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
       it.bought = true;
+      st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
+      st.shopBoughtCounts.candy = (st.shopBoughtCounts.candy || 0) + 1;
       const upgList = Object.values(p.skills).filter(s => s.level < 10);
       if (upgList.length > 0) {
         const pick = upgList[Math.floor(Math.random() * upgList.length)];
@@ -2571,6 +2590,8 @@ window.ModeExpedition = {
       app.runCoins -= it.cost;
       app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
       it.bought = true;
+      st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
+      st.shopBoughtCounts.candy = (st.shopBoughtCounts.candy || 0) + 1;
       p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30));
       const upgList = Object.values(p.skills).filter(s => s.level < 10);
       if (upgList.length > 0) {
@@ -2581,6 +2602,8 @@ window.ModeExpedition = {
       app.runCoins -= it.cost;
       app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
       it.bought = true;
+      st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
+      st.shopBoughtCounts.heal = (st.shopBoughtCounts.heal || 0) + 1;
       p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
       p.status = null;
       p.statusTimer = 0;

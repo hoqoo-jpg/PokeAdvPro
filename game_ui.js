@@ -315,7 +315,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.4.1";
+        const ver = this.APP_VERSION || "v7.4.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -560,7 +560,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.4.1";
+      const curVer = this.APP_VERSION || "v7.4.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1367,7 +1367,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.4.1",
+      lastSeenVersion: this.APP_VERSION || "v7.4.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2546,15 +2546,16 @@ Object.assign(window.GameApp, {
       if (eligibleHeld.length === 0) {
         eligibleHeld = Object.values(HELD_ITEMS).filter(hi => !p.heldItems[hi.id]);
       }
-      if (eligibleHeld.length > 0) {
+      const ownedHeldCnt = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
+      if (eligibleHeld.length > 0 && ownedHeldCnt < 4) {
         const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
         p.heldItems[hi.id] = true;
-        p.dmgMult *= 1.12;
+        p.dmgMult += 0.06;
         SoundFX.play("levelup");
-        this.spawnFloatingText(p.x, p.y - 25, `🎁 獲得超武攜帶物：【${hi.name}】！`, "#C084FC", 15);
+        this.spawnFloatingText(p.x, p.y - 25, `🎁 獲得超武攜帶物：【${hi.name}】(${ownedHeldCnt + 1}/4)！`, "#C084FC", 15);
       } else {
-        p.dmgMult *= 1.15;
-        this.spawnFloatingText(p.x, p.y - 25, "全攜帶物已齊備！全傷害額外 +15%！", "#FACC15", 14);
+        p.dmgMult += 0.08;
+        this.spawnFloatingText(p.x, p.y - 25, "攜帶物已達上限 (4/4)！轉化全傷害 +8%！", "#FACC15", 14);
       }
     } else if (existingSkillKey && p.skills[existingSkillKey]) {
       const skObj = p.skills[existingSkillKey];
@@ -2668,23 +2669,23 @@ Object.assign(window.GameApp, {
       const targetVal = Math.max(1, progPair[1]);
       const pct = Math.min(100, Math.round((curVal / targetVal) * 100));
       return `
-        <div class="poke-card p-3 flex items-center justify-between gap-3 ${unlocked && !claimed ? 'border-amber-400 bg-amber-50/40' : (claimed ? 'opacity-80 bg-slate-50' : '')}">
+        <div class="rounded-2xl p-3 border-2 flex items-center justify-between gap-3 shadow-md ${unlocked && !claimed ? 'border-amber-400 bg-slate-900 shadow-[0_0_14px_rgba(250,204,21,0.22)]' : (claimed ? 'border-slate-800 bg-slate-900/65 opacity-80' : 'border-slate-700/90 bg-slate-900/90')}">
           <div class="min-w-0 flex-1">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="font-black text-sm text-slate-800">${a.name}</span>
-              <span class="text-[10px] font-black text-amber-700 bg-amber-100 px-1.5 py-0.2 rounded-full">+${a.reward} 金</span>
+              <span class="font-black text-sm text-white">${a.name}</span>
+              <span class="text-[10px] font-black text-amber-300 bg-amber-950/90 border border-amber-500/60 px-1.5 py-0.2 rounded-full">+${a.reward} 金</span>
             </div>
-            <div class="text-xs font-bold text-slate-600 mt-0.5">${a.desc}</div>
+            <div class="text-xs font-bold text-slate-300 mt-0.5">${a.desc}</div>
             <div class="mt-1.5 flex items-center gap-2">
-              <div class="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                <div class="h-full rounded-full ${unlocked ? 'bg-emerald-500' : 'bg-blue-500'}" style="width:${pct}%"></div>
+              <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div class="h-full rounded-full ${unlocked ? 'bg-emerald-400' : 'bg-sky-500'}" style="width:${pct}%"></div>
               </div>
-              <span class="font-pixel text-[9px] text-slate-500 shrink-0">${curVal}/${targetVal}</span>
+              <span class="font-pixel text-[9px] text-slate-400 shrink-0">${curVal}/${targetVal}</span>
             </div>
           </div>
           ${unlocked && !claimed
-            ? `<button onclick="GameApp.claimAchievement('${a.id}', ${a.reward})" class="poke-btn-red px-4 py-1.5 text-xs font-black shrink-0 min-h-[38px]">領取賞金</button>`
-            : `<span class="text-xs font-black ${claimed ? 'text-emerald-600' : 'text-slate-400'} shrink-0">${claimed ? '✓ 已領取' : '進行中'}</span>`
+            ? `<button onclick="GameApp.claimAchievement('${a.id}', ${a.reward})" class="poke-btn-red px-3.5 py-1.5 text-xs font-black shrink-0 min-h-[38px] whitespace-nowrap">領取賞金</button>`
+            : `<span class="text-xs font-black ${claimed ? 'text-emerald-400' : 'text-slate-500'} shrink-0 whitespace-nowrap">${claimed ? '✓ 已領取' : '進行中'}</span>`
           }
         </div>
       `;
@@ -2885,7 +2886,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.4.1",
+      version: this.APP_VERSION || "v7.4.2",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3534,8 +3535,22 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.4.1 全 4 模式六邊形評級收口 ＆ 實戰數值校準版</span>
+            <span class="font-black text-sm text-amber-300">v7.4.2 攜帶物上限＆經濟遞增 ‧ 難度張力重校 ‧ UI 統一版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">根治雪球膨脹：攜帶物上限 ＆ 動態經濟</div>
+            <div>• <strong>攜帶物上限 4 件 ＋ 加算制</strong>：全模式攜帶物槽位鎖定 4 件，並將原本複利乘算（<code>*= 1.12</code>）改為加算 <code>+6%</code> 全傷，徹底杜絕後期全掃 13 件導致數值失控。</div>
+            <div>• <strong>整備站動態階梯定價</strong>：攜帶物依持有數遞增（<code>120 → 190 → 280 → 390 金</code>）、糖果／PP 提升劑每買 +45 金、TM 依區域遞增（<code>140 / 180 / 220 金</code>）、傷藥維持親民 60 金起（每次 +15 金）。</div>
+            <div class="text-amber-300 font-black pt-1">大遠征普通難度張力重校</div>
+            <div>• <strong>動態百分比威脅保底</strong>：大遠征敵彈至少造成 7% Max HP、紅圈重擊至少 19% Max HP（依難度縮放）；溫和上修 Boss 血量 +25%～35% 並將波間免費回血收斂至 10%（跨區 25%），告別站樁硬扛！</div>
+            <div class="text-sky-300 font-black pt-1">介面統一（方案 A）＆ 封面副標更新</div>
+            <div>• <strong>道館榮譽視覺統一</strong>：修復頂部按鈕換行破版，並將成就卡片全面統一為深藍黑金風格；封面副標同步更新為「<code>關都 151 全圖鑑 ‧ 15+1 大遠征 RPG ‧ MEGA 超級進化</code>」。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.4.1 全 4 模式六邊形評級收口 ＆ 實戰數值校準版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-cyan-300 font-black pt-0.5">六邊形評級全面覆蓋 ＆ 實測校準</div>
@@ -3864,7 +3879,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.4.1";
+    const curVer = this.APP_VERSION || "v7.4.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4317,11 +4332,14 @@ Object.assign(window.GameApp, {
         }
       }
 
+      const ownedHeldCnt = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
       const learnedTypes = new Set(Object.values(p.skills).map(s => SKILLS_CATALOG[s.id]?.type));
-      const eligibleHeld = Object.values(HELD_ITEMS).filter(hi => {
-        const targetSkill = SKILLS_CATALOG[hi.skillReq];
-        return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
-      });
+      const eligibleHeld = ownedHeldCnt < 4
+        ? Object.values(HELD_ITEMS).filter(hi => {
+            const targetSkill = SKILLS_CATALOG[hi.skillReq];
+            return targetSkill && learnedTypes.has(targetSkill.type) && !p.heldItems[hi.id];
+          })
+        : [];
       if (eligibleHeld.length > 0) {
         const hi = eligibleHeld[Math.floor(Math.random() * eligibleHeld.length)];
         if (!addedKeys.has(hi.name)) {
@@ -4331,10 +4349,10 @@ Object.assign(window.GameApp, {
           const dynamicHeldWeight = isHighDiff ? (hasHighLvSkill ? 28 : 10) : (hasHighLvSkill ? 12 : 6);
           pool.push({
             key: hi.name,
-            weight: dynamicHeldWeight, rarityClass: "rarity-epic", badge: "超武核心攜帶物", badgeBg: "bg-purple-600 text-white font-black",
+            weight: dynamicHeldWeight, rarityClass: "rarity-epic", badge: `超武攜帶物 (${ownedHeldCnt + 1}/4)`, badgeBg: "bg-purple-600 text-white font-black",
             title: hi.name, subTitle: "★ 超武突破必備", typeBadge: "", sprite: hi.sprite, desc: hi.desc,
             isNew: true,
-            apply: () => { p.heldItems[hi.id] = true; p.dmgMult *= 1.12; }
+            apply: () => { p.heldItems[hi.id] = true; p.dmgMult += 0.06; }
           });
         }
       }
@@ -4400,7 +4418,7 @@ Object.assign(window.GameApp, {
       <div class="flex items-center justify-between gap-1 bg-slate-800/90 border border-slate-700 px-2.5 py-1 rounded-xl mb-2 text-[10px] font-black">
         <span class="text-emerald-400"><i class="fa-solid fa-heart-pulse"></i> HP: ${Math.ceil(p.hp)}/${p.maxHp}</span>
         <span class="text-sky-300"><i class="fa-solid fa-bolt"></i> 槽: ${curSlots}/${maxSlots}</span>
-        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶: ${heldCount}</span>
+        <span class="text-purple-300"><i class="fa-solid fa-toolbox"></i> 攜帶: ${heldCount}/4</span>
         <span class="text-amber-300" title="本局獲得 ${this.runCoins} 金｜帳號總代幣 ${totalCoins.toLocaleString()} 金"><i class="fa-solid fa-coins"></i> 總 ${totalCoins.toLocaleString()}金</span>
       </div>
     ` : "";

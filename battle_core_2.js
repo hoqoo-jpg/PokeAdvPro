@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.4.1",
+  APP_VERSION: "v7.4.2",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1210,7 +1210,7 @@ window.GameApp = {
         const hiMeta = HELD_ITEMS[reqId] || Object.values(HELD_ITEMS)[0];
         if (hiMeta) {
           this.player.heldItems[hiMeta.id] = true;
-          this.player.dmgMult *= 1.12;
+          this.player.dmgMult += 0.06;
         }
       } else if (ldId === "skill_manual") {
         const mainSkObj = this.player.skills[firstSkillId];
@@ -1417,14 +1417,24 @@ window.GameApp = {
 
   getArenaAdjustedIncomingDmg(normalDmg, kind = "bullet") {
     const p = this.player;
-    if (!this.isArenaMode || !p || !this.arenaDiff) return normalDmg;
-    const d = this.arenaDiff;
-    const pct = kind === "telegraph"
-      ? (d.telegraphPct || 0.16)
-      : (kind === "contact" ? (d.contactPct || 0.09) : (d.bulletPct || 0.06));
+    if (!p) return normalDmg;
     const activeShieldMod = (p.shieldTimer > 0 ? 0.55 : 1.0);
-    const threatFloor = Math.round(p.maxHp * pct * activeShieldMod);
-    return Math.max(normalDmg, threatFloor);
+    if (this.isArenaMode && this.arenaDiff) {
+      const d = this.arenaDiff;
+      const pct = kind === "telegraph"
+        ? (d.telegraphPct || 0.16)
+        : (kind === "contact" ? (d.contactPct || 0.09) : (d.bulletPct || 0.06));
+      const threatFloor = Math.round(p.maxHp * pct * activeShieldMod);
+      return Math.max(normalDmg, threatFloor);
+    }
+    if (this.isExpeditionMode) {
+      const diffId = (this.selectedDifficulty && this.selectedDifficulty.id) || "normal";
+      const diffScale = ({ casual: 0.70, normal: 1.00, hard: 1.30, hell: 1.55 })[diffId] || 1.00;
+      const basePct = kind === "telegraph" ? 0.19 : 0.07;
+      const threatFloor = Math.round(p.maxHp * basePct * diffScale * activeShieldMod);
+      return Math.max(normalDmg, threatFloor);
+    }
+    return normalDmg;
   },
 
   triggerTrainerActiveSkill() {
@@ -4893,10 +4903,11 @@ window.GameApp = {
             const targetSk = SKILLS_CATALOG[hi.skillReq];
             return targetSk && learnedTypes.has(targetSk.type) && !p.heldItems[hi.id];
           });
-          if (unownedHeld.length > 0) {
+          const curHeldCnt = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
+          if (unownedHeld.length > 0 && curHeldCnt < 4) {
             const gift = unownedHeld[0];
             p.heldItems[gift.id] = true;
-            p.dmgMult *= 1.12;
+            p.dmgMult += 0.06;
             this.spawnFloatingText(p.x, p.y - 36, `🎁 神鳥遺寶：獲得【${gift.name}】！`, "#C084FC", 15);
           }
         }

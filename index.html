@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.4.1');
+      background-image: url('images/skills_icons_sheet.png?v=7.4.2');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -582,7 +582,7 @@
 
       <!-- 白色副標題 -->
       <div class="text-xs sm:text-sm font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-widest">
-        關都 151 全圖鑑 ‧ 8 分鐘快節奏冒險 ‧ 六大自然生態
+        關都 151 全圖鑑 ‧ 15+1 大遠征 RPG ‧ MEGA 超級進化
       </div>
     </div>
 
@@ -595,7 +595,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.4.1
+      v7.4.2
     </div>
   </div>
 
@@ -1147,20 +1147,20 @@
     </div>
   </div>
 
-  <!-- 11. 道館榮譽成就館彈窗 (Achievement Modal) -->
-  <div id="achievementModal" class="absolute inset-0 z-50 hidden flex flex-col bg-slate-900 text-slate-800">
-    <div class="bg-white border-b-2 border-slate-800 p-3 sm:p-4 flex items-center justify-between shadow-md shrink-0">
-      <div class="flex items-center gap-2">
-        <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-3 py-1 text-xs font-black"><i class="fa-solid fa-arrow-left"></i> 返回</button>
-        <span class="font-pixel text-xs sm:text-sm text-slate-900 font-black">GYM ACHIEVEMENTS</span>
+  <!-- 11. 道館榮譽成就館彈窗 (Achievement Modal - 方案 A 統一深藍黑金風格＋單行防換行頂欄) -->
+  <div id="achievementModal" class="absolute inset-0 z-50 hidden flex flex-col bg-slate-950 text-white">
+    <div class="bg-slate-900 border-b-2 border-amber-400/80 px-2.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-1.5 shadow-lg shrink-0">
+      <div class="flex items-center gap-1.5 sm:gap-2 min-w-0">
+        <button onclick="GameApp.closeAchievementModal()" class="poke-btn-white px-2.5 py-1 text-[11px] sm:text-xs font-black whitespace-nowrap shrink-0 flex items-center gap-1"><i class="fa-solid fa-arrow-left text-[10px]"></i><span>返回</span></button>
+        <span class="font-black text-xs sm:text-sm text-amber-300 tracking-wide whitespace-nowrap truncate">道館榮譽</span>
       </div>
-      <div class="flex items-center gap-1">
-        <button onclick="GameApp.exportSaveDataCode()" class="poke-btn-blue px-2 py-1 text-[10px] sm:text-[11px] font-black"><i class="fa-solid fa-file-export"></i> 匯出</button>
-        <button onclick="GameApp.importSaveDataCode()" class="poke-btn-yellow px-2 py-1 text-[10px] sm:text-[11px] font-black"><i class="fa-solid fa-file-import"></i> 匯入</button>
-        <button onclick="GameApp.resetToNewbieSave()" class="poke-btn-red px-2 py-1 text-[10px] sm:text-[11px] font-black" title="回復純淨新手開局進度"><i class="fa-solid fa-rotate-left"></i> 重置新手</button>
+      <div class="flex items-center gap-1 shrink-0">
+        <button onclick="GameApp.exportSaveDataCode()" class="poke-btn-blue px-2 py-1 text-[10px] sm:text-[11px] font-black whitespace-nowrap shrink-0 flex items-center gap-1"><i class="fa-solid fa-file-export text-[9px]"></i><span>匯出</span></button>
+        <button onclick="GameApp.importSaveDataCode()" class="poke-btn-yellow px-2 py-1 text-[10px] sm:text-[11px] font-black whitespace-nowrap shrink-0 flex items-center gap-1"><i class="fa-solid fa-file-import text-[9px]"></i><span>匯入</span></button>
+        <button onclick="GameApp.resetToNewbieSave()" class="poke-btn-red px-2 py-1 text-[10px] sm:text-[11px] font-black whitespace-nowrap shrink-0 flex items-center gap-1" title="回復純淨新手開局進度"><i class="fa-solid fa-rotate-left text-[9px]"></i><span>重置</span></button>
       </div>
     </div>
-    <div class="flex-1 overflow-y-auto p-4 bg-slate-100">
+    <div class="flex-1 overflow-y-auto p-3 sm:p-4 bg-slate-950">
       <div id="achievementListContainer" class="max-w-xl mx-auto space-y-2.5"></div>
     </div>
   </div>
@@ -1523,7 +1523,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.4.1</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.4.2</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1571,7 +1571,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.4.1</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.4.2</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1604,14 +1604,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.4.1"></script>
-  <script src="map_v11_engine.js?v=7.4.1"></script>
-  <script src="skills_engine.js?v=7.4.1"></script>
-  <script src="skills_vfx.js?v=7.4.1"></script>
-  <script src="battle_core_2.js?v=7.4.1"></script>
-  <script src="battle_renderer.js?v=7.4.1"></script>
-  <script src="modes_arcade.js?v=7.4.1"></script>
-  <script src="mode_expedition.js?v=7.4.1"></script>
-  <script src="game_ui.js?v=7.4.1"></script>
+  <script src="pokedex_data.js?v=7.4.2"></script>
+  <script src="map_v11_engine.js?v=7.4.2"></script>
+  <script src="skills_engine.js?v=7.4.2"></script>
+  <script src="skills_vfx.js?v=7.4.2"></script>
+  <script src="battle_core_2.js?v=7.4.2"></script>
+  <script src="battle_renderer.js?v=7.4.2"></script>
+  <script src="modes_arcade.js?v=7.4.2"></script>
+  <script src="mode_expedition.js?v=7.4.2"></script>
+  <script src="game_ui.js?v=7.4.2"></script>
 </body>
 </html>
