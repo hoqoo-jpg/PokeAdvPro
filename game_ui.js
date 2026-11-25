@@ -314,7 +314,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.3.8";
+        const ver = this.APP_VERSION || "v7.3.9";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -557,7 +557,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.3.8";
+      const curVer = this.APP_VERSION || "v7.3.9";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1362,7 +1362,7 @@ Object.assign(window.GameApp, {
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
-      lastSeenVersion: this.APP_VERSION || "v7.3.8",
+      lastSeenVersion: this.APP_VERSION || "v7.3.9",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3000,8 +3000,17 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.3.8 小王與雙王 4 大流派彈幕 AI 重構版</span>
+            <span class="font-black text-sm text-amber-300">v7.3.9 緊急熱修：修復拆檔後戰鬥角色與敵人隱形 Bug</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-rose-300 font-black pt-0.5">關鍵作用域修復</div>
+            <div>• <strong>修復 <code>skills_engine.js</code> 與 <code>skills_vfx.js</code> 掛載錯位</strong>：將 <code>const SkillsEngine</code> 改為 <code>window.SkillsEngine</code>，解決解耦後 <code>renderGroundLayer</code> 未掛載至同一物件導致渲染中斷、僅顯示地圖背景卻持續在背景殺敵升級的問題。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.3.8 小王與雙王 4 大流派彈幕 AI 重構版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-rose-300 font-black pt-0.5">小王與區域雙王全面實裝 4 大職能流派 AI（告別貼臉送死）</div>
@@ -3296,7 +3305,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.3.8";
+    const curVer = this.APP_VERSION || "v7.3.9";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-const SkillsEngine = {
+window.SkillsEngine = {
   projectiles: [],
   meleeEffects: [],
   ultimateVfxList: [],
