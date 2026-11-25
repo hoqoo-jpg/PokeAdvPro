@@ -252,7 +252,7 @@ Ember: {
     evolvedName: "大陸板塊崩落", color: "#D97706",
     extraIconCol: 0, svgIcon: "rock",
     desc: "鎖定敵群預警落點，連續砸下 3～5 顆稜角巨岩與碎石震波，造成強擊退重擊！",
-    evoDesc: "【終極超武】震裂地面斷層並召喚 8 道巨型板塊隕岩連環天墜，引發岩爆震波！"
+    evoDesc: "【終極超武】震裂熔岩十字斷層，天降黑曜尖碑岩柱並四散 8 顆滾石碾壓！"
   },
   XScissor: {
     id: "XScissor", name: "十字剪", type: "Bug", baseDmg: 32, baseCd: 1.05, ultMinCd: 3.2, ultPowerBonus: 1.08,
@@ -260,7 +260,7 @@ Ember: {
     evolvedName: "終極十字星斬", color: "#84CC16",
     extraIconCol: 1, svgIcon: "bug",
     desc: "雙鐮高速交錯斬出翡翠彎月十字刃，附帶 +15% 暴擊率與兩段破甲切割！",
-    evoDesc: "【終極超武】跟隨主角旋轉爆發三連超巨型翡翠白金 X 字星斬與音爆氣環！"
+    evoDesc: "【終極超武】化作高速自轉的翡翠金十字星手裡劍巨輪跟隨切碎敵群，收尾爆出八向劍氣！"
   },
   PoisonJab: {
     id: "PoisonJab", name: "毒擊", type: "Poison", baseDmg: 27, baseCd: 1.04, ultMinCd: 3.3, ultPowerBonus: 1.06,
@@ -268,7 +268,7 @@ Ember: {
     evolvedName: "劇毒新星", color: "#A855F7",
     extraIconCol: 2, svgIcon: "poison",
     desc: "扇形連射貫穿毒矛；命中已中毒敵人觸發 +40% 毒爆並將中毒傳染周圍敵群！",
-    evoDesc: "【終極超武】向 12 方向齊射貫穿劇毒長矛，並於地面展開沸騰腐蝕領域連鎖毒爆！"
+    evoDesc: "【終極超武】凝聚紫綠毒晶核雙波螺旋齊射 16 根劇毒骨矛，插地化作結晶毒刺陣爆毒！"
   },
   ElectroBall: {
     id: "ElectroBall", name: "電球", type: "Electric", baseDmg: 31, baseCd: 1.24, ultMinCd: 3.4, ultPowerBonus: 1.06,
@@ -276,7 +276,7 @@ Ember: {
     evolvedName: "超載磁暴球", color: "#FACC15",
     extraIconCol: 3, svgIcon: "electric",
     desc: "高壓等離子球推進，移速越快球越大且最高增傷 +35%，飛行中自動抽射電弧！",
-    evoDesc: "【終極超武】放出三顆超載磁暴巨球螺旋推進，球體間拉出高壓閃電網麻痺敵群！"
+    evoDesc: "【終極超武】召喚 3 顆藍白高壓電磁衛星繞身公轉，構成旋轉三角形閃電牢籠持續麻痺！"
   },
   ShadowClaw: {
     id: "ShadowClaw", name: "暗影爪", type: "Ghost", baseDmg: 34, baseCd: 1.10, ultMinCd: 3.3, ultPowerBonus: 1.08,
@@ -284,7 +284,7 @@ Ember: {
     evolvedName: "冥界裂空爪", color: "#9333EA",
     extraIconCol: 4, svgIcon: "ghost",
     desc: "撕開三道紫紅幽靈爪痕橫掃，天生 +25% 暴擊（Mega 耿鬼享猩紅冥火 +35% 暴擊）！",
-    evoDesc: "【終極超武】腳下浮現冥界陣紋，四象限撕開裂空巨爪並同步收束引爆收割！"
+    evoDesc: "【終極超武】張開暗紫空間裂縫黑洞，雙巨爪由兩側合掌撕裂抓握聚怪並引爆處決！"
   }
 };
 
@@ -762,7 +762,7 @@ const POKEMON_DB = [
   { id: 120, name_zh: "海星星", type1: "Water", type2: "None", hp: 95, atk: 45, speed: 85, skill: "Hydro Pump", weightTier: "light", kbResist: 0.10, evo_level: 18, evo_to: 121 },
   { id: 121, name_zh: "寶石海星", type1: "Water", type2: "Psychic", hp: 170, atk: 75, speed: 115, skill: "Hydro Pump", weightTier: "medium", kbResist: 0.50, evo_level: "None", evo_to: null },
   { id: 122, name_zh: "魔牆人偶", type1: "Psychic", type2: "None", hp: 140, atk: 45, speed: 90, skill: "Psystrike", weightTier: "medium", kbResist: 0.45, evo_level: "None", evo_to: null },
-  { id: 123, name_zh: "飛天螳螂", type1: "Bug", type2: "Flying", hp: 175, atk: 110, speed: 105, skill: "Air Slash", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
+  { id: 123, name_zh: "飛天螳螂", type1: "Bug", type2: "Flying", hp: 175, atk: 110, speed: 105, skill: "XScissor", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
   { id: 124, name_zh: "迷唇姐", type1: "Ice", type2: "Psychic", hp: 155, atk: 50, speed: 95, skill: "Ice Beam", weightTier: "medium", kbResist: 0.40, evo_level: "None", evo_to: null },
   { id: 125, name_zh: "電擊獸", type1: "Electric", type2: "None", hp: 170, atk: 83, speed: 105, skill: "Thunderbolt", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
   { id: 126, name_zh: "鴨嘴火獸", type1: "Fire", type2: "None", hp: 170, atk: 95, speed: 93, skill: "Flamethrower", weightTier: "medium", kbResist: 0.55, evo_level: "None", evo_to: null },
@@ -2422,6 +2422,7 @@ const POKEMON_NATURAL_SKILLS = {
   114: { name: "蔓藤怪",   skills: ["BulletSeed", "VineWhip", "SeedBomb"] },
   116: { name: "墨海馬",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   117: { name: "海刺龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
+  123: { name: "飛天螳螂", skills: ["XScissor", "AirSlash", "Tackle"] },
   129: { name: "鯉魚王",   skills: ["Tackle", "HydroPump", "DragonRush"] },
   130: { name: "暴鯉龍",   skills: ["HydroPump", "DragonRush", "IceBeam"] },
   132: { name: "百變怪",   skills: ["Metronome", "Tackle", "Psystrike"] },

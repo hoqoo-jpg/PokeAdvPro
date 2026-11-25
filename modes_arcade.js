@@ -363,6 +363,7 @@ Object.assign(window.GameApp, {
       this.spawnTreasureMonster(isMeowth ? "meowth" : "chansey");
     }
 
+    if (this.debugStopSpawn) return;
     this.eliteSpawnTimer -= dt;
     if (this.eliteSpawnTimer <= 0) {
       this.eliteSpawnTimer = 45;

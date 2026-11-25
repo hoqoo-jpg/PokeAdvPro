@@ -1299,7 +1299,7 @@ window.ModeExpedition = {
     }
 
     // 3. 刷怪排程
-    if (cfg.enemyPool && cfg.enemyPool.length > 0) {
+    if (!app.debugStopSpawn && cfg.enemyPool && cfg.enemyPool.length > 0) {
       st.spawnCd -= dt;
       const cap = cfg.isBossWave ? 14 : Math.min(36, 18 + st.currentWave * 2);
       const canSpawnMore = cfg.isBossWave || (st.spawnedCount < st.killQuota);

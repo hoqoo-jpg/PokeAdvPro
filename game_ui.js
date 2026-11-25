@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.5.6";
+        const ver = this.APP_VERSION || "v7.5.7";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.5.6";
+      const curVer = this.APP_VERSION || "v7.5.7";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1368,7 +1368,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.5.6",
+      lastSeenVersion: this.APP_VERSION || "v7.5.7",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2888,7 +2888,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.5.6",
+      version: this.APP_VERSION || "v7.5.7",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3557,8 +3557,24 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.5.6 新 5 招深度重構 ‧ 全 151 原作配表＆特性聯動 ‧ 黑金主題精修版</span>
+            <span class="font-black text-sm text-amber-300">v7.5.7 五大新招＆獨立超武美術重製 ‧ 測試木樁＆單槽超武面板</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">五大新招去幾何化 ＆ 五套獨立形態終極超武</div>
+            <div>• <strong>岩崩 ➔【大陸板塊崩落】</strong>：普攻縮小至精巧實心主岩＋碎石群落；超武改為熔岩十字斷層天降「黑曜尖碑岩柱」並四散 8 顆滾石碾壓！</div>
+            <div>• <strong>十字剪 ➔【終極十字星斬】</strong>：補齊地面投影與兩段錯落彎月刀光；超武化作跟隨主角高速自轉的「翡翠金十字星手裡劍巨輪」，收尾爆出八向劍氣！</div>
+            <div>• <strong>暗影爪 ➔【冥界裂空爪】</strong>：重繪 110° 大弧度橫掃彎爪撕裂傷口；超武張開空間裂縫黑洞，雙巨爪由兩側合掌撕裂聚怪並處決！</div>
+            <div>• <strong>電球 ➔【超載磁暴球】</strong>：去除風車線改為不規則跳動高熱電漿＋地面反光暈；超武召喚 3 顆電磁衛星繞身公轉構成旋轉三角形閃電牢籠！</div>
+            <div>• <strong>毒擊 ➔【劇毒新星】</strong>：細長突刺毒針＋毒爆螢光環；超武徹底擺脫毒沼複用，凝聚紫綠毒晶核雙波螺旋齊射 16 根劇毒骨矛並插地化作結晶毒刺陣！</div>
+            <div class="text-amber-300 font-black pt-1">飛天螳螂配招調整 ＆ 測試面板升級</div>
+            <div>• <strong>飛天螳螂 (#123)</strong>：天生第 1、2 招對調為【十字剪 → 空氣斬 → 撞擊】。</div>
+            <div>• <strong>測試面板三大升級</strong>：新增【清怪停刷開關】、【🎯 召喚測試木樁】以及各自獨立的【★ 第1槽超武】與【★ 第2槽超武】按鍵！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.5.6 新 5 招深度重構 ‧ 全 151 原作配表＆特性聯動 ‧ 黑金主題精修版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">五大新招普攻與專屬超武全面重構（非通用全屏）</div>
@@ -3931,7 +3947,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.5.6";
+    const curVer = this.APP_VERSION || "v7.5.7";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

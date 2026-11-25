@@ -2149,6 +2149,52 @@ Object.assign(window.GameApp, {
 
     const drawEnemyEntity = (e) => {
       const esx = e._esx, esy = e._esy, sz = e._sz;
+      if (e.isTrainingDummy) {
+        ctx.save();
+        ctx.translate(esx, esy);
+        const shake = e.whiteFlashTimer > 0 ? Math.sin(performance.now() * 0.08) * 3.5 : 0;
+        ctx.translate(shake, 0);
+        // 木樁底座十字架
+        ctx.fillStyle = "#5C2808";
+        ctx.strokeStyle = "#1C0D04";
+        ctx.lineWidth = 2;
+        ctx.fillRect(-16, 14, 32, 7);
+        ctx.strokeRect(-16, 14, 32, 7);
+        // 垂直木柱
+        ctx.fillStyle = "#92400E";
+        ctx.fillRect(-6, -24, 12, 40);
+        ctx.strokeRect(-6, -24, 12, 40);
+        // 橫木雙臂
+        ctx.fillStyle = "#B45309";
+        ctx.fillRect(-24, -10, 48, 8);
+        ctx.strokeRect(-24, -10, 48, 8);
+        // 稻草標靶頭
+        ctx.fillStyle = e.whiteFlashTimer > 0 ? "#FFFFFF" : "#FDE68A";
+        ctx.beginPath();
+        ctx.arc(0, -18, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        // 紅白靶心
+        ctx.strokeStyle = "#DC2626";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, -18, 7.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = "#DC2626";
+        ctx.beginPath();
+        ctx.arc(0, -18, 2.8, 0, Math.PI * 2);
+        ctx.fill();
+        // 頭頂標籤
+        ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#34D399";
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 3;
+        ctx.strokeText("🎯 測試木樁", 0, -37);
+        ctx.fillText("🎯 測試木樁", 0, -37);
+        ctx.restore();
+        return;
+      }
       const eSprUrl = e.facingY < 0 ? e.data.back_sprite : e.data.forward_sprite;
       // P0 關鍵優化：使用離線預烘焙閃光圖 (SpriteCache.getShiny)，0 ctx.filter 開銷
       const eRec = e.isShiny ? SpriteCache.getShiny(eSprUrl) : SpriteCache.get(eSprUrl);

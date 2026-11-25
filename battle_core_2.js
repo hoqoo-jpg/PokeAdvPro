@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.5.6",
+  APP_VERSION: "v7.5.7",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -26,6 +26,7 @@ window.GameApp = {
   showFpsHud: false,
   debugToolsUnlocked: false,
   debugGodMode: false,
+  debugStopSpawn: false,
   debugMobCap: 0,
 
   // 存檔基礎骨架 (詳細資料結構由 game_ui.js 接管同步)
@@ -610,43 +611,98 @@ window.GameApp = {
     this.openLevelUpModal();
   },
 
-  debugUnlockSuperMove(targetCount = 1) {
+  debugUnlockSuperMoveSlot(slotIdx = 0) {
     if (!this.player) return;
     this.markDebugRun();
     const p = this.player;
-    // 若要求雙超武但目前學會的招式不足 2 招，自動從天生三招池補齊第 2 招
-    if (targetCount >= 2 && Object.keys(p.skills).length < 2) {
+    // 若點選第 2 槽超武但目前只學 1 招，自動從天生三招池補齊第 2 招（不動第 1 槽）
+    if (slotIdx >= 1 && Object.keys(p.skills).length <= slotIdx) {
       const natList = p.naturalSkills || ["Tackle", "AirSlash", "Earthquake"];
       for (const sId of natList) {
         const metaCheck = SKILLS_CATALOG[sId];
         if (metaCheck && !p.skills[metaCheck.id]) {
           p.skills[metaCheck.id] = { id: metaCheck.id, level: 10, evolved: false, timer: 0.25 };
-          if (Object.keys(p.skills).length >= 2) break;
+          if (Object.keys(p.skills).length > slotIdx) break;
         }
       }
     }
-
-    const skillList = Object.values(p.skills).slice(0, targetCount);
-    skillList.forEach((sk, idx) => {
-      const meta = SKILLS_CATALOG[sk.id];
-      if (!meta) return;
-      sk.level = 10;
-      if (meta.reqItem) p.heldItems[meta.reqItem] = true;
-      sk.evolved = true;
-      sk.ultMaxCd = 10.0;
-      sk.ultTimer = idx === 0 ? 10.0 : 11.0;
-      if (idx === 0) {
-        SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.78);
-      } else {
-        setTimeout(() => {
-          if (this.state === "PLAYING" && this.player) {
-            SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.68);
-          }
-        }, 550);
-      }
-    });
-    this.spawnFloatingText(p.x, p.y - 32, targetCount >= 2 ? "★★ 雙超武全開覺醒！" : "★ 第1招超武突破！", "#FACC15", 15);
+    const skillList = Object.values(p.skills);
+    const sk = skillList[slotIdx];
+    if (!sk) return;
+    const meta = SKILLS_CATALOG[sk.id];
+    if (!meta) return;
+    sk.level = 10;
+    if (meta.reqItem) p.heldItems[meta.reqItem] = true;
+    sk.evolved = true;
+    sk.ultMaxCd = 8.0;
+    sk.ultTimer = 8.0;
+    SkillsEngine.triggerUltimateSuperMove(meta, sk, 0.82);
+    this.spawnFloatingText(p.x, p.y - 32, `★ 第${slotIdx + 1}槽【${meta.evolvedName || meta.name}】超武覺醒！`, "#FACC15", 15);
     this.refreshHUD();
+  },
+
+  debugUnlockSuperMove(targetCount = 1) {
+    this.debugUnlockSuperMoveSlot(targetCount >= 2 ? 1 : 0);
+  },
+
+  debugToggleStopSpawn() {
+    if (!this.player) return;
+    this.markDebugRun();
+    this.debugStopSpawn = !this.debugStopSpawn;
+    const btn = document.getElementById("btnDebugStopSpawn");
+    if (this.debugStopSpawn) {
+      this.enemies = this.enemies.filter(e => e.isTrainingDummy);
+      this.enemyProjectiles = [];
+      this.spawnFloatingText(this.player.x, this.player.y - 28, "🧹 已清空全場敵人並【停止刷怪】！", "#34D399", 14);
+      if (btn) {
+        btn.textContent = "🚫 停刷中: 開 (點此恢復)";
+        btn.className = "px-1.5 py-1 bg-rose-800 border border-rose-400 rounded text-[9px] font-black text-rose-100";
+      }
+    } else {
+      this.spawnFloatingText(this.player.x, this.player.y - 28, "▶ 已恢復敵人自動生成！", "#38BDF8", 14);
+      if (btn) {
+        btn.textContent = "🧹 清怪停刷: 關";
+        btn.className = "px-1.5 py-1 bg-slate-700 border border-slate-500 rounded text-[9px] font-bold";
+      }
+    }
+  },
+
+  debugToggleTrainingDummy() {
+    if (!this.player) return;
+    this.markDebugRun();
+    const p = this.player;
+    const hasDummy = this.enemies.some(e => e.isTrainingDummy);
+    const btn = document.getElementById("btnDebugDummyToggle");
+    if (hasDummy) {
+      this.enemies = this.enemies.filter(e => !e.isTrainingDummy);
+      this.spawnFloatingText(p.x, p.y - 28, "🎯 已移除測試木樁", "#94A3B8", 13);
+      if (btn) btn.textContent = "🎯 召喚木樁";
+      return;
+    }
+    const ang = p.facingAngle || 0;
+    const dx = p.x + Math.cos(ang) * 125;
+    const dy = p.y + Math.sin(ang) * 125;
+    const dummyData = {
+      id: 9999, name_zh: "測試木樁", type1: "Normal", type2: "None",
+      hp: 999999, atk: 0, speed: 0, weightTier: "heavy", kbResist: 1.0,
+      forward_sprite: "", back_sprite: ""
+    };
+    this.enemies.push({
+      id: 9999,
+      data: dummyData,
+      x: dx, y: dy,
+      vx: 0, vy: 0,
+      hp: 999999, maxHp: 999999,
+      atk: 0, speed: 0,
+      radius: 26,
+      isBoss: false, isElite: false, isTrainingDummy: true,
+      kbResist: 1.0, weightTier: "heavy",
+      facingX: -1, facingY: 1,
+      status: null, statusTimer: 0, whiteFlashTimer: 0,
+      ccImmunityTimer: 0, dpsBucket: 0, dpsShieldFlashTimer: 0
+    });
+    this.spawnFloatingText(dx, dy - 32, "🎯 測試木樁就位！(999,999 HP)", "#34D399", 14);
+    if (btn) btn.textContent = "🎯 移除木樁";
   },
 
   debugToggleFpsHud() {
@@ -1241,6 +1297,11 @@ window.GameApp = {
 
     this.runTime = 0;
     this.spawnTimer = 0.5;
+    this.debugStopSpawn = false;
+    const stopBtn = document.getElementById('btnDebugStopSpawn');
+    if (stopBtn) { stopBtn.textContent = '🧹 清怪停刷: 關'; stopBtn.className = 'px-1.5 py-1 bg-slate-700 border border-slate-500 rounded text-[9px] font-bold'; }
+    const dumBtn = document.getElementById('btnDebugDummyToggle');
+    if (dumBtn) dumBtn.textContent = '🎯 召喚木樁';
     this.eliteSpawnTimer = 45;
     this.treasureSpawnTimer = 38;
     this.magnetSpawnTimer = 35;
@@ -3080,6 +3141,10 @@ window.GameApp = {
         }
       }
 
+      if (e.isTrainingDummy) {
+        if (e.hp < e.maxHp * 0.5) e.hp = e.maxHp;
+        continue;
+      }
       if (e.status === "Freeze") continue;
 
       const dx = p.x - e.x;
