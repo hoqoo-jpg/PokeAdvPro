@@ -1427,6 +1427,135 @@ const ACHIEVEMENTS = [
   { id: "dex_151",     name: "🏆 關都圖鑑大師", desc: "登錄收服全部 151 隻關都寶可夢", reward: 3000, check: (st, sv) => Object.keys(sv.pokedexCaught || {}).length >= 151, progress: (st, sv) => [Object.keys(sv.pokedexCaught || {}).length, 151] }
 ];
 
+
+// 10B. 關都 8 枚像素道館徽章（v7.6.0 三段階梯解鎖 ＋ 永久戰力被動 ＋ 4x2 像素精靈圖集）
+const KANTO_BADGES_SHEET_URL = "images/kanto_badges_sheet.png?v=7.6.0";
+const KANTO_GYM_BADGES = [
+  {
+    id: "boulder", name: "灰色徽章", gym: "尼比道館", type: "Rock", col: 0, row: 0, tier: "入門",
+    buffText: "全精靈最大 HP +5%",
+    condDesc: "累計擊敗 500 隻野怪，或單局存活達 6 分鐘",
+    check: (st, sv) => (st.totalKills || 0) >= 500 || (st.bestStandardTime || 0) >= 360 || (st.bestEndlessTime || 0) >= 360,
+    progress: (st) => [Math.min(500, st.totalKills || 0), 500]
+  },
+  {
+    id: "cascade", name: "藍色徽章", gym: "華藍道館", type: "Water", col: 1, row: 0, tier: "中階",
+    buffText: "經驗拾取範圍 +10%",
+    condDesc: "通關【華藍海岬】，或累計完成 12 次戰鬥進化",
+    check: (st, sv) => !!(st.clearedStages && st.clearedStages.cerulean_bay) || (st.evolutions || 0) >= 12,
+    progress: (st) => (st.clearedStages && st.clearedStages.cerulean_bay) ? [1, 1] : [Math.min(12, st.evolutions || 0), 12]
+  },
+  {
+    id: "thunder", name: "橙色徽章", gym: "枯葉道館", type: "Electric", col: 2, row: 0, tier: "中階",
+    buffText: "全精靈移動速度 +4%",
+    condDesc: "通關【無人發電廠】，或累計釋放 25 次終極超武",
+    check: (st, sv) => !!(st.clearedStages && st.clearedStages.power_plant) || (st.superMoves || 0) >= 25,
+    progress: (st) => (st.clearedStages && st.clearedStages.power_plant) ? [1, 1] : [Math.min(25, st.superMoves || 0), 25]
+  },
+  {
+    id: "rainbow", name: "彩虹徽章", gym: "玉虹道館", type: "Grass", col: 3, row: 0, tier: "入門",
+    buffText: "升級＆道具回血 +15%",
+    condDesc: "通關【常磐密林】，或圖鑑收服達 35 隻",
+    check: (st, sv) => !!(st.clearedStages && st.clearedStages.pallet) || Object.keys((sv && sv.pokedexCaught) || {}).length >= 35,
+    progress: (st, sv) => (st.clearedStages && st.clearedStages.pallet) ? [1, 1] : [Math.min(35, Object.keys((sv && sv.pokedexCaught) || {}).length), 35]
+  },
+  {
+    id: "soul", name: "粉紅徽章", gym: "淺紅道館", type: "Poison", col: 0, row: 1, tier: "中階",
+    buffText: "異常狀態觸發率 +8%",
+    condDesc: "擁有任 1 隻 ★3 金冠滿星精靈，或無盡深淵存活 10 分鐘",
+    check: (st, sv) => Object.values((sv && sv.pokemonStars) || {}).some(v => v >= 3) || (st.bestEndlessTime || 0) >= 600,
+    progress: (st, sv) => Object.values((sv && sv.pokemonStars) || {}).some(v => v >= 3) ? [1, 1] : [Math.min(10, Math.floor((st.bestEndlessTime || 0) / 60)), 10]
+  },
+  {
+    id: "marsh", name: "金黃徽章", gym: "金黃道館", type: "Psychic", col: 1, row: 1, tier: "終局",
+    buffText: "全招式冷卻縮減 -3%",
+    condDesc: "通關【石英高原】，或擊敗傳說三聖鳥累計 3 次",
+    check: (st, sv) => !!(st.clearedStages && st.clearedStages.sky_pillar) || (st.birdsDefeated || 0) >= 3,
+    progress: (st) => (st.clearedStages && st.clearedStages.sky_pillar) ? [1, 1] : [Math.min(3, st.birdsDefeated || 0), 3]
+  },
+  {
+    id: "volcano", name: "深紅徽章", gym: "紅蓮道館", type: "Fire", col: 2, row: 1, tier: "終局",
+    buffText: "全精靈基礎攻擊 +5%",
+    condDesc: "通關【紅蓮火山】，或解鎖累計 3 隻 MEGA 形態",
+    check: (st, sv) => !!(st.clearedStages && st.clearedStages.cinnabar_volcano) || Object.keys((sv && sv.megaUnlocked) || {}).length >= 3,
+    progress: (st, sv) => (st.clearedStages && st.clearedStages.cinnabar_volcano) ? [1, 1] : [Math.min(3, Object.keys((sv && sv.megaUnlocked) || {}).length), 3]
+  },
+  {
+    id: "earth", name: "綠色徽章", gym: "常磐道館", type: "Ground", col: 3, row: 1, tier: "終局",
+    buffText: "暴擊率 +5% ＆ 代幣 +10%",
+    condDesc: "通關【關都大遠征 15+1】，或於 1vs1 鬥技場擊敗 3 隻神獸",
+    check: (st, sv) => (st.expeditionClears || 0) >= 1 || Object.keys((st && st.arenaBestTimes) || {}).length >= 3,
+    progress: (st) => (st.expeditionClears || 0) >= 1 ? [1, 1] : [Math.min(3, Object.keys((st && st.arenaBestTimes) || {}).length), 3]
+  }
+];
+
+function getKantoBadgeBonuses(saveData) {
+  const st = (saveData && saveData.stats) || {};
+  const b = {
+    count: 0, unlockedMap: {},
+    hpMult: 1.0, magnetMult: 1.0, speedMult: 1.0, healMult: 1.0,
+    statusBonus: 0, cdMult: 1.0, atkMult: 1.0, critBonus: 0, coinMult: 1.0
+  };
+  KANTO_GYM_BADGES.forEach(badge => {
+    const ok = !!badge.check(st, saveData);
+    b.unlockedMap[badge.id] = ok;
+    if (!ok) return;
+    b.count += 1;
+    if (badge.id === "boulder") b.hpMult *= 1.05;
+    else if (badge.id === "cascade") b.magnetMult *= 1.10;
+    else if (badge.id === "thunder") b.speedMult *= 1.04;
+    else if (badge.id === "rainbow") b.healMult *= 1.15;
+    else if (badge.id === "soul") b.statusBonus += 0.08;
+    else if (badge.id === "marsh") b.cdMult *= 0.97;
+    else if (badge.id === "volcano") b.atkMult *= 1.05;
+    else if (badge.id === "earth") { b.critBonus += 0.05; b.coinMult *= 1.10; }
+  });
+  return b;
+}
+
+function renderKantoBadgeIconHTML(badge, unlocked, sizePx = 42) {
+  const posX = (badge.col / 3) * 100;
+  const posY = badge.row * 100;
+  const filterCss = unlocked
+    ? "drop-shadow(0 0 6px rgba(250,204,21,0.55))"
+    : "brightness(0.18) saturate(0) opacity(0.52)";
+  return `<span style="display:inline-block;width:${sizePx}px;height:${sizePx}px;background-image:url('${KANTO_BADGES_SHEET_URL}');background-size:400% 200%;background-position:${posX}% ${posY}%;background-repeat:no-repeat;image-rendering:pixelated;filter:${filterCss};flex-shrink:0;"></span>`;
+}
+
+// 取得該精靈在第 4 招式槽「本系與特性優先」模式下的所有候選招式（供大廳招式整備抽屜預覽與停用）
+function getFourthSlotPoolForPokemon(poke) {
+  if (!poke || typeof SKILLS_CATALOG === "undefined") return [];
+  const natSkills = (typeof getNaturalSkillsForPokemon === "function") ? getNaturalSkillsForPokemon(poke) : [];
+  const natClean = new Set(natSkills.map(id => (id || "").replace(/\s+/g, "")));
+  const trait = (typeof getPokemonInnateTrait === "function") ? getPokemonInnateTrait(poke, 1) : null;
+  const traitAffinityMap = {
+    heavy_slam:         ["Ground", "Rock", "Normal", "Fighting", "Fire", "Dragon"],
+    quick_attack:       ["Electric", "Flying", "Bug", "Normal", "Fighting", "Psychic"],
+    iron_fist:          ["Fighting", "Bug", "Ghost", "Normal", "Ground", "Rock"],
+    mega_launcher:      ["Water", "Ice", "Dragon", "Psychic"],
+    overgrow_thorn:     ["Grass", "Poison", "Bug"],
+    dragon_maw:         ["Fire", "Dragon", "Flying", "Rock", "Ground"],
+    psychic_surge:      ["Psychic", "Ghost", "Poison", "Electric"],
+    legendary_pressure: ["Psychic", "Dragon", "Ice", "Electric", "Fire", "Flying", "Rock"]
+  };
+  const traitTypes = (trait && traitAffinityMap[trait.id]) ? traitAffinityMap[trait.id] : [];
+  const seenNames = new Set();
+  const res = [];
+  Object.values(SKILLS_CATALOG).forEach(meta => {
+    if (!meta || meta.id === "Metronome") return;
+    const clean = (meta.id || "").replace(/\s+/g, "");
+    if (natClean.has(clean) || seenNames.has(meta.name)) return;
+    const isStab = (meta.type === poke.type1) || (poke.type2 && poke.type2 !== "None" && meta.type === poke.type2);
+    const isTrait = traitTypes.includes(meta.type);
+    if (isStab || isTrait) {
+      seenNames.add(meta.name);
+      res.push({ meta, isStab });
+    }
+  });
+  res.sort((a, b) => (b.isStab ? 1 : 0) - (a.isStab ? 1 : 0));
+  return res;
+}
+
 // 11. 地面 Boss 戰利品
 const MAP_BOSS_LOOTS = {
   evo_chest: { name: "黃金進化寶箱", color: "#F59E0B", sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/dusk-stone.png" },

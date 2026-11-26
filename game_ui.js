@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.5.10p1";
+        const ver = this.APP_VERSION || "v7.6.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -400,7 +400,7 @@ Object.assign(window.GameApp, {
         unlockedPokemon: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
         unlockedTrainers: { ash: true, misty: true, brock: true },
         upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
-        stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0, gemsCollected: 0 },
+        stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0, gemsCollected: 0, bestStandardTime: 0, clearedStages: {} },
         pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
         pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
         pokedexRewardClaimed: {},
@@ -561,9 +561,10 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.5.10p1";
+      const curVer = this.APP_VERSION || "v7.6.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
+    if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
   },
 
@@ -1331,6 +1332,7 @@ Object.assign(window.GameApp, {
           pokedexRewardClaimed: { ...(parsed.pokedexRewardClaimed || {}) },
           shinyUnlocked: { ...(parsed.shinyUnlocked || { 25: true }) },
           megaUnlocked: { ...(parsed.megaUnlocked || {}) },
+          skillLoadouts: { ...(parsed.skillLoadouts || {}) },
           selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short", ...(parsed.selectedCostumes || {}) },
           unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true }, ...(parsed.unlockedCostumes || {}) },
           claimedAch: { ...(parsed.claimedAch || {}) },
@@ -1358,17 +1360,18 @@ Object.assign(window.GameApp, {
       unlockedTrainers: { ash: true, misty: true, brock: true },
       upgrades: { atk: 0, cd: 0, hp: 0, shiny: 0, megaRing: 0, fourthSlot: 0, rerollCount: 0, trainerCd: 0, partner: 0, greed: 0 },
       pokemonStars: {},
-      stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0, gemsCollected: 0 },
+      stats: { totalKills: 0, evolutions: 0, superMoves: 0, birdsDefeated: 0, mewtwoDefeated: 0, mewDefeated: 0, gemsCollected: 0, bestStandardTime: 0, clearedStages: {} },
       pokedexSeen: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true, 133: true },
       pokedexCaught: { 1: true, 4: true, 7: true, 10: true, 16: true, 25: true },
       pokedexRewardClaimed: {},
       shinyUnlocked: { 25: true },
       megaUnlocked: {},
+      skillLoadouts: {},
       selectedCostumes: { ash: "classic", lillie: "alola_powered", serena: "kalos_short" },
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.5.10p1",
+      lastSeenVersion: this.APP_VERSION || "v7.6.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2246,6 +2249,126 @@ Object.assign(window.GameApp, {
     this.renderCenterUpgrades();
   },
 
+  toggleLobbySkillLoadout() {
+    this._lobbyLoadoutOpen = !this._lobbyLoadoutOpen;
+    this.renderLobbySkillLoadout();
+  },
+
+  setLobbyStarterSkill(pokeId, skillId) {
+    if (!this.saveData) return;
+    if (!this.saveData.skillLoadouts) this.saveData.skillLoadouts = {};
+    const cur = this.saveData.skillLoadouts[pokeId] || {};
+    cur.starter = skillId;
+    if (cur.banned === skillId) cur.banned = null;
+    this.saveData.skillLoadouts[pokeId] = cur;
+    this.saveToStorage();
+    SoundFX.play("click");
+    this.renderLobbySkillLoadout();
+  },
+
+  toggleLobbyBanSkill(pokeId, skillId) {
+    if (!this.saveData) return;
+    if (!this.saveData.skillLoadouts) this.saveData.skillLoadouts = {};
+    const p = POKEMON_MAP.get(pokeId);
+    const natSkills = (p && typeof getNaturalSkillsForPokemon === "function") ? getNaturalSkillsForPokemon(p) : [];
+    const cur = this.saveData.skillLoadouts[pokeId] || {};
+    const activeStarter = (cur.starter && natSkills.includes(cur.starter)) ? cur.starter : (natSkills[0] || "Tackle");
+    if (skillId === activeStarter) {
+      this.pixelAlert("初始第 1 招無法停用！請先將其他天生招式設為初始技後再停用此招。", "招式整備提示");
+      return;
+    }
+    cur.banned = (cur.banned === skillId) ? null : skillId;
+    this.saveData.skillLoadouts[pokeId] = cur;
+    this.saveToStorage();
+    SoundFX.play("click");
+    this.renderLobbySkillLoadout();
+  },
+
+  renderLobbySkillLoadout() {
+    const box = document.getElementById("lobbySkillLoadoutContainer");
+    if (!box || typeof POKEMON_MAP === "undefined" || typeof SKILLS_CATALOG === "undefined") return;
+    const p = POKEMON_MAP.get(this.selectedStarterId) || POKEMON_MAP.get(25);
+    if (!p) return;
+    const natSkills = (typeof getNaturalSkillsForPokemon === "function") ? getNaturalSkillsForPokemon(p) : [];
+    const fourthPool = (typeof getFourthSlotPoolForPokemon === "function") ? getFourthSlotPoolForPokemon(p) : [];
+    const cur = (this.saveData && this.saveData.skillLoadouts && this.saveData.skillLoadouts[p.id]) || {};
+    const starterId = (cur.starter && natSkills.includes(cur.starter)) ? cur.starter : (natSkills[0] || "Tackle");
+    const bannedId = (cur.banned && cur.banned !== starterId) ? cur.banned : null;
+    const starterMeta = SKILLS_CATALOG[starterId];
+    const bannedMeta = bannedId ? SKILLS_CATALOG[bannedId] : null;
+    const has4thSlot = !!(this.saveData && this.saveData.upgrades && this.saveData.upgrades.fourthSlot >= 1);
+    const isOpen = !!this._lobbyLoadoutOpen;
+
+    const headerHtml = `
+      <div onclick="GameApp.toggleLobbySkillLoadout()" class="cursor-pointer flex items-center justify-between gap-1.5 px-2 py-1 rounded-xl bg-indigo-50/90 border border-indigo-200 hover:bg-indigo-100/80 transition select-none">
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-[9px] font-black text-indigo-700 shrink-0"><i class="fa-solid fa-sliders"></i> 招式整備</span>
+          ${starterMeta ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-white border border-amber-400 text-[9px] font-black text-slate-800 shrink-0">${renderSkillIconHTML(starterMeta, "w-3.5 h-3.5")}<span>★${starterMeta.name}</span></span>` : ''}
+          ${bannedMeta ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md bg-rose-100 border border-rose-300 text-[9px] font-black text-rose-700 truncate">🚫停用:${bannedMeta.name}</span>` : ''}
+        </div>
+        <span class="text-[9px] font-black text-indigo-600 shrink-0">${isOpen ? '收合 ▲' : '配置 ▾'}</span>
+      </div>
+    `;
+
+    if (!isOpen) {
+      box.innerHTML = headerHtml;
+      return;
+    }
+
+    const natCardsHtml = natSkills.map(sId => {
+      const m = SKILLS_CATALOG[sId];
+      if (!m) return "";
+      const isStarter = (sId === starterId);
+      const isBanned = (sId === bannedId);
+      return `
+        <div class="flex flex-col justify-between gap-1 p-1.5 rounded-xl border ${isStarter ? 'bg-amber-50 border-amber-400 shadow-sm' : (isBanned ? 'bg-slate-100 border-rose-300 opacity-75' : 'bg-white border-slate-200')}">
+          <div class="flex items-center gap-1 min-w-0">
+            ${renderSkillIconHTML(m, "w-5 h-5 shrink-0")}
+            <div class="min-w-0 flex-1">
+              <div class="text-[10px] font-black truncate ${isBanned ? 'line-through text-slate-400' : 'text-slate-800'}">${m.name}</div>
+              <div class="text-[8px] font-bold text-slate-500">${TYPE_META[m.type] ? TYPE_META[m.type].zh : m.type}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1">
+            <button onclick="event.stopPropagation(); GameApp.setLobbyStarterSkill(${p.id}, '${sId}')" class="flex-1 py-0.5 rounded text-[8px] font-black ${isStarter ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700 hover:bg-amber-100'}">${isStarter ? '★ 初始' : '設為初始'}</button>
+            ${!isStarter ? `<button onclick="event.stopPropagation(); GameApp.toggleLobbyBanSkill(${p.id}, '${sId}')" class="px-1.5 py-0.5 rounded text-[8px] font-black ${isBanned ? 'bg-rose-600 text-white' : 'bg-slate-100 text-rose-600 hover:bg-rose-100'}">${isBanned ? '已停' : '🚫'}</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    const fourthCardsHtml = fourthPool.length > 0 ? fourthPool.map(({ meta: m, isStab }) => {
+      const isBanned = (m.id === bannedId);
+      return `
+        <button onclick="event.stopPropagation(); GameApp.toggleLobbyBanSkill(${p.id}, '${m.id}')" class="inline-flex items-center gap-1 px-1.5 py-1 rounded-lg border text-[9px] font-black transition ${isBanned ? 'bg-rose-600 border-rose-700 text-white line-through' : 'bg-white border-slate-200 text-slate-700 hover:border-rose-300'}">
+          ${renderSkillIconHTML(m, "w-4 h-4 shrink-0")}
+          <span>${m.name}</span>
+          <span class="text-[7px] px-1 rounded ${isBanned ? 'bg-rose-800 text-rose-100' : (isStab ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700')}">${isBanned ? '🚫已停' : (isStab ? '本系' : '特性')}</span>
+        </button>
+      `;
+    }).join("") : `<span class="text-[9px] text-slate-400 font-bold">此精靈本系招式已全含於天生三技中</span>`;
+
+    box.innerHTML = `
+      ${headerHtml}
+      <div class="mt-1.5 p-2 rounded-xl bg-slate-50 border border-indigo-200 space-y-2 text-left">
+        <div>
+          <div class="flex items-center justify-between text-[9px] font-black text-slate-600 mb-1">
+            <span>天生三技（可切換開局第 1 招）</span>
+            <span class="text-rose-600">全系列最多停用 1 招</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">${natCardsHtml}</div>
+        </div>
+        <div class="pt-1.5 border-t border-dashed border-slate-200">
+          <div class="flex items-center justify-between text-[9px] font-black text-slate-600 mb-1">
+            <span>第 4 槽本系／特性池（點擊可停用 1 招）</span>
+            ${!has4thSlot ? `<span class="text-amber-600 text-[8px]">需研究所解鎖第4槽</span>` : ''}
+          </div>
+          <div class="flex flex-wrap gap-1 ${!has4thSlot ? 'opacity-65' : ''}">${fourthCardsHtml}</div>
+        </div>
+      </div>
+    `;
+  },
+
   openAchievementModal() {
     const modal = document.getElementById("achievementModal");
     if (modal) {
@@ -2663,7 +2786,35 @@ Object.assign(window.GameApp, {
         <span class="font-pixel text-[11px] text-amber-600">${completedCount} / ${ACHIEVEMENTS.length}</span>
       </div>
     `;
-    box.innerHTML = bestRecordsHtml + summaryBar + sorted.map(a => {
+    const badgeBonuses = (typeof getKantoBadgeBonuses === "function") ? getKantoBadgeBonuses(this.saveData) : { count: 0, unlockedMap: {} };
+    const badgesCaseHtml = (typeof KANTO_GYM_BADGES !== "undefined") ? `
+      <div class="poke-card p-3 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-400/80 text-white space-y-2.5 shadow-xl">
+        <div class="flex items-center justify-between border-b border-amber-400/30 pb-1.5">
+          <div class="flex items-center gap-1.5">
+            <span class="text-amber-300 font-black text-xs sm:text-sm">🏅 關都道館徽章盒</span>
+            <span class="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 font-pixel text-[8px]">${badgeBonuses.count} / 8</span>
+          </div>
+          <span class="text-[9px] font-bold text-slate-300">點亮即永久生效</span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          ${KANTO_GYM_BADGES.map(bg => {
+            const un = !!badgeBonuses.unlockedMap[bg.id];
+            const prog = bg.progress(this.saveData.stats || {}, this.saveData);
+            return `
+              <div class="rounded-xl p-2 border ${un ? 'bg-slate-800/90 border-amber-400/80 shadow-[0_0_12px_rgba(250,204,21,0.18)]' : 'bg-slate-900/75 border-slate-700/80'} flex flex-col items-center text-center gap-1">
+                <div class="w-11 h-11 rounded-full ${un ? 'bg-amber-500/15 border border-amber-300/60' : 'bg-slate-950/90 border border-slate-800'} flex items-center justify-center">
+                  ${renderKantoBadgeIconHTML(bg, un, 36)}
+                </div>
+                <div class="text-[10px] font-black ${un ? 'text-amber-200' : 'text-slate-400'} leading-tight">${bg.name} <span class="text-[8px] font-bold text-slate-400">(${bg.gym})</span></div>
+                <div class="text-[9px] font-black ${un ? 'text-emerald-300' : 'text-slate-500'} leading-tight">${bg.buffText}</div>
+                <div class="text-[8px] font-bold text-slate-400 leading-snug">${un ? '✓ 已永久啟用' : `${bg.condDesc} (${prog[0]}/${prog[1]})`}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    ` : "";
+    box.innerHTML = badgesCaseHtml + bestRecordsHtml + summaryBar + sorted.map(a => {
       const unlocked = a.check(this.saveData.stats, this.saveData);
       const claimed = !!this.saveData.claimedAch[a.id];
       const progPair = typeof a.progress === "function" ? a.progress(this.saveData.stats, this.saveData) : [unlocked ? 1 : 0, 1];
@@ -2888,7 +3039,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.5.10p1",
+      version: this.APP_VERSION || "v7.6.0",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3557,8 +3708,22 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.5.10p1 五大新招標竿工藝精裝補丁（Mega 耿鬼 ID 修復 ‧ 電球細電弧 ‧ 彩蛋顯色強化）</span>
+            <span class="font-black text-sm text-amber-300">v7.6.0 雙戰術新地圖 ‧ 關都 8 枚像素道館徽章 ‧ 大廳招式整備系統</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-orange-300 font-black pt-0.5">兩張低噪點戰術生態新地圖（預設全開放，接入標準＆無盡模式）</div>
+            <div>• <strong>紅蓮島・火山熔岩洞窟（1.45x）</strong>：火/岩/地系威力 +20%、對灼傷目標 +15%！導入可通行「淺層熔岩池」（火/岩/地/飛系免疫燙傷，零卡怪風險）與 12s 週期地熱蒸氣噴口！</div>
+            <div>• <strong>無人發電廠・高壓磁場區（1.50x）</strong>：電/鋼/毒系威力 +20%、基礎移速 +10%！新增踩踏瞬間點亮的「磁能加速帶（+22%速 ＆ 冷卻-10%）」與觸碰即炸的 180px 麻痺「高壓蓄電塔」！</div>
+            <div class="text-amber-300 font-black pt-1">關都 8 枚像素道館徽章（道館榮譽絨布展示盒）</div>
+            <div>• 導入全新透明像素徽章圖集（含原作實心金核金黃徽章），採三段階梯（入門／中階／終局）覆蓋 5 大地圖通關與核心系統精通，老存檔自動追溯點亮並永久生效 8 項戰力加成！</div>
+            <div class="text-emerald-300 font-black pt-1">大廳「⚔️ 招式整備」折疊抽屜</div>
+            <div>• 可自由指定精靈天生三技的任一招作為開局第 1 招，並於「天生三技 ＋ 第 4 槽本系／特性池」全系列共用 1 格停用名額，按精靈獨立記憶並即時過濾升級卡池！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.5.10p1 五大新招標竿工藝精裝補丁（Mega 耿鬼 ID 修復 ‧ 電球細電弧 ‧ 彩蛋顯色強化）</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">全面對齊水炮／噴射火焰／天龍流星雨 95 分美術工藝</div>
@@ -3986,7 +4151,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.5.10p1";
+    const curVer = this.APP_VERSION || "v7.6.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4351,9 +4516,12 @@ Object.assign(window.GameApp, {
       const currentCount = Object.keys(p.skills).length;
       if (currentCount < p.maxSkillSlots) {
         // 1. 優先推送天生尚未學會的招式 (高權重 60，嚴格去重)
+        const banClean = p.bannedSkillId ? p.bannedSkillId.replace(/\s+/g, '') : null;
         const unlearnedNatural = (p.naturalSkills || []).filter(sId => {
           const m = SKILLS_CATALOG[sId];
-          return m && !Object.values(p.skills).some(existing => existing.id === m.id || existing.id.replace(/\s+/g,'') === m.id.replace(/\s+/g,''));
+          if (!m) return false;
+          if (banClean && m.id.replace(/\s+/g, '') === banClean) return false;
+          return !Object.values(p.skills).some(existing => existing.id === m.id || existing.id.replace(/\s+/g,'') === m.id.replace(/\s+/g,''));
         });
 
         if (unlearnedNatural.length > 0) {
@@ -4395,7 +4563,9 @@ Object.assign(window.GameApp, {
 
           const unlearnedAll = [];
           const seenMetaNames = new Set();
+          const banClean4 = p.bannedSkillId ? p.bannedSkillId.replace(/\s+/g, '') : null;
           Object.values(SKILLS_CATALOG).forEach(meta => {
+            if (banClean4 && meta.id.replace(/\s+/g, '') === banClean4) return;
             const alreadyHas = Object.values(p.skills).some(existing => existing.id === meta.id || existing.id.replace(/\s+/g,'') === meta.id.replace(/\s+/g,''));
             if (!alreadyHas && meta.id !== "Metronome" && !addedKeys.has(meta.name) && !seenMetaNames.has(meta.name)) {
               seenMetaNames.add(meta.name);

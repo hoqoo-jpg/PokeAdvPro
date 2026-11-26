@@ -51,6 +51,36 @@ const STAGES = [
     waterSlow: 0.70,
     buffDesc: "【遺跡共鳴】超能/幽靈威力+20%，全技能冷卻縮減-8%",
     desc: "還原 GBA 冠軍遺跡：大理石金蓮花邊大道、破損石柱雕像、3D等角透視旋轉五芒星超能陣！"
+  },
+  {
+    id: "cinnabar_volcano",
+    name: "紅蓮島・火山熔岩洞窟",
+    tileLight: "#2E2931",
+    tileDark: "#262229",
+    roadColor: "#3F3538",
+    roadBorder: "#7C2D12",
+    slowZoneColor: "#9A3412",
+    waterColor: "#EA580C",
+    rewardMult: 1.45,
+    grassSlow: 0.78,
+    waterSlow: 0.78,
+    buffDesc: "【火山灼熱】火/岩/地威力+20%，對灼傷目標+15%傷！淺層熔岩池與12s地熱噴口",
+    desc: "低噪點玄武岩洞窟：可通行高風險淺層熔岩池（火/岩/地/飛免疫燙傷）與週期地熱蒸氣噴口！"
+  },
+  {
+    id: "power_plant",
+    name: "無人發電廠・高壓磁場區",
+    tileLight: "#3B495E",
+    tileDark: "#334155",
+    roadColor: "#1E293B",
+    roadBorder: "#0284C7",
+    slowZoneColor: "#0369A1",
+    waterColor: "#0EA5E9",
+    rewardMult: 1.50,
+    grassSlow: 1.00,
+    waterSlow: 1.00,
+    buffDesc: "【高壓超載】電/鋼/毒威力+20%，移速+10%！踩磁能軌道加速降CD，觸碰蓄電塔麻痺群怪",
+    desc: "工業霧灰鋼板設施：踩踏瞬間點亮的磁能加速帶（+22%速/-10%CD）與觸碰即炸的180px麻痺蓄電塔！"
   }
 ];
 
@@ -269,6 +299,28 @@ const MapEngine = {
           c.fillStyle = isDark ? "#1C1729" : "#221C32";
           c.fillRect(14, 16, 6, 2); c.fillRect(18, 18, 4, 2);
           c.fillRect(40, 36, 6, 2); c.fillRect(38, 38, 4, 2);
+        } else if (st.id === "cinnabar_volcano") {
+          c.fillStyle = isDark ? "#262229" : "#2D2831";
+          c.fillRect(0, 0, 60, 60);
+          c.fillStyle = "#1D1920";
+          c.fillRect(8, 14, 10, 2); c.fillRect(16, 16, 4, 2);
+          c.fillRect(36, 42, 12, 2); c.fillRect(34, 44, 4, 2);
+          c.fillStyle = isDark ? "#38313D" : "#3E3643";
+          c.fillRect(22, 8, 6, 4); c.fillRect(46, 24, 6, 4);
+          if (!isDark) {
+            c.fillStyle = "rgba(234, 88, 12, 0.24)";
+            c.fillRect(12, 46, 2, 2);
+          }
+        } else if (st.id === "power_plant") {
+          c.fillStyle = isDark ? "#323F52" : "#38465B";
+          c.fillRect(0, 0, 60, 60);
+          c.fillStyle = "#243040";
+          c.fillRect(0, 58, 60, 2); c.fillRect(58, 0, 2, 60);
+          c.fillStyle = "rgba(148, 163, 184, 0.16)";
+          c.fillRect(2, 2, 56, 2);
+          c.fillStyle = "#1E293B";
+          c.fillRect(6, 6, 3, 3); c.fillRect(51, 6, 3, 3);
+          c.fillRect(6, 51, 3, 3); c.fillRect(51, 51, 3, 3);
         }
 
         this.tileCache.set(key, can);
@@ -849,6 +901,47 @@ const MapEngine = {
         ctx.fillRect(28, 26, 3, 3); ctx.fillRect(36, 26, 3, 3);
       }
       if (pil) ctx.drawImage(pil, 180, 18, 48, 60);
+    } else if (stageId === "cinnabar_volcano") {
+      for (let tx = 0; tx < w; tx += 60) {
+        for (let ty = 0; ty < h; ty += 60) {
+          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
+          const tCan = this.tileCache.get(`cinnabar_volcano_${isDark ? 'dark' : 'light'}`);
+          if (tCan) ctx.drawImage(tCan, tx, ty);
+        }
+      }
+      ctx.fillStyle = "#451A03";
+      ctx.beginPath(); ctx.ellipse(76, 70, 52, 26, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#C2410C";
+      ctx.beginPath(); ctx.ellipse(76, 70, 44, 20, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#F97316";
+      ctx.beginPath(); ctx.ellipse(72, 68, 28, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#FEF08A";
+      ctx.fillRect(60, 66, 12, 3); ctx.fillRect(82, 72, 8, 2);
+      ctx.strokeStyle = "#FB923C"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.ellipse(178, 62, 22, 13, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#7C2D12";
+      ctx.beginPath(); ctx.ellipse(178, 62, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#18181B"; ctx.fillRect(18, 14, 24, 22);
+      ctx.fillStyle = "#3F3F46"; ctx.fillRect(22, 16, 14, 10);
+    } else if (stageId === "power_plant") {
+      for (let tx = 0; tx < w; tx += 60) {
+        for (let ty = 0; ty < h; ty += 60) {
+          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
+          const tCan = this.tileCache.get(`power_plant_${isDark ? 'dark' : 'light'}`);
+          if (tCan) ctx.drawImage(tCan, tx, ty);
+        }
+      }
+      ctx.fillStyle = "#0F172A"; ctx.fillRect(0, 58, w, 28);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.35)"; ctx.fillRect(0, 62, w, 20);
+      ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 2;
+      for (let ax = 18; ax < w; ax += 36) {
+        ctx.beginPath(); ctx.moveTo(ax, 66); ctx.lineTo(ax + 10, 72); ctx.lineTo(ax, 78); ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
+      ctx.beginPath(); ctx.arc(178, 42, 24, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#1E293B"; ctx.fillRect(168, 22, 20, 32);
+      ctx.fillStyle = "#38BDF8"; ctx.fillRect(172, 26, 12, 8);
+      ctx.fillStyle = "#FACC15"; ctx.fillRect(175, 16, 6, 6);
     }
   },
 
@@ -882,7 +975,8 @@ const MapEngine = {
     const chunk = {
       cx, cy, baseX, baseY, size,
       roads: [], piers: [], waterTiles: [], sandIslets: [],
-      grassTiles: [], ledges: [], obstacles: [], decorList: []
+      grassTiles: [], ledges: [], obstacles: [], decorList: [],
+      lavaPools: [], steamVents: [], boostTracks: [], teslaPylons: []
     };
 
     if (stage.id === "cerulean_bay") {
@@ -959,6 +1053,37 @@ const MapEngine = {
       if (pseudoRand(9) > 0.35) {
         chunk.grassTiles.push({ x: baseX + 230, y: baseY + 230, w: 140, h: 140, isPsychicWell: true });
       }
+    } else if (stage.id === "cinnabar_volcano") {
+      const poolCnt = isOrigin ? 1 : 2;
+      for (let i = 0; i < poolCnt; i++) {
+        const px = baseX + (i === 0 ? 90 : 350) + Math.floor(pseudoRand(i * 4 + 2) * 80);
+        const py = baseY + (i === 0 ? 340 : 100) + Math.floor(pseudoRand(i * 4 + 3) * 80);
+        chunk.lavaPools.push({ x: px, y: py, rx: 78 + Math.floor(pseudoRand(i + 12) * 26), ry: 52 + Math.floor(pseudoRand(i + 14) * 18) });
+      }
+      const vx = baseX + (isOrigin ? 430 : (140 + Math.floor(pseudoRand(20) * 320)));
+      const vy = baseY + (isOrigin ? 180 : (140 + Math.floor(pseudoRand(21) * 320)));
+      chunk.steamVents.push({ x: vx, y: vy, r: 58, phaseOffset: pseudoRand(22) * 12.0, lastBurstTick: 0 });
+      if (!isOrigin) {
+        const ox = baseX + 60 + Math.floor(pseudoRand(25) * 120);
+        const oy = baseY + 60 + Math.floor(pseudoRand(26) * 120);
+        chunk.obstacles.push({ x: ox, y: oy, w: 54, h: 52, kind: "volcano_rock" });
+      }
+    } else if (stage.id === "power_plant") {
+      chunk.boostTracks.push({ x: baseX, y: baseY + 272, w: size, h: 56, dir: "H" });
+      if (pseudoRand(3) > 0.35) {
+        chunk.boostTracks.push({ x: baseX + 272, y: baseY, w: 56, h: size, dir: "V" });
+      }
+      const pPos = isOrigin
+        ? [{ x: baseX + 430, y: baseY + 170 }]
+        : [{ x: baseX + 145, y: baseY + 145 }, { x: baseX + 455, y: baseY + 455 }];
+      pPos.forEach((pp, idx) => {
+        if (idx === 0 || pseudoRand(30 + idx) > 0.38) {
+          chunk.teslaPylons.push({ x: pp.x, y: pp.y, cd: 0, maxCd: 16.0, pulseFlash: 0 });
+        }
+      });
+      if (!isOrigin && pseudoRand(35) > 0.35) {
+        chunk.obstacles.push({ x: baseX + 420, y: baseY + 95, w: 58, h: 48, kind: "generator" });
+      }
     }
 
     if (this.chunkCache.size >= 64) {
@@ -997,6 +1122,22 @@ const MapEngine = {
       for (const r of chunk.roads) {
         if (r.isMarble && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
           return { speedMult: 1.10, label: "[地形] 大理石大道 +10%移速", inWater: false };
+        }
+      }
+    }
+
+    if (stage.id === "cinnabar_volcano") {
+      for (const lp of (chunk.lavaPools || [])) {
+        const nx = (x - lp.x) / lp.rx, ny = (y - lp.y) / lp.ry;
+        if (nx * nx + ny * ny <= 1.0) {
+          return { speedMult: 0.78, label: "[地形] 淺層熔岩池 (火/岩/地/飛免疫燙傷)", inWater: false, inLava: true };
+        }
+      }
+    }
+    if (stage.id === "power_plant") {
+      for (const bt of (chunk.boostTracks || [])) {
+        if (x >= bt.x && x <= bt.x + bt.w && y >= bt.y && y <= bt.y + bt.h) {
+          return { speedMult: 1.22, label: "[地形] 磁能加速帶 (+22%速 ＆ 冷卻-10%)", inWater: false, onBoostTrack: true, trackRef: bt };
         }
       }
     }
@@ -1146,6 +1287,106 @@ const MapEngine = {
       sp.r += dt * 25;
       sp.life -= dt;
       if (sp.life <= 0) this.splashParticles.splice(i, 1);
+    }
+  },
+
+  // v7.6.0 戰術新地圖機關更新：紅蓮火山（淺層熔岩池燙傷 ＋ 12s 週期地熱蒸氣噴口）＆ 無人發電廠（觸碰即炸 180px 麻痺蓄電塔）
+  updateAndCheckMapHazards(dt, app) {
+    if (this.isArenaMode || !app || !app.player) return;
+    const stId = this.currentStage ? this.currentStage.id : "";
+    if (stId !== "cinnabar_volcano" && stId !== "power_plant") return;
+    const p = app.player;
+    const nowSec = app.runTime || 0;
+    const pcx = Math.floor(p.x / 600), pcy = Math.floor(p.y / 600);
+
+    if (stId === "cinnabar_volcano") {
+      const isPlayerLavaImmune = p.data && ["Fire", "Rock", "Ground", "Flying"].some(t => p.data.type1 === t || p.data.type2 === t);
+      this._lavaTick = (this._lavaTick || 0) - dt;
+      const doLavaTick = this._lavaTick <= 0;
+      if (doLavaTick) this._lavaTick = 0.72;
+
+      for (let cx = pcx - 1; cx <= pcx + 1; cx++) {
+        for (let cy = pcy - 1; cy <= pcy + 1; cy++) {
+          const ch = this.getBiomeChunk(cx, cy);
+          if (doLavaTick) {
+            for (const lp of (ch.lavaPools || [])) {
+              const pnx = (p.x - lp.x) / lp.rx, pny = (p.y - lp.y) / lp.ry;
+              if (!isPlayerLavaImmune && !app.debugGodMode && p.invulnTimer <= 0 && (pnx * pnx + pny * pny <= 1.0)) {
+                const burnDmg = Math.max(2, Math.round(p.maxHp * 0.025));
+                p.hp = Math.max(1, p.hp - burnDmg);
+                app.spawnFloatingText(p.x, p.y - 22, `🔥 熔岩燙傷 -${burnDmg}`, "#FB923C", 11);
+              }
+              const nearMobs = SkillsEngine.getEnemiesInRadius(lp.x, lp.y, Math.max(lp.rx, lp.ry) + 20);
+              for (let i = 0; i < nearMobs.length; i++) {
+                const e = nearMobs[i];
+                if (!e || e.hp <= 0 || e.isTrainingDummy) continue;
+                const isEImm = e.data && ["Fire", "Rock", "Ground", "Flying"].some(t => e.data.type1 === t || e.data.type2 === t);
+                if (isEImm) continue;
+                const enx = (e.x - lp.x) / lp.rx, eny = (e.y - lp.y) / lp.ry;
+                if (enx * enx + eny * eny <= 1.0) {
+                  app.dealDamageToEnemy(e, Math.max(6, Math.round(p.baseAtk * 0.25)), "Fire", 0.45, 0);
+                }
+              }
+            }
+          }
+          for (const sv of (ch.steamVents || [])) {
+            const cyc = (nowSec + sv.phaseOffset) % 12.0;
+            if (cyc >= 0 && cyc < 1.2) {
+              if (nowSec - (sv.lastBurstTick || -9) >= 0.42) {
+                sv.lastBurstTick = nowSec;
+                const nearMobs = SkillsEngine.getEnemiesInRadius(sv.x, sv.y, sv.r + 12);
+                for (let i = 0; i < nearMobs.length; i++) {
+                  const e = nearMobs[i];
+                  if (!e || e.hp <= 0 || e.isTrainingDummy) continue;
+                  if (Math.hypot(e.x - sv.x, e.y - sv.y) <= sv.r + e.radius) {
+                    app.dealDamageToEnemy(e, Math.max(14, Math.round(p.baseAtk * 0.55 * p.dmgMult)), "Fire", 0.95, 10);
+                    if (!e.status) { e.status = "Burn"; e.statusTimer = 4.0; }
+                  }
+                }
+                if (!isPlayerLavaImmune && !app.debugGodMode && p.invulnTimer <= 0 && Math.hypot(p.x - sv.x, p.y - sv.y) <= sv.r) {
+                  const sDmg = Math.max(3, Math.round(p.maxHp * 0.035));
+                  p.hp = Math.max(1, p.hp - sDmg);
+                  app.spawnFloatingText(p.x, p.y - 24, `♨️ 地熱灼傷 -${sDmg}`, "#F97316", 11);
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (stId === "power_plant") {
+      for (let cx = pcx - 1; cx <= pcx + 1; cx++) {
+        for (let cy = pcy - 1; cy <= pcy + 1; cy++) {
+          const ch = this.getBiomeChunk(cx, cy);
+          for (const py of (ch.teslaPylons || [])) {
+            if (py.cd > 0) py.cd = Math.max(0, py.cd - dt);
+            if (py.pulseFlash > 0) py.pulseFlash = Math.max(0, py.pulseFlash - dt);
+            if (py.cd <= 0 && Math.hypot(p.x - py.x, p.y - py.y) <= 46) {
+              py.cd = py.maxCd || 16.0;
+              py.pulseFlash = 0.55;
+              SoundFX.play("super");
+              app.spawnFloatingText(py.x, py.y - 34, "⚡ 蓄電塔電磁脈衝！", "#38BDF8", 13);
+              SkillsEngine.meleeEffects.push({
+                style: "slam_wave", x: py.x, y: py.y, radius: 180,
+                timer: 0.42, maxTime: 0.42, color: "#38BDF8"
+              });
+              const targets = SkillsEngine.getEnemiesInRadius(py.x, py.y, 185);
+              let zapped = 0;
+              for (let i = 0; i < targets.length; i++) {
+                const e = targets[i];
+                if (!e || e.hp <= 0 || e.isTrainingDummy) continue;
+                if (Math.hypot(e.x - py.x, e.y - py.y) <= 180 + e.radius) {
+                  app.dealDamageToEnemy(e, Math.max(18, Math.round(p.baseAtk * 0.85 * p.dmgMult)), "Electric", 0.95, 16);
+                  if (!e.isBoss && !e.status) { e.status = "Paralysis"; e.statusTimer = 2.6; }
+                  if (zapped < 6) {
+                    SkillsEngine.createLightningArc(py.x, py.y - 12, e.x, e.y, "#38BDF8", false, true);
+                    zapped++;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
 
@@ -1387,6 +1628,111 @@ const MapEngine = {
           }
         });
 
+        if (stage.id === "cinnabar_volcano") {
+          const runT = (typeof GameApp !== "undefined" && GameApp.runTime) ? GameApp.runTime : now;
+          (chunk.lavaPools || []).forEach(lp => {
+            const lx = Math.round(lp.x - camX + width / 2);
+            const ly = Math.round(lp.y - camY + height / 2);
+            if (lx + lp.rx < -20 || lx - lp.rx > width + 20 || ly + lp.ry < -20 || ly - lp.ry > height + 20) return;
+            const pulse = 0.88 + Math.sin(now * 2.4 + lp.x * 0.03) * 0.12;
+            ctx.save();
+            ctx.fillStyle = "#451A03";
+            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx, lp.ry, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#9A3412";
+            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx * 0.88, lp.ry * 0.84, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = `rgba(234, 88, 12, ${0.72 * pulse})`;
+            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx * 0.66, lp.ry * 0.60, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "rgba(254, 240, 138, 0.65)";
+            const bx = lx + Math.sin(now * 1.5 + lp.y) * lp.rx * 0.32;
+            const by = ly + Math.cos(now * 1.2 + lp.x) * lp.ry * 0.28;
+            ctx.fillRect(Math.round(bx), Math.round(by), 8, 3);
+            ctx.restore();
+          });
+          (chunk.steamVents || []).forEach(sv => {
+            const vx = Math.round(sv.x - camX + width / 2);
+            const vy = Math.round(sv.y - camY + height / 2);
+            if (vx + sv.r < -20 || vx - sv.r > width + 20 || vy + sv.r < -20 || vy - sv.r > height + 20) return;
+            const cyc = (runT + sv.phaseOffset) % 12.0;
+            ctx.save();
+            ctx.fillStyle = "#1C1917";
+            ctx.beginPath(); ctx.ellipse(vx, vy, 20, 12, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#7C2D12"; ctx.lineWidth = 2.5; ctx.stroke();
+            if (cyc >= 10.5) {
+              const warnP = (cyc - 10.5) / 1.5;
+              ctx.fillStyle = `rgba(249, 115, 22, ${0.14 + warnP * 0.22})`;
+              ctx.beginPath(); ctx.arc(vx, vy, sv.r, 0, Math.PI * 2); ctx.fill();
+              ctx.strokeStyle = "#FDBA74"; ctx.lineWidth = 2.2;
+              ctx.beginPath(); ctx.arc(vx, vy, sv.r * (0.25 + warnP * 0.75), 0, Math.PI * 2); ctx.stroke();
+            } else if (cyc < 1.2) {
+              const erP = cyc / 1.2;
+              const fade = 1 - erP * 0.75;
+              const g = ctx.createRadialGradient(vx, vy, 6, vx, vy, sv.r);
+              g.addColorStop(0, `rgba(254, 240, 138, ${0.85 * fade})`);
+              g.addColorStop(0.5, `rgba(249, 115, 22, ${0.60 * fade})`);
+              g.addColorStop(1, "rgba(154, 52, 18, 0)");
+              ctx.fillStyle = g;
+              ctx.beginPath(); ctx.arc(vx, vy, sv.r, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+          });
+        }
+        if (stage.id === "power_plant") {
+          const pRef = (typeof GameApp !== "undefined") ? GameApp.player : null;
+          (chunk.boostTracks || []).forEach(bt => {
+            const bx = Math.round(bt.x - camX + width / 2);
+            const by = Math.round(bt.y - camY + height / 2);
+            if (bx + bt.w < -20 || bx > width + 20 || by + bt.h < -20 || by > height + 20) return;
+            const active = !!(pRef && pRef.x >= bt.x && pRef.x <= bt.x + bt.w && pRef.y >= bt.y && pRef.y <= bt.y + bt.h);
+            ctx.save();
+            ctx.fillStyle = "#1E293B";
+            ctx.fillRect(bx, by, bt.w, bt.h);
+            ctx.fillStyle = active ? "rgba(56, 189, 248, 0.34)" : "rgba(14, 116, 144, 0.16)";
+            ctx.fillRect(bx + 4, by + 4, bt.w - 8, bt.h - 8);
+            ctx.strokeStyle = active ? "#7DD3FC" : "rgba(56, 189, 248, 0.32)";
+            ctx.lineWidth = active ? 2.4 : 1.6;
+            const scroll = Math.floor((now * (active ? 85 : 28)) % 44);
+            if (bt.dir === "H") {
+              for (let xOff = scroll; xOff < bt.w - 10; xOff += 44) {
+                ctx.beginPath();
+                ctx.moveTo(bx + xOff, by + 16); ctx.lineTo(bx + xOff + 12, by + bt.h / 2); ctx.lineTo(bx + xOff, by + bt.h - 16);
+                ctx.stroke();
+              }
+            } else {
+              for (let yOff = scroll; yOff < bt.h - 10; yOff += 44) {
+                ctx.beginPath();
+                ctx.moveTo(bx + 16, by + yOff); ctx.lineTo(bx + bt.w / 2, by + yOff + 12); ctx.lineTo(bx + bt.w - 16, by + yOff);
+                ctx.stroke();
+              }
+            }
+            ctx.restore();
+          });
+          (chunk.teslaPylons || []).forEach(py => {
+            const px = Math.round(py.x - camX + width / 2);
+            const pyy = Math.round(py.y - camY + height / 2);
+            if (px < -60 || px > width + 60 || pyy < -60 || pyy > height + 60) return;
+            const ready = py.cd <= 0;
+            ctx.save();
+            ctx.beginPath(); ctx.arc(px, pyy, 38, 0, Math.PI * 2);
+            ctx.fillStyle = ready ? "rgba(56, 189, 248, 0.16)" : "rgba(15, 23, 42, 0.25)";
+            ctx.fill();
+            if (ready) {
+              ctx.strokeStyle = `rgba(56, 189, 248, ${0.65 + Math.sin(now * 5) * 0.25})`;
+              ctx.lineWidth = 2.4;
+              ctx.stroke();
+            } else {
+              const frac = 1 - (py.cd / (py.maxCd || 16.0));
+              ctx.strokeStyle = "rgba(148, 163, 184, 0.35)"; ctx.lineWidth = 2.2; ctx.stroke();
+              ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 2.6;
+              ctx.beginPath(); ctx.arc(px, pyy, 38, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+            }
+            ctx.fillStyle = "#0F172A"; ctx.fillRect(px - 10, pyy - 24, 20, 32);
+            ctx.fillStyle = "#475569"; ctx.fillRect(px - 7, pyy - 20, 14, 24);
+            ctx.fillStyle = ready ? "#38BDF8" : "#334155"; ctx.fillRect(px - 5, pyy - 14, 10, 10);
+            ctx.fillStyle = ready ? "#FEF08A" : "#64748B";
+            ctx.beginPath(); ctx.arc(px, pyy - 26, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.restore();
+          });
+        }
         chunk.grassTiles.forEach(g => {
           const gx = Math.round(g.x - camX + width / 2);
           const gy = Math.round(g.y - camY + height / 2);
@@ -1573,6 +1919,23 @@ const MapEngine = {
           } else if (ob.kind === "tree_stump") {
             const stCan = this.spritePropCache.get("tree_stump_pixel");
             if (stCan) ctx.drawImage(stCan, ox - 2, oy - 2);
+          } else if (ob.kind === "volcano_rock") {
+            ctx.fillStyle = "rgba(0,0,0,0.42)";
+            ctx.beginPath(); ctx.ellipse(ox + 27, oy + 48, 28, 10, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#18181B";
+            ctx.beginPath(); ctx.moveTo(ox + 4, oy + 46); ctx.lineTo(ox + 12, oy + 10); ctx.lineTo(ox + 30, oy + 2); ctx.lineTo(ox + 48, oy + 16); ctx.lineTo(ox + 52, oy + 46); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "#3F3F46";
+            ctx.beginPath(); ctx.moveTo(ox + 14, oy + 14); ctx.lineTo(ox + 30, oy + 6); ctx.lineTo(ox + 34, oy + 32); ctx.lineTo(ox + 12, oy + 38); ctx.closePath(); ctx.fill();
+            ctx.fillStyle = "rgba(234, 88, 12, 0.72)";
+            ctx.fillRect(ox + 22, oy + 26, 10, 2); ctx.fillRect(ox + 28, oy + 28, 6, 2);
+          } else if (ob.kind === "generator") {
+            ctx.fillStyle = "rgba(0,0,0,0.40)";
+            ctx.fillRect(ox + 2, oy + 42, 56, 8);
+            ctx.fillStyle = "#1E293B"; ctx.fillRect(ox, oy + 4, 58, 42);
+            ctx.fillStyle = "#475569"; ctx.fillRect(ox + 4, oy + 8, 50, 14);
+            ctx.fillStyle = "#0F172A"; ctx.fillRect(ox + 8, oy + 26, 42, 14);
+            ctx.fillStyle = "#38BDF8"; ctx.fillRect(ox + 12, oy + 30, 12, 6);
+            ctx.fillStyle = "#FACC15"; ctx.fillRect(ox + 30, oy + 30, 16, 6);
           } else {
             const tCan = this.spritePropCache.get("oak_tree_full");
             if (tCan) ctx.drawImage(tCan, ox - 4, oy - 4);

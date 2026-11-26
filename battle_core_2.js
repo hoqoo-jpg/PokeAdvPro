@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.5.10p1",
+  APP_VERSION: "v7.6.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1034,7 +1034,9 @@ window.GameApp = {
     const starMult = 1 + starLv * 0.12;
     const shinyMult = (hasShiny ? 1.20 : 1.0) * starMult;
 
-    const maxHp = Math.round(basePoke.hp * tr.mods.hpMult * (1 + upg.hp * 0.12) * shinyMult);
+    const badgeB = (typeof getKantoBadgeBonuses === "function") ? getKantoBadgeBonuses(this.saveData) : { hpMult: 1, magnetMult: 1, speedMult: 1, healMult: 1, statusBonus: 0, cdMult: 1, atkMult: 1, critBonus: 0, coinMult: 1 };
+    const isPowerPlantStage = (MapEngine.currentStage && MapEngine.currentStage.id === "power_plant");
+    const maxHp = Math.round(basePoke.hp * tr.mods.hpMult * (1 + upg.hp * 0.12) * shinyMult * badgeB.hpMult);
     const maxSkillSlots = 3 + (upg.fourthSlot >= 1 ? 1 : 0);
     const trainerSkillMaxCd = Math.round(tr.skillCd * (1 - (upg.trainerCd || 0) * 0.04));
     const isPureSingleStage = !basePoke.evo_to && basePoke.id < 144 &&
@@ -1070,13 +1072,16 @@ window.GameApp = {
       maxHp,
       baseAtk: basePoke.atk * shinyMult,
       baseSpeed: basePoke.speed,
-      dmgMult: tr.mods.dmgMult * (1 + upg.atk * 0.08) * (isBond ? 1.25 : 1.0),
-      cdMult: tr.mods.cdMult * Math.pow(0.965, upg.cd) * (isBond ? 0.80 : 1.0),
-      speedMult: tr.mods.speedMult,
+      dmgMult: tr.mods.dmgMult * (1 + upg.atk * 0.08) * (isBond ? 1.25 : 1.0) * badgeB.atkMult,
+      cdMult: tr.mods.cdMult * Math.pow(0.965, upg.cd) * (isBond ? 0.80 : 1.0) * badgeB.cdMult,
+      speedMult: tr.mods.speedMult * badgeB.speedMult * (isPowerPlantStage ? 1.10 : 1.0),
       areaMult: tr.mods.areaMult,
-      critRate: 0.10 + tr.mods.critBonus,
-      regen: Math.min(2.2, (tr.mods.regen || 0.3) + (upg.hp || 0) * 0.4),
-      magnetRadius: 92,
+      critRate: 0.10 + tr.mods.critBonus + badgeB.critBonus,
+      regen: Math.min(2.2, (tr.mods.regen || 0.3) + (upg.hp || 0) * 0.4) * badgeB.healMult,
+      magnetRadius: Math.round(92 * badgeB.magnetMult),
+      badgeHealMult: badgeB.healMult,
+      badgeStatusBonus: badgeB.statusBonus,
+      badgeCoinMult: badgeB.coinMult,
       projBonus: tr.mods.projBonus || 0,
       maxSkillSlots,
       skills: {},
@@ -1131,10 +1136,13 @@ window.GameApp = {
           ? POKEMON_NATURAL_SKILLS[basePoke.id].skills
           : [SKILLS_CATALOG[basePoke.skill] ? basePoke.skill : "Tackle"]);
 
-    const firstSkillId = derivedNatSkills[0] || "Tackle";
+    const loadout = (this.saveData && this.saveData.skillLoadouts && this.saveData.skillLoadouts[basePoke.id]) || {};
+    const customStarter = (loadout.starter && derivedNatSkills.includes(loadout.starter)) ? loadout.starter : null;
+    const firstSkillId = customStarter || derivedNatSkills[0] || "Tackle";
     const startSkillLv = starLv >= 3 ? 2 : 1;
     this.player.skills[firstSkillId] = { id: firstSkillId, level: startSkillLv, evolved: false, timer: 0.2 };
     this.player.naturalSkills = [...derivedNatSkills];
+    this.player.bannedSkillId = (loadout.banned && loadout.banned !== firstSkillId) ? loadout.banned : null;
 	
     const trCostume = (typeof getResolvedTrainerCostume === "function")
       ? getResolvedTrainerCostume(tr, this.saveData)
@@ -2156,6 +2164,8 @@ window.GameApp = {
 	
     // 1. 先計算當前主角所在位置的地形數據 (先宣告後使用)
     const terrain = MapEngine.getTerrainModifierAt(p.x, p.y);
+    this._playerOnBoostTrack = !!terrain.onBoostTrack;
+    if (typeof MapEngine.updateAndCheckMapHazards === 'function') MapEngine.updateAndCheckMapHazards(dt, this);
 
     // 2. 恢復草地、涉水與木板腳底粒子反饋
     if (ilen > 0.05) {
@@ -2619,7 +2629,7 @@ window.GameApp = {
 
     const psychicCdMod = (MapEngine.weather === "PSYCHIC" ? 0.92 : 1.0);
     const spoonCdMod = (p.heldItems && p.heldItems["twisted_spoon"]) ? 0.92 : 1.0;
-    const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : 1.0;
+    const pillarCdMod = (MapEngine.currentStage.id === "sky_pillar") ? 0.92 : (this._playerOnBoostTrack ? 0.90 : 1.0);
     const arenaGaleCdMod = (p.arenaGaleTimer > 0) ? 0.80 : 1.0;
     const cdFactor = Math.max(0.52, p.cdMult * (p.buffTimer > 0 ? 0.70 : 1.0) * psychicCdMod * spoonCdMod * pillarCdMod * arenaGaleCdMod);
     p.castStaggerTimer = Math.max(0, (p.castStaggerTimer || 0) - dt);
@@ -2747,7 +2757,8 @@ window.GameApp = {
       this.weatherCycleTimer = (this.weatherCycleTimer || 80) - dt;
       if (this.weatherCycleTimer <= 0) {
         this.weatherCycleTimer = 80; // 每 80 秒隨機輪替一次，錯開吉利蛋 38s 刷新
-        const weatherPool = ["CLEAR", "RAIN", "THUNDER", "BLIZZARD", "HEATWAVE", "PSYCHIC"];
+        const curStW = MapEngine.currentStage ? MapEngine.currentStage.id : "";
+      const weatherPool = curStW === "cinnabar_volcano" ? ["CLEAR", "HEATWAVE", "HEATWAVE", "HEATWAVE", "THUNDER"] : (curStW === "power_plant" ? ["CLEAR", "THUNDER", "THUNDER", "THUNDER", "RAIN"] : ["CLEAR", "RAIN", "THUNDER", "BLIZZARD", "HEATWAVE", "PSYCHIC"]);
         const available = weatherPool.filter(w => w !== MapEngine.weather);
         const nextWeather = available[Math.floor(Math.random() * available.length)] || "CLEAR";
         
@@ -4588,6 +4599,12 @@ window.GameApp = {
     if (stId === "pallet" && (moveType === "Grass" || moveType === "Bug")) stageBonus = 0.20;
     else if (stId === "cerulean_bay" && (moveType === "Water" || moveType === "Ice")) stageBonus = 0.20;
     else if (stId === "sky_pillar" && (moveType === "Psychic" || moveType === "Ghost")) stageBonus = 0.20;
+    else if (stId === "cinnabar_volcano") {
+      if (moveType === "Fire" || moveType === "Rock" || moveType === "Ground") stageBonus += 0.20;
+      if (enemy && enemy.status === "Burn") stageBonus += 0.15;
+    } else if (stId === "power_plant" && (moveType === "Electric" || moveType === "Steel" || moveType === "Poison")) {
+      stageBonus = 0.20;
+    }
 
     let weatherBonus = 0;
     const curW = (typeof MapEngine !== "undefined") ? MapEngine.weather : "CLEAR";
@@ -4723,7 +4740,8 @@ window.GameApp = {
         const psyConfResist = (st === "Confusion" && enemy.data && (enemy.data.type1 === "Psychic" || enemy.data.type2 === "Psychic")) ? 0.50 : 1.0;
         const spoonBonus = (st === "Confusion" && this.player && this.player.heldItems && this.player.heldItems["twisted_spoon"]) ? 0.04 : 0;
         const frostAuraBonus = (st === "Freeze" && enemy.inFrostAura) ? 0.05 : 0;
-        const rawChance = Math.max(0.03, tMeta.statusRate + spoonBonus + frostAuraBonus + (bonusStatusChance || 0) * 0.28);
+        const badgeStBonus = (this.player && this.player.badgeStatusBonus) || 0;
+        const rawChance = Math.max(0.03, tMeta.statusRate + spoonBonus + frostAuraBonus + badgeStBonus + (bonusStatusChance || 0) * 0.28);
         const finalChance = Math.min(isHardCC ? 0.30 : 0.44, rawChance * weightMod * tierMod * psyConfResist);
 
         if (Math.random() < finalChance) {
@@ -4878,7 +4896,7 @@ window.GameApp = {
 
     const loadoutCoinMod = (this.player && this.player.loadoutCoinMult) ? this.player.loadoutCoinMult : 1.0;
     const endlessCoinMod = this.isEndlessMode ? 1.25 : 1.0;
-    const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15) * loadoutCoinMod * endlessCoinMod;
+    const diffCoinMult = this.selectedDifficulty.coinMult * MapEngine.currentStage.rewardMult * (1 + (this.saveData.upgrades.greed || 0) * 0.15) * loadoutCoinMod * endlessCoinMod * ((this.player && this.player.badgeCoinMult) || 1.0);
 
     if (e.isShiny) {
       this.saveData.shinyUnlocked[e.id] = true;
@@ -5798,6 +5816,13 @@ window.GameApp = {
     if (this.isEndlessMode && this.saveData && this.saveData.stats) {
       this.saveData.stats.bestEndlessTime = Math.max(this.saveData.stats.bestEndlessTime || 0, Math.floor(this.runTime));
       this.saveData.stats.bestEndlessKills = Math.max(this.saveData.stats.bestEndlessKills || 0, this.kills);
+    }
+    if (!this.isEndlessMode && !this.isArenaMode && !this.isExpeditionMode && this.saveData && this.saveData.stats) {
+      this.saveData.stats.bestStandardTime = Math.max(this.saveData.stats.bestStandardTime || 0, Math.floor(this.runTime || 0));
+      if (isVictory && MapEngine.currentStage && MapEngine.currentStage.id) {
+        if (!this.saveData.stats.clearedStages) this.saveData.stats.clearedStages = {};
+        this.saveData.stats.clearedStages[MapEngine.currentStage.id] = true;
+      }
     }
     if (this.saveToStorage) this.saveToStorage();
     const hofBox = document.getElementById("endHallOfFameBox");
