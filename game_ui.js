@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.3";
+        const ver = this.APP_VERSION || "v7.6.4";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.3";
+      const curVer = this.APP_VERSION || "v7.6.4";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1371,7 +1371,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.3",
+      lastSeenVersion: this.APP_VERSION || "v7.6.4",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2326,7 +2326,7 @@ Object.assign(window.GameApp, {
             ${renderSkillIconHTML(m, "w-5 h-5 shrink-0")}
             <div class="min-w-0 flex-1">
               <div class="text-[10px] font-black truncate ${isBanned ? 'line-through text-slate-400' : 'text-slate-800'}">${m.name}</div>
-              <div class="text-[8px] font-bold text-slate-500">${TYPE_META[m.type] ? TYPE_META[m.type].zh : m.type}</div>
+              <div class="text-[8px] font-bold text-slate-500">${(typeof TYPE_NAMES_ZH !== "undefined" && TYPE_NAMES_ZH[m.type]) ? TYPE_NAMES_ZH[m.type] : m.type}</div>
             </div>
           </div>
           <div class="flex items-center gap-1">
@@ -3064,7 +3064,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.3",
+      version: this.APP_VERSION || "v7.6.4",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3596,7 +3596,7 @@ Object.assign(window.GameApp, {
     if (!box) return;
     const s = this.ensureSettingsObject();
     const isMob = this.isMobileDevice ? this.isMobileDevice() : (window.innerWidth < 768);
-    const deviceLabel = isMob ? "📱 手機觸控模式 (自動上限 120隻 + 1.22x 經驗補償)" : "💻 電腦寬屏模式 (自動上限 190隻)";
+    const deviceLabel = isMob ? "📱 手機觸控模式 (自動上限 130隻 + 1.20x 經驗補償)" : "💻 電腦寬屏模式 (自動上限 205隻)";
 
     const renderOptionBtn = (settingKey, val, label, sub, isRec = false) => {
       const active = s[settingKey] === val;
@@ -3635,7 +3635,7 @@ Object.assign(window.GameApp, {
         </div>
         <div class="text-[10px] text-slate-400 leading-relaxed">${deviceLabel}</div>
         <div class="grid grid-cols-2 gap-1.5">
-          ${renderOptionBtn("mobCapProfile", "auto", "🤖 自動依裝置", "手機120 / 電腦190，防發燙", true)}
+          ${renderOptionBtn("mobCapProfile", "auto", "🤖 自動依裝置", "手機130 / 電腦205，防發燙", true)}
           ${renderOptionBtn("mobCapProfile", "low", "⚡ 省電流暢 (100隻)", "穩鎖60幀 + 1.22x經驗")}
           ${renderOptionBtn("mobCapProfile", "standard", "⚔️ 標準密度 (160隻)", "均衡怪潮與流暢度")}
           ${renderOptionBtn("mobCapProfile", "extreme", "🔥 狂暴怪海 (250隻)", "極限高壓割草挑戰")}
@@ -3731,494 +3731,45 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("changelogContentBox");
     if (box) {
       box.innerHTML = `
-        <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.6.3 像素銳利化 ‧ 全站雙主題統一 ‧ 大遠征漫步與震動調優</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">遊戲內精靈圖銳利化修復（告別模糊發虛）</div>
-            <div>• 修復繪製高解析主角後平滑濾鏡未重置導致敵人像素精靈變糊的渲染 Bug，全面改為像素對齊座標（<code>Math.round</code>）並將行動裝置畫質上限由非整數 1.35x 升至整數 2.0x！</div>
-            <div class="text-emerald-300 font-black pt-1">大遠征波間漫步節奏 ＆ 並肩距離調優</div>
-            <div>• 同區漫步放緩至 2.1 秒、跨區 3.2 秒，並將訓練家與主角寶可夢的距離由 58px 拉近至 30px 緊密並肩同行（點擊畫面仍可隨時加速）。</div>
-            <div class="text-amber-300 font-black pt-1">全站 9 大彈窗雙主題統一 ‧ 預設柔和震動 ‧ 大廳進化圖放大</div>
-            <div>• 系統設定、升級三選一、友好商店、大遠征整備、戰後結算、更新日誌、Mega 詳情與對話框全面跟隨「GBA 掌機風／深藍黑金風」即時切換！</div>
-            <div>• 地動震動預設改為「柔和」護眼模式；大廳進化鏈與 Mega 預覽精靈圖統一放大至 28×28px 清晰展示。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.6.2 關都大遠征 20+1 五區三聖鳥歸位 ‧ 難度重校 ‧ 體驗收口版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">關都大遠征升級 20+1 五區長征（三聖鳥各歸生態主場！）</div>
-            <div>• 正式將【無人發電廠】與【紅蓮火山】納入大遠征主線：常磐密林（火箭隊雙王）➔ 華藍海岬（<strong>急凍鳥</strong>）➔ 無人發電廠（<strong>閃電鳥</strong>）➔ 紅蓮火山（<strong>火焰鳥</strong>）➔ 石英高原（快龍＆卡比獸）➔ 石英鬥技場（王者超夢）！</div>
-            <div class="text-amber-300 font-black pt-1">四檔難度階梯重校 ＆ 8 分鐘小王出招加速</div>
-            <div>• 原標準難度下放為「簡易（輕鬆探索）」；新版「標準」提升怪潮密度與體質 +18%（遠征配額 +15%，並微調水晶經驗防雪球），困難／地獄同步上移；8 分鐘精英小王進視野首次鋪紅圈由 3.0s 縮短至 1.1s！</div>
-            <div class="text-sky-300 font-black pt-1">體驗修復 ＆ 選關縮圖所見即所得</div>
-            <div>• 修復大廳點擊「招式整備」誤觸外層選角視窗的事件冒泡問題；同步將 8 分鐘選關縮圖升級為 v7.6.1 精裝 GBA 像素熔岩池與工業導軌預覽圖。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.6.1 雙主題 UI 統一 ‧ 第 3～5 章地圖 GBA 像素精裝重繪</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-amber-300 font-black pt-0.5">道館榮譽＆大廳抽屜 雙主題 100% 統一</div>
-            <div>• <strong>4×2 緊湊徽章盒</strong>：高度減半、完美自適應「GBA 掌機風」與「深藍黑金風」，與 151 圖鑑、研究所視覺零割裂；點擊任一徽章可於底部詳情條檢視解鎖進度！</div>
-            <div>• <strong>歷史最佳戰績重排版</strong>：改為左側 40px 精靈相框＋主題色條＋右側整齊分數與金屬階級徽章；同步補齊大廳招式整備抽屜的黑金主題樣式。</div>
-            <div class="text-orange-300 font-black pt-1">第 3～5 章地圖 GBA 像素精裝升級（徹底去棋盤格＆荷包蛋感）</div>
-            <div>• <strong>4 種變化地磚</strong>：壓低石英高原／紅蓮火山／無人發電廠的地磚明暗差並導入 4 款隨機微紋理地磚，徹底消除西洋棋盤重複感。</div>
-            <div>• <strong>紅蓮火山</strong>：熔岩池重繪為不規則像素鋸齒岸線＋亮橘岩漿脈絡；新增玄武岩碎石步道、3D 像素噴氣裂口、黑曜石簇與暗紅結晶！火/岩/地/飛系同步免疫熔岩池減速。</div>
-            <div>• <strong>無人發電廠 ＆ 石英高原</strong>：發電廠新增工業金屬導軌加速帶、地面粗電纜、通風網格與黃黑警示帶；石英高原補齊搖曳火盆、符文地磚與石磚碎塊。</div>
-            <div>• <strong>彩虹徽章修正</strong>：升級回血、特大文柚果與友好商店傷藥全面實裝 +15% 回血加成。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.6.0 雙戰術新地圖 ‧ 關都 8 枚像素道館徽章 ‧ 大廳招式整備系統</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-orange-300 font-black pt-0.5">兩張低噪點戰術生態新地圖（預設全開放，接入標準＆無盡模式）</div>
-            <div>• <strong>紅蓮島・火山熔岩洞窟（1.45x）</strong>：火/岩/地系威力 +20%、對灼傷目標 +15%！導入可通行「淺層熔岩池」（火/岩/地/飛系免疫燙傷，零卡怪風險）與 12s 週期地熱蒸氣噴口！</div>
-            <div>• <strong>無人發電廠・高壓磁場區（1.50x）</strong>：電/鋼/毒系威力 +20%、基礎移速 +10%！新增踩踏瞬間點亮的「磁能加速帶（+22%速 ＆ 冷卻-10%）」與觸碰即炸的 180px 麻痺「高壓蓄電塔」！</div>
-            <div class="text-amber-300 font-black pt-1">關都 8 枚像素道館徽章（道館榮譽絨布展示盒）</div>
-            <div>• 導入全新透明像素徽章圖集（含原作實心金核金黃徽章），採三段階梯（入門／中階／終局）覆蓋 5 大地圖通關與核心系統精通，老存檔自動追溯點亮並永久生效 8 項戰力加成！</div>
-            <div class="text-emerald-300 font-black pt-1">大廳「⚔️ 招式整備」折疊抽屜</div>
-            <div>• 可自由指定精靈天生三技的任一招作為開局第 1 招，並於「天生三技 ＋ 第 4 槽本系／特性池」全系列共用 1 格停用名額，按精靈獨立記憶並即時過濾升級卡池！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.10p1 五大新招標竿工藝精裝補丁（Mega 耿鬼 ID 修復 ‧ 電球細電弧 ‧ 彩蛋顯色強化）</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">全面對齊水炮／噴射火焰／天龍流星雨 95 分美術工藝</div>
-            <div>• <strong>多層漸層光影＆起手氣爆環</strong>：岩崩補齊高空墜落沙塵彗尾與超武熔岩暗影坑＋噴湧微粒；電球與毒擊補齊出招起手脈衝環與漸層液態／高壓尾跡；十字剪與暗影爪全面改為三段高飽和線性漸層光刃，暗影爪命中加留地面焦紫撕裂傷痕！</div>
-            <div>• <strong>Lv.8 視覺外觀進化</strong>：毒擊解鎖雙股螺旋毒氣緞帶、十字剪解鎖雙重弧面殘像、暗影爪解鎖半透明幽冥殘像爪、電球解鎖高壓尾跡流光、岩崩強化熾橘熔岩彗尾！</div>
-            <div>• <strong>代表精靈專屬彩蛋</strong>：皮卡丘／雷丘／閃電鳥的電球與超武享青金雙色高壓電暈；飛天螳螂的十字剪與巨輪享青金殘像光刃；化石翼龍的岩崩與尖碑享太古耀金彗尾！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.9 五大新招最終美術＆判定定案版（對齊舊 20 招商業精度）</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">五大新招美術與打擊判定終極精修</div>
-            <div>• <strong>十字剪</strong>：超武巨輪中心 30px 中空留白清晰露出主角；普攻無怪不揮空，改用真 X 形雙斜線段精準判定與真 X 形地面投影。</div>
-            <div>• <strong>暗影爪</strong>：普攻改為乾淨三指左上➔右下斜劈（Lv4 錯開 0.17s 反手二連斬，絕不糊成 6 條）、補齊同座標三指地面投影與每爪尾部的幽冥火舌；超武重繪兩端收尖鬼掌巨爪！</div>
-            <div>• <strong>毒擊／岩崩／電球</strong>：毒爆改為 7 向放射毒液飛濺＋粒子噴射（去空心大圓）；岩崩超武斷層改不規則鋸齒熔岩裂縫；電球核心柔化並實裝外圍高速公轉＋不規則跳動電弧。</div>
-            <div class="text-amber-300 font-black pt-1">全 5 招 Lv.4 / Lv.8 升級實效與說明 100% 同步</div>
-            <div>• 統一岩崩、十字剪、毒擊、電球、暗影爪的 Lv.4／Lv.8 強化節點與專屬升級說明，徹底解決「說明寫 +1 卻未生效」的落差。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.8 新超武優先序修復 ‧ 岩崩/十字剪/暗影爪美術精修 ‧ 25 招說明校準版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">關鍵修復：正式解放電球／毒擊／暗影爪 3 套獨立超武</div>
-            <div>• 修正 <code>triggerUltimateSuperMove()</code> 判定優先序，將 5 招專屬超武移至屬性分支之前，徹底解除舊屬性超武攔截，【超載磁暴球】、【劇毒新星】、【冥界裂空爪】實機 100% 生效！</div>
-            <div class="text-emerald-300 font-black pt-1">美術總監精修：岩崩色盤、十字剪鎖敵、暗影爪三指利爪</div>
-            <div>• <strong>岩崩</strong>：整體提亮 25%，對齊地震與技能 Icon 的暖琥珀金褐高光色盤，告別暗沉。</div>
-            <div>• <strong>十字剪</strong>：普攻改為自動鎖定目標座標作為 X 斬交點並補齊貼身路徑判定；超武手裡劍巨輪鎖定主角自身護體旋轉。</div>
-            <div>• <strong>暗影爪</strong>：棄用等寬圓弧線，重繪兩端收尖貝茲三指利爪（中爪最長最粗）＋起手幽靈鬼掌殘影＋魂火紫煙。</div>
-            <div class="text-amber-300 font-black pt-1">全 25 招超武說明校準</div>
-            <div>• 全面同步水炮、十萬伏特、冷凍光線、地震、空氣斬、污泥炸彈、月亮之力與新 5 招的 <code>evoDesc</code> 文案，確保說明、Icon 與實機演出 100% 一致。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.7 五大新招＆獨立超武美術重製 ‧ 測試木樁＆單槽超武面板</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">五大新招去幾何化 ＆ 五套獨立形態終極超武</div>
-            <div>• <strong>岩崩 ➔【大陸板塊崩落】</strong>：普攻縮小至精巧實心主岩＋碎石群落；超武改為熔岩十字斷層天降「黑曜尖碑岩柱」並四散 8 顆滾石碾壓！</div>
-            <div>• <strong>十字剪 ➔【終極十字星斬】</strong>：補齊地面投影與兩段錯落彎月刀光；超武化作跟隨主角高速自轉的「翡翠金十字星手裡劍巨輪」，收尾爆出八向劍氣！</div>
-            <div>• <strong>暗影爪 ➔【冥界裂空爪】</strong>：重繪 110° 大弧度橫掃彎爪撕裂傷口；超武張開空間裂縫黑洞，雙巨爪由兩側合掌撕裂聚怪並處決！</div>
-            <div>• <strong>電球 ➔【超載磁暴球】</strong>：去除風車線改為不規則跳動高熱電漿＋地面反光暈；超武召喚 3 顆電磁衛星繞身公轉構成旋轉三角形閃電牢籠！</div>
-            <div>• <strong>毒擊 ➔【劇毒新星】</strong>：細長突刺毒針＋毒爆螢光環；超武徹底擺脫毒沼複用，凝聚紫綠毒晶核雙波螺旋齊射 16 根劇毒骨矛並插地化作結晶毒刺陣！</div>
-            <div class="text-amber-300 font-black pt-1">飛天螳螂配招調整 ＆ 測試面板升級</div>
-            <div>• <strong>飛天螳螂 (#123)</strong>：天生第 1、2 招對調為【十字剪 → 空氣斬 → 撞擊】。</div>
-            <div>• <strong>測試面板三大升級</strong>：新增【清怪停刷開關】、【🎯 召喚測試木樁】以及各自獨立的【★ 第1槽超武】與【★ 第2槽超武】按鍵！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.6 新 5 招深度重構 ‧ 全 151 原作配表＆特性聯動 ‧ 黑金主題精修版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">五大新招普攻與專屬超武全面重構（非通用全屏）</div>
-            <div>• <strong>十字剪／暗影爪</strong>：修復近戰樣式欄位，實裝多層翡翠雙鐮 X 斬與三道幽靈爪痕（Mega 耿鬼享猩紅冥火）；超武分別為跟隨旋轉 3 連【終極十字星斬】與陣紋收束【冥界裂空爪】。</div>
-            <div>• <strong>岩崩</strong>：重繪立體三面稜角巨岩斜向天墜＋地面震裂陰影與飛濺碎石；超武【大陸板塊崩落】震裂斷層連墜 8 道巨岩。</div>
-            <div>• <strong>毒擊／電球</strong>：毒擊命中中毒目標觸發 +40% 毒爆並傳染周圍 65px 敵群；電球飛行中每 0.25s 自動抽射電弧，超武【超載磁暴球】球間拉出高壓閃電網！</div>
-            <div class="text-amber-300 font-black pt-1">全 151 圖鑑忠於原作天生招重校 ＆ 8 大特性聯動</div>
-            <div>• 雙屬性精靈優先各取 1 招主／副屬性核心本系招，徹底消除岩石系放龍之俯衝、飛行鳥類放地震等違合配置，並全面打通 8 大先天特性與第 4 槽本系優先卡池。</div>
-            <div class="text-sky-300 font-black pt-1">深藍黑金戰術風反差修復 ＆ 設定同步</div>
-            <div>• 徹底修復大廳 6 鍵、進化鏈與選角頁在黑金主題下的白底白字反差問題，並統一新手存檔與匯入設定的主題預設值。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.5.5 五大屬性新招式補完 ＆ 全局雙主題切換版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">新增 5 大屬性招式 ＆ 5 套專屬終極超武（總計 25 招）</div>
-            <div>• <strong>岩系・岩崩</strong> ➔ 超武【大陸板塊崩落】（柔軟沙子）：範圍巨岩天墜高擊退，填補岩系空白！</div>
-            <div>• <strong>蟲系・十字剪</strong> ➔ 超武【終極十字星斬】（毒針）：高速翡翠十字雙斬 ＋15% 暴擊，填補 12 隻蟲系空白！</div>
-            <div>• <strong>毒系・毒擊</strong> ➔ 超武【劇毒新星】（毒針）：扇形毒針連射，命中中毒敵人額外觸發 +40% 毒爆！</div>
-            <div>• <strong>電系・電球</strong> ➔ 超武【超載磁暴球】（磁鐵）：隨移速最高增傷 +35% 穿透電球 ＋ 濺射電弧！</div>
-            <div>• <strong>幽靈系・暗影爪</strong> ➔ 超武【冥界裂空爪】（詛咒之符）：+25% 高暴擊三連利爪（Mega 耿鬼享專屬紅紫幻影）！</div>
-            <div class="text-amber-300 font-black pt-1">系統設定新增【全局介面主題風格切換】</div>
-            <div>• 隨時在【設定】一鍵切換 <strong>🎮 經典 GBA 掌機風</strong> 與 <strong>✨ 深藍黑金戰術風</strong>，大廳、選角、151 圖鑑、研究所、道館榮譽全站即時統一！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.4.2 攜帶物上限＆經濟遞增 ‧ 難度張力重校 ‧ UI 統一版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">根治雪球膨脹：攜帶物上限 ＆ 動態經濟</div>
-            <div>• <strong>攜帶物上限 4 件 ＋ 加算制</strong>：全模式攜帶物槽位鎖定 4 件，並將原本複利乘算（<code>*= 1.12</code>）改為加算 <code>+6%</code> 全傷，徹底杜絕後期全掃 13 件導致數值失控。</div>
-            <div>• <strong>整備站動態階梯定價</strong>：攜帶物依持有數遞增（<code>120 → 190 → 280 → 390 金</code>）、糖果／PP 提升劑每買 +45 金、TM 依區域遞增（<code>140 / 180 / 220 金</code>）、傷藥維持親民 60 金起（每次 +15 金）。</div>
-            <div class="text-amber-300 font-black pt-1">大遠征普通難度張力重校</div>
-            <div>• <strong>動態百分比威脅保底</strong>：大遠征敵彈至少造成 7% Max HP、紅圈重擊至少 19% Max HP（依難度縮放）；溫和上修 Boss 血量 +25%～35% 並將波間免費回血收斂至 10%（跨區 25%），告別站樁硬扛！</div>
-            <div class="text-sky-300 font-black pt-1">介面統一（方案 A）＆ 封面副標更新</div>
-            <div>• <strong>道館榮譽視覺統一</strong>：修復頂部按鈕換行破版，並將成就卡片全面統一為深藍黑金風格；封面副標同步更新為「<code>關都 151 全圖鑑 ‧ 15+1 大遠征 RPG ‧ MEGA 超級進化</code>」。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.4.1 全 4 模式六邊形評級收口 ＆ 實戰數值校準版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-cyan-300 font-black pt-0.5">六邊形評級全面覆蓋 ＆ 實測校準</div>
-            <div>• <strong>全 4 模式支援</strong>：正式補齊【8 分鐘標準】與【無盡深淵】六邊形評級（無盡模式撐滿 8 分鐘解鎖 S/S+，12 分鐘以上可衝 MASTER 並獲「深淵不滅者」稱號）。</div>
-            <div>• <strong>實測數據精校</strong>：放緩生存扣分斜率並為勝場增設 35 分保底；戰術分納入異常控場與訓練家大招運用，不再懲罰非克制屬性流派；大遠征效率與火力滿分線收緊至 04:00／DPS 1250，EX 通關破界基準下修至 1,100 金。</div>
-            <div class="text-amber-300 font-black pt-1">道館榮譽戰績總覽 ＆ 大廳直屏精修</div>
-            <div>• <strong>歷史最佳戰績總覽</strong>：於【道館榮譽】頂部新增 4 大模式最高印章、積分、稱號與出戰精靈快照卡片。</div>
-            <div>• <strong>大廳手機直屏排版修復</strong>：頂部導航列加上防換行鎖定，徹底解決 6 位數代幣把按鈕壓成兩行字的問題，並精簡陣容進化鏈讓 💎 MEGA 完整顯示不裁切！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.4.0 戰後六邊形評級系統 MVP（大遠征 ＆ 1vs1 鬥技場）</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-cyan-300 font-black pt-0.5">六邊形戰力雷達圖 ＆ 動態評級印章（C ～ MASTER）</div>
-            <div>• <strong>六大維度實戰體檢</strong>：於【15+1 關都大遠征】與【1vs1 石英鬥技場】結算時，依【火力／生存／效率／戰術／成型／破界】即時繪製彈性展開六角雷達圖，並頒發 <code>C / B / A / S / S+ / MASTER</code> 動態印章與戰後專屬稱號！</div>
-            <div>• <strong>個人最佳虛線疊影（Ghost Overlay）</strong>：自動將本局形狀與歷史最高分虛線疊圖對比，破紀錄跳出 <strong>★ NEW BEST!</strong> 徽章。</div>
-            <div class="text-amber-300 font-black pt-1">全球排行榜前置快照 ＆ 測試污點防呆</div>
-            <div>• 本地自動記錄標準化 Build 快照（含版本號、難度係數、技能與攜帶物）；若該局啟用過開發者測試作弊鍵，將標註 <code>[TEST RUN]</code> 且不污染個人最佳紀錄！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.9 緊急熱修：修復拆檔後戰鬥角色與敵人隱形 Bug</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">關鍵作用域修復</div>
-            <div>• <strong>修復 <code>skills_engine.js</code> 與 <code>skills_vfx.js</code> 掛載錯位</strong>：將 <code>const SkillsEngine</code> 改為 <code>window.SkillsEngine</code>，解決解耦後 <code>renderGroundLayer</code> 未掛載至同一物件導致渲染中斷、僅顯示地圖背景卻持續在背景殺敵升級的問題。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.8 小王與雙王 4 大流派彈幕 AI 重構版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">小王與區域雙王全面實裝 4 大職能流派 AI（告別貼臉送死）</div>
-            <div>• <strong>疾風連射型</strong>（大針蜂／大比鳥／阿柏怪／寶石海星）：中距橫移拉扯 ＋ 3～5 叉高速扇形彈與鎖定俯衝，半血追加二段交錯連射。</div>
-            <div>• <strong>毒霧封鎖型</strong>（霸王花／毒刺水母／雙彈瓦斯／尼多后）：6～8 向旋轉擴散毒環 ＋ 追身三連爆與安全眼毒環。</div>
-            <div>• <strong>重裝猛攻型</strong>（暴鯉龍／刺甲貝／飛腿郎／快拳郎／尼多王）：近中距重型三叉彈 ＋ 骨牌四連地裂與野蠻衝撞（重擊後留 0.45s 反打破綻）。</div>
-            <div>• <strong>念影詭術型</strong>（胡地／耿鬼）：2～3 顆恆速分流追蹤念力球 ＋ 引力黑洞左右夾擊，每 3 輪觸發短距側移閃現。</div>
-            <div class="text-amber-300 font-black pt-1">雙王協同錯峰 ＆ 小王微狂暴</div>
-            <div>• 雙王登場冷卻自動錯開 +0.85 秒防止彈幕糊成死角；小王半血改採不中斷戰鬥的「微狂暴」彈幕加碼與加速！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.7 純架構解耦版（10 檔邏輯／特效／UI 分層重構）</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">核心架構深度解耦（零功能異動）</div>
-            <div>• <strong>第一刀・拆出 <code>skills_vfx.js</code></strong>：將 <code>skills_engine.js</code> 內 4,891 行純 Canvas 地面與空中技能特效渲染層完整抽離，物理判定與美術特效徹底隔離。</div>
-            <div>• <strong>第二刀・核心層剝離 DOM/UI</strong>：將 <code>battle_core_2.js</code> 內 <code>refreshHUD</code>、升級三選一視窗、友好商店彈窗、天候與過場橫幅 DOM 操作全數遷移至 <code>game_ui.js</code>，戰鬥主循環更純粹好維護。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.6 關都大遠征 15+1 完整體 ＆ EX 始祖夢夢連戰版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">15+1 五關一循環完整養成曲線（普通難度穩進 💎 MEGA）</div>
-            <div>• <strong>三區各 5 關 ＋ 最終鬥技場</strong>：W3/W8 隨機單小王、W13 隨機雙小王（格鬥雙雄／尼多夫婦／胡地＆耿鬼）、W4/W9 隨機事件波（喵喵車隊／遷徙潮／雷暴潮／吉利蛋護送）與 W14 MEGA 無雙狂潮！</div>
-            <div>• <strong>修復 Boss 掉落早退 ＋ 1.25x 遠征經驗節奏</strong>：大遠征所有小王與大王擊破皆正確掉落粉紅經驗晶群與神奇糖果（區域大王再加掉黃金進化寶箱）並由方案 A 自動磁吸全收，確保 W13～W15 穩定達 Lv.23～25 覺醒 MEGA！</div>
-            <div class="text-pink-300 font-black pt-1">EX 真王連戰 ＆ 三聖鳥接力車輪戰</div>
-            <div>• <strong>W16 王者超夢 ➔ EX 始祖夢夢連戰</strong>：擊破 W16 超夢後自動回復 50% HP 並重置大招，可自由選擇立即登錄殿堂，或挑戰隱藏真王【始祖夢幻 #151】奪取雙倍賞金與 EX 殿堂印記！</div>
-            <div>• <strong>W15 三聖鳥接力戰（困難／地獄）</strong>：急凍鳥 ➔ 閃電鳥 ➔ 火焰鳥依序帶暴雪／雷暴／熱浪接力登場；常規波過場行軍提速至 1.25 秒防整備疲勞！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.5 9 檔架構整理 ＆ 大遠征首輪平衡微調版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">架構精簡（9 檔方案 B）</div>
-            <div>• <strong>整合街機與單挑模組</strong>：將 <code>mode_survivor.js</code> 與 <code>mode_arena.js</code> 整併為 <code>modes_arcade.js</code>，全專案收斂回 9 個核心程式碼檔案，為後續六邊形評級與新章節地圖預留完整擴充空間。</div>
-            <div class="text-emerald-300 font-black pt-1">關都大遠征首輪平衡微調</div>
-            <div>• <strong>整備站經濟校準</strong>：下修大遠征 TM 學習機（135~175 金）、PP 提升劑（110 金）、極限糖果（210 金）與刷新費（30 金起），並微幅提升各波通關賞金，讓前中期能流暢採購克制招式與道具。</div>
-            <div>• <strong>階梯式 Boss 血量與連戰節奏</strong>：修正 W9 火焰鳥血量與 W6 相同的斷層，重校為 W3 雙首領（~2176×2）➔ W6 神鳥（7,800）➔ W9 火焰鳥（10,800）➔ W10 王者超夢（16,500 ＋ 11% 秒傷護盾），並微幅加快常規波刷怪節奏減少空窗期。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.2 原生生態道路長卷 ＆ 全場戰利品自動磁吸版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">大遠征長卷回歸原生地圖生態</div>
-            <div>• <strong>去火車站化＋原生道路</strong>：移除鐵軌與月台棚架，改以戰場同款【常磐暖黃碎石土路／華藍跨海木棧道長橋／石英神殿大理石大道／鬥技場紅金冠軍地毯】串連，並升級雙色棋盤草皮、草叢簇、海波與神殿方磚地面質感；標籤統一改為 <strong>WAVE 1 / WAVE 2 / W3 BOSS</strong>。</div>
-            <div class="text-amber-300 font-black pt-1">AREA CLEAR 全戰利品自動磁吸（方案 A）</div>
-            <div>• <strong>0 漏撿神奇糖果與寶箱</strong>：波次淨空觸發 AREA CLEAR 時，地上所有神奇糖果、雙打夥伴球與黃金進化寶箱同步高速磁吸飛向主角（1.4 秒演出緩衝＋結束保底結算），絕不再遺漏戰利品！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.1 2.5秒 HD-2D 四拍遇敵演出 ＆ 原比例高清長卷版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">電影級 Boss 遇敵演出（完整 2.5 秒）</div>
-            <div>• <strong>2/3 屏現代 HD-2D 對峙舞台</strong>：升級為 480×420 大氣場舞台並統一遊戲黑金戰術對話框與銘牌，徹底告別古舊感。</div>
-            <div>• <strong>四拍懷舊動畫 ＋ 專屬前奏音樂</strong>：警報雙閃 ➔ 水平百葉窗撕裂 ➔ Boss 黑影壓迫滑入 ➔ 破影閃白與屬性震波 ＋ 紅白精靈球光束放出主角背影，全程搭配全新合成 1.85 秒經典遇敵前奏！</div>
-            <div class="text-amber-300 font-black pt-1">火車站長卷原比例鎖定與高清重構</div>
-            <div>• <strong>0% 變形高清放大</strong>：畫布升級至 640×300，訓練家與寶可夢全面鎖定原始寬高比並放大至 68~72px 清晰漫步於鐵軌上方，華藍海岬重構為自然錯落帆影與礁岩風景！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.3.0 GBA 斜對角遇敵對峙 ＆ 1/3 屏高細節長卷版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">GBA 原生級儀式感升級</div>
-            <div>• <strong>Boss 戰斜對角遇敵演出</strong>：重製為經典掌機斜對角雙台座構圖——右上角生態圓台滑入 Boss（雙首領錯位並立）、左下角圓台滑入主角背影（back_sprite）與訓練家背影，搭配 GBA 雙框打字機遇敵字幕。</div>
-            <div>• <strong>1/3 屏高細節火車站長卷</strong>：行軍階段視窗放大至 1/3 螢幕高，升級為三層視差天空遠景、預烘焙微縮樹屋／礁岩／神殿佈景、碎石木枕雙軌鐵道、帶屋簷車站月台、46px 放大角色漫步與下一站天氣預告粒子；抵達月台後自動平滑收斂展開 2×2 整備商店！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.9 關都大遠征透明行軍演出與介面精修版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">行軍演出與戰前流程升級</div>
-            <div>• <strong>透明戰場火車站長卷（兩段式）</strong>：波次通關後先於上方透明浮層清晰觀看訓練家與主角慢步向右行軍（2.1s，點擊可加速），後方透出真實 GBA 戰場背景，抵達下一站月台後再平順展開 2×2 整備商店！</div>
-            <div>• <strong>AREA CLEAR 完整定格</strong>：擊破最後一隻怪後延後升級彈窗 1.15 秒，完整展現 AREA CLEAR 印章與吸晶音效，再依序升級與行軍。</div>
-            <div>• <strong>開戰 WAVE ?/10 ＋ 3-2-1 START</strong>：倒數正上方清楚標示當前波次與關卡名，並修復左上角路牌與過場橫幅重疊。</div>
-            <div class="text-amber-300 font-black pt-1">介面精簡與手機適配修復</div>
-            <div>• <strong>STEP 3 單模式聚焦 (STAGE)</strong>：隱藏多餘模式切換列，大遠征改以 8 分鐘同款 GBA 實景地圖卡清楚展示全部遠征章節。</div>
-            <div>• <strong>頂部 HUD 緊湊化</strong>：將剩餘怪數移至計時欄下方，徹底修復 iPhone 直屏右側暫停按鈕被擠出畫面的問題。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.8 關都大遠征 2.0 ＆ 大廳模式重構版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">關都大遠征 2.0（可擴充章節架構）</div>
-            <div>• <strong>波次殲滅進度制</strong>：取消 35 秒強制倒數，改為清光該波目標怪獸即蓋上 AREA CLEAR 印章並磁力吸乾全場水晶；剩餘 ≤3 隻自動顯示紅箭頭指引。</div>
-            <div>• <strong>固定生態戰場（1160×880）＆ 限時增益搶點</strong>：森林密木／海岬護欄／神殿石牆自然圍邊，波中與 8 分鐘地圖新增 4 種像素增益道具（力量核心／疾風羽毛／折射護盾／特大文柚果）。</div>
-            <div>• <strong>火車站捲動路線長卷 ＆ 雙人漫步儀式</strong>：波間打開整備站時鏡頭向右捲動，訓練家與主角一步步走去下一站；跨區觸發營地 5 連音回復與 GBA 左上角路牌，Boss 戰新增 VS 對峙橫幅與通關殿堂紀念卡。</div>
-            <div class="text-amber-300 font-black pt-1">大廳與 STEP 3 瘦身</div>
-            <div>• 大廳直接展示「關都大遠征主推大卡 ＋ 3 格副模式入口」；波間商店改 2×2 免捲動網格；STEP 3 難度改單行切換、開局補給預設摺疊；底層支援隨時無縫追加第四、第五章地圖！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.7 關都大遠征（RPG 10波串連地圖）＆ 超武精修版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-emerald-300 font-black pt-0.5">全新旗艦模式：關都大遠征（RPG 10 波串連地圖）</div>
-            <div>• <strong>四幕串連冒險</strong>：真新鎮常磐密林（W1-3）➔ 華藍海岬木棧道（W4-6）➔ 石英高原古神殿（W7-9）➔ 石英大會石柱鬥技場（W10 王者超夢決戰）！</div>
-            <div>• <strong>GBA 像素路線圖 ＆ 整備商店</strong>：採全像素繪製關都路線進度圖與下波敵情預告，波間自動推薦克制下波屬性的 TM 與適配攜帶物，並支援每波自動斷點續關。</div>
-            <div class="text-amber-300 font-black pt-1">兩大超武視覺精修</div>
-            <div>• <strong>終極衝擊（一般）</strong>：升級為「4 支斜角高速旋轉黃金螺旋錐 ＋ 上下左右 4 向動能月牙衝擊波」，形成真正的八方無死角破陣！</div>
-            <div>• <strong>地裂斷層破（地面）</strong>：精簡岩柱至 5 根外圈錯落大岩柱並加厚熔岩熾橘內焰，徹底消除水面蜘蛛網感。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.6 五大究極超武視覺重製升級版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">🐉 天龍流星雨全面重製（深紫 ＋ 蒼藍星焰）</div>
-            <div>• 移除舊版暗雲與垂直光柱，改為 <strong>45° 斜切次元星縫 ➔ 燃燒三層長彗尾 ➔ 銳角黑曜龍晶隕岩</strong>，落地爆出深紫＋蒼藍雙環星爆，與龍之俯衝美術語言 100% 統一！</div>
-            <div class="text-amber-300 font-black pt-1">🥊 四大超武同步提亮精修</div>
-            <div>• <strong>爆裂十字劈（格鬥）</strong>：8 枚飛拳全面升級為空手劈同款【赤金烈焰武道重拳】（附三尾火焰、四指節、拇指與月牙拳風）。</div>
-            <div>• <strong>終極衝擊（一般）</strong>：去除偏暗濁褐色描邊，換裝純金白熾動能核心與亮青白音爆環。</div>
-            <div>• <strong>精神強念領域（超能）</strong>：加厚紫粉雙層空間重力波動外環，浮空碎石與次元鏡面補上粉紫念力光暈。</div>
-            <div>• <strong>暗影死滅波（幽靈）</strong>：拉高底層耿鬼壞笑法陣暗紫底盤與血紅雙眼對比度，亮藍水面亦清晰可辨！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.5 1vs1 純單挑規則、光束擋柱與完美閃避反擊版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">🏛️ 1vs1 光束物理撞柱截斷</div>
-            <div>• <strong>水炮／噴射火焰／冷凍光線</strong>：實裝精準射線石柱截斷判定，命中四角石柱時光束視覺與傷害判定同步於柱面止步，徹底杜絕隔柱白嫖。</div>
-            <div class="text-rose-300 font-black pt-1">⚔️ 純 1vs1 公平單挑 ＆ 完美閃避反擊</div>
-            <div>• <strong>純 1vs1 單挑規則</strong>：進入鬥技場時自動隱藏雙打夥伴，並將莎莉娜／研究所夥伴加成轉化為主動「單挑專注補償」（移速、冷卻與暴擊強化）；莎莉娜大招於鬥技場改為「華麗獨舞（全傷+35% ＆ 重置閃避）」。</div>
-            <div>• <strong>完美閃避反擊強化</strong>：極限閃避除原本 CD -1s 外，額外觸發 2 秒【反擊爆發（全傷 +20%、暴擊 +25%）】，高風險走位回報感大幅升級！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.4 1vs1 夢幻瞬移修復 ＆ 全檔健檢優化版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">🛠️ 關鍵修復</div>
-            <div>• <strong>始祖夢幻瞬移錯位修復（方案 A）</strong>：改於奇數彈幕輪觸發瞬移，並加入「蓄力／衝鋒期間禁止瞬移」雙重鎖，徹底根除衝鋒一半跳走的問題。</div>
-            <div>• <strong>全 Boss／精英直線衝鋒蓄力定身</strong>：畫出直線跑道時原地蓄力不漂移，確保視覺跑道與實際衝鋒起點 100% 重合。</div>
-            <div>• <strong>1vs1 制霸計數 ＆ 開局補給防護</strong>：修復三段難度重複累計導致「已制霸超過 5/5」的顯示 Bug；進入鬥技場不再誤扣割草模式勾選的補給代幣。</div>
-            <div class="text-emerald-300 font-black pt-1">✨ 手感與介面優化</div>
-            <div>• 閃避衝刺穿過 Boss 身體或衝鋒瞬間現可觸發【⚡ 完美閃避！CD -1s】；上方狀態列即時顯示狂暴核心／疾風羽毛／折射護盾剩餘秒數。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.3 訓練家雙時裝專屬 Cut-in 橫幅補完版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-0.5">🎨 三大訓練家雙時裝專屬大招特寫補齊</div>
-            <div>• <strong>小智・初代關都經典裝</strong>：補完綠標紅白帽與經典藍背心 Cut-in（戰術裝保留原版熱血特寫）。</div>
-            <div>• <strong>莎莉娜・卡洛斯長髮裝</strong>：實裝過肩波浪長髮與前指呼喊全新動作 Cut-in。</div>
-            <div>• <strong>莉莉艾・白帽洋裝經典裝</strong>：實裝壓帽前指指揮全新動作 Cut-in，大廳頭像、選角橫幅與局內大招 100% 同步切換！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.2 1vs1 鬥技場真動作對決重製版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 動作化五大核心升級</div>
-            <div>• <strong>高難度威脅與回血壓制</strong>：加入百分比威脅保底（冠軍極限紅圈重擊 ~31% 血、回血壓至 35%），徹底告別站樁硬扛！</div>
-            <div>• <strong>四石柱實體擋彈分層</strong>：敵我直線彈幕撞柱爆裂；暗影球／精神擊破／種子炸彈／地震／月光柱與 Boss 紅圈可越柱突襲。</div>
-            <div>• <strong>專屬閃避衝刺鍵 [Shift]</strong>：0.18s 高速衝刺 ＋ 0.25s 無敵幀（3.2s CD），極限擦彈觸發【⚡ 完美閃避 CD -1s】！</div>
-            <div>• <strong>場地戰術補給爭奪</strong>：每 12~14 秒刷新文柚果／狂暴核心／疾風羽毛／折射護盾，創造走位搶點博弈。</div>
-            <div>• <strong>五神獸專屬走位 AI</strong>：智能繞柱找射界、遠程拉扯、始祖夢幻每 2 輪對角瞬移，並加入招後 0.55s 反打硬直窗口！</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.1 1vs1 鬥技場三段難度、鏡頭聚焦與防穿牆修復版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">⚔️ 1vs1 鬥技場三段難度 ＆ 黃金單挑節奏</div>
-            <div>• 新增【標準試煉 (2.2x血) ／ 大師宿敵 (3.6x血＋12%甲) ／ 冠軍極限 (5.2x血＋20%甲＋8%秒傷盾)】，告別 10 秒蒸發，各難度獨立計時排行與賞金加乘！</div>
-            <div>• 五神獸選單全面升級為「訓練家風格雙圖層大卡」：左側大廳同款高清立繪 ＋ 右下角局內像素預覽。</div>
-            <div class="text-emerald-300 font-black pt-1">🛠️ 關鍵修復</div>
-            <div>• 鎖定神獸本體與直線衝鋒終點於 600×460 緊湊競技場圍牆內，徹底杜絕敵人衝出場外與畫面失蹤。</div>
-            <div>• 修復 Mega／進化 Zoom-in 縮放中心，改為動態鎖定主角實際座標，任何模式下 100% 置中特寫。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.2.0 完整版：3刀解耦・1vs1 鬥技場・3人換裝</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">⚔️ 全新模式：石英大會 1vs1 鬥技場（Phase 1）</div>
-            <div>• STEP 3 新增【⚔️ 1vs1 鬥技場】：封閉單屏石英大會競技場（含四角石柱掩體），固定 Lv.25 完全體 ＋ 天生三招 Lv.8 ＋ 免費自選 1 件攜帶物！</div>
-            <div>• 直接單挑 5 大傳說神獸（急凍鳥／閃電鳥／火焰鳥／超夢／始祖夢幻），自動記錄每隻神獸最快擊破秒數與發放首通／破紀錄賞金。</div>
-            <div class="text-sky-300 font-black pt-1">👕 訓練家時裝切換（小智・莉莉艾・莎莉娜）</div>
-            <div>• 支援小智（經典裝／Cut-in 戰術裝）、莉莉艾（阿羅拉全力裝／白帽洋裝經典裝）與莎莉娜（短髮裝／卡洛斯長髮裝）雙造型自由切換，全套 3×4 行走圖集與頭像即時同步！</div>
-            <div class="text-emerald-300 font-black pt-1">🧱 3 刀架構解耦正式完工</div>
-            <div>• 技能引擎陣營化 (team: player/enemy)、渲染層 (battle_renderer.js) 與雙模式控制器 (mode_survivor.js / mode_arena.js) 全數獨立，為 v7.3 王牌手動對決打通底層。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-emerald-400/50 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-emerald-300">v7.1.4 Boss 衝鋒修復與動畫節奏精修版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">🛠️ 關鍵修復</div>
-            <div>• 修復急凍鳥及所有衝鋒型 Boss／精英於直線衝鋒後因殘影無限再生導致卡死原地的致命 Bug，並讓衝鋒終點正確觸發對應屬性爆破。</div>
-            <div>• 修復污泥炸彈毒沼內圈亮綠橢圓直立穿幫問題，改以水平貼地虛線平滑流動。</div>
-            <div class="text-emerald-300 font-black pt-1">🎨 美術與動態節奏精調</div>
-            <div>• 重繪藤鞭為「根粗尾尖漸細 S 型甩鞭」並內縮起點貼合本體；拉開種子機關槍連射間距，告別黏成一串。</div>
-            <div>• 升級污泥炸彈本體為有機流動毒液滴；加厚冰／水系爆破光環與霜霧內暈。</div>
-            <div>• 將龍之俯衝、月亮之力、水炮／噴射火焰、暴風驟雨與飛葉快刀 5 組過快擺動／旋轉速度收斂回黃金視覺頻率。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-cyan-300/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-cyan-200">v7.1.3 SAR 質感名牌與天氣／攻速精調版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-cyan-300 font-black pt-0.5">💎 寶可夢 SAR 卡質感 Mega 名牌</div>
-            <div>• 升級 Mega 名牌為銀彩鐳射雙層邊框 ＋ 45° 精細壓紋底紋 ＋ 緩慢斜向星塵掃光，頭像 100% 無遮擋。</div>
-            <div>• 採用方案 A：💎 MEGA 徽章移至血條卡下方與種族特性同排並置，工整零裁切。</div>
-            <div class="text-amber-300 font-black pt-1">❄️ 天氣清晰度、攻速節奏與 HUD 空間優化</div>
-            <div>• 暴雪與熱浪濾鏡重製為「中心全透明・邊緣漸層 (Vignette)」，技能透明度調整為 100% / 85%(推薦) / 50%。</div>
-            <div>• 收斂冷卻下限至 0.55 並分級設定招式最短間隔（0.48s / 0.55s），解決後期火花過快與空手劈動畫重疊。</div>
-            <div>• 合併左下角夥伴與攜帶物同行釋放直屏視野，優化磁鐵／商店邊緣指標避讓與入鏡提前淡出。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/85 border border-rose-400/50 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-rose-300">v7.1.2 戰場可讀性與敵方預警重製版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-rose-300 font-black pt-0.5">🔥 敵方預警與爆破全面升級（100% 獨立清晰度）</div>
-            <div>• 圓形／環形預警改為「由內向外充能填滿」＋ 最後 0.12 秒亮白閃框；環形攻擊補齊甜甜圈危險帶與安全眼虛線。</div>
-            <div>• 直線衝鋒升級為「動態箭頭跑道 (>>>)」與 0.16 秒實質高速衝刺殘影；蓄力中怪獸新增腳底壓迫氣環與微幅膨脹。</div>
-            <div>• 實裝 3 層次屬性專屬爆破（火岩裂地、天頂雷柱、冰晶放射、暗紫內爆），不再受我方技能透明度影響。</div>
-            <div class="text-cyan-300 font-black pt-1">✨ 介面、透明度與新手體驗精修</div>
-            <div>• Mega 名牌將 💎 移至頭像左上角對角徽章，釋放名字全寬不截斷，血條數字加上高對比深色陰影。</div>
-            <div>• 暫停選單調整為「左：返回大廳（附防誤觸確認）／右：繼續冒險」；全 6 位訓練家大招浮字上移讓位不擋特效。</div>
-            <div>• 雙打夥伴球改顯示精準等級進度，滿 Lv.5 後再拾取自動轉化為 +20% HP ＆ +50 金幣。</div>
-            <div>• 技能透明度升級分層檔位（100% / 75% 平衡 / 45% 極淨），設定頁補齊全 7 項新手「推薦」徽章。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/80 border border-cyan-400/45 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-cyan-300">v7.1.1 視覺演出精修版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-cyan-300 font-black pt-0.5">💎 MEGA 尊榮名牌升級</div>
-            <div>• 左上角玩家名牌於 Mega 進化後解鎖【慢速流動虹彩鑰石框】、💎MEGA 徽章、6 隻 Mega 專屬主題漸層名字、變身瞬間白金掃光與霸體血條微紋。</div>
-            <div class="text-amber-300 font-black pt-1">⚡ 訓練家演出強化</div>
-            <div>• 重做小智大招起手為【三拍實心精靈球】（彈出微晃 ➔ 咔噠裂開閃金光 ➔ 紅金中空氣浪），辨識度全面升級。</div>
-            <div>• 優化莎莉娜 Cut-in 必殺技字幕位置至左下角，不再遮擋右下方的仙子伊布。</div>
-            <div>• 搭配最新莉莉艾（阿羅拉全力姿態）與莎莉娜（短髮後期版）行走圖集，戰場與大招立繪 100% 統一。</div>
-          </div>
-        </div>
-        <div class="bg-slate-950/75 border border-amber-400/40 rounded-2xl p-3 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="font-black text-xs text-amber-300">v7.1 體驗精修與底層強化版</span>
-          </div>
-          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
-            <div class="text-sky-300 font-black pt-1">✨ 全新功能</div>
-            <div>• 大廳新增【更新日誌】公告視窗，隨時掌握最新改動。</div>
-            <div>• 系統設定新增【我方技能透明度（100% / 65% / 40%）】，雙超武與無盡深淵閃彈視野更清晰。</div>
-            <div>• 全面汰換瀏覽器原生彈窗，升級統一 GBA 像素風對話框與浮動提示條。</div>
+        <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.4</span>
+          </div>
+          <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
+            <div>• <strong>關都大遠征 20+1（三聖鳥各歸主場）</strong>：一路闖過常磐密林、華藍海岬（<strong>急凍鳥</strong>）、無人發電廠（<strong>閃電鳥</strong>）、紅蓮火山（<strong>火焰鳥</strong>）與石英高原，最終踏入石英鬥技場決戰超夢！</div>
+            <div>• <strong>兩張全新戰術生態地圖</strong>：
+              <br/>　- <strong>紅蓮火山</strong>：場上有高溫熔岩池與定時噴發的地熱噴口——<strong>把怪潮引進噴口能幫你烤熟敵人</strong>，特定屬性的寶可夢甚至能無傷無阻橫渡熔岩！
+              <br/>　- <strong>無人發電廠</strong>：踩上<strong>磁能加速帶</strong>能飆速又縮短冷卻；被追急了就順路撞一下<strong>高壓蓄電塔</strong>，直接引爆大範圍電磁脈衝麻痺全場！
+            </div>
+            <div>• <strong>關都 8 枚道館徽章</strong>：前往「道館榮譽」收集 8 枚經典道館徽章，點亮即獲得永久全隊戰力加成！</div>
+            <div>• <strong>大廳「招式整備」</strong>：開局前就能自選第 1 招起手技，還能停用 1 個不想抽到的招式，自由捏出最順手的流派。</div>
+            <div>• <strong>雙介面風格自由切換</strong>：系統設定可一鍵切換「經典 GBA 掌機風」與「深藍黑金戰術風」。</div>
 
-            <div class="text-amber-300 font-black pt-1.5">⚖️ 戰鬥手感與穩定度</div>
-            <div>• 全面重構技能連段計時器為引擎時間驅動，完美同步 2x 倍速、暫停與進化凍結（不再吃招）。</div>
-            <div>• 優化隨行訓練家受擊寬容度，主角近戰前撲期間訓練家享有擦彈免傷保護。</div>
-            <div>• Boss 觸發高秒傷減傷軟上限時，新增六角微盾閃光視覺提示。</div>
-            <div>• 優化安全防護機制為僅桌面端啟用並提高容錯，徹底避免手機怪潮卡頓誤鎖。</div>
+            <div class="text-sky-300 font-black pt-1.5">⚡ 推薦探索：專屬效果與隱藏彩蛋招式</div>
+            <div>• <strong>水炮（Hydro Pump）</strong>：超高壓貫穿水柱——<strong>用水箭龜施放會解鎖專屬「雙肩平行重炮」形態！</strong></div>
+            <div>• <strong>電球（Electro Ball）</strong>：<strong>跑得越快、球越大越痛</strong>，飛行中還會自動抽射電弧！快搭配發電廠加速帶或疾風羽毛試試看！</div>
+            <div>• <strong>毒擊（Poison Jab）</strong>：命中已中毒的敵人會觸發 <strong>+40% 毒爆</strong>，並把劇毒傳染給周圍一整片怪群！</div>
+            <div>• <strong>暗影爪（Shadow Claw）</strong>：天生超高暴擊率——<strong>Mega 耿鬼使出這招會觸發專屬「猩紅冥火」暴擊強化！</strong></div>
+            <div>• <strong>岩崩（Rock Slide）＆ 十字剪（X-Scissor）</strong>：高空砸石強擊退控場 vs 雙鐮破甲高暴擊，各有絕活。</div>
+            <div>• <strong>撞擊（Tackle）</strong>：別小看這招起手技，升級後會解鎖多段破空震波，而且不會亂衝干擾走位！</div>
 
-            <div class="text-rose-300 font-black pt-1.5">🛠️ 問題修復</div>
-            <div>• 修復【超級耿鬼】污泥炸彈未正確顯示「紫紅冥界腐蝕毒沼」與【超級妙蛙花】粉紅毒沼顏色被覆蓋的問題。</div>
+            <div class="text-amber-300 font-black pt-1.5">✨ 近期體驗與手感升級</div>
+            <div>• 畫面與大廳進化圖示更加清晰銳利，大遠征過關漫步節奏與並肩站位更自然舒服，畫面震動預設為柔和護眼模式。</div>
+            <div>• 難度階梯微調：「標準」更有小王對招與怪潮挑戰感，想輕鬆爽刷可選「簡易（輕鬆探索）」。</div>
           </div>
         </div>
-        <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-3 space-y-1 text-[11px] font-bold text-slate-400">
-          <div class="font-black text-slate-300">v7.0 里程碑回顧</div>
-          <div>• 6 大隨行訓練家 3×4 GBA 像素行走圖集全面實裝。</div>
-          <div>• 6 隻關都 MEGA 超級進化（含手動鑰石覺醒與專屬技能質變）上線。</div>
-          <div>• 20 招統一像素風技能圖集與全屬性濾波音效引擎上線。</div>
+        <div class="bg-slate-950/85 border border-amber-400/40 rounded-2xl p-3 space-y-1.5">
+          <div class="font-black text-xs text-amber-300">💎 核心特色玩法一覽</div>
+          <div class="space-y-1 text-[11px] font-bold text-slate-300 leading-relaxed">
+            <div>• <strong>151 隻關都全圖鑑 ＆ 閃光／MEGA 進化</strong>：收集圖鑑可領賞金，局內集齊招式 Lv.10 ＋ 對應攜帶物即可突破「究極超武」，御三家與人氣神寵還能解放 <strong>💎 MEGA 超級進化</strong>！</div>
+            <div>• <strong>四大模式任你挑</strong>：主線「關都大遠征 20+1」、「8 分鐘標準極速戰」、「1vs1 石英鬥技場神獸單挑」與「無盡深淵試煉」，通關即頒發六維戰術雷達評級！</div>
+          </div>
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.3";
+    const curVer = this.APP_VERSION || "v7.6.4";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

@@ -2118,7 +2118,7 @@ window.ModeExpedition = {
     }
 
     const startTs = performance.now();
-    const durationMs = isCrossingAct ? 3200 : 2100;
+    const durationMs = isCrossingAct ? 2800 : 1800;
     const ws = { canvas, app, clearedWave, nextWave, isCrossingAct, healChimePlayed: false };
     this._walkAnimState = ws;
 
@@ -2163,7 +2163,8 @@ window.ModeExpedition = {
     const nodeX = (idx) => padLeft + idx * spacing;
     const nodeY = () => roadY;
 
-    const ease = 1 - Math.pow(1 - Math.min(1, walkT), 2.1);
+    // v7.6.4 改為等速前進（消除起步 2.1x 暴衝感），還原遊戲內真實平穩移動速度
+    const ease = Math.min(1, Math.max(0, walkT));
     const fromIdx = Math.max(0, clearedWave - 1);
     const toIdx = Math.min(total - 1, nextWave - 1);
     const duoX = nodeX(fromIdx) + (nodeX(toIdx) - nodeX(fromIdx)) * ease;
@@ -2527,11 +2528,12 @@ window.ModeExpedition = {
       ctx.fillText(lblTxt, sx, signY + 16);
     });
 
-    // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（漫步於原生道路上方，清晰無變形）
-    const stepPhase = walkT * 12 * Math.PI;
+    // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（同步戰鬥內 walkBob += dt * 12 的步頻與上下擺幅）
+    const walkSec = walkT * (isCrossingAct ? 2.8 : 1.8);
+    const walkBobSim = walkSec * 12.0;
     const isMoving = walkT < 0.99;
-    const bobPoke = isMoving ? Math.abs(Math.sin(stepPhase)) * (expanded ? 8 : 5) : 0;
-    const bobTrainer = isMoving ? Math.abs(Math.sin(stepPhase + 1.2)) * (expanded ? 6 : 4) : 0;
+    const bobPoke = isMoving ? Math.abs(Math.sin(walkBobSim)) * (expanded ? 4.5 : 3.5) : 0;
+    const bobTrainer = isMoving ? Math.abs(Math.sin(walkBobSim + 1.1)) * (expanded ? 3.5 : 2.8) : 0;
     const trTargetH = expanded ? 68 : 50;
     const pkTargetH = expanded ? 72 : 54;
     const feetBaseY = duoY - (expanded ? 14 : 10);
@@ -2557,7 +2559,7 @@ window.ModeExpedition = {
     if (sheetRec && sheetRec.loaded && sheetRec.img.naturalWidth > 0) {
       const fw = Math.floor(sheetRec.img.naturalWidth / 3);
       const fh = Math.floor(sheetRec.img.naturalHeight / 4);
-      const col = isMoving ? [0, 1, 2, 1][Math.floor(walkT * 10) % 4] : 1;
+      const col = isMoving ? [0, 1, 2, 1][Math.floor(walkBobSim * 0.78) % 4] : 1;
       this.drawSpriteFitHeight(ctx, sheetRec.img, duoX - 16, feetBaseY - bobTrainer, trTargetH, false, { x: col * fw, y: 2 * fh, w: fw, h: fh });
     } else if (trCos.sprite) {
       const trRec = SpriteCache.get(trCos.sprite);
