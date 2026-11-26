@@ -77,7 +77,7 @@ Object.assign(window.GameApp, {
             screenFilter: "none",
             dmgTextMode: "crit_only",
             procNoticeMode: "icon",
-            screenShake: "normal",
+            screenShake: "low",
             fourthSlotPoolMode: "affinity",
             skillAlpha: "85",
             uiTheme: "gba",
@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.2";
+        const ver = this.APP_VERSION || "v7.6.3";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -472,9 +472,9 @@ Object.assign(window.GameApp, {
               <span class="px-1.5 py-0.2 bg-white rounded border border-slate-300 text-[9px] font-black text-slate-800">伊布</span>
               <span class="text-purple-600 font-black text-[9px]">➔ Lv.${p.evo_level || 18} 三選一 ➔</span>
               <div class="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-purple-300">
-                ${v134 ? `<img src="${v134.forward_sprite}" title="${s134 ? v134.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v135 ? `<img src="${v135.forward_sprite}" title="${s135 ? v135.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v136 ? `<img src="${v136.forward_sprite}" title="${s136 ? v136.name_zh : '???'}" class="w-5 h-5 pixel-sprite ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v134 ? `<img src="${v134.forward_sprite}" title="${s134 ? v134.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v135 ? `<img src="${v135.forward_sprite}" title="${s135 ? v135.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v136 ? `<img src="${v136.forward_sprite}" title="${s136 ? v136.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
               </div>
             </div>
           `;
@@ -494,7 +494,7 @@ Object.assign(window.GameApp, {
             return `
               ${arrowHtml}
               <div class="flex items-center gap-0.5 bg-white px-1 py-0.5 rounded-md border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shrink-0">
-                <img src="${stPoke.forward_sprite}" class="w-4 h-4 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
+                <img src="${stPoke.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
                 <span class="text-[8px] sm:text-[9px] font-black ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
               </div>
             `;
@@ -507,7 +507,7 @@ Object.assign(window.GameApp, {
             megaStepHtml = `
               <span class="text-[8px] font-black text-cyan-600 shrink-0">➔</span>
               <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex items-center gap-0.5 px-1 py-0.5 rounded-md border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                <img src="${megaFormLobby.forward_sprite}" class="w-4 h-4 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                <img src="${megaFormLobby.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
                 <span class="text-[8px] sm:text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
               </div>
             `;
@@ -527,12 +527,12 @@ Object.assign(window.GameApp, {
               <span class="text-[9px] font-black text-amber-700 shrink-0"><i class="fa-solid fa-gem"></i> 超級進化：</span>
               <div class="flex items-center gap-1 overflow-x-auto">
                 <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border border-slate-300 shrink-0">
-                  <img src="${p.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain" alt="${p.name_zh}"/>
+                  <img src="${p.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${p.name_zh}"/>
                   <span class="text-[9px] font-black text-slate-800">${p.name_zh}</span>
                 </div>
                 <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
                 <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${singleMega.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                  <img src="${singleMega.forward_sprite}" class="w-5 h-5 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                  <img src="${singleMega.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
                   <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? singleMega.name_zh : 'MEGA ???'}</span>
                 </div>
               </div>
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.2";
+      const curVer = this.APP_VERSION || "v7.6.3";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1371,13 +1371,13 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.2",
+      lastSeenVersion: this.APP_VERSION || "v7.6.3",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
         dmgTextMode: "crit_only",
         procNoticeMode: "icon",
-        screenShake: "normal",
+        screenShake: "low",
         fourthSlotPoolMode: "affinity",
         skillAlpha: "85",
         uiTheme: "gba"
@@ -3064,7 +3064,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.2",
+      version: this.APP_VERSION || "v7.6.3",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3497,7 +3497,7 @@ Object.assign(window.GameApp, {
         screenFilter: "none",
         dmgTextMode: "crit_only",
         procNoticeMode: "icon",
-        screenShake: "normal",
+        screenShake: "low",
         fourthSlotPoolMode: "affinity",
         skillAlpha: "85",
         uiTheme: "gba"
@@ -3579,7 +3579,7 @@ Object.assign(window.GameApp, {
       screenFilter: "none",
       dmgTextMode: "crit_only",
       procNoticeMode: "icon",
-      screenShake: "normal",
+      screenShake: "low",
       fourthSlotPoolMode: "affinity",
       skillAlpha: "85",
       uiTheme: "gba"
@@ -3709,8 +3709,8 @@ Object.assign(window.GameApp, {
           <span class="font-black text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-mobile-screen-button"></i> 螢幕震動與幀率顯示</span>
         </div>
         <div class="grid grid-cols-3 gap-1.5">
-          ${renderOptionBtn("screenShake", "normal", "震動：標準", "完整打擊震撼", true)}
-          ${renderOptionBtn("screenShake", "low", "震動：柔和", "減半震幅護眼")}
+          ${renderOptionBtn("screenShake", "low", "震動：柔和", "減半震幅護眼", true)}
+          ${renderOptionBtn("screenShake", "normal", "震動：標準", "完整打擊震撼")}
           ${renderOptionBtn("screenShake", "off", "震動：關閉", "畫面完全靜止")}
         </div>
         <div class="pt-1 flex items-center justify-between border-t border-slate-800/80">
@@ -3733,8 +3733,22 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.6.2 關都大遠征 20+1 五區三聖鳥歸位 ‧ 難度重校 ‧ 體驗收口版</span>
+            <span class="font-black text-sm text-amber-300">v7.6.3 像素銳利化 ‧ 全站雙主題統一 ‧ 大遠征漫步與震動調優</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-sky-300 font-black pt-0.5">遊戲內精靈圖銳利化修復（告別模糊發虛）</div>
+            <div>• 修復繪製高解析主角後平滑濾鏡未重置導致敵人像素精靈變糊的渲染 Bug，全面改為像素對齊座標（<code>Math.round</code>）並將行動裝置畫質上限由非整數 1.35x 升至整數 2.0x！</div>
+            <div class="text-emerald-300 font-black pt-1">大遠征波間漫步節奏 ＆ 並肩距離調優</div>
+            <div>• 同區漫步放緩至 2.1 秒、跨區 3.2 秒，並將訓練家與主角寶可夢的距離由 58px 拉近至 30px 緊密並肩同行（點擊畫面仍可隨時加速）。</div>
+            <div class="text-amber-300 font-black pt-1">全站 9 大彈窗雙主題統一 ‧ 預設柔和震動 ‧ 大廳進化圖放大</div>
+            <div>• 系統設定、升級三選一、友好商店、大遠征整備、戰後結算、更新日誌、Mega 詳情與對話框全面跟隨「GBA 掌機風／深藍黑金風」即時切換！</div>
+            <div>• 地動震動預設改為「柔和」護眼模式；大廳進化鏈與 Mega 預覽精靈圖統一放大至 28×28px 清晰展示。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.6.2 關都大遠征 20+1 五區三聖鳥歸位 ‧ 難度重校 ‧ 體驗收口版</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">關都大遠征升級 20+1 五區長征（三聖鳥各歸生態主場！）</div>
@@ -4204,7 +4218,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.2";
+    const curVer = this.APP_VERSION || "v7.6.3";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

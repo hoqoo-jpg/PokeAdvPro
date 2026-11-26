@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.2",
+  APP_VERSION: "v7.6.3",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -52,7 +52,7 @@ window.GameApp = {
       screenFilter: "none",
       dmgTextMode: "crit_only",
       procNoticeMode: "icon",
-      screenShake: "normal",
+      screenShake: "low",
       fourthSlotPoolMode: "affinity",
       skillAlpha: "85"
     }
@@ -147,7 +147,7 @@ window.GameApp = {
     if (this.height > 0) {
       document.documentElement.style.setProperty("--app-h", `${this.height}px`);
     }
-    const maxDpr = this.isMobileDevice() ? 1.35 : 2.0;
+    const maxDpr = 2.0;
     const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
     this.dpr = dpr;
     this._pauseFrameRendered = false;

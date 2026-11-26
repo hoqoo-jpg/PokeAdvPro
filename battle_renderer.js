@@ -2114,7 +2114,7 @@ Object.assign(window.GameApp, {
         };
         const mOff = isMegaSprite ? (MEGA_ANCHOR_OFFSETS[p.id] || { ox: 0, oy: 0 }) : { ox: 0, oy: 0 };
         const footAnchorLiftY = isMegaSprite ? 7 : (awakenScale - 1.0) * 28;
-        ctx.translate(px + visOffsetX, py + visOffsetY - footAnchorLiftY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0));
+        ctx.translate(Math.round(px + visOffsetX), Math.round(py + visOffsetY - footAnchorLiftY - (submergeWater ? pBob * 0.45 : pBob) + (p.jumpY || 0) + (submergeWater ? 11 : 0)));
         ctx.scale((p.facingX > 0 ? -1 : 1) * stretchX * awakenScale, squashY * awakenScale);
 
         const drawX = -26 + mOff.ox;
@@ -2200,12 +2200,15 @@ Object.assign(window.GameApp, {
       const eRec = e.isShiny ? SpriteCache.getShiny(eSprUrl) : SpriteCache.get(eSprUrl);
 
       ctx.save();
-      ctx.translate(esx, esy);
+      ctx.translate(Math.round(esx), Math.round(esy));
       const castPulse = castingOwners.has(e) ? (1.06 + Math.sin(tgNow * 3.0) * 0.06) : 1.0;
       ctx.scale((e.facingX > 0 ? -1 : 1) * castPulse, castPulse);
 
       if (eRec && eRec.loaded) {
-        ctx.drawImage(eRec.img, -sz / 2, -sz / 2, sz, sz);
+        const isHiResEnemy = ((eRec.img.naturalWidth || eRec.img.width || 0) > 160);
+        ctx.imageSmoothingEnabled = isHiResEnemy;
+        ctx.webkitImageSmoothingEnabled = isHiResEnemy;
+        ctx.drawImage(eRec.img, Math.round(-sz / 2), Math.round(-sz / 2), Math.round(sz), Math.round(sz));
       } else {
         // 圖片重試載入期間的像素精靈球兜底繪製，徹底杜絕隱形怪
         const pr = sz * 0.26;
