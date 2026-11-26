@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.8",
+  APP_VERSION: "v7.6.9",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1067,7 +1067,7 @@ window.GameApp = {
       bondName: tr.bondName || "專屬羈絆",
       level: 1,
       exp: 0,
-      nextExp: 18,
+      nextExp: (this.selectedGameMode === "expedition") ? ((typeof window !== "undefined" && window.EXPEDITION_PACING && window.EXPEDITION_PACING.startNextExp) || 90) : 18,
       hp: maxHp,
       maxHp,
       baseAtk: basePoke.atk * shinyMult,
@@ -5220,7 +5220,12 @@ window.GameApp = {
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
       p.level += 1;
-      p.nextExp = Math.round(p.nextExp * 1.22 + 14);
+      if (this.isExpeditionMode) {
+        const _ep = (typeof window !== "undefined" && window.EXPEDITION_PACING) ? window.EXPEDITION_PACING : {};
+        p.nextExp = Math.round(p.nextExp * (_ep.expGrowthMult || 1.14) + (_ep.expGrowthFlat || 28));
+      } else {
+        p.nextExp = Math.round(p.nextExp * 1.22 + 14);
+      }
       SoundFX.play("levelup");
 
       // 每次升級附帶輕量生命回復 (+10% 最大 HP)，提升續航手感與正回饋

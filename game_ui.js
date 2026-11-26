@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.8";
+        const ver = this.APP_VERSION || "v7.6.9";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -568,7 +568,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.8";
+      const curVer = this.APP_VERSION || "v7.6.9";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1378,7 +1378,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.8",
+      lastSeenVersion: this.APP_VERSION || "v7.6.9",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3071,7 +3071,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.8",
+      version: this.APP_VERSION || "v7.6.9",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3750,7 +3750,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.8</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.9</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3783,9 +3783,23 @@ Object.assign(window.GameApp, {
             <div>• <strong>四大模式任你挑</strong>：主線「關都大遠征 20+1」、「8 分鐘標準極速戰」、「1vs1 石英鬥技場神獸單挑」與「無盡深淵試煉」，通關即頒發六維戰術雷達評級！</div>
           </div>
         </div>
+        <div class="bg-slate-950/85 border border-slate-700/80 rounded-2xl p-3 space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-[11px] text-slate-300">📋 版本變更簡錄</span>
+            <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
+          </div>
+          <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
+            <div>• <strong class="text-amber-300">v7.6.9</strong>：修透戰後結算頁亮色主題對比；大遠征導入平滑初期升級曲線（每波穩升 1～2 級）；新增版本簡錄。</div>
+            <div>• <strong class="text-slate-300">v7.6.8</strong>：修復遠征商店速度強化購買與彩虹徽章回血；電球電弧距離調校至中近距甜區。</div>
+            <div>• <strong class="text-slate-300">v7.6.7</strong>：大廳與選角加入閃亮「👕 換裝」按鈕；大遠征小王掉落與 PP 提升劑偶數波限購平衡。</div>
+            <div>• <strong class="text-slate-300">v7.6.6</strong>：修正大遠征過場角色浮空貼地、電球距離過濾與彩色標籤白字保護。</div>
+            <div>• <strong class="text-slate-300">v7.6.5</strong>：補齊發電廠／火山大遠征小地圖、結算評級雙主題與小幫手倒數防偷跑。</div>
+            <div>• <strong class="text-slate-300">v7.6.2</strong>：大遠征升級 20+1 五區三聖鳥歸位、難度階梯重校、精裝選關縮圖與小王出招加速。</div>
+          </div>
+        </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.8";
+    const curVer = this.APP_VERSION || "v7.6.9";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

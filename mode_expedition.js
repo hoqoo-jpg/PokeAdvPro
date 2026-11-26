@@ -411,8 +411,11 @@ window.EXPEDITION_CHAPTERS = [
 ];
 
 window.EXPEDITION_PACING = {
-  earlyExpMult: 0.95,      // Lv.1~11 大遠征經驗倍率（保持前段快速成型爽感）
-  lateExpMult: 0.80,       // Lv.12+ 大遠征經驗倍率（拉開中後段 W10~W20 升級節奏，不影響 8 分鐘模式）
+  startNextExp: 90,        // 大遠征 Lv.1 起始升級經驗（避免 W1/W2 連彈 5 次升級視窗，每波穩定 1~2 級）
+  expGrowthMult: 1.14,     // 大遠征每級經驗成長倍率（平滑對齊 21 關節奏）
+  expGrowthFlat: 28,       // 大遠征每級經驗固定增量
+  earlyExpMult: 0.95,      // Lv.1~11 大遠征經驗倍率
+  lateExpMult: 0.85,       // Lv.12+ 大遠征經驗倍率（不影響 8 分鐘標準／無盡模式）
   miniBossRareCandy: false,// 中繼小王改掉經驗晶＋賞金，僅區域關底神獸必掉直升神奇糖果
   ppUpEvenWavesOnly: true, // 整備站 PP 提升劑／極限糖果僅於偶數波（擊破小王／大王後）上架
   ppUpMaxPerRun: 4         // 單局遠征最多購買 4 次 PP 提升劑／極限糖果
@@ -1555,14 +1558,14 @@ window.ModeExpedition = {
   dropExpeditionBossLoot(app, boss, isMiniBoss = false) {
     if (!boss) return;
     const pacing = window.EXPEDITION_PACING || {};
-    const gemCount = isMiniBoss ? 5 : 8;
+    const gemCount = isMiniBoss ? 4 : 8;
     for (let g = 0; g < gemCount; g++) {
       const gAng = (g * Math.PI * 2) / gemCount + Math.random() * 0.3;
       const gDist = 18 + Math.random() * 26;
       app.gems.push({
         x: boss.x + Math.cos(gAng) * gDist,
         y: boss.y + Math.sin(gAng) * gDist,
-        val: isMiniBoss ? 95 : 120, tier: 4, size: 11.5,
+        val: isMiniBoss ? 70 : 120, tier: 4, size: 11.5,
         color: "#EC4899", innerColor: "#FBCFE8",
         magnetized: true
       });
