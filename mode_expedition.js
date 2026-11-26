@@ -802,7 +802,7 @@ window.ModeExpedition = {
     let revealSfxPlayed = false;
     let rafId = null;
     const startTs = performance.now();
-    const totalMs = 2500; // 完整 2.5 秒四拍電影級遇敵儀式
+    const totalMs = 3000; // 完整 3.0 秒四拍電影級遇敵儀式（強化定格氣勢停留，點擊仍可隨時跳過）
 
     const finish = () => {
       if (finished) return;
@@ -1303,7 +1303,7 @@ window.ModeExpedition = {
     }
 
     // 完整 3 ➔ 2 ➔ 1 ➔ BATTLE START! 四拍倒數（正上方同步顯示 WAVE ?/10 徽章）
-    app.battleCountdownTimer = 1.52;
+    app.battleCountdownTimer = 2.00;
     app._lastCountdownBeat = 4;
     app.state = "PLAYING";
     app.refreshHUD();
@@ -1727,7 +1727,7 @@ window.ModeExpedition = {
       this.spawnExpeditionBossEntity(app, exCfg, 151, 0, true);
       const bossHud = document.getElementById("bossHudContainer");
       if (bossHud) bossHud.classList.remove("hidden");
-      app.battleCountdownTimer = 1.52;
+      app.battleCountdownTimer = 2.00;
       app._lastCountdownBeat = 4;
       app.state = "PLAYING";
       app.refreshHUD();

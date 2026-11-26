@@ -2223,6 +2223,10 @@ Object.assign(window.GameApp, {
 
       if (e.whiteFlashTimer > 0 && eRec && eRec.loaded) {
         this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#FFFFFF", 0.72);
+      } else if ((e.isBoss || e.isMiniBoss) && e.hp > 0 && (e.hp / (e.maxHp || 1)) <= 0.50 && eRec && eRec.loaded) {
+        // v7.6.11 小王／Boss 半血以下脈衝猩紅憤怒呼吸覆層（零 ctx.filter，不糊五官且穩 60 FPS）
+        const ragePulse = 0.20 + (0.5 + 0.5 * Math.sin(performance.now() * 0.011)) * 0.16;
+        this.drawSilhouetteFlash(ctx, eRec.img, -sz / 2, -sz / 2, sz, sz, "#DC2626", ragePulse);
       }
 
       if (e.isBoss && e.dpsShieldFlashTimer > 0) {
@@ -2414,20 +2418,26 @@ Object.assign(window.GameApp, {
         ctx.restore();
       }
 
-      if (e.hp < e.maxHp || e.isElite || e.treasureType) {
-        const bw = e.isBoss ? 72 : (e.isElite ? 50 : 44);
-        const bh = e.isBoss ? 6 : (e.isElite ? 6.0 : 5.5);
+      if (!e.isBoss && (e.hp < e.maxHp || e.isElite || e.treasureType)) {
+        const isMobOnly = !e.isElite && !e.treasureType;
+        const bw = e.isElite ? 36 : (e.treasureType ? 32 : 22);
+        const bh = e.isElite ? 3.5 : (e.treasureType ? 3.2 : 2.5);
         const barX = esx - bw / 2;
-        const barY = esy - sz / 2 - 10;
+        const barY = esy - sz / 2 - (e.isElite ? 8 : 6);
         const hpRatio = Math.max(0, e.hp / e.maxHp);
+        const trailRatio = Math.max(hpRatio, e.hpTrailRatio !== undefined ? e.hpTrailRatio : hpRatio);
 
         ctx.save();
-        ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
-        ctx.strokeStyle = (e.isElite && !e.isBoss) ? "#FACC15" : "rgba(15, 23, 42, 0.85)";
-        ctx.lineWidth = (e.isElite && !e.isBoss) ? 1.4 : 1.0;
+        if (isMobOnly && this.enemies.length > 60) {
+          ctx.globalAlpha = 0.60;
+        }
+        ctx.fillStyle = isMobOnly ? "rgba(2, 6, 23, 0.52)" : "rgba(2, 6, 23, 0.72)";
         ctx.fillRect(barX, barY, bw, bh);
-        if (e.isElite || e.isBoss || this.enemies.length <= 100) {
-          ctx.strokeRect(barX, barY, bw, bh);
+
+        // 精英／小王白色延遲扣血殘影條
+        if (e.isElite && trailRatio > hpRatio + 0.005) {
+          ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+          ctx.fillRect(barX + 0.5, barY + 0.5, (bw - 1) * trailRatio, bh - 1);
         }
 
         let barColor = "#FF5252";
@@ -2435,14 +2445,21 @@ Object.assign(window.GameApp, {
           barColor = "#FACC15";
         } else if (hpRatio <= 0.25) {
           const pulse = 0.75 + Math.sin(performance.now() * 0.015) * 0.25;
-          ctx.globalAlpha = pulse;
+          ctx.globalAlpha = isMobOnly && this.enemies.length > 60 ? pulse * 0.65 : pulse;
           barColor = "#FF2E2E";
-        } else if (e.isElite && !e.isBoss) {
-          barColor = "#FF6B4A";
+        } else if (e.isElite) {
+          barColor = (e.isMiniBoss && hpRatio <= 0.50) ? "#EF4444" : "#FF6B4A";
         }
 
         ctx.fillStyle = barColor;
-        ctx.fillRect(barX + 0.5, barY + 0.5, (bw - 1) * hpRatio, bh - 1);
+        const pad = isMobOnly ? 0 : 0.5;
+        ctx.fillRect(barX + pad, barY + pad, (bw - pad * 2) * hpRatio, bh - pad * 2);
+
+        if (e.isElite) {
+          ctx.strokeStyle = (e.isMiniBoss && hpRatio <= 0.50) ? "#F87171" : "#FACC15";
+          ctx.lineWidth = 1.0;
+          ctx.strokeRect(barX, barY, bw, bh);
+        }
 
         if (e.isElite && !e.isBoss) {
           const cx = barX - 8;
@@ -3003,7 +3020,7 @@ Object.assign(window.GameApp, {
       ctx.restore();
     }
 
-    const beatDur = 0.38;
+    const beatDur = 0.50;
     const beatIdx = Math.min(3, Math.floor(t / beatDur)); // 3="3", 2="2", 1="1", 0="BATTLE START!"
     const localElapsed = beatDur - (t - beatIdx * beatDur);
     const localProg = Math.max(0, Math.min(1, localElapsed / beatDur));

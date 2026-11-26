@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.10');
+      background-image: url('images/skills_icons_sheet.png?v=7.6.12');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.10');
+      background-image: url('images/skills_icons_extra5.png?v=7.6.12');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -985,6 +985,14 @@
     body:not(.theme-dark-gold) #endModal #hexRankStamp .text-amber-200\/80 {
       color: #FDE68A !important;
     }
+    /* v7.6.11 Boss 半血狂暴頂部 HUD 脈動紅框 */
+    @keyframes bossHudRagePulse {
+      0%, 100% { border-color: rgba(239, 68, 68, 0.85); box-shadow: 0 0 10px rgba(239, 68, 68, 0.45); }
+      50% { border-color: rgba(252, 165, 165, 1); box-shadow: 0 0 18px rgba(239, 68, 68, 0.85); }
+    }
+    #bossHudContainer.boss-enraged {
+      animation: bossHudRagePulse 0.9s ease-in-out infinite;
+    }
   </style>
   <script>
     (function () {
@@ -1085,7 +1093,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.10
+      v7.6.12
     </div>
   </div>
 
@@ -1134,7 +1142,7 @@
 
     <!-- 中央出戰搭檔預覽卡 (緊湊間距，不強佔全屏高度) -->
     <div class="w-full max-w-md mx-auto my-1.5 z-10 shrink-0">
-      <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex flex-col gap-2">
+      <div onclick="GameApp.openSetupFlow(1, true)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex flex-col gap-2">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
             <div class="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0">
@@ -1303,24 +1311,34 @@
     </div>
 
     <!-- 頂部中央：Boss 血條容器 (下移至 top-[96px] sm:top-24 避開地形與狀態列，且 z-20 置頂絕不被擋) -->
-    <div id="bossHudContainer" class="absolute top-[96px] sm:top-24 left-1/2 -translate-x-1/2 w-11/12 max-w-lg hidden bg-slate-900/95 px-2.5 py-1.5 rounded-2xl border-2 border-red-500 shadow-2xl pointer-events-auto z-20">
-      <div id="bossHudGrid" class="grid grid-cols-1 gap-2">
+    <div id="bossHudContainer" class="absolute top-[92px] sm:top-24 left-1/2 -translate-x-1/2 w-[90%] max-w-md hidden bg-slate-950/65 backdrop-blur-sm px-2.5 py-1 rounded-xl border border-red-500/75 shadow-lg pointer-events-none z-20">
+      <div id="bossHudGrid" class="grid grid-cols-1 gap-1.5">
         <div>
-          <div class="flex items-center justify-between text-[11px] sm:text-xs font-black text-white mb-1 px-0.5 gap-1">
-            <span id="bossHudName" class="text-red-400 truncate"><i class="fa-solid fa-dragon mr-1"></i>王者超夢 (#150)</span>
-            <span id="bossHudHpText" class="font-pixel text-[9px] sm:text-[10px] text-amber-300 shrink-0">14000/14000</span>
+          <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white mb-0.5 px-0.5 gap-1 leading-tight">
+            <span class="flex items-center gap-1 min-w-0">
+              <span id="bossHudName" class="text-red-300 truncate">王者超夢 (#150)</span>
+              <span id="bossHudRageTag" class="hidden px-1 py-0 rounded bg-red-600 text-white text-[8px] font-black tracking-tight shrink-0 animate-pulse">狂暴</span>
+            </span>
+            <span id="bossHudHpText" class="font-pixel text-[8px] sm:text-[9px] text-amber-300 shrink-0">14000/14000</span>
           </div>
-          <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
-            <div id="bossHudBar" class="h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-100" style="width: 100%;"></div>
+          <div class="relative w-full bg-slate-950/90 rounded-full h-2 border border-slate-700/80 overflow-hidden">
+            <div id="bossHudTrail" class="absolute inset-y-0 left-0 bg-white/80 rounded-full transition-all duration-300 ease-out" style="width: 100%;"></div>
+            <div id="bossHudBar" class="relative h-full bg-gradient-to-r from-red-600 via-orange-500 to-amber-400 rounded-full transition-all duration-75" style="width: 100%;"></div>
+            <div class="absolute inset-y-0 left-1/2 w-[1.5px] bg-white/65 pointer-events-none"></div>
           </div>
         </div>
         <div id="bossHudSlot2" class="hidden">
-          <div class="flex items-center justify-between text-[11px] sm:text-xs font-black text-white mb-1 px-0.5 gap-1">
-            <span id="bossHudName2" class="text-purple-300 truncate"><i class="fa-solid fa-dragon mr-1"></i>始祖夢幻 (#151)</span>
-            <span id="bossHudHpText2" class="font-pixel text-[9px] sm:text-[10px] text-amber-300 shrink-0">7500/7500</span>
+          <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white mb-0.5 px-0.5 gap-1 leading-tight">
+            <span class="flex items-center gap-1 min-w-0">
+              <span id="bossHudName2" class="text-purple-300 truncate">始祖夢幻 (#151)</span>
+              <span id="bossHudRageTag2" class="hidden px-1 py-0 rounded bg-red-600 text-white text-[8px] font-black tracking-tight shrink-0 animate-pulse">狂暴</span>
+            </span>
+            <span id="bossHudHpText2" class="font-pixel text-[8px] sm:text-[9px] text-amber-300 shrink-0">7500/7500</span>
           </div>
-          <div class="w-full bg-slate-950 rounded-full h-2.5 p-0.5 border border-slate-700 overflow-hidden">
-            <div id="bossHudBar2" class="h-full bg-gradient-to-r from-purple-600 via-pink-500 to-amber-300 rounded-full transition-all duration-100" style="width: 100%;"></div>
+          <div class="relative w-full bg-slate-950/90 rounded-full h-2 border border-slate-700/80 overflow-hidden">
+            <div id="bossHudTrail2" class="absolute inset-y-0 left-0 bg-white/80 rounded-full transition-all duration-300 ease-out" style="width: 100%;"></div>
+            <div id="bossHudBar2" class="relative h-full bg-gradient-to-r from-purple-600 via-pink-500 to-amber-300 rounded-full transition-all duration-75" style="width: 100%;"></div>
+            <div class="absolute inset-y-0 left-1/2 w-[1.5px] bg-white/65 pointer-events-none"></div>
           </div>
         </div>
       </div>
@@ -1440,7 +1458,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-3 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
+    <div id="wizardStepTabsBar" class="grid grid-cols-3 bg-slate-100 border-b border-slate-300 text-center text-xs font-black shrink-0">
       <button id="stepTab1" onclick="GameApp.setWizardStep(1)" class="py-3 border-b-4 border-red-600 text-red-600 bg-white">1. 隨行訓練家</button>
       <button id="stepTab2" onclick="GameApp.setWizardStep(2)" class="py-3 border-b-4 border-transparent text-slate-500">2. 出戰寶可夢</button>
       <button id="stepTab3" onclick="GameApp.setWizardStep(3)" class="py-3 border-b-4 border-transparent text-slate-500">3. 關卡與設定 (STAGE)</button>
@@ -1493,11 +1511,14 @@
         <div id="expeditionPreviewPanel" class="hidden space-y-2.5">
           <div id="expeditionCheckpointBanner" class="hidden space-y-1"></div>
           <div>
-            <h3 class="font-black text-xs sm:text-sm text-slate-800 mb-1.5 flex items-center gap-1.5">
-              <i class="fa-solid fa-route text-emerald-600"></i>
-              <span id="expeditionDynamicRouteText">關都大遠征路線（6 大區域 ‧ 20+1 關推進）</span>
-            </h3>
-            <div id="expeditionStageCardsGrid" class="grid grid-cols-2 gap-2"></div>
+            <div class="flex items-center justify-between gap-2 mb-1.5">
+              <h3 class="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5 min-w-0">
+                <i class="fa-solid fa-route text-emerald-600 shrink-0"></i>
+                <span id="expeditionDynamicRouteText" class="truncate">連續闖關征途（W1 ➔ W21 依序推進，無需選關）</span>
+              </h3>
+              <span class="text-[9px] font-bold text-slate-500 shrink-0">← 左右預覽 →</span>
+            </div>
+            <div id="expeditionStageCardsGrid" class="flex items-stretch gap-1 overflow-x-auto pb-1.5 px-1.5 py-1.5 rounded-2xl bg-slate-100/90 border border-slate-300/90 select-none"></div>
           </div>
         </div>
 
@@ -2023,7 +2044,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.10</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.12</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2071,7 +2092,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.10</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.12</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2104,14 +2125,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.10"></script>
-  <script src="map_v11_engine.js?v=7.6.10"></script>
-  <script src="skills_engine.js?v=7.6.10"></script>
-  <script src="skills_vfx.js?v=7.6.10"></script>
-  <script src="battle_core_2.js?v=7.6.10"></script>
-  <script src="battle_renderer.js?v=7.6.10"></script>
-  <script src="modes_arcade.js?v=7.6.10"></script>
-  <script src="mode_expedition.js?v=7.6.10"></script>
-  <script src="game_ui.js?v=7.6.10"></script>
+  <script src="pokedex_data.js?v=7.6.12"></script>
+  <script src="map_v11_engine.js?v=7.6.12"></script>
+  <script src="skills_engine.js?v=7.6.12"></script>
+  <script src="skills_vfx.js?v=7.6.12"></script>
+  <script src="battle_core_2.js?v=7.6.12"></script>
+  <script src="battle_renderer.js?v=7.6.12"></script>
+  <script src="modes_arcade.js?v=7.6.12"></script>
+  <script src="mode_expedition.js?v=7.6.12"></script>
+  <script src="game_ui.js?v=7.6.12"></script>
 </body>
 </html>

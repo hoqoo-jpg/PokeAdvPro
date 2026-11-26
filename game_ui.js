@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.10";
+        const ver = this.APP_VERSION || "v7.6.12";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -497,12 +497,12 @@ Object.assign(window.GameApp, {
           const stepsHtml = chain.map((stPoke, idx) => {
             const isKnown = idx === 0 || !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[stPoke.id]) || !!(this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[stPoke.id]);
             const prevLv = idx > 0 ? chain[idx - 1].evo_level : null;
-            const arrowHtml = idx > 0 ? `<span class="text-[8px] font-black text-amber-600 shrink-0">➔L${prevLv}</span>` : '';
+            const arrowHtml = idx > 0 ? `<span class="text-[7px] sm:text-[8px] font-black text-amber-600 shrink-0 leading-none">→L${prevLv}</span>` : '';
             return `
               ${arrowHtml}
               <div class="flex items-center gap-0.5 bg-white px-1 py-0.5 rounded-md border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shrink-0">
-                <img src="${stPoke.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
-                <span class="text-[8px] sm:text-[9px] font-black ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
+                <img src="${stPoke.forward_sprite}" class="w-5 h-5 sm:w-6 sm:h-6 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
+                <span class="text-[8px] sm:text-[9px] font-black whitespace-nowrap ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
               </div>
             `;
           }).join("");
@@ -512,16 +512,16 @@ Object.assign(window.GameApp, {
           if (megaFormLobby) {
             const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[megaFormLobby.baseId]);
             megaStepHtml = `
-              <span class="text-[8px] font-black text-cyan-600 shrink-0">➔</span>
+              <span class="text-[7px] sm:text-[8px] font-black text-cyan-600 shrink-0 leading-none">→</span>
               <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex items-center gap-0.5 px-1 py-0.5 rounded-md border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                <img src="${megaFormLobby.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
-                <span class="text-[8px] sm:text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
+                <img src="${megaFormLobby.forward_sprite}" class="w-5 h-5 sm:w-6 sm:h-6 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                <span class="text-[8px] sm:text-[9px] font-black whitespace-nowrap ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
               </div>
             `;
           }
           evoEl.innerHTML = `
-            <div class="flex items-center gap-1 flex-wrap w-full">
-              <span class="text-[8px] sm:text-[9px] font-black text-blue-700 shrink-0"><i class="fa-solid fa-angles-up"></i> 進化</span>
+            <div class="flex items-center gap-0.5 sm:gap-1 flex-nowrap overflow-x-auto w-full py-0.5">
+              <span class="text-[8px] font-black text-blue-700 shrink-0 mr-0.5"><i class="fa-solid fa-angles-up"></i></span>
               ${stepsHtml}${megaStepHtml}
             </div>
           `;
@@ -568,7 +568,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.10";
+      const curVer = this.APP_VERSION || "v7.6.12";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -618,7 +618,7 @@ Object.assign(window.GameApp, {
   openModeFromLobby(modeId) {
     this.selectedGameMode = modeId || "expedition";
     this.saveLastSetup();
-    this.openSetupFlow(3);
+    this.openSetupFlow(3, false);
   },
 
   toggleLoadoutAccordion() {
@@ -630,7 +630,8 @@ Object.assign(window.GameApp, {
     if (icon) icon.className = willOpen ? "fa-solid fa-chevron-up text-[10px]" : "fa-solid fa-chevron-down text-[10px]";
   },
 
-  openSetupFlow(startStep = 3) {
+  openSetupFlow(startStep = 3, rosterOnly = false) {
+    this._setupRosterOnly = !!rosterOnly;
     SoundFX.init();
     const titleEl = document.getElementById("titleScreen");
     if (titleEl) {
@@ -758,30 +759,51 @@ Object.assign(window.GameApp, {
   },
 
   setWizardStep(step) {
+    const isRosterOnly = !!this._setupRosterOnly;
+    if (isRosterOnly && step > 2) step = 2;
     this.wizardStep = step;
+
+    const tabsBar = document.getElementById("wizardStepTabsBar");
+    const tab3 = document.getElementById("stepTab3");
+    if (tabsBar) {
+      // 從大廳 4 模式直達 Step 3 時隱藏 3 步分頁列，避免誤以為要先走步驟 1/2；更換陣容則僅顯示 2 欄（訓練家 / 寶可夢）
+      const hideTabsOnModePrep = (!isRosterOnly && step === 3);
+      tabsBar.classList.toggle("hidden", hideTabsOnModePrep);
+      tabsBar.classList.toggle("grid-cols-2", isRosterOnly);
+      tabsBar.classList.toggle("grid-cols-3", !isRosterOnly);
+    }
+    if (tab3) {
+      tab3.classList.toggle("hidden", isRosterOnly);
+    }
+
     [1, 2, 3].forEach(s => {
       document.getElementById(`wizardStep${s}`).classList.toggle("hidden", s !== step);
       const tab = document.getElementById(`stepTab${s}`);
-      tab.className = s === step
-        ? "py-3 border-b-4 border-red-600 text-red-600 bg-white"
-        : "py-3 border-b-4 border-transparent text-slate-500";
+      if (tab) {
+        tab.className = s === step
+          ? "py-3 border-b-4 border-red-600 text-red-600 bg-white"
+          : "py-3 border-b-4 border-transparent text-slate-500";
+        if (s === 3 && isRosterOnly) tab.classList.add("hidden");
+      }
     });
 
     const modeTitleMap = {
-      expedition: ["STEP 3/3：關都大遠征 ‧ 關卡與難度 (STAGE)", "檢視本次遠征橫跨的所有生態地圖、續關進度與挑戰難度！"],
-      standard:   ["STEP 3/3：8分鐘標準 ‧ 地圖與難度 (STAGE)", "挑選一張 GBA 自然生態地圖與挑戰難度，8 分鐘極速登冠！"],
-      endless:    ["STEP 3/3：無盡深淵 ‧ 地圖與難度 (STAGE)", "挑選生態地圖挑戰 8 分鐘後無限雙神波次，刷新生存紀錄！"],
-      arena:      ["STEP 3/3：1vs1 石英鬥技場 ‧ 挑戰設定", "選擇鬥技場難度、單挑神獸與免費攜帶物，展開純動作對決！"]
+      expedition: ["關都大遠征 ‧ 征途與難度設定", "依序推進 6 大區域 20+1 關（無需選關），調整難度與補給後即可出發！"],
+      standard:   ["8分鐘標準 ‧ 地圖與難度設定", "挑選一張 GBA 自然生態地圖與挑戰難度，8 分鐘極速登冠！"],
+      endless:    ["無盡深淵 ‧ 地圖與難度設定", "挑選生態地圖挑戰 8 分鐘後無限雙神波次，刷新生存紀錄！"],
+      arena:      ["1vs1 石英鬥技場 ‧ 挑戰設定", "選擇鬥技場難度、單挑神獸與免費攜帶物，展開純動作對決！"]
     };
     const mKey = this.selectedGameMode || "expedition";
+    const stepTotalLbl = isRosterOnly ? "2" : "3";
     const titles = {
-      1: ["STEP 1/3：選擇隨行訓練家", "6 位訓練家皆有專屬代表精靈羈絆（傷害+25%）！底部為隱藏冠軍【赤紅】"],
-      2: ["STEP 2/3：選擇出戰寶可夢", "與所選訓練家有羈絆的精靈已【自動置頂高亮】！全一階基礎精靈皆可挑選！"],
+      1: [`STEP 1/${stepTotalLbl}：選擇隨行訓練家`, "6 位訓練家皆有專屬代表精靈羈絆（傷害+25%）！底部為隱藏冠軍【赤紅】"],
+      2: [`STEP 2/${stepTotalLbl}：選擇出戰寶可夢`, "與所選訓練家有羈絆的精靈已【自動置頂高亮】！選好後回大廳即可調配初始招式！"],
       3: modeTitleMap[mKey] || modeTitleMap.expedition
     };
     document.getElementById("wizardStepTitle").textContent = titles[step][0];
     document.getElementById("wizardStepDesc").textContent = titles[step][1];
-    document.getElementById("btnWizardPrev").textContent = step === 1 ? "← 返回大廳" : "← 上一步";
+    const prevReturnsLobby = (step === 1) || (!isRosterOnly && step === 3);
+    document.getElementById("btnWizardPrev").textContent = prevReturnsLobby ? "← 返回大廳" : "← 上一步";
     this.updateWizardNextButtonText();
 
     this.renderWizardContent();
@@ -790,11 +812,24 @@ Object.assign(window.GameApp, {
   },
 
   prevWizardStep() {
-    if (this.wizardStep <= 1) this.backToTitle();
-    else this.setWizardStep(this.wizardStep - 1);
+    if (this.wizardStep <= 1 || (!this._setupRosterOnly && this.wizardStep === 3)) {
+      this.backToTitle();
+    } else {
+      this.setWizardStep(this.wizardStep - 1);
+    }
   },
 
   nextWizardStep() {
+    if (this._setupRosterOnly) {
+      if (this.wizardStep < 2) {
+        this.setWizardStep(2);
+      } else {
+        this.saveLastSetup();
+        this.backToTitle();
+        if (this.pixelToast) this.pixelToast("✓ 已更新出戰陣容！", "success");
+      }
+      return;
+    }
     if (this.wizardStep < 3) this.setWizardStep(this.wizardStep + 1);
     else this.startGameRunWithTransition();
   },
@@ -1378,7 +1413,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.10",
+      lastSeenVersion: this.APP_VERSION || "v7.6.12",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1567,7 +1602,7 @@ Object.assign(window.GameApp, {
       : { chapterCount: 4, totalWaves: 10, chapters: [] };
     const routeTextEl = document.getElementById("expeditionDynamicRouteText");
     if (routeTextEl) {
-      routeTextEl.textContent = `關都大遠征路線（共 ${summary.chapterCount} 大區域 ‧ ${summary.totalWaves} 關推進）`;
+      routeTextEl.textContent = `連續闖關征途（W1 ➔ W${summary.totalWaves} 依序推進，無需選關）`;
     }
     const stageCardsEl = document.getElementById("expeditionStageCardsGrid");
     if (stageCardsEl && summary.chapters.length > 0) {
@@ -1578,16 +1613,20 @@ Object.assign(window.GameApp, {
         waveCursor += wLen;
         const previewKey = ch.isArena ? "arena" : (ch.stageId || "pallet");
         const stObj = (typeof STAGES !== "undefined") ? STAGES.find(s => s.id === ch.stageId) : null;
-        const buffText = ch.isArena ? "封閉石柱競技場 ‧ 最終 1vs1 決戰" : (stObj ? stObj.buffDesc : (ch.name || ""));
+        const buffText = ch.isArena ? "最終 1vs1 決戰" : (stObj ? stObj.buffDesc : (ch.name || ""));
+        const arrowSep = idx > 0
+          ? `<div class="flex items-center justify-center shrink-0 px-0.5 text-amber-600 font-black text-xs pointer-events-none">➔</div>`
+          : "";
         return `
-          <div class="poke-card overflow-hidden p-0 flex flex-col justify-between border-2 border-slate-800">
-            <div class="relative w-full h-20 sm:h-24 bg-slate-900 overflow-hidden border-b border-slate-800">
+          ${arrowSep}
+          <div class="w-[132px] sm:w-[146px] shrink-0 rounded-xl overflow-hidden flex flex-col justify-between border border-slate-300 bg-white shadow-xs pointer-events-none">
+            <div class="relative w-full h-16 sm:h-[72px] bg-slate-900 overflow-hidden border-b border-slate-200">
               <canvas data-exp-stage-preview="${previewKey}" class="w-full h-full block pixel-sprite object-cover"></canvas>
-              <div class="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent pointer-events-none"></div>
-              <span class="absolute top-1 left-1 px-1.5 py-0.5 rounded-full bg-slate-950/85 text-amber-300 font-pixel text-[8px] font-black border border-amber-400/70">${ch.isFinalChapter ? 'FINAL' : `ACT ${idx + 1}`} · ${wRange}</span>
-              <div class="absolute bottom-1 left-1.5 right-1.5 font-black text-[11px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${ch.name}</div>
+              <div class="absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent"></div>
+              <span class="absolute top-1 left-1 px-1.5 py-0.2 rounded-full bg-slate-950/85 text-amber-300 font-pixel text-[7.5px] font-black border border-amber-400/70">${ch.isFinalChapter ? 'FINAL' : `ACT ${idx + 1}`} · ${wRange}</span>
+              <div class="absolute bottom-1 left-1.5 right-1.5 font-black text-[10px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${ch.name}</div>
             </div>
-            <div class="px-1.5 py-1 bg-white text-[9px] font-bold text-slate-700 leading-tight truncate">${buffText}</div>
+            <div class="px-1.5 py-1 bg-white text-[8.5px] font-bold text-slate-600 leading-tight truncate">${buffText}</div>
           </div>
         `;
       }).join("");
@@ -1778,6 +1817,10 @@ Object.assign(window.GameApp, {
   updateWizardNextButtonText() {
     const btn = document.getElementById("btnWizardNext");
     if (!btn) return;
+    if (this._setupRosterOnly && this.wizardStep === 2) {
+      btn.textContent = "✓ 確認陣容（回大廳）";
+      return;
+    }
     if (this.wizardStep < 3) {
       btn.textContent = "下一步 →";
       return;
@@ -2307,13 +2350,17 @@ Object.assign(window.GameApp, {
     const isOpen = !!this._lobbyLoadoutOpen;
 
     const headerHtml = `
-      <div onclick="event.stopPropagation(); GameApp.toggleLobbySkillLoadout()" class="cursor-pointer flex items-center justify-between gap-1.5 px-2 py-1 rounded-xl bg-indigo-50/90 border border-indigo-200 hover:bg-indigo-100/80 transition select-none">
-        <div class="flex items-center gap-1.5 min-w-0">
-          <span class="text-[9px] font-black text-indigo-700 shrink-0"><i class="fa-solid fa-sliders"></i> 招式整備</span>
-          ${starterMeta ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-white border border-amber-400 text-[9px] font-black text-slate-800 shrink-0">${renderSkillIconHTML(starterMeta, "w-3.5 h-3.5")}<span>★${starterMeta.name}</span></span>` : ''}
-          ${bannedMeta ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md bg-rose-100 border border-rose-300 text-[9px] font-black text-rose-700 truncate">🚫停用:${bannedMeta.name}</span>` : ''}
+      <div onclick="event.stopPropagation(); GameApp.toggleLobbySkillLoadout()" class="cursor-pointer flex items-center justify-between gap-1.5 px-2 py-1.5 rounded-xl bg-indigo-50/95 border border-indigo-200 hover:bg-indigo-100/80 transition select-none">
+        <div class="flex items-center gap-1 min-w-0 flex-wrap">
+          <span class="text-[9px] font-black text-slate-500 shrink-0">初始:</span>
+          ${starterMeta ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white border border-amber-400 text-[9px] font-black text-slate-800 shrink-0 shadow-xs">${renderSkillIconHTML(starterMeta, "w-3.5 h-3.5")}<span>★${starterMeta.name}</span></span>` : ''}
+          <span class="text-[9px] font-black text-slate-500 shrink-0 ml-0.5">禁用:</span>
+          ${bannedMeta
+            ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-100 border border-rose-300 text-[9px] font-black text-rose-700 truncate">🚫${bannedMeta.name}</span>`
+            : `<span class="inline-flex items-center px-1.5 py-0.5 rounded-md bg-white/80 border border-dashed border-slate-300 text-[9px] font-bold text-slate-400 shrink-0">未設定</span>`
+          }
         </div>
-        <span class="text-[9px] font-black text-indigo-600 shrink-0">${isOpen ? '收合 ▲' : '配置 ▾'}</span>
+        <span class="px-2 py-0.5 rounded-lg bg-white border border-indigo-300 text-[9px] font-black text-indigo-700 shadow-xs shrink-0 whitespace-nowrap">${isOpen ? '收合 ▲' : '切換 / 禁用 ▾'}</span>
       </div>
     `;
 
@@ -3071,7 +3118,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.10",
+      version: this.APP_VERSION || "v7.6.12",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3752,7 +3799,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.10</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.12</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3791,7 +3838,9 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.6.10</strong>：全模式數值平衡封板——大師／冠軍難度引入 Boss 減傷與回復壓制、特攻手攻擊保底、遠征後段神獸血量與研究所經濟重校、修正殿堂徽章白字。</div>
+            <div>• <strong class="text-amber-300">v7.6.12</strong>：大廳進化列單行化與「初始／禁用」明示按鈕；「更換陣容」與「模式出發」動線職責分離；大遠征 6 區地圖改為唯讀連續路線軸（附 ➔ 箭頭）。</div>
+            <div>• <strong class="text-slate-300">v7.6.11</strong>：3-2-1 倒數與 VS 遇敵各放慢 0.5 秒；小王／Boss 半血猩紅憤怒演出＋火星粒子；小怪／精英血條瘦身去噪、Boss 頂部纖細半透血條與白色扣血殘影。</div>
+            <div>• <strong class="text-slate-300">v7.6.10</strong>：全模式數值平衡封板——大師／冠軍難度引入 Boss 減傷與回復壓制、特攻手攻擊保底、遠征後段神獸血量與研究所經濟重校、修正殿堂徽章白字。</div>
             <div>• <strong class="text-slate-300">v7.6.9</strong>：修透戰後結算頁亮色主題對比；大遠征導入平滑初期升級曲線（每波穩升 1～2 級）；新增版本簡錄。</div>
             <div>• <strong class="text-slate-300">v7.6.8</strong>：修復遠征商店速度強化購買與彩虹徽章回血；電球電弧距離調校至中近距甜區。</div>
             <div>• <strong class="text-slate-300">v7.6.7</strong>：大廳與選角加入閃亮「👕 換裝」按鈕；大遠征小王掉落與 PP 提升劑偶數波限購平衡。</div>
@@ -3802,7 +3851,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.10";
+    const curVer = this.APP_VERSION || "v7.6.12";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4850,23 +4899,41 @@ Object.assign(window.GameApp, {
     if (aliveBosses.length > 0 && bossContainer) {
       bossContainer.classList.remove("hidden");
       const b1 = aliveBosses[0];
+      const b1Pct = Math.max(0, (b1.hp / (b1.maxHp || 1)) * 100);
+      const b1Trail = Math.max(b1Pct, (b1.hpTrailRatio !== undefined ? b1.hpTrailRatio * 100 : b1Pct));
+      const b1Rage = b1Pct <= 50;
       document.getElementById("bossHudName").textContent = `${b1.data.name_zh} (#${b1.id})`;
       document.getElementById("bossHudHpText").textContent = `${Math.max(0, Math.ceil(b1.hp))}/${b1.maxHp}`;
-      document.getElementById("bossHudBar").style.width = `${Math.max(0, (b1.hp / b1.maxHp) * 100)}%`;
+      document.getElementById("bossHudBar").style.width = `${b1Pct}%`;
+      const trailEl1 = document.getElementById("bossHudTrail");
+      if (trailEl1) trailEl1.style.width = `${b1Trail}%`;
+      const rageEl1 = document.getElementById("bossHudRageTag");
+      if (rageEl1) rageEl1.classList.toggle("hidden", !b1Rage);
 
+      let anyRage = b1Rage;
       if (aliveBosses.length >= 2 && bossSlot2 && bossGrid) {
         const b2 = aliveBosses[1];
-        bossGrid.className = "grid grid-cols-2 gap-2";
+        const b2Pct = Math.max(0, (b2.hp / (b2.maxHp || 1)) * 100);
+        const b2Trail = Math.max(b2Pct, (b2.hpTrailRatio !== undefined ? b2.hpTrailRatio * 100 : b2Pct));
+        const b2Rage = b2Pct <= 50;
+        if (b2Rage) anyRage = true;
+        bossGrid.className = "grid grid-cols-2 gap-1.5";
         bossSlot2.classList.remove("hidden");
         document.getElementById("bossHudName2").textContent = `${b2.data.name_zh} (#${b2.id})`;
         document.getElementById("bossHudHpText2").textContent = `${Math.max(0, Math.ceil(b2.hp))}/${b2.maxHp}`;
-        document.getElementById("bossHudBar2").style.width = `${Math.max(0, (b2.hp / b2.maxHp) * 100)}%`;
+        document.getElementById("bossHudBar2").style.width = `${b2Pct}%`;
+        const trailEl2 = document.getElementById("bossHudTrail2");
+        if (trailEl2) trailEl2.style.width = `${b2Trail}%`;
+        const rageEl2 = document.getElementById("bossHudRageTag2");
+        if (rageEl2) rageEl2.classList.toggle("hidden", !b2Rage);
       } else if (bossSlot2 && bossGrid) {
         bossGrid.className = "grid grid-cols-1";
         bossSlot2.classList.add("hidden");
       }
+      bossContainer.classList.toggle("boss-enraged", anyRage);
     } else if (bossContainer) {
       bossContainer.classList.add("hidden");
+      bossContainer.classList.remove("boss-enraged");
     }
   }
 });

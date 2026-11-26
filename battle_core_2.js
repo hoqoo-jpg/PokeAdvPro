@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.10",
+  APP_VERSION: "v7.6.12",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1334,7 +1334,7 @@ window.GameApp = {
     MapEngine.setWeather("CLEAR");
     this.updateWeatherUI("CLEAR");
 
-    this.battleCountdownTimer = 1.52;
+    this.battleCountdownTimer = 2.00;
     this._lastCountdownBeat = 4;
     const megaWrap = document.getElementById("btnManualMegaWrap");
     if (megaWrap) megaWrap.classList.add("hidden");
@@ -1916,7 +1916,7 @@ window.GameApp = {
     const isWarmupCountdown = (this.battleCountdownTimer > 0);
     if (isWarmupCountdown) {
       this.battleCountdownTimer = Math.max(0, this.battleCountdownTimer - dt);
-      const beat = Math.ceil(this.battleCountdownTimer / 0.38); // 4..1 -> 3, 2, 1, START!
+      const beat = Math.ceil(this.battleCountdownTimer / 0.50); // 4..1 -> 3, 2, 1, START!
       const mappedBeat = Math.min(3, Math.max(0, beat - 1));
       if (this._lastCountdownBeat !== mappedBeat) {
         this._lastCountdownBeat = mappedBeat;
@@ -3106,6 +3106,33 @@ window.GameApp = {
       }
       if (e.dpsShieldFlashTimer > 0) {
         e.dpsShieldFlashTimer = Math.max(0, e.dpsShieldFlashTimer - dt);
+      }
+      // v7.6.11 頭目／精英白色延遲扣血殘影條平滑衰減 ＋ 半血以下狂暴憤怒火星粒子
+      if (e.isElite || e.isBoss) {
+        const curRatio = Math.max(0, e.hp / (e.maxHp || 1));
+        if (e.hpTrailRatio === undefined) e.hpTrailRatio = curRatio;
+        else if (e.hpTrailRatio > curRatio) e.hpTrailRatio = Math.max(curRatio, e.hpTrailRatio - dt * 0.42);
+        else e.hpTrailRatio = curRatio;
+
+        if ((e.isBoss || e.isMiniBoss) && e.hp > 0 && curRatio <= 0.50) {
+          e._rageSparkTimer = (e._rageSparkTimer || 0) - dt;
+          if (e._rageSparkTimer <= 0) {
+            e._rageSparkTimer = 0.22;
+            const spOffX = (Math.random() - 0.5) * (e.radius || 28) * 1.1;
+            const spOffY = -(e.radius || 28) * 0.45 + (Math.random() - 0.5) * 10;
+            this.particles.push({
+              x: e.x + spOffX,
+              y: e.y + spOffY,
+              vx: (Math.random() - 0.5) * 24,
+              vy: -38 - Math.random() * 28,
+              life: 0.42,
+              maxLife: 0.42,
+              color: Math.random() < 0.55 ? "#EF4444" : "#FB923C",
+              size: e.isBoss ? 3.4 : 2.6,
+              shape: "diamond"
+            });
+          }
+        }
       }
 
       if (e.treasureType) {
