@@ -789,12 +789,12 @@ const MapEngine = {
     dot(og, 12, 6, 2, 4, "#A1A1AA");
     this.spritePropCache.set("obsidian_cluster_pixel", co);
 
-    const cc = document.createElement("canvas"); cc.width = 24; cc.height = 24;
-    const cg = cc.getContext("2d");
-    dot(cg, 6, 16, 12, 4, "rgba(0,0,0,0.35)");
-    dot(cg, 10, 4, 4, 14, "#991B1B"); dot(cg, 10, 6, 2, 8, "#F87171");
-    dot(cg, 6, 10, 4, 8, "#B91C1C"); dot(cg, 14, 8, 4, 10, "#DC2626");
-    this.spritePropCache.set("lava_crystal_pixel", cc);
+    const cCrys = document.createElement("canvas"); cCrys.width = 24; cCrys.height = 24;
+    const cgCrys = cCrys.getContext("2d");
+    dot(cgCrys, 6, 16, 12, 4, "rgba(0,0,0,0.35)");
+    dot(cgCrys, 10, 4, 4, 14, "#991B1B"); dot(cgCrys, 10, 6, 2, 8, "#F87171");
+    dot(cgCrys, 6, 10, 4, 8, "#B91C1C"); dot(cgCrys, 14, 8, 4, 10, "#DC2626");
+    this.spritePropCache.set("lava_crystal_pixel", cCrys);
 
     const ck = document.createElement("canvas"); ck.width = 32; ck.height = 20;
     const kg = ck.getContext("2d");
