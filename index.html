@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.0p1');
+      background-image: url('images/skills_icons_sheet.png?v=7.6.1');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.0p1');
+      background-image: url('images/skills_icons_extra5.png?v=7.6.1');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -638,6 +638,48 @@
     body.theme-dark-gold #achievementModal .bg-slate-200 {
       background-color: #1E293B !important;
     }
+    /* v7.6.1 雙主題統一適配：大廳招式整備抽屜 ＆ 道館榮譽 4x2 徽章盒 ＆ 戰績銘牌 */
+    body.theme-dark-gold #lobbySkillLoadoutContainer .bg-indigo-50\/90,
+    body.theme-dark-gold #lobbySkillLoadoutContainer .bg-slate-50 {
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      border-color: rgba(251, 191, 36, 0.45) !important;
+    }
+    body.theme-dark-gold #lobbySkillLoadoutContainer .bg-white,
+    body.theme-dark-gold #lobbySkillLoadoutContainer .bg-slate-100 {
+      background-color: #1E293B !important;
+      border-color: rgba(148, 163, 184, 0.35) !important;
+      color: #F1F5F9 !important;
+    }
+    body.theme-dark-gold #lobbySkillLoadoutContainer .bg-amber-50 {
+      background-color: rgba(120, 53, 15, 0.55) !important;
+      border-color: rgba(251, 191, 36, 0.8) !important;
+    }
+    body.theme-dark-gold #lobbySkillLoadoutContainer .text-indigo-700,
+    body.theme-dark-gold #lobbySkillLoadoutContainer .text-indigo-600 {
+      color: #FDE68A !important;
+    }
+    body.theme-dark-gold #achievementModal .kanto-badge-cell {
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      border-color: rgba(148, 163, 184, 0.28) !important;
+    }
+    body.theme-dark-gold #achievementModal .kanto-badge-cell.is-unlocked {
+      background-color: rgba(30, 41, 59, 0.96) !important;
+      border-color: rgba(251, 191, 36, 0.72) !important;
+      box-shadow: 0 0 10px rgba(250, 204, 21, 0.16) !important;
+    }
+    body.theme-dark-gold #achievementModal .kanto-badge-ring {
+      background-color: #020617 !important;
+      border-color: rgba(251, 191, 36, 0.42) !important;
+    }
+    body.theme-dark-gold #achievementModal .best-record-card {
+      background-color: rgba(15, 23, 42, 0.92) !important;
+      border-color: rgba(148, 163, 184, 0.30) !important;
+    }
+    body.theme-dark-gold #achievementModal #kantoBadgeDetailBar {
+      background-color: rgba(30, 41, 59, 0.92) !important;
+      border-color: rgba(251, 191, 36, 0.50) !important;
+      color: #E2E8F0 !important;
+    }
   </style>
   <script>
     (function () {
@@ -738,7 +780,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.0p1
+      v7.6.1
     </div>
   </div>
 
@@ -1671,7 +1713,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.0p1</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.1</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1719,7 +1761,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.0p1</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.1</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1752,14 +1794,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.0p1"></script>
-  <script src="map_v11_engine.js?v=7.6.0p1"></script>
-  <script src="skills_engine.js?v=7.6.0p1"></script>
-  <script src="skills_vfx.js?v=7.6.0p1"></script>
-  <script src="battle_core_2.js?v=7.6.0p1"></script>
-  <script src="battle_renderer.js?v=7.6.0p1"></script>
-  <script src="modes_arcade.js?v=7.6.0p1"></script>
-  <script src="mode_expedition.js?v=7.6.0p1"></script>
-  <script src="game_ui.js?v=7.6.0p1"></script>
+  <script src="pokedex_data.js?v=7.6.1"></script>
+  <script src="map_v11_engine.js?v=7.6.1"></script>
+  <script src="skills_engine.js?v=7.6.1"></script>
+  <script src="skills_vfx.js?v=7.6.1"></script>
+  <script src="battle_core_2.js?v=7.6.1"></script>
+  <script src="battle_renderer.js?v=7.6.1"></script>
+  <script src="modes_arcade.js?v=7.6.1"></script>
+  <script src="mode_expedition.js?v=7.6.1"></script>
+  <script src="game_ui.js?v=7.6.1"></script>
 </body>
 </html>

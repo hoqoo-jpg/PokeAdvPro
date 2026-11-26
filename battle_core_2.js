@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.0p1",
+  APP_VERSION: "v7.6.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1838,7 +1838,7 @@ window.GameApp = {
         }
       } else {
         const p = this.player;
-        const healAmt = Math.round(p.maxHp * 0.20);
+        const healAmt = Math.round(p.maxHp * 0.20 * (p.badgeHealMult || 1.0));
         p.hp = Math.min(p.maxHp, p.hp + healAmt);
         this.runCoins += 50;
         this.saveData.coins += 50;
@@ -2329,10 +2329,13 @@ window.GameApp = {
       }
     }
 
+    const isLavaImmBadge = !!(terrain.inLava && p.data && ["Fire", "Rock", "Ground", "Flying"].some(t => p.data.type1 === t || p.data.type2 === t));
     const nextTerrainText = terrain.label
-      ? ((p.heldItems && p.heldItems["sharp_beak"] && terrain.speedMult < 1.0)
-          ? `${terrain.label.split(' ')[0]} [銳利之喙：免疫減速]`
-          : terrain.label)
+      ? (isLavaImmBadge
+          ? "[地形] 淺層熔岩池 [本系免疫燙傷＆減速]"
+          : ((p.heldItems && p.heldItems["sharp_beak"] && terrain.speedMult < 1.0)
+              ? `${terrain.label.split(' ')[0]} [銳利之喙：免疫減速]`
+              : terrain.label))
       : "";
     if (this._lastTerrainBadgeKey !== nextTerrainText) {
       this._lastTerrainBadgeKey = nextTerrainText;
@@ -2384,7 +2387,8 @@ window.GameApp = {
     const xSpdMod = p.xSpeedTimer > 0 ? 1.30 : 1.0;
     const hasSharpBeak = !!(p.heldItems && p.heldItems["sharp_beak"]);
     const sharpBeakSpdMod = hasSharpBeak ? 1.12 : 1.0;
-    const finalTerrainSpd = (hasSharpBeak && terrain.speedMult < 1.0)
+    const isLavaImmuneType = !!(terrain.inLava && p.data && ["Fire", "Rock", "Ground", "Flying"].some(t => p.data.type1 === t || p.data.type2 === t));
+    const finalTerrainSpd = ((hasSharpBeak || isLavaImmuneType) && terrain.speedMult < 1.0)
       ? 1.0
       : ((p.xSpeedTimer > 0 && terrain.inWater) ? 1.0 : terrain.speedMult);
     const quickStepMod = (p.quickStepTimer > 0) ? 1.15 : 1.0;
@@ -2967,7 +2971,7 @@ window.GameApp = {
         SoundFX.play("levelup");
         this.spawnParticleCluster(p.x, p.y, pu.color, "#FEF08A", 18, "star", 1.1);
         if (pu.id === "sitrus_berry") {
-          const healAmt = Math.round(p.maxHp * 0.25);
+          const healAmt = Math.round(p.maxHp * 0.25 * (p.badgeHealMult || 1.0));
           p.hp = Math.min(p.maxHp, p.hp + healAmt);
           p.status = null;
           p.statusTimer = 0;
@@ -5219,7 +5223,7 @@ window.GameApp = {
 
       // 每次升級附帶輕量生命回復 (+10% 最大 HP)，提升續航手感與正回饋
       if (p.hp < p.maxHp) {
-        const lvlHeal = Math.max(4, Math.round(p.maxHp * 0.10));
+        const lvlHeal = Math.max(4, Math.round(p.maxHp * 0.10 * (p.badgeHealMult || 1.0)));
         p.hp = Math.min(p.maxHp, p.hp + lvlHeal);
         this.spawnFloatingText(p.x, p.y - 24, `升級回復 +${lvlHeal} HP`, "#34D399", 12);
       }

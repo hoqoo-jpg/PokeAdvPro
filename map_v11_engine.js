@@ -326,6 +326,49 @@ const MapEngine = {
         this.tileCache.set(key, can);
       });
     });
+
+    // v7.6.1 第 3～5 章地圖 4 款低對比變化地磚（明暗差 <4%，徹底消除西洋棋盤重複感）
+    ["sky_pillar", "cinnabar_volcano", "power_plant"].forEach(stId => {
+      for (let v = 0; v < 4; v++) {
+        const can = document.createElement("canvas");
+        can.width = 60; can.height = 60;
+        const c = can.getContext("2d");
+        if (stId === "sky_pillar") {
+          const bases = ["#27203A", "#29223D", "#261F38", "#2A233E"];
+          c.fillStyle = bases[v]; c.fillRect(0, 0, 60, 60);
+          c.fillStyle = "rgba(15, 10, 28, 0.42)";
+          c.fillRect(0, 58, 60, 2); c.fillRect(58, 0, 2, 60);
+          c.fillStyle = "rgba(192, 132, 252, 0.08)";
+          c.fillRect(2, 2, 56, 2);
+          c.fillStyle = "#1D172E";
+          if (v === 1) { c.fillRect(10, 16, 12, 2); c.fillRect(20, 18, 6, 2); }
+          else if (v === 2) { c.fillRect(36, 38, 10, 2); c.fillRect(34, 40, 4, 2); c.fillRect(14, 44, 4, 4); }
+          else if (v === 3) { c.fillStyle = "rgba(168, 85, 247, 0.14)"; c.fillRect(24, 24, 12, 2); c.fillRect(29, 19, 2, 12); }
+        } else if (stId === "cinnabar_volcano") {
+          const bases = ["#28232C", "#2A252E", "#27222B", "#2B262F"];
+          c.fillStyle = bases[v]; c.fillRect(0, 0, 60, 60);
+          c.fillStyle = "#1F1B23";
+          if (v === 0) { c.fillRect(8, 14, 8, 2); c.fillRect(40, 44, 10, 2); }
+          else if (v === 1) { c.fillRect(18, 36, 12, 2); c.fillRect(28, 38, 6, 2); c.fillStyle = "#362F3C"; c.fillRect(10, 10, 6, 4); }
+          else if (v === 2) { c.fillRect(34, 12, 6, 4); c.fillStyle = "#352E3B"; c.fillRect(42, 34, 8, 4); }
+          else if (v === 3) { c.fillRect(12, 46, 10, 2); c.fillStyle = "rgba(234, 88, 12, 0.28)"; c.fillRect(22, 46, 4, 2); c.fillRect(44, 18, 2, 2); }
+        } else if (stId === "power_plant") {
+          const bases = ["#344256", "#364458", "#334053", "#374559"];
+          c.fillStyle = bases[v]; c.fillRect(0, 0, 60, 60);
+          c.fillStyle = "rgba(23, 32, 46, 0.55)";
+          c.fillRect(0, 58, 60, 2); c.fillRect(58, 0, 2, 60);
+          c.fillStyle = "rgba(148, 163, 184, 0.12)";
+          c.fillRect(2, 2, 56, 2);
+          c.fillStyle = "#1E293B";
+          c.fillRect(5, 5, 2, 2); c.fillRect(52, 5, 2, 2);
+          c.fillRect(5, 52, 2, 2); c.fillRect(52, 52, 2, 2);
+          if (v === 1) { c.fillStyle = "rgba(15, 23, 42, 0.32)"; c.fillRect(16, 24, 28, 2); c.fillRect(16, 30, 28, 2); }
+          else if (v === 2) { c.fillStyle = "rgba(148, 163, 184, 0.10)"; c.fillRect(10, 10, 18, 18); }
+          else if (v === 3) { c.fillStyle = "rgba(56, 189, 248, 0.12)"; c.fillRect(28, 4, 4, 52); }
+        }
+        this.tileCache.set(`${stId}_v${v}`, can);
+      }
+    });
   },
 
   // GBA 火紅/葉綠/寶石版程序化像素物件預烘焙器 (全三關卡離線一次性生成，戰鬥中 0 向量運算直接 drawImage)
@@ -697,6 +740,115 @@ const MapEngine = {
     dot(cm, 48, 18, 6, 2, "#FFFFFF"); dot(cm, 50, 20, 2, 4, "#FFFFFF");
 
     this.spritePropCache.set("poke_mart_pixel", canMart);
+
+    // v7.6.1 第 3～5 章地圖離線預烘焙 GBA 像素物件（0 向量荷包蛋感、零掉幀）
+    // 1. 不規則像素鋸齒岸線熔岩池（2 種輪廓變化）
+    [0, 1].forEach(variant => {
+      const cl = document.createElement("canvas");
+      cl.width = 180; cl.height = 120;
+      const g = cl.getContext("2d");
+      const cx0 = 90, cy0 = 60;
+      for (let py = 6; py < 114; py += 4) {
+        for (let px = 6; px < 174; px += 4) {
+          const dx = (px - cx0) / 76, dy = (py - cy0) / 48;
+          const ang = Math.atan2(dy, dx);
+          const jag = 1.0 + Math.sin(ang * 5 + variant * 2.1) * 0.13 + Math.cos(ang * 8 - variant) * 0.08;
+          const d = Math.hypot(dx, dy) / jag;
+          if (d <= 1.02) {
+            let col = "#1C1917"; // 外緣焦黑玄武岩岸線
+            if (d <= 0.88) col = "#7C2D12"; // 深暗紅冷卻岩漿邊
+            if (d <= 0.74) col = "#C2410C"; // 熾橘中層岩漿
+            if (d <= 0.56) col = "#EA580C"; // 亮橘滾燙核心
+            // 內嵌不規則高熱亮黃脈絡
+            const vein = Math.sin(px * 0.12 + py * 0.15 + variant * 3) + Math.cos(px * 0.08 - py * 0.18);
+            if (d <= 0.62 && vein > 1.25) col = "#FB923C";
+            if (d <= 0.48 && vein > 1.55) col = "#FEF08A";
+            g.fillStyle = col;
+            g.fillRect(px, py, 4, 4);
+          }
+        }
+      }
+      this.spritePropCache.set(`lava_pool_pixel_${variant}`, cl);
+    });
+
+    // 2. 紅蓮火山：3D 像素火山噴氣裂口、黑曜石簇、暗紅結晶、冷卻裂縫
+    const cv = document.createElement("canvas"); cv.width = 48; cv.height = 36;
+    const vg = cv.getContext("2d");
+    fillPixelBlob(vg, 24, 20, 20, 12, "#18181B");
+    fillPixelBlob(vg, 24, 18, 16, 9, "#3F3F46");
+    fillPixelBlob(vg, 24, 18, 10, 5, "#1C1917");
+    dot(vg, 18, 16, 12, 4, "#9A3412");
+    dot(vg, 20, 16, 8, 2, "#F97316");
+    this.spritePropCache.set("volcano_vent_pixel", cv);
+
+    const co = document.createElement("canvas"); co.width = 28; co.height = 28;
+    const og = co.getContext("2d");
+    dot(og, 6, 18, 16, 6, "rgba(0,0,0,0.38)");
+    dot(og, 10, 6, 8, 16, "#18181B"); dot(og, 12, 8, 4, 12, "#52525B");
+    dot(og, 4, 12, 6, 10, "#27272A"); dot(og, 18, 10, 6, 12, "#27272A");
+    dot(og, 12, 6, 2, 4, "#A1A1AA");
+    this.spritePropCache.set("obsidian_cluster_pixel", co);
+
+    const cc = document.createElement("canvas"); cc.width = 24; cc.height = 24;
+    const cg = cc.getContext("2d");
+    dot(cg, 6, 16, 12, 4, "rgba(0,0,0,0.35)");
+    dot(cg, 10, 4, 4, 14, "#991B1B"); dot(cg, 10, 6, 2, 8, "#F87171");
+    dot(cg, 6, 10, 4, 8, "#B91C1C"); dot(cg, 14, 8, 4, 10, "#DC2626");
+    this.spritePropCache.set("lava_crystal_pixel", cc);
+
+    const ck = document.createElement("canvas"); ck.width = 32; ck.height = 20;
+    const kg = ck.getContext("2d");
+    dot(kg, 2, 10, 8, 2, "#18181B"); dot(kg, 10, 8, 10, 2, "#EA580C");
+    dot(kg, 12, 8, 6, 2, "#FEF08A"); dot(kg, 20, 10, 8, 2, "#7C2D12");
+    this.spritePropCache.set("cooled_crack_pixel", ck);
+
+    // 3. 無人發電廠：通風網格、粗黑高壓電纜、黃黑警示地標、破損電箱
+    const cgr = document.createElement("canvas"); cgr.width = 32; cgr.height = 24;
+    const grg = cgr.getContext("2d");
+    dot(grg, 2, 2, 28, 20, "#1E293B"); dot(grg, 4, 4, 24, 16, "#0F172A");
+    for (let gy = 6; gy <= 16; gy += 4) dot(grg, 6, gy, 20, 2, "#475569");
+    this.spritePropCache.set("floor_grate_pixel", cgr);
+
+    const ccb = document.createElement("canvas"); ccb.width = 40; ccb.height = 14;
+    const cbg = ccb.getContext("2d");
+    dot(cbg, 0, 6, 14, 4, "#0F172A"); dot(cbg, 12, 4, 16, 4, "#0F172A"); dot(cbg, 26, 6, 14, 4, "#0F172A");
+    dot(cbg, 14, 4, 12, 2, "#334155"); dot(cbg, 18, 4, 4, 2, "#38BDF8");
+    this.spritePropCache.set("cable_h_pixel", ccb);
+
+    const chz = document.createElement("canvas"); chz.width = 36; chz.height = 12;
+    const hzg = chz.getContext("2d");
+    dot(hzg, 0, 2, 36, 8, "#18181B");
+    for (let hx = 2; hx < 34; hx += 8) dot(hzg, hx, 2, 4, 8, "#CA8A04");
+    this.spritePropCache.set("hazard_strip_pixel", chz);
+
+    const cjb = document.createElement("canvas"); cjb.width = 26; cjb.height = 26;
+    const jbg = cjb.getContext("2d");
+    dot(jbg, 4, 18, 18, 6, "rgba(0,0,0,0.35)");
+    dot(jbg, 4, 4, 18, 16, "#1E293B"); dot(jbg, 6, 6, 14, 12, "#475569");
+    dot(jbg, 8, 8, 6, 4, "#38BDF8"); dot(jbg, 16, 8, 2, 4, "#EF4444");
+    this.spritePropCache.set("junction_box_pixel", cjb);
+
+    // 4. 石英高原：古代像素火盆、淡紫符文地磚、碎裂石磚殘片
+    const cbr = document.createElement("canvas"); cbr.width = 28; cbr.height = 32;
+    const brg = cbr.getContext("2d");
+    dot(brg, 6, 24, 16, 6, "rgba(0,0,0,0.38)");
+    dot(brg, 8, 14, 12, 12, "#475569"); dot(brg, 6, 12, 16, 4, "#94A3B8");
+    dot(brg, 10, 16, 8, 8, "#334155"); dot(brg, 10, 10, 8, 4, "#F59E0B");
+    this.spritePropCache.set("brazier_pixel", cbr);
+
+    const crn = document.createElement("canvas"); crn.width = 32; crn.height = 24;
+    const rng = crn.getContext("2d");
+    dot(rng, 2, 2, 28, 20, "rgba(139, 92, 246, 0.16)");
+    dot(rng, 4, 4, 24, 2, "rgba(192, 132, 252, 0.42)");
+    dot(rng, 4, 18, 24, 2, "rgba(192, 132, 252, 0.42)");
+    dot(rng, 14, 8, 4, 8, "rgba(232, 121, 249, 0.55)");
+    this.spritePropCache.set("rune_tile_pixel", crn);
+
+    const crb = document.createElement("canvas"); crb.width = 28; crb.height = 20;
+    const rbg = crb.getContext("2d");
+    dot(rbg, 4, 10, 10, 6, "#3F3356"); dot(rbg, 6, 10, 6, 2, "#6D5B94");
+    dot(rbg, 16, 6, 8, 6, "#2E2442"); dot(rbg, 12, 14, 6, 4, "#4C3E6B");
+    this.spritePropCache.set("rubble_pixel", crb);
   },
 
   renderStagePreviewCanvas(canvas, stageId) {
@@ -1053,20 +1205,45 @@ const MapEngine = {
       if (pseudoRand(9) > 0.35) {
         chunk.grassTiles.push({ x: baseX + 230, y: baseY + 230, w: 140, h: 140, isPsychicWell: true });
       }
+      // 石英高原：古代像素火盆、淡紫符文磚與碎裂石磚
+      chunk.decorList.push({ x: baseX + 190, y: baseY + 240, type: "brazier" });
+      chunk.decorList.push({ x: baseX + 410, y: baseY + 240, type: "brazier" });
+      for (let i = 0; i < 4; i++) {
+        const sideX = (i % 2 === 0) ? (baseX + 45 + Math.floor(pseudoRand(i + 40) * 75)) : (baseX + 475 + Math.floor(pseudoRand(i + 45) * 75));
+        chunk.decorList.push({
+          x: sideX,
+          y: baseY + 55 + Math.floor(pseudoRand(i + 50) * 490),
+          type: i % 2 === 0 ? "rune_tile" : "rubble"
+        });
+      }
     } else if (stage.id === "cinnabar_volcano") {
+      // 紅蓮火山：暗灰玄武岩碎石步道（貫穿主骨架）
+      chunk.roads.push({ x: baseX, y: baseY + 268, w: size, h: 64, dir: "H", isBasaltRoad: true });
+      if (pseudoRand(1) > 0.42) {
+        chunk.roads.push({ x: baseX + 268, y: baseY, w: 64, h: size, dir: "V", isBasaltRoad: true });
+      }
       const poolCnt = isOrigin ? 1 : 2;
       for (let i = 0; i < poolCnt; i++) {
-        const px = baseX + (i === 0 ? 90 : 350) + Math.floor(pseudoRand(i * 4 + 2) * 80);
-        const py = baseY + (i === 0 ? 340 : 100) + Math.floor(pseudoRand(i * 4 + 3) * 80);
-        chunk.lavaPools.push({ x: px, y: py, rx: 78 + Math.floor(pseudoRand(i + 12) * 26), ry: 52 + Math.floor(pseudoRand(i + 14) * 18) });
+        const px = baseX + (i === 0 ? 115 : 465) + Math.floor(pseudoRand(i * 4 + 2) * 55);
+        const py = baseY + (i === 0 ? 450 : 125) + Math.floor(pseudoRand(i * 4 + 3) * 50);
+        chunk.lavaPools.push({ x: px, y: py, rx: 78 + Math.floor(pseudoRand(i + 12) * 22), ry: 52 + Math.floor(pseudoRand(i + 14) * 14), variant: (cx + cy + i) & 1 });
       }
-      const vx = baseX + (isOrigin ? 430 : (140 + Math.floor(pseudoRand(20) * 320)));
-      const vy = baseY + (isOrigin ? 180 : (140 + Math.floor(pseudoRand(21) * 320)));
+      const vx = baseX + (isOrigin ? 445 : (130 + Math.floor(pseudoRand(20) * 340)));
+      const vy = baseY + (isOrigin ? 170 : (130 + Math.floor(pseudoRand(21) * 340)));
       chunk.steamVents.push({ x: vx, y: vy, r: 58, phaseOffset: pseudoRand(22) * 12.0, lastBurstTick: 0 });
       if (!isOrigin) {
         const ox = baseX + 60 + Math.floor(pseudoRand(25) * 120);
         const oy = baseY + 60 + Math.floor(pseudoRand(26) * 120);
         chunk.obstacles.push({ x: ox, y: oy, w: 54, h: 52, kind: "volcano_rock" });
+      }
+      // 像素微裝飾：黑曜石簇、暗紅結晶、冷卻岩漿裂縫
+      const vTypes = ["obsidian_cluster", "lava_crystal", "cooled_crack"];
+      for (let i = 0; i < 6; i++) {
+        chunk.decorList.push({
+          x: baseX + 45 + Math.floor(pseudoRand(i * 3 + 60) * 510),
+          y: baseY + 45 + Math.floor(pseudoRand(i * 3 + 61) * 510),
+          type: vTypes[i % vTypes.length]
+        });
       }
     } else if (stage.id === "power_plant") {
       chunk.boostTracks.push({ x: baseX, y: baseY + 272, w: size, h: 56, dir: "H" });
@@ -1083,6 +1260,15 @@ const MapEngine = {
       });
       if (!isOrigin && pseudoRand(35) > 0.35) {
         chunk.obstacles.push({ x: baseX + 420, y: baseY + 95, w: 58, h: 48, kind: "generator" });
+      }
+      // 工業微裝飾：通風網格、粗電纜、黃黑警示地標、破損電箱
+      const pTypes = ["floor_grate", "cable_h", "hazard_strip", "junction_box"];
+      for (let i = 0; i < 6; i++) {
+        chunk.decorList.push({
+          x: baseX + 45 + Math.floor(pseudoRand(i * 3 + 70) * 510),
+          y: baseY + 45 + Math.floor(pseudoRand(i * 3 + 71) * 510),
+          type: pTypes[i % pTypes.length]
+        });
       }
     }
 
@@ -1425,10 +1611,12 @@ const MapEngine = {
       const startTy = Math.floor((camY - height / 2) / tileSize) - 1;
       const endTy = Math.floor((camY + height / 2) / tileSize) + 1;
 
+      const use4Var = (stage.id === "sky_pillar" || stage.id === "cinnabar_volcano" || stage.id === "power_plant");
       for (let tx = startTx; tx <= endTx; tx++) {
         for (let ty = startTy; ty <= endTy; ty++) {
           const isDark = ((tx + ty) & 1) === 0;
-          const key = `${stage.id}_${isDark ? 'dark' : 'light'}`;
+          const vIdx = use4Var ? (((Math.imul(tx, 73856093) ^ Math.imul(ty, 19349663)) >>> 0) & 3) : 0;
+          const key = use4Var ? `${stage.id}_v${vIdx}` : `${stage.id}_${isDark ? 'dark' : 'light'}`;
           const tileCanvas = this.tileCache.get(key);
           const sx = tx * tileSize - camX + width / 2;
           const sy = ty * tileSize - camY + height / 2;
@@ -1514,7 +1702,19 @@ const MapEngine = {
           const ry = Math.round(r.y - camY + height / 2);
           if (rx + r.w < -20 || rx > width + 20 || ry + r.h < -20 || ry > height + 20) return;
 
-          if (r.isMarble) {
+          if (r.isBasaltRoad) {
+            ctx.fillStyle = "#332C36";
+            ctx.fillRect(rx, ry, r.w, r.h);
+            ctx.fillStyle = "#1E1A22";
+            if (r.dir === "H") { ctx.fillRect(rx, ry, r.w, 3); ctx.fillRect(rx, ry + r.h - 3, r.w, 3); }
+            else { ctx.fillRect(rx, ry, 3, r.h); ctx.fillRect(rx + r.w - 3, ry, 3, r.h); }
+            ctx.fillStyle = "#453B48";
+            if (r.dir === "H") {
+              for (let px = 12; px < r.w; px += 36) { ctx.fillRect(rx + px, ry + 12, 8, 4); ctx.fillRect(rx + px + 16, ry + r.h - 18, 6, 4); }
+            } else {
+              for (let py = 12; py < r.h; py += 36) { ctx.fillRect(rx + 12, ry + py, 4, 8); ctx.fillRect(rx + r.w - 18, ry + py + 16, 4, 6); }
+            }
+          } else if (r.isMarble) {
             // GBA 石英高原像素大理石金邊大道（綁定世界座標石板接縫與金磚雕花）
             ctx.fillStyle = "#1E1B4B";
             ctx.fillRect(rx - 2, ry, r.w + 4, r.h);
@@ -1633,30 +1833,32 @@ const MapEngine = {
           (chunk.lavaPools || []).forEach(lp => {
             const lx = Math.round(lp.x - camX + width / 2);
             const ly = Math.round(lp.y - camY + height / 2);
-            if (lx + lp.rx < -20 || lx - lp.rx > width + 20 || ly + lp.ry < -20 || ly - lp.ry > height + 20) return;
-            const pulse = 0.88 + Math.sin(now * 2.4 + lp.x * 0.03) * 0.12;
+            if (lx + lp.rx < -24 || lx - lp.rx > width + 24 || ly + lp.ry < -24 || ly - lp.ry > height + 24) return;
+            const lCan = this.spritePropCache.get(`lava_pool_pixel_${lp.variant ? 1 : 0}`);
             ctx.save();
-            ctx.fillStyle = "#451A03";
-            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx, lp.ry, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#9A3412";
-            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx * 0.88, lp.ry * 0.84, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = `rgba(234, 88, 12, ${0.72 * pulse})`;
-            ctx.beginPath(); ctx.ellipse(lx, ly, lp.rx * 0.66, lp.ry * 0.60, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "rgba(254, 240, 138, 0.65)";
-            const bx = lx + Math.sin(now * 1.5 + lp.y) * lp.rx * 0.32;
-            const by = ly + Math.cos(now * 1.2 + lp.x) * lp.ry * 0.28;
-            ctx.fillRect(Math.round(bx), Math.round(by), 8, 3);
+            if (lCan) {
+              ctx.imageSmoothingEnabled = false;
+              ctx.drawImage(lCan, lx - lp.rx, ly - lp.ry, lp.rx * 2, lp.ry * 2);
+            }
+            // 動態像素岩漿泡與飄升餘燼火星
+            const b1x = Math.round(lx + Math.sin(now * 1.4 + lp.y) * lp.rx * 0.35);
+            const b1y = Math.round(ly + Math.cos(now * 1.1 + lp.x) * lp.ry * 0.28);
+            const bSz = Math.sin(now * 3.2 + lp.x) > 0.2 ? 6 : 4;
+            ctx.fillStyle = "#FEF08A";
+            ctx.fillRect(b1x, b1y, bSz, 3);
+            const emberY = Math.round(ly - ((now * 18 + lp.x) % 26));
+            ctx.fillStyle = "rgba(253, 186, 116, 0.75)";
+            ctx.fillRect(lx - 12 + Math.round(Math.sin(now * 2 + lp.y) * 14), emberY, 3, 3);
             ctx.restore();
           });
           (chunk.steamVents || []).forEach(sv => {
             const vx = Math.round(sv.x - camX + width / 2);
             const vy = Math.round(sv.y - camY + height / 2);
-            if (vx + sv.r < -20 || vx - sv.r > width + 20 || vy + sv.r < -20 || vy - sv.r > height + 20) return;
+            if (vx + sv.r < -24 || vx - sv.r > width + 24 || vy + sv.r < -24 || vy - sv.r > height + 24) return;
             const cyc = (runT + sv.phaseOffset) % 12.0;
+            const vCan = this.spritePropCache.get("volcano_vent_pixel");
             ctx.save();
-            ctx.fillStyle = "#1C1917";
-            ctx.beginPath(); ctx.ellipse(vx, vy, 20, 12, 0, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#7C2D12"; ctx.lineWidth = 2.5; ctx.stroke();
+            if (vCan) ctx.drawImage(vCan, vx - 24, vy - 18);
             if (cyc >= 10.5) {
               const warnP = (cyc - 10.5) / 1.5;
               ctx.fillStyle = `rgba(249, 115, 22, ${0.14 + warnP * 0.22})`;
@@ -1672,6 +1874,11 @@ const MapEngine = {
               g.addColorStop(1, "rgba(154, 52, 18, 0)");
               ctx.fillStyle = g;
               ctx.beginPath(); ctx.arc(vx, vy, sv.r, 0, Math.PI * 2); ctx.fill();
+            } else {
+              // 平時裂口緩慢飄出像素白煙
+              const smokeH = (now * 16 + sv.phaseOffset * 5) % 24;
+              ctx.fillStyle = `rgba(203, 213, 225, ${(1 - smokeH / 24) * 0.35})`;
+              ctx.fillRect(Math.round(vx - 3 + Math.sin(now * 2 + sv.x) * 4), Math.round(vy - 6 - smokeH), 6, 4);
             }
             ctx.restore();
           });
@@ -1684,13 +1891,20 @@ const MapEngine = {
             if (bx + bt.w < -20 || bx > width + 20 || by + bt.h < -20 || by > height + 20) return;
             const active = !!(pRef && pRef.x >= bt.x && pRef.x <= bt.x + bt.w && pRef.y >= bt.y && pRef.y <= bt.y + bt.h);
             ctx.save();
-            ctx.fillStyle = "#1E293B";
+            // 工業金屬導軌外框與螺栓
+            ctx.fillStyle = "#0F172A";
             ctx.fillRect(bx, by, bt.w, bt.h);
-            ctx.fillStyle = active ? "rgba(56, 189, 248, 0.34)" : "rgba(14, 116, 144, 0.16)";
-            ctx.fillRect(bx + 4, by + 4, bt.w - 8, bt.h - 8);
-            ctx.strokeStyle = active ? "#7DD3FC" : "rgba(56, 189, 248, 0.32)";
-            ctx.lineWidth = active ? 2.4 : 1.6;
-            const scroll = Math.floor((now * (active ? 85 : 28)) % 44);
+            ctx.fillStyle = "#334155";
+            if (bt.dir === "H") {
+              ctx.fillRect(bx, by + 2, bt.w, 4); ctx.fillRect(bx, by + bt.h - 6, bt.w, 4);
+            } else {
+              ctx.fillRect(bx + 2, by, 4, bt.h); ctx.fillRect(bx + bt.w - 6, by, 4, bt.h);
+            }
+            ctx.fillStyle = active ? "rgba(56, 189, 248, 0.36)" : "rgba(14, 116, 144, 0.14)";
+            ctx.fillRect(bx + 6, by + 6, bt.w - 12, bt.h - 12);
+            ctx.strokeStyle = active ? "#E0F2FE" : "rgba(56, 189, 248, 0.30)";
+            ctx.lineWidth = active ? 2.6 : 1.6;
+            const scroll = Math.floor((now * (active ? 90 : 26)) % 44);
             if (bt.dir === "H") {
               for (let xOff = scroll; xOff < bt.w - 10; xOff += 44) {
                 ctx.beginPath();
@@ -1956,6 +2170,42 @@ const MapEngine = {
           } else if (d.type === "crooked_sign") {
             const sgCan = this.spritePropCache.get("crooked_sign_pixel");
             if (sgCan) ctx.drawImage(sgCan, -14, -14);
+          } else if (d.type === "obsidian_cluster") {
+            const c0 = this.spritePropCache.get("obsidian_cluster_pixel");
+            if (c0) ctx.drawImage(c0, -14, -14);
+          } else if (d.type === "lava_crystal") {
+            const c1 = this.spritePropCache.get("lava_crystal_pixel");
+            if (c1) ctx.drawImage(c1, -12, -12);
+          } else if (d.type === "cooled_crack") {
+            const c2 = this.spritePropCache.get("cooled_crack_pixel");
+            if (c2) ctx.drawImage(c2, -16, -10);
+          } else if (d.type === "floor_grate") {
+            const c3 = this.spritePropCache.get("floor_grate_pixel");
+            if (c3) ctx.drawImage(c3, -16, -12);
+          } else if (d.type === "cable_h") {
+            const c4 = this.spritePropCache.get("cable_h_pixel");
+            if (c4) ctx.drawImage(c4, -20, -7);
+          } else if (d.type === "hazard_strip") {
+            const c5 = this.spritePropCache.get("hazard_strip_pixel");
+            if (c5) ctx.drawImage(c5, -18, -6);
+          } else if (d.type === "junction_box") {
+            const c6 = this.spritePropCache.get("junction_box_pixel");
+            if (c6) ctx.drawImage(c6, -13, -13);
+            if (Math.sin(now * 9 + d.x) > 0.88) {
+              ctx.fillStyle = "#7DD3FC"; ctx.fillRect(-2, -12, 4, 4);
+            }
+          } else if (d.type === "brazier") {
+            const c7 = this.spritePropCache.get("brazier_pixel");
+            if (c7) ctx.drawImage(c7, -14, -16);
+            const flH = 4 + Math.round(Math.sin(now * 8 + d.x) * 2);
+            ctx.fillStyle = "#F97316"; ctx.fillRect(-4, -8 - flH, 8, flH);
+            ctx.fillStyle = "#FEF08A"; ctx.fillRect(-2, -6 - flH, 4, Math.max(2, flH - 2));
+          } else if (d.type === "rune_tile") {
+            const c8 = this.spritePropCache.get("rune_tile_pixel");
+            if (c8) ctx.drawImage(c8, -16, -12);
+          } else if (d.type === "rubble") {
+            const c9 = this.spritePropCache.get("rubble_pixel");
+            if (c9) ctx.drawImage(c9, -14, -10);
           } else {
             const fKey = (d.color === "#F87171") ? "flower_red" : "flower_white";
             const fCan = this.spritePropCache.get(fKey);

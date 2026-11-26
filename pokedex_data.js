@@ -1429,7 +1429,7 @@ const ACHIEVEMENTS = [
 
 
 // 10B. 關都 8 枚像素道館徽章（v7.6.0 三段階梯解鎖 ＋ 永久戰力被動 ＋ 4x2 像素精靈圖集）
-const KANTO_BADGES_SHEET_URL = "images/kanto_badges_sheet.png?v=7.6.0";
+const KANTO_BADGES_SHEET_URL = "images/kanto_badges_sheet.png?v=7.6.1";
 const KANTO_GYM_BADGES = [
   {
     id: "boulder", name: "灰色徽章", gym: "尼比道館", type: "Rock", col: 0, row: 0, tier: "入門",
@@ -1519,7 +1519,7 @@ function renderKantoBadgeIconHTML(badge, unlocked, sizePx = 42) {
   const filterCss = unlocked
     ? "drop-shadow(0 0 6px rgba(250,204,21,0.55))"
     : "brightness(0.18) saturate(0) opacity(0.52)";
-  return `<span style="display:inline-block;width:${sizePx}px;height:${sizePx}px;background-image:url('${KANTO_BADGES_SHEET_URL}');background-size:400% 200%;background-position:${posX}% ${posY}%;background-repeat:no-repeat;image-rendering:pixelated;filter:${filterCss};flex-shrink:0;"></span>`;
+  return `<span style="display:block;width:${sizePx}px;height:${sizePx}px;background-image:url('${KANTO_BADGES_SHEET_URL}');background-size:400% 200%;background-position:${posX}% ${posY}%;background-repeat:no-repeat;image-rendering:pixelated;filter:${filterCss};flex-shrink:0;"></span>`;
 }
 
 // 取得該精靈在第 4 招式槽「本系與特性優先」模式下的所有候選招式（供大廳招式整備抽屜預覽與停用）

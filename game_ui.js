@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.0p1";
+        const ver = this.APP_VERSION || "v7.6.1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.0p1";
+      const curVer = this.APP_VERSION || "v7.6.1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1371,7 +1371,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.0p1",
+      lastSeenVersion: this.APP_VERSION || "v7.6.1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2635,7 +2635,7 @@ Object.assign(window.GameApp, {
         this.spawnFloatingText(p.x, p.y - 20, "所有招式已達 MAX 滿級！", "#38BDF8", 13);
       }
     } else if (itemId === "full_restore") {
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45 * (p.badgeHealMult || 1.0)));
       p.status = null;
       p.statusTimer = 0;
       SoundFX.play("levelup");
@@ -2651,7 +2651,7 @@ Object.assign(window.GameApp, {
       this.spawnFloatingText(p.x, p.y - 25, "速度強化：30秒內移速+30% ＆ 涉水減速免疫！", "#38BDF8", 15);
       this.spawnParticleCluster(p.x, p.y, "#38BDF8", "#FFFFFF", 24, "circle", 1.2);
     } else if (itemId === "master_candy") {
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30));
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30 * (p.badgeHealMult || 1.0)));
       const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
       if (upgradeable.length > 0) {
         const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
@@ -2714,6 +2714,12 @@ Object.assign(window.GameApp, {
     this.refreshHUD();
   },
 
+  selectKantoBadgeDetail(badgeId) {
+    this._selectedKantoBadgeId = (this._selectedKantoBadgeId === badgeId) ? null : badgeId;
+    SoundFX.play("click");
+    this.renderAchievements();
+  },
+
   renderAchievements() {
     const box = document.getElementById("achievementListContainer");
     const sorted = [...ACHIEVEMENTS].sort((a, b) => {
@@ -2727,33 +2733,37 @@ Object.assign(window.GameApp, {
     const completedCount = ACHIEVEMENTS.filter(a => a.check(this.saveData.stats, this.saveData)).length;
     const brMap = (this.saveData && this.saveData.bestRatings) || {};
     const modeCardsDef = [
-      { key: "expedition", label: "關都大遠征 15+1", accent: "border-emerald-500/70" },
-      { key: "arena",      label: "1vs1 石英鬥技場", accent: "border-rose-500/70" },
-      { key: "standard",   label: "8分鐘標準模式",   accent: "border-sky-500/70" },
-      { key: "endless",    label: "無盡深淵試煉",    accent: "border-purple-500/70" }
+      { key: "expedition", label: "關都大遠征 15+1", stripe: "bg-emerald-500" },
+      { key: "arena",      label: "1vs1 石英鬥技場", stripe: "bg-rose-500" },
+      { key: "standard",   label: "8分鐘標準模式",   stripe: "bg-sky-500" },
+      { key: "endless",    label: "無盡深淵試煉",    stripe: "bg-purple-500" }
     ];
     const rankColorMap = {
       "MASTER": "bg-gradient-to-r from-rose-600 via-amber-500 to-purple-600 text-white border-amber-200",
       "S+":     "bg-amber-500 text-slate-950 border-amber-200",
-      "S":      "bg-amber-950 text-amber-300 border-amber-400",
-      "A":      "bg-sky-950 text-sky-300 border-sky-400",
-      "B":      "bg-emerald-950 text-emerald-300 border-emerald-400",
-      "C":      "bg-slate-800 text-slate-300 border-slate-500"
+      "S":      "bg-amber-900 text-amber-200 border-amber-400",
+      "A":      "bg-sky-800 text-sky-200 border-sky-400",
+      "B":      "bg-emerald-800 text-emerald-200 border-emerald-400",
+      "C":      "bg-slate-700 text-slate-200 border-slate-400"
     };
     const bestRecordsHtml = `
       <div class="poke-card p-3 bg-white space-y-2">
         <div class="flex items-center justify-between text-xs font-black border-b border-slate-200 pb-1.5">
-          <span class="flex items-center gap-1.5 text-slate-800"><i class="fa-solid fa-chart-simple text-blue-600"></i> 歷史最佳戰績總覽</span>
+          <span class="flex items-center gap-1.5 text-slate-800"><i class="fa-solid fa-medal text-blue-600"></i> 歷史最佳戰績總覽</span>
           <span class="font-pixel text-[8px] text-slate-500">BEST RATINGS</span>
         </div>
-        <div class="grid grid-cols-2 gap-1.5">
+        <div class="grid grid-cols-2 gap-2">
           ${modeCardsDef.map(mc => {
             const rec = brMap[mc.key];
             if (!rec) {
               return `
-                <div class="bg-slate-50 rounded-xl p-2 border border-slate-200 flex flex-col justify-between min-h-[62px]">
-                  <div class="text-[10px] font-black text-slate-700 truncate">${mc.label}</div>
-                  <div class="text-[10px] font-bold text-slate-400 mt-1">尚無評級紀錄</div>
+                <div class="best-record-card relative overflow-hidden bg-slate-50 rounded-xl pl-3 pr-2.5 py-2 border border-dashed border-slate-300 flex items-center gap-2 min-h-[62px]">
+                  <span class="absolute left-0 top-0 bottom-0 w-1 ${mc.stripe} opacity-40"></span>
+                  <div class="w-9 h-9 rounded-lg bg-slate-200/70 border border-slate-300/80 flex items-center justify-center text-slate-400 text-xs shrink-0"><i class="fa-solid fa-lock-open opacity-50"></i></div>
+                  <div class="min-w-0 flex-1">
+                    <div class="text-[10px] font-black text-slate-600 truncate">${mc.label}</div>
+                    <div class="text-[9px] font-bold text-slate-400 mt-0.5">尚無通關紀錄</div>
+                  </div>
                 </div>
               `;
             }
@@ -2761,17 +2771,21 @@ Object.assign(window.GameApp, {
             const sprUrl = pObj ? SpriteCache.resolveUrl((rec.build && rec.build.isShiny && pObj.shiny_forward_sprite) ? pObj.shiny_forward_sprite : pObj.forward_sprite) : "";
             const rCls = rankColorMap[rec.rank] || rankColorMap.C;
             return `
-              <div class="bg-slate-50 rounded-xl p-2 border-2 border-slate-200 flex flex-col justify-between gap-1">
-                <div class="flex items-center justify-between gap-1">
-                  <span class="text-[10px] font-black text-slate-800 truncate">${mc.label}</span>
-                  <span class="px-1.5 py-0.2 rounded-md border font-black italic text-[10px] leading-tight shrink-0 ${rCls}">${rec.rank}</span>
+              <div class="best-record-card relative overflow-hidden bg-slate-50 rounded-xl pl-3 pr-2 py-2 border border-slate-200 flex items-center gap-2 min-h-[62px]">
+                <span class="absolute left-0 top-0 bottom-0 w-1 ${mc.stripe}"></span>
+                <div class="w-10 h-10 rounded-lg bg-white border border-slate-300 flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
+                  ${sprUrl ? `<img src="${sprUrl}" class="w-9 h-9 pixel-sprite object-contain"/>` : ''}
                 </div>
-                <div class="flex items-center gap-1.5">
-                  ${sprUrl ? `<img src="${sprUrl}" class="w-7 h-7 pixel-sprite object-contain bg-white rounded-lg border border-slate-300 shrink-0"/>` : ''}
-                  <div class="min-w-0 flex-1">
-                    <div class="font-pixel text-[9px] text-amber-600 leading-tight">${(rec.score || 0).toLocaleString()} <span class="text-[7px] text-slate-400">PTS</span></div>
-                    <div class="text-[9px] font-bold text-indigo-600 truncate mt-0.5">${rec.title || '關都挑戰者'}</div>
+                <div class="min-w-0 flex-1 flex flex-col justify-between gap-0.5">
+                  <div class="flex items-center justify-between gap-1">
+                    <span class="text-[10px] font-black text-slate-800 truncate">${mc.label}</span>
+                    <span class="px-1.5 py-0.2 rounded border font-black italic text-[9px] leading-tight shrink-0 ${rCls}">${rec.rank}</span>
                   </div>
+                  <div class="flex items-baseline gap-1">
+                    <span class="font-pixel text-[10px] text-amber-600 leading-none">${(rec.score || 0).toLocaleString()}</span>
+                    <span class="text-[8px] font-black text-slate-400">PTS</span>
+                  </div>
+                  <div class="text-[9px] font-bold text-indigo-600 truncate leading-tight">${rec.title || '關都挑戰者'}</div>
                 </div>
               </div>
             `;
@@ -2787,30 +2801,41 @@ Object.assign(window.GameApp, {
       </div>
     `;
     const badgeBonuses = (typeof getKantoBadgeBonuses === "function") ? getKantoBadgeBonuses(this.saveData) : { count: 0, unlockedMap: {} };
+    const selBadgeId = this._selectedKantoBadgeId || null;
+    const selBadgeObj = (typeof KANTO_GYM_BADGES !== "undefined" && selBadgeId) ? KANTO_GYM_BADGES.find(b => b.id === selBadgeId) : null;
+    const selBadgeUn = selBadgeObj ? !!badgeBonuses.unlockedMap[selBadgeObj.id] : false;
+    const selBadgeProg = selBadgeObj ? selBadgeObj.progress(this.saveData.stats || {}, this.saveData) : [0, 1];
     const badgesCaseHtml = (typeof KANTO_GYM_BADGES !== "undefined") ? `
-      <div class="poke-card p-3 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 border-2 border-amber-400/80 text-white space-y-2.5 shadow-xl">
-        <div class="flex items-center justify-between border-b border-amber-400/30 pb-1.5">
+      <div class="poke-card p-3 bg-white space-y-2">
+        <div class="flex items-center justify-between border-b border-slate-200 pb-1.5">
           <div class="flex items-center gap-1.5">
-            <span class="text-amber-300 font-black text-xs sm:text-sm">🏅 關都道館徽章盒</span>
-            <span class="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-200 font-pixel text-[8px]">${badgeBonuses.count} / 8</span>
+            <span class="text-slate-800 font-black text-xs sm:text-sm"><i class="fa-solid fa-shield-halved text-amber-500"></i> 關都道館徽章盒</span>
+            <span class="px-1.5 py-0.2 rounded-full bg-amber-100 border border-amber-300 text-amber-700 font-pixel text-[8px]">${badgeBonuses.count} / 8</span>
           </div>
-          <span class="text-[9px] font-bold text-slate-300">點亮即永久生效</span>
+          <span class="text-[9px] font-bold text-slate-500">點擊徽章查看詳情</span>
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div class="grid grid-cols-4 gap-1.5">
           ${KANTO_GYM_BADGES.map(bg => {
             const un = !!badgeBonuses.unlockedMap[bg.id];
-            const prog = bg.progress(this.saveData.stats || {}, this.saveData);
+            const isSel = (selBadgeId === bg.id);
             return `
-              <div class="rounded-xl p-2 border ${un ? 'bg-slate-800/90 border-amber-400/80 shadow-[0_0_12px_rgba(250,204,21,0.18)]' : 'bg-slate-900/75 border-slate-700/80'} flex flex-col items-center text-center gap-1">
-                <div class="w-11 h-11 rounded-full ${un ? 'bg-amber-500/15 border border-amber-300/60' : 'bg-slate-950/90 border border-slate-800'} flex items-center justify-center">
-                  ${renderKantoBadgeIconHTML(bg, un, 36)}
+              <button onclick="GameApp.selectKantoBadgeDetail('${bg.id}')" class="kanto-badge-cell ${un ? 'is-unlocked bg-amber-50/70 border-amber-300' : 'bg-slate-50 border-slate-200 opacity-85'} ${isSel ? 'ring-2 ring-blue-500' : ''} rounded-xl px-1 py-1.5 border flex flex-col items-center text-center gap-0.5 transition cursor-pointer">
+                <div class="kanto-badge-ring w-10 h-10 rounded-full ${un ? 'bg-slate-900/90 border-amber-400' : 'bg-slate-200 border-slate-300'} border flex items-center justify-center shrink-0">
+                  ${renderKantoBadgeIconHTML(bg, un, 32)}
                 </div>
-                <div class="text-[10px] font-black ${un ? 'text-amber-200' : 'text-slate-400'} leading-tight">${bg.name} <span class="text-[8px] font-bold text-slate-400">(${bg.gym})</span></div>
-                <div class="text-[9px] font-black ${un ? 'text-emerald-300' : 'text-slate-500'} leading-tight">${bg.buffText}</div>
-                <div class="text-[8px] font-bold text-slate-400 leading-snug">${un ? '✓ 已永久啟用' : `${bg.condDesc} (${prog[0]}/${prog[1]})`}</div>
-              </div>
+                <div class="text-[9px] font-black ${un ? 'text-slate-800' : 'text-slate-500'} leading-tight truncate w-full">${bg.name}</div>
+                <div class="text-[7px] font-bold ${un ? 'text-emerald-600' : 'text-slate-400'} leading-tight truncate w-full">${un ? '✓ 已啟用' : bg.gym}</div>
+              </button>
             `;
           }).join("")}
+        </div>
+        <div id="kantoBadgeDetailBar" class="rounded-xl px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-700 flex items-center justify-between gap-2">
+          ${selBadgeObj ? `
+            <div class="min-w-0 flex-1">
+              <div class="font-black text-slate-800">${selBadgeObj.name}（${selBadgeObj.gym}）· <span class="text-emerald-600">${selBadgeObj.buffText}</span></div>
+              <div class="text-[9px] text-slate-500 mt-0.5">${selBadgeUn ? '✓ 已達成解鎖條件，永久被動生效中！' : `解鎖條件：${selBadgeObj.condDesc}（進度 ${selBadgeProg[0]}/${selBadgeProg[1]}）`}</div>
+            </div>
+          ` : `<span class="text-[9px] text-slate-500">已點亮 <strong class="text-amber-600">${badgeBonuses.count}/8</strong> 枚道館徽章（點選任一徽章可查看屬性加成與解鎖進度）</span>`}
         </div>
       </div>
     ` : "";
@@ -3039,7 +3064,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.0p1",
+      version: this.APP_VERSION || "v7.6.1",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3708,8 +3733,23 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.6.0 雙戰術新地圖 ‧ 關都 8 枚像素道館徽章 ‧ 大廳招式整備系統</span>
+            <span class="font-black text-sm text-amber-300">v7.6.1 雙主題 UI 統一 ‧ 第 3～5 章地圖 GBA 像素精裝重繪</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-amber-300 font-black pt-0.5">道館榮譽＆大廳抽屜 雙主題 100% 統一</div>
+            <div>• <strong>4×2 緊湊徽章盒</strong>：高度減半、完美自適應「GBA 掌機風」與「深藍黑金風」，與 151 圖鑑、研究所視覺零割裂；點擊任一徽章可於底部詳情條檢視解鎖進度！</div>
+            <div>• <strong>歷史最佳戰績重排版</strong>：改為左側 40px 精靈相框＋主題色條＋右側整齊分數與金屬階級徽章；同步補齊大廳招式整備抽屜的黑金主題樣式。</div>
+            <div class="text-orange-300 font-black pt-1">第 3～5 章地圖 GBA 像素精裝升級（徹底去棋盤格＆荷包蛋感）</div>
+            <div>• <strong>4 種變化地磚</strong>：壓低石英高原／紅蓮火山／無人發電廠的地磚明暗差並導入 4 款隨機微紋理地磚，徹底消除西洋棋盤重複感。</div>
+            <div>• <strong>紅蓮火山</strong>：熔岩池重繪為不規則像素鋸齒岸線＋亮橘岩漿脈絡；新增玄武岩碎石步道、3D 像素噴氣裂口、黑曜石簇與暗紅結晶！火/岩/地/飛系同步免疫熔岩池減速。</div>
+            <div>• <strong>無人發電廠 ＆ 石英高原</strong>：發電廠新增工業金屬導軌加速帶、地面粗電纜、通風網格與黃黑警示帶；石英高原補齊搖曳火盆、符文地磚與石磚碎塊。</div>
+            <div>• <strong>彩虹徽章修正</strong>：升級回血、特大文柚果與友好商店傷藥全面實裝 +15% 回血加成。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.6.0 雙戰術新地圖 ‧ 關都 8 枚像素道館徽章 ‧ 大廳招式整備系統</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-orange-300 font-black pt-0.5">兩張低噪點戰術生態新地圖（預設全開放，接入標準＆無盡模式）</div>
@@ -4151,7 +4191,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.0p1";
+    const curVer = this.APP_VERSION || "v7.6.1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
