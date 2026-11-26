@@ -850,7 +850,7 @@ const MapEngine = {
       if (reef) ctx.drawImage(reef, 160, 16, 48, 48);
       if (star) { ctx.drawImage(star, 148, 48, 16, 16); ctx.drawImage(star, 20, 22, 16, 16); }
       if (shell) { ctx.drawImage(shell, 198, 48, 15, 15); ctx.drawImage(shell, 114, 96, 15, 15); }
-    } else {
+    } else if (stageId === "sky_pillar") {
       // 1. 石英高原古神殿紫黑石磚
       for (let tx = 0; tx < w; tx += 60) {
         for (let ty = 0; ty < h; ty += 60) {

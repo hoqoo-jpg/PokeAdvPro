@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.0";
+        const ver = this.APP_VERSION || "v7.6.0p1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.0";
+      const curVer = this.APP_VERSION || "v7.6.0p1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1371,7 +1371,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.0",
+      lastSeenVersion: this.APP_VERSION || "v7.6.0p1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3039,7 +3039,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.0",
+      version: this.APP_VERSION || "v7.6.0p1",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -4151,7 +4151,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.0";
+    const curVer = this.APP_VERSION || "v7.6.0p1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
