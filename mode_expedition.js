@@ -2835,7 +2835,7 @@ window.ModeExpedition = {
       it.bought = true;
       st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
       st.shopBoughtCounts.candy = (st.shopBoughtCounts.candy || 0) + 1;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30));
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30 * (p.badgeHealMult || 1.0)));
       const upgList = Object.values(p.skills).filter(s => s.level < 10);
       if (upgList.length > 0) {
         const pick = upgList[Math.floor(Math.random() * upgList.length)];
@@ -2847,7 +2847,7 @@ window.ModeExpedition = {
       it.bought = true;
       st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
       st.shopBoughtCounts.heal = (st.shopBoughtCounts.heal || 0) + 1;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45));
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45 * (p.badgeHealMult || 1.0)));
       p.status = null;
       p.statusTimer = 0;
     } else if (it.id === "x_attack") {
@@ -2855,6 +2855,11 @@ window.ModeExpedition = {
       app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
       it.bought = true;
       p.xAttackTimer = 35.0;
+    } else if (it.id === "x_speed") {
+      app.runCoins -= it.cost;
+      app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
+      it.bought = true;
+      p.xSpeedTimer = 35.0;
     }
 
     SoundFX.play("levelup");
