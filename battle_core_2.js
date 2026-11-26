@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.9",
+  APP_VERSION: "v7.6.10",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1070,7 +1070,7 @@ window.GameApp = {
       nextExp: (this.selectedGameMode === "expedition") ? ((typeof window !== "undefined" && window.EXPEDITION_PACING && window.EXPEDITION_PACING.startNextExp) || 90) : 18,
       hp: maxHp,
       maxHp,
-      baseAtk: basePoke.atk * shinyMult,
+      baseAtk: (typeof getEffectiveBaseAtk === "function" ? getEffectiveBaseAtk(basePoke) : basePoke.atk) * shinyMult,
       baseSpeed: basePoke.speed,
       dmgMult: tr.mods.dmgMult * (1 + upg.atk * 0.08) * (isBond ? 1.25 : 1.0) * badgeB.atkMult,
       cdMult: tr.mods.cdMult * Math.pow(0.965, upg.cd) * (isBond ? 0.80 : 1.0) * badgeB.cdMult,
@@ -1503,6 +1503,10 @@ window.GameApp = {
       const threatFloor = Math.round(p.maxHp * basePct * diffScale * activeShieldMod);
       return Math.max(normalDmg, threatFloor);
     }
+    if (kind === "telegraph" && this.selectedDifficulty && this.selectedDifficulty.telegraphMinPct > 0) {
+      const threatFloor = Math.round(p.maxHp * this.selectedDifficulty.telegraphMinPct * activeShieldMod);
+      return Math.max(normalDmg, threatFloor);
+    }
     return normalDmg;
   },
 
@@ -1774,7 +1778,8 @@ window.GameApp = {
       this.spawnFloatingText(p.x, p.y - 68, "🔥 王牌號令・全傷+45%！", "#EF4444", 15);
     }
 
-    const arenaHealMod = this.isArenaMode ? (this.arenaHealEff || 0.85) : 1.0;
+    const diffHealMod = (this.selectedDifficulty && this.selectedDifficulty.healEff !== undefined) ? this.selectedDifficulty.healEff : 1.0;
+    const arenaHealMod = this.isArenaMode ? (this.arenaHealEff || 0.85) : diffHealMod;
     const healAmt = Math.round(p.maxHp * healPct * arenaHealMod);
     p.hp = Math.min(p.maxHp, p.hp + healAmt);
     this.spawnFloatingText(p.x + 28, p.y - 14, `+${healAmt} HP`, "#10B981", 13);
@@ -1929,7 +1934,8 @@ window.GameApp = {
     if (p.arenaShieldTimer > 0) p.arenaShieldTimer = Math.max(0, p.arenaShieldTimer - dt);
     if (p.arenaPerfectCounterTimer > 0) p.arenaPerfectCounterTimer = Math.max(0, p.arenaPerfectCounterTimer - dt);
 
-    const arenaHealEff = this.isArenaMode ? (this.arenaHealEff || 0.85) : 1.0;
+    const diffHealEff = (this.selectedDifficulty && this.selectedDifficulty.healEff !== undefined) ? this.selectedDifficulty.healEff : 1.0;
+      const arenaHealEff = this.isArenaMode ? (this.arenaHealEff || 0.85) : diffHealEff;
     const bossHealMod = ((this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0) * arenaHealEff;
     if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
     // 閃光精靈出戰專屬：每 2.2 秒於身周輕閃淡金四芒星，突顯正版官方色違質感
@@ -3094,7 +3100,8 @@ window.GameApp = {
       if (e.ccImmunityTimer > 0) e.ccImmunityTimer -= dt;
       if (e.whiteFlashTimer > 0) e.whiteFlashTimer -= dt;
       if (e.isBoss && e.dpsBucket > 0) {
-        const capPct = e.arenaDpsCapPct || 0.12;
+        const diffCapPct = (!this.isArenaMode && this.selectedDifficulty && this.selectedDifficulty.bossDpsCapPct) ? this.selectedDifficulty.bossDpsCapPct : 0.12;
+        const capPct = e.arenaDpsCapPct || diffCapPct;
         e.dpsBucket = Math.max(0, e.dpsBucket - e.maxHp * capPct * dt);
       }
       if (e.dpsShieldFlashTimer > 0) {
@@ -4642,12 +4649,14 @@ window.GameApp = {
     const envAddMult = Math.max(0.5, 1.0 + stageBonus + weatherBonus + heldBonus + xAtkBonus + dragonMawBonus);
 
     let finalDmg = Math.round(rawDmg * envAddMult * eff * critMult);
-    if (enemy.arenaArmor) {
-      finalDmg = Math.max(1, Math.round(finalDmg * (1 - enemy.arenaArmor)));
+    const effArmor = enemy.arenaArmor || (enemy.isBoss && !this.isArenaMode && this.selectedDifficulty ? (this.selectedDifficulty.bossArmor || 0) : 0);
+    if (effArmor > 0) {
+      finalDmg = Math.max(1, Math.round(finalDmg * (1 - effArmor)));
     }
     if (enemy.isBoss) {
-      // Boss 滾動秒傷軟上限護盾（鬥技場高難度動態收緊防站樁秒殺）
-      const softPct = enemy.arenaDpsCapPct || 0.12;
+      // Boss 滾動秒傷軟上限護盾（鬥技場與高難度動態收緊防滿配站樁秒殺）
+      const diffSoftPct = (!this.isArenaMode && this.selectedDifficulty && this.selectedDifficulty.bossDpsCapPct) ? this.selectedDifficulty.bossDpsCapPct : 0.12;
+      const softPct = enemy.arenaDpsCapPct || diffSoftPct;
       const singleCap = Math.round(enemy.maxHp * Math.min(0.18, softPct * 1.4));
       const cappedRaw = Math.min(finalDmg, singleCap);
       const softLimit = enemy.maxHp * softPct;
@@ -5230,7 +5239,8 @@ window.GameApp = {
 
       // 每次升級附帶輕量生命回復 (+10% 最大 HP)，提升續航手感與正回饋
       if (p.hp < p.maxHp) {
-        const lvlHeal = Math.max(4, Math.round(p.maxHp * 0.10 * (p.badgeHealMult || 1.0)));
+        const _dHeal = (!this.isArenaMode && this.selectedDifficulty && this.selectedDifficulty.healEff !== undefined) ? this.selectedDifficulty.healEff : 1.0;
+        const lvlHeal = Math.max(4, Math.round(p.maxHp * 0.10 * (p.badgeHealMult || 1.0) * _dHeal));
         p.hp = Math.min(p.maxHp, p.hp + lvlHeal);
         this.spawnFloatingText(p.x, p.y - 24, `升級回復 +${lvlHeal} HP`, "#34D399", 12);
       }
@@ -5535,7 +5545,7 @@ window.GameApp = {
       }
     }
     const starMult = p.starMult || 1.0;
-    p.baseAtk = nextData.atk * (p.isShiny ? 1.2 : 1.0) * starMult;
+    p.baseAtk = (typeof getEffectiveBaseAtk === "function" ? getEffectiveBaseAtk(nextData) : nextData.atk) * (p.isShiny ? 1.2 : 1.0) * starMult;
     p.baseSpeed = nextData.speed;
     if (typeof getPokemonInnateTrait === "function") {
       p.innateTrait = getPokemonInnateTrait(nextData, p.level);

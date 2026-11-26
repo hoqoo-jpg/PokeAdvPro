@@ -30,7 +30,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [12, 15],
         previewIds: [10, 16, 43],
         killQuota: 22,
-        clearBonus: 70,
+        clearBonus: 40,
         weather: "CLEAR"
       },
       {
@@ -47,7 +47,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [12, 15, 17, 41, 44],
         bossIds: [15],
         previewIds: [15, 18, 45],
-        clearBonus: 110,
+        clearBonus: 60,
         weather: "CLEAR"
       },
       {
@@ -83,7 +83,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [18, 24],
         previewIds: [52, 12, 123],
         killQuota: 30,
-        clearBonus: 95,
+        clearBonus: 50,
         weather: "CLEAR"
       },
       {
@@ -94,7 +94,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [23, 41, 109],
         bossIds: [24, 110],
         previewIds: [24, 110],
-        clearBonus: 165,
+        clearBonus: 90,
         weather: "CLEAR",
         unlockRegionBadge: "常磐制霸"
       }
@@ -118,7 +118,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [55, 61, 73],
         previewIds: [54, 72, 120],
         killQuota: 28,
-        clearBonus: 105,
+        clearBonus: 60,
         weather: "RAIN"
       },
       {
@@ -136,7 +136,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [61, 73, 87, 91, 117],
         bossIds: [130],
         previewIds: [130, 91, 121],
-        clearBonus: 145,
+        clearBonus: 80,
         weather: "RAIN"
       },
       {
@@ -172,7 +172,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [130, 131],
         previewIds: [113, 82, 131],
         killQuota: 34,
-        clearBonus: 130,
+        clearBonus: 70,
         weather: "RAIN"
       },
       {
@@ -184,7 +184,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [87, 91, 131],
         bossIds: [144],
         previewIds: [144],
-        clearBonus: 220,
+        clearBonus: 120,
         weather: "BLIZZARD",
         unlockRegionBadge: "海岬制霸"
       }
@@ -208,7 +208,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [82, 101, 125],
         previewIds: [82, 101, 125],
         killQuota: 34,
-        clearBonus: 125,
+        clearBonus: 70,
         weather: "THUNDER"
       },
       {
@@ -225,7 +225,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [82, 101, 89, 110],
         bossIds: [125],
         previewIds: [125, 135, 89],
-        clearBonus: 165,
+        clearBonus: 90,
         weather: "THUNDER"
       },
       {
@@ -236,7 +236,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [26, 125, 135],
         previewIds: [26, 125, 135],
         killQuota: 38,
-        clearBonus: 145,
+        clearBonus: 80,
         weather: "THUNDER"
       },
       {
@@ -248,7 +248,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [82, 101, 125],
         bossIds: [145],
         previewIds: [145],
-        clearBonus: 260,
+        clearBonus: 145,
         weather: "THUNDER",
         unlockRegionBadge: "電廠制霸"
       }
@@ -272,7 +272,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [59, 76, 78, 126],
         previewIds: [58, 75, 111],
         killQuota: 38,
-        clearBonus: 140,
+        clearBonus: 75,
         weather: "HEATWAVE"
       },
       {
@@ -289,7 +289,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [75, 78, 105, 112],
         bossIds: [126],
         previewIds: [126, 112, 59],
-        clearBonus: 185,
+        clearBonus: 100,
         weather: "HEATWAVE"
       },
       {
@@ -300,7 +300,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [76, 112, 142],
         previewIds: [76, 126, 142],
         killQuota: 42,
-        clearBonus: 165,
+        clearBonus: 90,
         weather: "HEATWAVE"
       },
       {
@@ -312,7 +312,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [59, 78, 126],
         bossIds: [146],
         previewIds: [146],
-        clearBonus: 290,
+        clearBonus: 160,
         weather: "HEATWAVE",
         unlockRegionBadge: "火山制霸"
       }
@@ -336,7 +336,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [65, 94, 97],
         previewIds: [64, 93, 97],
         killQuota: 40,
-        clearBonus: 155,
+        clearBonus: 85,
         weather: "PSYCHIC"
       },
       {
@@ -353,7 +353,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [65, 68, 94, 106, 107],
         bossIds: [106, 107],
         previewIds: [65, 94, 106],
-        clearBonus: 210,
+        clearBonus: 115,
         weather: "PSYCHIC"
       },
       {
@@ -364,7 +364,7 @@ window.EXPEDITION_CHAPTERS = [
         elitePool: [68, 143, 149],
         previewIds: [149, 143, 68],
         killQuota: 46,
-        clearBonus: 195,
+        clearBonus: 105,
         weather: "PSYCHIC"
       },
       {
@@ -376,7 +376,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [65, 68, 148],
         bossIds: [149, 143],
         previewIds: [149, 143],
-        clearBonus: 320,
+        clearBonus: 175,
         weather: "PSYCHIC",
         unlockRegionBadge: "高原制霸"
       }
@@ -403,7 +403,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [],
         bossIds: [150],
         previewIds: [150],
-        clearBonus: 520,
+        clearBonus: 285,
         weather: "PSYCHIC"
       }
     ]
@@ -1502,13 +1502,16 @@ window.ModeExpedition = {
     const waveScale = 1 + (waveNum - 1) * 0.16;
 
     let baseHp = 2150;
-    if (bId === 151) baseHp = 19500; // EX 真王始祖夢幻
-    else if (bId === 150) baseHp = 22500; // W16 王者超夢
+    if (bId === 151) baseHp = 37000; // EX 真王始祖夢幻（+90% 終極決戰血量）
+    else if (bId === 150) baseHp = 42500; // W21 王者超夢（+89% 終極決戰血量）
     else if (isLeg) {
-      if (isRelay) baseHp = 7200; // 三聖鳥接力單隻血量
-      else baseHp = waveNum >= 14 ? 15500 : 11000;
+      if (isRelay) baseHp = 12500; // 三聖鳥接力單隻血量
+      else if (waveNum >= 20) baseHp = 27000; // W20 冠軍殿堂守門雙霸 (+75%)
+      else if (waveNum >= 16) baseHp = 25500; // W16 火焰鳥 (+65%)
+      else if (waveNum >= 12) baseHp = 15400; // W12 閃電鳥 (+40%)
+      else baseHp = 11000; // W8 急凍鳥（維持前期流暢手感）
     } else if (isMini) {
-      baseHp = waveNum >= 12 ? 2900 : (waveNum >= 7 ? 2400 : 1650);
+      baseHp = waveNum >= 14 ? 3600 : (waveNum >= 10 ? 2900 : (waveNum >= 6 ? 2400 : 1650));
     }
 
     const scaledHp = Math.round(baseHp * (diff.hpMult || 1.0) * (isLeg ? 1.0 : waveScale));
@@ -1579,7 +1582,9 @@ window.ModeExpedition = {
       if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + miniBonus;
       if (app.spawnFloatingText) app.spawnFloatingText(boss.x, boss.y - 26, `小王賞金 +${miniBonus} 金`, "#FACC15", 13);
     }
-    if (!isMiniBoss) {
+    const curW = (app.expeditionState && app.expeditionState.currentWave) || 1;
+    // W4 火箭隊雙王保留神奇糖果，W8/W12/W16 區域神獸才掉落進化寶箱，避免 W16 過早全員三超武
+    if (!isMiniBoss && curW >= 8) {
       app.spawnMapLoot("evo_chest", boss.x - 20, boss.y);
     }
   },
@@ -2838,7 +2843,8 @@ window.ModeExpedition = {
       it.bought = true;
       st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
       st.shopBoughtCounts.candy = (st.shopBoughtCounts.candy || 0) + 1;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30 * (p.badgeHealMult || 1.0)));
+      const _dhm1 = (app.selectedDifficulty && app.selectedDifficulty.healEff !== undefined) ? app.selectedDifficulty.healEff : 1.0;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.30 * (p.badgeHealMult || 1.0) * _dhm1));
       const upgList = Object.values(p.skills).filter(s => s.level < 10);
       if (upgList.length > 0) {
         const pick = upgList[Math.floor(Math.random() * upgList.length)];
@@ -2850,7 +2856,8 @@ window.ModeExpedition = {
       it.bought = true;
       st.shopBoughtCounts = st.shopBoughtCounts || { candy: 0, heal: 0 };
       st.shopBoughtCounts.heal = (st.shopBoughtCounts.heal || 0) + 1;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45 * (p.badgeHealMult || 1.0)));
+      const _dhm2 = (app.selectedDifficulty && app.selectedDifficulty.healEff !== undefined) ? app.selectedDifficulty.healEff : 1.0;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.45 * (p.badgeHealMult || 1.0) * _dhm2));
       p.status = null;
       p.statusTimer = 0;
     } else if (it.id === "x_attack") {

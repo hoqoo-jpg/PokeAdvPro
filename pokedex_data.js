@@ -1382,11 +1382,23 @@ function getResolvedTrainerCostume(trainer, saveData) {
 
 // 8. 模式與難度考驗
 const DIFFICULTIES = [
-  { id: "casual", name: "輕鬆探索", badge: "簡易", desc: "經典輕鬆割草節奏，賞金獲取率 0.9x", hpMult: 1.00, atkMult: 1.00, spdMult: 1.00, spawnRateMult: 1.00, coinMult: 0.9, shinyBonus: 1.0 },
-  { id: "normal", name: "關都標準", badge: "標準", desc: "輕度挑戰怪潮與小王博弈，標準賞金 1.0x", hpMult: 1.18, atkMult: 1.12, spdMult: 1.04, spawnRateMult: 1.18, coinMult: 1.0, shinyBonus: 1.0 },
-  { id: "hard",   name: "大師挑戰", badge: "困難", desc: "怪潮密集洶湧，賞金+35%，閃光率翻倍！", hpMult: 1.55, atkMult: 1.42, spdMult: 1.14, spawnRateMult: 1.45, coinMult: 1.35, shinyBonus: 2.0 },
-  { id: "hell",   name: "冠軍之巔", badge: "地獄", desc: "極致怪潮與霸體，賞金+80%，閃光率 3 倍！", hpMult: 2.15, atkMult: 1.80, spdMult: 1.25, spawnRateMult: 1.75, coinMult: 1.80, shinyBonus: 3.0 }
+  { id: "casual", name: "輕鬆探索", badge: "簡易", desc: "經典輕鬆割草節奏，賞金獲取率 0.9x", hpMult: 1.00, atkMult: 1.00, spdMult: 1.00, spawnRateMult: 1.00, coinMult: 0.9, shinyBonus: 1.0, bossArmor: 0.00, healEff: 1.00, bossDpsCapPct: 0.12, telegraphMinPct: 0.00 },
+  { id: "normal", name: "關都標準", badge: "標準", desc: "標準進階挑戰與神獸博弈，賞金 1.0x", hpMult: 1.20, atkMult: 1.15, spdMult: 1.04, spawnRateMult: 1.18, coinMult: 1.0, shinyBonus: 1.0, bossArmor: 0.00, healEff: 1.00, bossDpsCapPct: 0.12, telegraphMinPct: 0.00 },
+  { id: "hard",   name: "大師挑戰", badge: "困難", desc: "王具 12% 減傷與回復壓制，賞金+35%、閃光 2x！", hpMult: 2.10, atkMult: 1.60, spdMult: 1.14, spawnRateMult: 1.45, coinMult: 1.35, shinyBonus: 2.0, bossArmor: 0.12, healEff: 0.80, bossDpsCapPct: 0.10, telegraphMinPct: 0.00 },
+  { id: "hell",   name: "冠軍之巔", badge: "地獄", desc: "終局極限！王 22% 減傷、紅圈重創、回復 55%，賞金+80%、閃光 3x！", hpMult: 3.60, atkMult: 2.20, spdMult: 1.25, spawnRateMult: 1.75, coinMult: 1.80, shinyBonus: 3.0, bossArmor: 0.22, healEff: 0.55, bossDpsCapPct: 0.08, telegraphMinPct: 0.20 }
 ];
+
+// v7.6.10 特攻手與弱勢終態基礎攻擊保底（彌補本傳物攻偏低的胡地、巴大蝶、頑皮雷彈等法師型主角）
+function getEffectiveBaseAtk(pokeData) {
+  if (!pokeData) return 60;
+  const raw = Number(pokeData.atk) || 50;
+  const isFinal = (!pokeData.evo_to || pokeData.evo_to === "None") && (pokeData.id < 10000);
+  if (!isFinal) return raw;
+  const spAtkMap = { 65: 96, 94: 96, 124: 90, 122: 86, 82: 92, 101: 86, 121: 90, 134: 88, 135: 90, 12: 82, 49: 82, 114: 82, 113: 78, 108: 80, 132: 78 };
+  if (spAtkMap[pokeData.id]) return Math.max(raw, spAtkMap[pokeData.id]);
+  if (raw < 80) return Math.max(raw, Math.round(78 + (raw - 40) * 0.25));
+  return raw;
+}
 
 // 9. 寶可夢中心永久強化研究所
 const CENTER_POKEMON_UPGRADES = [
@@ -1397,8 +1409,8 @@ const CENTER_POKEMON_UPGRADES = [
 ];
 
 const CENTER_TRAINER_UPGRADES = [
-  { id: "megaRing", name: "超級手環 (MEGA RING)", maxLv: 1, baseCost: 500, isSpecialSlot: true, sprite: "images/mega_ring_icon.png", desc: "全訓練家永久解鎖局內【MEGA 超級進化】權限！達成等級與招式門檻後解鎖手動【💎 MEGA】覺醒鍵（羈絆訓練家提前至 Lv.23）！" },
-  { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 800, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
+  { id: "megaRing", name: "超級手環 (MEGA RING)", maxLv: 1, baseCost: 1200, isSpecialSlot: true, sprite: "images/mega_ring_icon.png", desc: "全訓練家永久解鎖局內【MEGA 超級進化】權限！達成等級與招式門檻後解鎖手動【💎 MEGA】覺醒鍵（羈絆訓練家提前至 Lv.23）！" },
+  { id: "fourthSlot", name: "解鎖第 4 招式槽", maxLv: 1, baseCost: 2000, isSpecialSlot: true, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/tm-normal.png", desc: "出戰招式槽上限由 3 招擴充至 4 招！" },
   { id: "rerollCount", name: "戰術重擲 (REROLL)", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-doll.png", desc: "升級三選一免費重抽次數每級 +1 次（免費次數用完後可消耗代幣繼續重抽）！" },
   { id: "trainerCd", name: "戰術指令靈犀", maxLv: 5, baseCost: 180, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/soothe-bell.png", desc: "隨行訓練家大招冷卻縮減 -4%" },
   { id: "partner", name: "雙打羈絆共鳴", maxLv: 3, baseCost: 240, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/destiny-knot.png", desc: "開局隨機召喚 1 隻夥伴，夥伴傷害+18%" },

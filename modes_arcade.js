@@ -138,7 +138,7 @@ Object.assign(window.GameApp, {
     const endlessWave = (this.isEndlessMode && this.runTime >= 480) ? Math.max(1, Math.floor((this.runTime - 480) / 120) + 1) : 0;
     const endlessHpScale = 1 + endlessWave * 0.45;
     const dualHpMod = isDualBoss ? 0.72 : 1.0;
-    const hp = Math.round((isFinalMewtwo ? 14000 : 7500) * diff.hpMult * endlessHpScale * dualHpMod);
+    const hp = Math.round((isFinalMewtwo ? 20000 : 9500) * diff.hpMult * endlessHpScale * dualHpMod);
 
     SoundFX.startBgm("boss");
     this.camera.shakeTime = 0.65;
@@ -618,7 +618,7 @@ window.ModeArena = {
     const shinyMult = (p.isShiny ? 1.20 : 1.0) * starMult;
     p.maxHp = Math.round(curData.hp * 2.15 * (tr.mods.hpMult || 1.0) * (1 + (upg.hp || 0) * 0.12) * shinyMult);
     p.hp = p.maxHp;
-    p.baseAtk = curData.atk * 1.18 * shinyMult;
+    p.baseAtk = (typeof getEffectiveBaseAtk === "function" ? getEffectiveBaseAtk(curData) : curData.atk) * 1.18 * shinyMult;
     p.baseSpeed = curData.speed;
     p.finalEvoArmor = 0.12;
     p.areaMult *= 1.10;
