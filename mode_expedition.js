@@ -1873,7 +1873,7 @@ window.ModeExpedition = {
     const isMasterCandy = (st.currentWave >= 12 && specItems.master_candy);
     const candyPick = isMasterCandy ? specItems.master_candy : specItems.pp_up;
     if (candyPick) {
-      const candyCost = (isMasterCandy ? 210 : 110) + (counts.candy || 0) * 45;
+      const candyCost = (isMasterCandy ? 260 : 150) + (counts.candy || 0) * 65;
       shelf.push({ ...candyPick, cost: candyCost, kind: "consumable", bought: false });
     }
 
@@ -2643,19 +2643,21 @@ window.ModeExpedition = {
     const bobTrainer = isMoving ? Math.abs(Math.sin(walkBobSim + 1.1)) * (expanded ? 3.5 : 2.8) : 0;
     const trTargetH = expanded ? 68 : 50;
     const pkTargetH = expanded ? 72 : 54;
-    const feetBaseY = duoY - (expanded ? 14 : 10);
+    // v7.6.6 腳底貼齊路面中央（修正先前 -14/-10 加上精靈圖底部留白造成浮在半空的視覺落差）
+    const feetBaseY = duoY + (expanded ? 2 : 3);
+    const pokePadSink = expanded ? 9 : 7;
+    const trPadSink = expanded ? 2 : 2;
 
     ctx.fillStyle = "rgba(2, 6, 23, 0.45)";
-    // v7.6.3 拉近訓練家與主角寶可夢的漫步間距（58px -> 30px），並放緩步頻更顯從容並肩感
-    ctx.beginPath(); ctx.ellipse(duoX - 16, feetBaseY + 2, 15, 4.5, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(duoX + 14, feetBaseY + 2, 19, 5.2, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(duoX - 16, feetBaseY, 15, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(duoX + 14, feetBaseY, 18, 5.0, 0, 0, Math.PI * 2); ctx.fill();
 
     if (isMoving) {
       ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
       const d1 = (walkT * 52) % 20;
       ctx.beginPath();
-      ctx.arc(duoX - 28 - d1, feetBaseY, expanded ? 4.2 : 3.0, 0, Math.PI * 2);
-      ctx.arc(duoX - 8 - d1 * 0.7, feetBaseY + 2, expanded ? 3.2 : 2.3, 0, Math.PI * 2);
+      ctx.arc(duoX - 28 - d1, feetBaseY - 1, expanded ? 4.0 : 2.8, 0, Math.PI * 2);
+      ctx.arc(duoX - 8 - d1 * 0.7, feetBaseY + 1, expanded ? 3.0 : 2.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -2667,11 +2669,11 @@ window.ModeExpedition = {
       const fw = Math.floor(sheetRec.img.naturalWidth / 3);
       const fh = Math.floor(sheetRec.img.naturalHeight / 4);
       const col = isMoving ? [0, 1, 2, 1][Math.floor(walkBobSim * 0.78) % 4] : 1;
-      this.drawSpriteFitHeight(ctx, sheetRec.img, duoX - 16, feetBaseY - bobTrainer, trTargetH, false, { x: col * fw, y: 2 * fh, w: fw, h: fh });
+      this.drawSpriteFitHeight(ctx, sheetRec.img, duoX - 16, feetBaseY + trPadSink - bobTrainer, trTargetH, false, { x: col * fw, y: 2 * fh, w: fw, h: fh });
     } else if (trCos.sprite) {
       const trRec = SpriteCache.get(trCos.sprite);
       if (trRec && trRec.loaded) {
-        this.drawSpriteFitHeight(ctx, trRec.img, duoX - 16, feetBaseY - bobTrainer, trTargetH, false);
+        this.drawSpriteFitHeight(ctx, trRec.img, duoX - 16, feetBaseY + trPadSink - bobTrainer, trTargetH, false);
       }
     }
 
@@ -2680,7 +2682,7 @@ window.ModeExpedition = {
       const pUrl = (app.player.isShiny && pData.shiny_forward_sprite) ? pData.shiny_forward_sprite : pData.forward_sprite;
       const pRec = SpriteCache.get(pUrl);
       if (pRec && pRec.loaded) {
-        this.drawSpriteFitHeight(ctx, pRec.img, duoX + 14, feetBaseY - bobPoke, pkTargetH, true);
+        this.drawSpriteFitHeight(ctx, pRec.img, duoX + 14, feetBaseY + pokePadSink - bobPoke, pkTargetH, true);
       }
     }
 

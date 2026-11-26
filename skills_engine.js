@@ -2491,7 +2491,7 @@ window.SkillsEngine = {
         if (pr.zapTimer <= 0) {
           pr.zapTimer = pr.isUltOrb ? 0.18 : 0.25;
           const zapRange = pr.isUltOrb ? 85 : 65;
-          const near = this.getEnemiesInRadius(pr.x, pr.y, zapRange).find(o => o && o.hp > 0);
+          const near = this.getEnemiesInRadius(pr.x, pr.y, zapRange).find(o => o && o.hp > 0 && Math.hypot(o.x - pr.x, o.y - pr.y) <= zapRange);
           if (near) {
             const arcColor = pr.isPikachuFamily ? "#38BDF8" : (pr.isUltOrb ? "#FEF08A" : "#FACC15");
             this.createLightningArc(pr.x, pr.y, near.x, near.y, arcColor, false, true);
@@ -2743,7 +2743,7 @@ window.SkillsEngine = {
           }
           this.applySkillHit(prTeam, e, hitDmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
           if (pr.vfx === "electro_orb" && Math.random() < 0.55) {
-            const near = this.getEnemiesInRadius(e.x, e.y, 78).find(o => o && o !== e && o.hp > 0);
+            const near = this.getEnemiesInRadius(e.x, e.y, 78).find(o => o && o !== e && o.hp > 0 && Math.hypot(o.x - e.x, o.y - e.y) <= 78);
             if (near) {
               this.createLightningArc(e.x, e.y, near.x, near.y, pr.isPikachuFamily ? "#38BDF8" : "#FEF08A", false, true);
               this.applySkillHit(prTeam, near, pr.dmg * 0.45, "Electric", 0.25, 0, 0);
