@@ -410,6 +410,14 @@ window.EXPEDITION_CHAPTERS = [
   }
 ];
 
+window.EXPEDITION_PACING = {
+  earlyExpMult: 0.95,      // Lv.1~11 大遠征經驗倍率（保持前段快速成型爽感）
+  lateExpMult: 0.80,       // Lv.12+ 大遠征經驗倍率（拉開中後段 W10~W20 升級節奏，不影響 8 分鐘模式）
+  miniBossRareCandy: false,// 中繼小王改掉經驗晶＋賞金，僅區域關底神獸必掉直升神奇糖果
+  ppUpEvenWavesOnly: true, // 整備站 PP 提升劑／極限糖果僅於偶數波（擊破小王／大王後）上架
+  ppUpMaxPerRun: 4         // 單局遠征最多購買 4 次 PP 提升劑／極限糖果
+};
+
 window.ModeExpedition = {
   id: "expedition",
   _walkAnimRaf: null,
@@ -1546,19 +1554,28 @@ window.ModeExpedition = {
 
   dropExpeditionBossLoot(app, boss, isMiniBoss = false) {
     if (!boss) return;
-    const gemCount = isMiniBoss ? 4 : 8;
+    const pacing = window.EXPEDITION_PACING || {};
+    const gemCount = isMiniBoss ? 5 : 8;
     for (let g = 0; g < gemCount; g++) {
       const gAng = (g * Math.PI * 2) / gemCount + Math.random() * 0.3;
       const gDist = 18 + Math.random() * 26;
       app.gems.push({
         x: boss.x + Math.cos(gAng) * gDist,
         y: boss.y + Math.sin(gAng) * gDist,
-        val: 120, tier: 4, size: 11.5,
+        val: isMiniBoss ? 95 : 120, tier: 4, size: 11.5,
         color: "#EC4899", innerColor: "#FBCFE8",
         magnetized: true
       });
     }
-    app.spawnMapLoot("rare_candy", boss.x + 20, boss.y);
+    if (!isMiniBoss || pacing.miniBossRareCandy) {
+      app.spawnMapLoot("rare_candy", boss.x + 20, boss.y);
+    } else {
+      // 中繼小王改贈額外賞金，將直升神奇糖果保留給每區關底神獸／雙王
+      const miniBonus = 65;
+      app.runCoins = (app.runCoins || 0) + miniBonus;
+      if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + miniBonus;
+      if (app.spawnFloatingText) app.spawnFloatingText(boss.x, boss.y - 26, `小王賞金 +${miniBonus} 金`, "#FACC15", 13);
+    }
     if (!isMiniBoss) {
       app.spawnMapLoot("evo_chest", boss.x - 20, boss.y);
     }
@@ -1870,11 +1887,28 @@ window.ModeExpedition = {
       shelf.push({ ...pickedTm, cost: expTmCost, kind: "tm", isCounterRec: counterTMs.includes(pickedTm), bought: false });
     }
 
+    const pacing = window.EXPEDITION_PACING || { ppUpEvenWavesOnly: true, ppUpMaxPerRun: 4 };
+    const maxCandyBuys = pacing.ppUpMaxPerRun || 4;
+    const candyBought = counts.candy || 0;
+    const allowCandyWave = !pacing.ppUpEvenWavesOnly || (st.currentWave % 2 === 0);
     const isMasterCandy = (st.currentWave >= 12 && specItems.master_candy);
     const candyPick = isMasterCandy ? specItems.master_candy : specItems.pp_up;
-    if (candyPick) {
-      const candyCost = (isMasterCandy ? 260 : 150) + (counts.candy || 0) * 65;
-      shelf.push({ ...candyPick, cost: candyCost, kind: "consumable", bought: false });
+    if (candyPick && allowCandyWave && candyBought < maxCandyBuys) {
+      const candyCost = (isMasterCandy ? 260 : 150) + candyBought * 65;
+      const leftQuota = maxCandyBuys - candyBought;
+      shelf.push({
+        ...candyPick,
+        desc: `${candyPick.desc}（本局剩餘限購 ${leftQuota}/${maxCandyBuys}）`,
+        cost: candyCost,
+        kind: "consumable",
+        bought: false
+      });
+    } else {
+      // 奇數波或 PP 提升劑已達單局 4 次上限時，補上戰術強化道具維持 2×2 貨架完整
+      const tactBoost = (st.currentWave % 3 === 1 && specItems.x_speed) ? specItems.x_speed : specItems.x_attack;
+      if (tactBoost) {
+        shelf.push({ ...tactBoost, cost: 90, kind: "consumable", bought: false });
+      }
     }
 
     const allHeld = typeof HELD_ITEMS !== "undefined" ? Object.values(HELD_ITEMS) : [];

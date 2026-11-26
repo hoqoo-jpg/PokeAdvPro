@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.6";
+        const ver = this.APP_VERSION || "v7.6.7";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -441,6 +441,13 @@ Object.assign(window.GameApp, {
       const tNameEl = document.getElementById("lobbyTrainerName");
       const hasMultiCostumes = Array.isArray(t.costumes) && t.costumes.length > 1;
       if (tNameEl) tNameEl.textContent = hasMultiCostumes ? `${t.name} ‧ ${trCos.badge}` : t.name;
+      const cosBtnEl = document.getElementById("lobbyCostumeSwitchBtn");
+      if (cosBtnEl) {
+        cosBtnEl.classList.toggle("hidden", !hasMultiCostumes);
+        if (hasMultiCostumes) {
+          cosBtnEl.title = `點擊切換 ${t.name.split(" ")[0]} 服裝（目前：${trCos.name}）`;
+        }
+      }
     }
     if (lPkImg && p) {
       const fallbackPxUrl = SpriteCache.resolveUrl((useShiny && p.shiny_forward_sprite) ? p.shiny_forward_sprite : p.forward_sprite);
@@ -561,7 +568,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.6";
+      const curVer = this.APP_VERSION || "v7.6.7";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -862,7 +869,7 @@ Object.assign(window.GameApp, {
               <img src="${activeCostume.cutin || activeCostume.sprite}" onerror="this.onerror=null;this.src='${activeCostume.sprite}';this.className='w-16 h-16 pixel-sprite object-contain mx-auto my-auto';" class="w-full h-full object-cover object-top ${!unlocked && t.isHiddenRed ? 'brightness-0 opacity-60' : ''}" alt="${t.name}" />
               <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/95 via-slate-950/45 to-transparent pointer-events-none"></div>
               ${selected ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full border border-white/80 shadow">✓ 出戰中</span>` : ''}
-              ${hasCostumes ? `<button type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume('${t.id}')" title="點擊切換局內走路服裝" class="absolute top-1.5 right-1.5 px-2 py-0.5 bg-slate-950/90 hover:bg-slate-800 text-amber-300 text-[9px] font-black rounded-full border border-amber-400/90 shadow-md flex items-center gap-1 active:scale-95 transition-transform"><span>👕</span><span>${activeCostume.badge}</span></button>` : ''}
+              ${hasCostumes ? `<button type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume('${t.id}')" title="點擊切換局內走路服裝" class="costume-switch-btn absolute top-1.5 right-1.5 px-2 py-0.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-[9px] font-black rounded-full border border-white shadow-md flex items-center gap-1 active:scale-95 transition-transform"><span class="costume-switch-icon">👕</span><span>換裝 ‧ ${activeCostume.badge}</span></button>` : ''}
               <div class="absolute bottom-1.5 left-2 right-12 min-w-0">
                 <div class="font-black text-xs sm:text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</div>
                 <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${hasCostumes ? `${t.title} ‧ ${activeCostume.name}` : t.title}</div>
@@ -1371,7 +1378,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.6",
+      lastSeenVersion: this.APP_VERSION || "v7.6.7",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3064,7 +3071,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.6",
+      version: this.APP_VERSION || "v7.6.7",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3743,7 +3750,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.6</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.7</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3754,7 +3761,7 @@ Object.assign(window.GameApp, {
             </div>
             <div>• <strong>關都 8 枚道館徽章</strong>：前往「道館榮譽」收集 8 枚經典道館徽章，點亮即獲得永久全隊戰力加成！</div>
             <div>• <strong>大廳「招式整備」</strong>：開局前就能自選第 1 招起手技，還能停用 1 個不想抽到的招式，自由捏出最順手的流派。</div>
-            <div>• <strong>雙介面風格自由切換</strong>：系統設定可一鍵切換「經典 GBA 掌機風」與「深藍黑金戰術風」。</div>
+            <div>• <strong>雙介面風格 ＆ 訓練家換裝</strong>：系統設定可一鍵切換「經典 GBA 掌機風」與「深藍黑金風」；小智、莉莉艾、莎莉娜可點擊閃亮「👕 換裝」按鈕隨時更換時裝！</div>
 
             <div class="text-sky-300 font-black pt-1.5">⚡ 推薦探索：專屬效果與隱藏彩蛋招式</div>
             <div>• <strong>水炮（Hydro Pump）</strong>：超高壓貫穿水柱——<strong>用水箭龜施放會解鎖專屬「雙肩平行重炮」形態！</strong></div>
@@ -3778,7 +3785,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.6";
+    const curVer = this.APP_VERSION || "v7.6.7";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

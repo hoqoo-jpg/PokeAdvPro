@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.6",
+  APP_VERSION: "v7.6.7",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -5213,7 +5213,8 @@ window.GameApp = {
       p.exp = Math.min(p.nextExp - 1, p.exp + amount);
       return;
     }
-    const expModeMod = this.isExpeditionMode ? 0.95 : 1.0;
+    const _expPac = (typeof window !== 'undefined' && window.EXPEDITION_PACING) ? window.EXPEDITION_PACING : { earlyExpMult: 0.95, lateExpMult: 0.80 };
+    const expModeMod = this.isExpeditionMode ? (p.level >= 12 ? _expPac.lateExpMult : _expPac.earlyExpMult) : 1.0;
     const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0)) * expModeMod;
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {

@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.6');
+      background-image: url('images/skills_icons_sheet.png?v=7.6.7');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.6');
+      background-image: url('images/skills_icons_extra5.png?v=7.6.7');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -895,6 +895,39 @@
     body:not(.theme-dark-gold) #expeditionModal .bg-purple-800 {
       color: #F3E8FF !important;
     }
+    /* v7.6.7 時裝換裝按鈕動態閃亮提示（大廳 ＆ 訓練家選單共用） */
+    @keyframes costumeGlowPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.72), 0 2px 6px rgba(0, 0, 0, 0.45); transform: scale(1); }
+      50% { box-shadow: 0 0 0 5px rgba(251, 191, 36, 0), 0 2px 10px rgba(251, 191, 36, 0.70); transform: scale(1.05); }
+    }
+    @keyframes costumeSheenSweep {
+      0% { transform: translateX(-140%) skewX(-24deg); }
+      38%, 100% { transform: translateX(240%) skewX(-24deg); }
+    }
+    @keyframes costumeIconWiggle {
+      0%, 72%, 100% { transform: rotate(0deg); }
+      78% { transform: rotate(-14deg) scale(1.12); }
+      86% { transform: rotate(12deg) scale(1.12); }
+      93% { transform: rotate(-6deg); }
+    }
+    .costume-switch-btn {
+      position: relative;
+      overflow: hidden;
+      animation: costumeGlowPulse 2.2s ease-in-out infinite;
+    }
+    .costume-switch-btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: 45%;
+      background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0) 100%);
+      pointer-events: none;
+      animation: costumeSheenSweep 2.6s ease-in-out infinite;
+    }
+    .costume-switch-icon {
+      display: inline-block;
+      animation: costumeIconWiggle 2.6s ease-in-out infinite;
+    }
   </style>
   <script>
     (function () {
@@ -995,7 +1028,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.6
+      v7.6.7
     </div>
   </div>
 
@@ -1047,8 +1080,13 @@
       <div onclick="GameApp.openSetupFlow(1)" class="poke-card cursor-pointer p-2.5 sm:p-3.5 bg-white/95 backdrop-blur-sm hover:scale-[1.01] transition-transform flex flex-col gap-2">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
-            <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
-              <img id="lobbyTrainerPreview" src="images/cutin_ash.png" class="w-full h-full object-cover object-top" alt="Trainer" />
+            <div class="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0">
+              <div class="w-full h-full rounded-xl bg-gradient-to-br from-slate-800 to-slate-950 border-2 border-slate-800 flex items-center justify-center overflow-hidden shadow-md">
+                <img id="lobbyTrainerPreview" src="images/cutin_ash.png" class="w-full h-full object-cover object-top" alt="Trainer" />
+              </div>
+              <button id="lobbyCostumeSwitchBtn" type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume(GameApp.selectedTrainer && GameApp.selectedTrainer.id)" title="點擊更換訓練家服裝" class="costume-switch-btn hidden absolute -bottom-1.5 -right-1.5 z-10 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 border border-white text-[8px] font-black leading-none flex items-center gap-0.5 active:scale-95">
+                <span class="costume-switch-icon">👕</span><span>換裝</span>
+              </button>
             </div>
             <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-sky-50 via-white to-amber-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-1">
               <img id="lobbyPokemonPreview" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" class="w-full h-full object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.28)]" alt="Pokemon" />
@@ -1928,7 +1966,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.6</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.7</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1976,7 +2014,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.6</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.7</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2009,14 +2047,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.6"></script>
-  <script src="map_v11_engine.js?v=7.6.6"></script>
-  <script src="skills_engine.js?v=7.6.6"></script>
-  <script src="skills_vfx.js?v=7.6.6"></script>
-  <script src="battle_core_2.js?v=7.6.6"></script>
-  <script src="battle_renderer.js?v=7.6.6"></script>
-  <script src="modes_arcade.js?v=7.6.6"></script>
-  <script src="mode_expedition.js?v=7.6.6"></script>
-  <script src="game_ui.js?v=7.6.6"></script>
+  <script src="pokedex_data.js?v=7.6.7"></script>
+  <script src="map_v11_engine.js?v=7.6.7"></script>
+  <script src="skills_engine.js?v=7.6.7"></script>
+  <script src="skills_vfx.js?v=7.6.7"></script>
+  <script src="battle_core_2.js?v=7.6.7"></script>
+  <script src="battle_renderer.js?v=7.6.7"></script>
+  <script src="modes_arcade.js?v=7.6.7"></script>
+  <script src="mode_expedition.js?v=7.6.7"></script>
+  <script src="game_ui.js?v=7.6.7"></script>
 </body>
 </html>
