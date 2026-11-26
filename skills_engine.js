@@ -444,7 +444,7 @@ window.SkillsEngine = {
 
     // 1A-NEW. 岩崩 (RockSlide v7.5.7)：精巧主岩＋2顆副碎岩錯落群落感（縮小體積至14-19px），內縮鎖定陰影➔砸地碎裂飛石
     if (cleanSkillId === "RockSlide" || meta.vfx === "rock_slide") {
-      const rockCnt = 3 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const rockCnt = 3 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const areaScale = (caster === GameApp.player ? GameApp.player.areaMult : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75 + (trait.legendaryAreaBonus || 0));
       const kbScale = 1 + (trait.tackleQuakeKbBonus || 0);
       const baseTgtX = target ? target.x : (caster.x + Math.cos(baseAngle) * 145);
@@ -480,7 +480,7 @@ window.SkillsEngine = {
 
     // 1A-NEW2. 毒擊 (PoisonJab)：高速 3～5 叉貫穿毒矛扇射；命中中毒敵人觸發 +40% 毒爆並傳染周圍 65px（受超能共鳴穿透加成）
     if (cleanSkillId === "PoisonJab" || meta.vfx === "poison_jab") {
-      const needleCnt = 3 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const needleCnt = 3 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const spreadArc = Math.min(0.88, 0.30 + needleCnt * 0.085);
       const extraPierce = trait.psychicExtraPierce || 0;
       for (let k = 0; k < needleCnt; k++) {
@@ -512,7 +512,7 @@ window.SkillsEngine = {
 
     // 1A-NEW3. 電球 (ElectroBall)：高壓推進等離子球，移速越快球越大且最高增傷 +35%，飛行中每 0.25s 自動抽射電弧
     if (cleanSkillId === "ElectroBall" || meta.vfx === "electro_orb") {
-      const orbCnt = 1 + (level >= 5 ? 1 : 0) + (level >= 9 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const orbCnt = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const pSpd = (caster === GameApp.player && GameApp.player) ? (GameApp.player.speed || 150) : 150;
       const spdRatio = Math.min(1.0, Math.max(0, (pSpd - 115) / 220));
       const spdBonusMult = 1 + spdRatio * 0.35;
@@ -525,7 +525,7 @@ window.SkillsEngine = {
           vx: Math.cos(ang) * 295,
           vy: Math.sin(ang) * 295,
           angle: ang,
-          radius: Math.min(28, (17 + (level >= 7 ? 3 : 0)) * sizeScale * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
+          radius: Math.min(28, (17 + (level >= 8 ? 3.5 : 0)) * sizeScale * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
           dmg: rawDmg * spdBonusMult,
           type: "Electric",
           skillId,
@@ -1175,19 +1175,23 @@ window.SkillsEngine = {
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "x_scissor") {
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8 + (trait.overgrowAreaBonus || 0) * 0.6;
-      const fistCrit = trait.ironFistCritBonus || 0;
-      const reach = Math.min(148, Math.round(106 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
-      const slashCnt = 1 + (level >= 4 ? 1 : 0);
+      const fistCrit = (trait.ironFistCritBonus || 0) + (level >= 8 ? 0.08 : 0);
+      const reach = Math.min(148, Math.round(106 * areaScale * fistArea * (level >= 8 ? 1.16 : 1.0)));
       const useManual = (caster === GameApp.player && GameApp.manualAimMode);
+      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.18) : null;
+      // 自動瞄準下若射程內沒有任何敵人，直接略過揮砍不打空氣
+      if (!useManual && !initLock) return;
+
+      const slashCnt = 1 + (level >= 4 ? 1 : 0);
       for (let s = 0; s < slashCnt; s++) {
-        this.scheduleEvent(s * 0.085, () => {
+        this.scheduleEvent(s * 0.12, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
           let cx, cy, ang = baseAngle + (s === 1 ? 0.14 : 0);
-          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.15) : null;
+          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.18) : null;
+          if (!useManual && !lockT) return;
           if (lockT) {
             const distT = Math.hypot(lockT.x - caster.x, lockT.y - caster.y);
             ang = Math.atan2(lockT.y - caster.y, lockT.x - caster.x);
-            // 直接鎖定在目標身上斬出 X 交點（最遠不超過 reach * 0.85，貼臉時緊貼主角身前）
             const clampDist = Math.min(reach * 0.85, Math.max(22, distT));
             cx = caster.x + Math.cos(ang) * clampDist;
             cy = caster.y + Math.sin(ang) * clampDist;
@@ -1201,53 +1205,73 @@ window.SkillsEngine = {
             ox: caster.x, oy: caster.y,
             x: cx, y: cy,
             angle: ang,
-            radius: Math.max(58, reach * 0.62),
-            dmg: rawDmg * (s === 0 ? 1.02 : 0.86),
+            radius: Math.max(56, reach * 0.60),
+            dmg: rawDmg * (s === 0 ? 1.04 : 0.88),
             type: "Bug",
             kb: 10,
             extraCrit: 0.15 + fistCrit,
             hitSet: new Set(),
-            timer: 0.30, maxTime: 0.30,
+            timer: 0.28, maxTime: 0.28,
             color: "#84CC16"
           });
           SoundFX.play("hit", "Bug");
         });
       }
-      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 15);
+      this.triggerSmartMeleeLunge(caster, initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle, 0, 0, 15);
       return;
     }
 
     if (style === "shadow_claw") {
       const isMegaGengar = (caster === GameApp.player && caster.id === 10094);
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8;
-      const fistCrit = trait.ironFistCritBonus || 0;
-      const reach = Math.min(150, Math.round(108 * areaScale * fistArea * (level >= 7 ? 1.15 : 1.0)));
-      const clawWaves = level >= 6 ? 2 : 1;
+      const fistCrit = (trait.ironFistCritBonus || 0) + (level >= 8 ? 0.10 : 0);
+      const reach = Math.min(150, Math.round(108 * areaScale * fistArea * (level >= 8 ? 1.15 : 1.0)));
+      const useManual = (caster === GameApp.player && GameApp.manualAimMode);
+      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.2) : null;
+      if (!useManual && !initLock) return;
+
+      // Lv1-3: 單段乾淨三指斜劈（左上➔右下）；Lv4+: 錯開 0.17s 反手二連斜劈（右上➔左下），絕不重疊糊成 6 條爪！
+      const clawWaves = level >= 4 ? 2 : 1;
       for (let w = 0; w < clawWaves; w++) {
-        this.scheduleEvent(w * 0.10, () => {
+        this.scheduleEvent(w * 0.17, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const ang = baseAngle + (w === 1 ? -0.18 : 0);
+          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.2) : null;
+          if (!useManual && !lockT) return;
+          const ang = lockT ? Math.atan2(lockT.y - caster.y, lockT.x - caster.x) : baseAngle;
+          const sx = caster.x + Math.cos(ang) * (reach * 0.52);
+          const sy = caster.y + Math.sin(ang) * (reach * 0.52);
           this.meleeEffects.push({
             style: "shadow_claw",
             casterRef: caster,
             ox: caster.x, oy: caster.y,
-            x: caster.x + Math.cos(ang) * (reach * 0.54),
-            y: caster.y + Math.sin(ang) * (reach * 0.54),
+            x: sx, y: sy,
             angle: ang,
-            radius: reach * 0.68,
-            dmg: rawDmg * (w === 0 ? 1.06 : 0.88),
+            slashDir: w === 0 ? 1 : -1, // 1: 左上➔右下斜劈, -1: 反手斜劈
+            radius: reach * 0.66,
+            dmg: rawDmg * (w === 0 ? 1.06 : 0.90),
             type: "Ghost",
             kb: 9,
             extraCrit: (isMegaGengar ? 0.35 : 0.25) + fistCrit,
             isMegaGengar,
             hitSet: new Set(),
-            timer: 0.32, maxTime: 0.32,
+            timer: 0.26, maxTime: 0.26,
             color: isMegaGengar ? "#E11D48" : "#A855F7"
           });
+          // 爪尾幽冥火焰拖尾真粒子
+          for (let pIdx = 0; pIdx < 6; pIdx++) {
+            const pa = ang + (Math.random() - 0.5) * 0.9;
+            const pSpd = 65 + Math.random() * 110;
+            this.spawnSubParticle(
+              caster.x + Math.cos(ang) * 24, caster.y + Math.sin(ang) * 24,
+              Math.cos(pa) * pSpd, Math.sin(pa) * pSpd - 18,
+              isMegaGengar ? (pIdx % 2 === 0 ? "#FB7185" : "#E11D48") : (pIdx % 2 === 0 ? "#F0ABFC" : "#9333EA"),
+              3.8, 0.32, "diamond"
+            );
+          }
           SoundFX.play("hit", "Ghost");
         });
       }
-      this.triggerSmartMeleeLunge(caster, baseAngle, 0, 0, 15);
+      this.triggerSmartMeleeLunge(caster, initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle, 0, 0, 15);
       return;
     }
 
@@ -2405,6 +2429,14 @@ window.SkillsEngine = {
 
       // 電球 (ElectroBall) 飛行中每 0.25s 自動向周圍 95px 敵人抽射細電弧；超載磁暴球額外拉出球間高壓閃電網
       if (pr.vfx === "electro_orb" && pr.zapTimer !== undefined) {
+        if (Math.random() < 0.38) {
+          const sa = Math.random() * Math.PI * 2;
+          this.spawnSubParticle(
+            pr.x + Math.cos(sa) * pr.radius * 0.7, pr.y + Math.sin(sa) * pr.radius * 0.7,
+            -pr.vx * 0.18 + (Math.random() - 0.5) * 60, -pr.vy * 0.18 + (Math.random() - 0.5) * 60,
+            Math.random() < 0.5 ? "#FEF08A" : "#FFFFFF", 2.8, 0.18, "diamond"
+          );
+        }
         pr.zapTimer -= dt;
         if (pr.zapTimer <= 0) {
           pr.zapTimer = pr.isUltOrb ? 0.18 : 0.25;
@@ -2633,10 +2665,19 @@ window.SkillsEngine = {
               style: "poison_burst_ring",
               casterRef: null,
               x: e.x, y: e.y,
-              radius: 56,
+              radius: 44,
+              seed: Math.random() * 50,
               dmg: 0, type: "Poison", kb: 0, hitSet: new Set(),
-              timer: 0.30, maxTime: 0.30, color: "#4ADE80"
+              timer: 0.28, maxTime: 0.28, color: "#4ADE80"
             });
+            for (let sp = 0; sp < 7; sp++) {
+              const sa = (sp * Math.PI * 2) / 7 + Math.random() * 0.4;
+              const spd = 75 + Math.random() * 95;
+              this.spawnSubParticle(
+                e.x, e.y, Math.cos(sa) * spd, Math.sin(sa) * spd - 16,
+                sp % 2 === 0 ? "#4ADE80" : "#E879F9", 4.0, 0.30, "circle"
+              );
+            }
             // 毒爆傳染：將劇毒擴散至周圍 65px 敵人
             const spreadTargets = this.getEnemiesInRadius(e.x, e.y, 65);
             for (let stIdx = 0; stIdx < spreadTargets.length; stIdx++) {
@@ -2908,20 +2949,30 @@ window.SkillsEngine = {
             // 等待落定
           } else {
             const hitR = m.radius || 58;
-            const searchR = m.style === "x_scissor" ? (hitR + 46) : hitR;
-            const candidates = this.getEnemiesInRadius(m.x, m.y, searchR);
+            const candidates = this.getEnemiesInRadius(m.x, m.y, hitR + 12);
             for (let j = 0; j < candidates.length; j++) {
               const e = candidates[j];
               if (!e || e.hp <= 0 || m.hitSet.has(e)) continue;
               const dx = e.x - m.x, dy = e.y - m.y;
-              const rSum = hitR + e.radius * 0.85;
-              let hitOk = (dx * dx + dy * dy <= rSum * rSum);
-              if (!hitOk && m.style === "x_scissor" && m.ox !== undefined) {
-                // 貼身保底：涵蓋主角身前至斬擊交點的揮砍路徑，貼臉怪不漏刀
-                const mx = (m.ox + m.x) * 0.5, my = (m.oy + m.y) * 0.5;
-                const dmx = e.x - mx, dmy = e.y - my;
-                const rMid = hitR * 0.85 + e.radius * 0.85;
-                hitOk = (dmx * dmx + dmy * dmy <= rMid * rMid);
+              let hitOk = false;
+              if (m.style === "x_scissor") {
+                // 精準真 X 形雙斜線段判定：只命中距離兩道交叉刀刃中心線 <= 22px + e.radius*0.65 的目標
+                const cosA = Math.cos(-(m.angle || 0));
+                const sinA = Math.sin(-(m.angle || 0));
+                const lx = dx * cosA - dy * sinA;
+                const ly = dx * sinA + dy * cosA;
+                const armLen = hitR * 0.96;
+                const bladeThick = 20 + e.radius * 0.65;
+                // 兩道 ±45° 刀刃的局部投影座標 (u, v)
+                const invS = 0.70710678;
+                const u1 = (lx + ly) * invS, v1 = (-lx + ly) * invS;
+                const u2 = (lx - ly) * invS, v2 = (lx + ly) * invS;
+                const hitBlade1 = (Math.abs(u1) <= armLen + e.radius * 0.5) && (Math.abs(v1) <= bladeThick);
+                const hitBlade2 = (Math.abs(u2) <= armLen + e.radius * 0.5) && (Math.abs(v2) <= bladeThick);
+                hitOk = hitBlade1 || hitBlade2;
+              } else {
+                const rSum = hitR + e.radius * 0.85;
+                hitOk = (dx * dx + dy * dy <= rSum * rSum);
               }
               if (hitOk) {
                 m.hitSet.add(e);

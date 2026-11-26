@@ -437,6 +437,38 @@ function getSkillNextLevelBonusDesc(skillId, nextLv) {
     return `種子連射威力提升至 ${dmgMultStr}x！`;
   }
 
+  // v7.5.9 新增 5 大招式專屬精準升級說明（與實機等級門檻 100% 同步）
+  if (cleanId === "RockSlide") {
+    if (nextLv === 4) return `★ 落岩數量 +1（4 連岩崩）！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 7) return `巨岩衝擊半徑擴大 +14%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 落岩數量再 +1（5 連岩崩）！砸地範圍強化，傷害提升至 ${dmgMultStr}x！`;
+    return `岩崩落石重擊威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "XScissor") {
+    if (nextLv === 3) return `十字雙鐮斬擊範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `★ 解鎖二連十字斬！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 翡翠星鐮覺醒！斬擊範圍大幅擴大 +25% ＆ 暴擊率再 +8%（${dmgMultStr}x）！`;
+    return `十字剪破甲切割威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "PoisonJab") {
+    if (nextLv === 4) return `★ 毒矛扇射 +1（4 連毒矛）！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `毒矛穿透次數提升至 3！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 毒矛扇射再 +1（5 連毒矛）！毒爆範圍強化，傷害提升至 ${dmgMultStr}x！`;
+    return `毒擊與毒爆連鎖威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "ElectroBall") {
+    if (nextLv === 4) return `★ 電球數量 +1（雙球齊發）！冷卻縮短 -12%！傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 6) return `電球穿透次數提升至 6！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 8) return `★ 電球數量再 +1（三球齊發）！球體尺寸擴大 +20%，傷害提升至 ${dmgMultStr}x！`;
+    return `高壓電球與電弧抽射威力提升至 ${dmgMultStr}x！`;
+  }
+  if (cleanId === "ShadowClaw") {
+    if (nextLv === 3) return `暗影利爪揮掃範圍擴大 +15%！基礎傷害提升至 ${dmgMultStr}x！`;
+    if (nextLv === 4) return `★ 解鎖正反手二連斜劈（左上➔右下 ＆ 右上➔左下）！冷卻 -12%（${dmgMultStr}x）！`;
+    if (nextLv === 8) return `★ 幽冥魔爪覺醒！爪痕範圍擴大 +25% ＆ 暴擊率再 +10%（${dmgMultStr}x）！`;
+    return `暗影爪撕裂暴擊威力提升至 ${dmgMultStr}x！`;
+  }
+
   // 通用遠程彈幕（火花、水槍、飛葉快刀、種子炸彈、十萬伏特、暗影球、精神擊破、空氣斬、污泥炸彈等）
   if (nextLv === 4) return `彈幕數量 +1！冷卻時間縮短 -12%！基礎傷害提升至 ${dmgMultStr}x！`;
   if (nextLv === 8) return `彈幕數量 +1！彈體尺寸擴大 +25%！基礎傷害提升至 ${dmgMultStr}x！`;
