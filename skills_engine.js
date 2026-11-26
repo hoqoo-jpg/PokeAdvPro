@@ -493,7 +493,7 @@ window.SkillsEngine = {
     if (cleanSkillId === "PoisonJab" || meta.vfx === "poison_jab") {
       const needleCnt = 3 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
       const isLv8 = level >= 8;
-      const isCrimsonVenom = (caster === GameApp.player && (caster.id === 10094 || caster.id === 34));
+      const isCrimsonVenom = (caster === GameApp.player && (caster.id === 10038 || caster.id === 34));
       const spreadArc = Math.min(0.88, 0.30 + needleCnt * 0.085);
       const extraPierce = trait.psychicExtraPierce || 0;
       this.meleeEffects.push({
@@ -1256,7 +1256,7 @@ window.SkillsEngine = {
     }
 
     if (style === "shadow_claw") {
-      const isMegaGengar = (caster === GameApp.player && caster.id === 10094);
+      const isMegaGengar = (caster === GameApp.player && caster.id === 10038);
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8;
       const fistCrit = (trait.ironFistCritBonus || 0) + (level >= 8 ? 0.10 : 0);
       const reach = Math.min(150, Math.round(108 * areaScale * fistArea * (level >= 8 ? 1.15 : 1.0)));
@@ -1981,7 +1981,7 @@ window.SkillsEngine = {
       });
     } else if (meta.id === "ShadowClaw") {
       // 【冥界裂空爪（暗影爪獨立超武）】：地面空間裂縫黑洞 ➔ 雙巨型立體幽靈鬼爪由兩側合掌撕裂抓握聚怪並引爆處決！
-      const isMegaGengar = (p.id === 10094);
+      const isMegaGengar = (p.id === 10038);
       const tgt = GameApp.findNearestEnemyInViewport(p.x, p.y, 260);
       const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 105);
       const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 105);
@@ -2398,14 +2398,15 @@ window.SkillsEngine = {
     }
   },
 
-  createLightningArc(x1, y1, x2, y2, color, withForks = false) {
+  createLightningArc(x1, y1, x2, y2, color, withForks = false, thin = false) {
     const pts = [{ x: x1, y: y1 }];
-    const steps = 7;
+    const steps = thin ? 5 : 7;
+    const jitter = thin ? 14 : 32;
     for (let i = 1; i < steps; i++) {
       const t = i / steps;
       pts.push({
-        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * 32,
-        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * 32
+        x: x1 + (x2 - x1) * t + (Math.random() - 0.5) * jitter,
+        y: y1 + (y2 - y1) * t + (Math.random() - 0.5) * jitter
       });
     }
     pts.push({ x: x2, y: y2 });
@@ -2425,7 +2426,7 @@ window.SkillsEngine = {
         branches.push([origin, { x: midBx, y: midBy }, { x: endBx, y: endBy }]);
       }
     }
-    this.lightningArcs.push({ pts, branches, color, timer: 0.26 });
+    this.lightningArcs.push({ pts, branches, color, thin: !!thin, timer: thin ? 0.14 : 0.26 });
   },
 
   update(dt) {
@@ -2489,16 +2490,17 @@ window.SkillsEngine = {
         pr.zapTimer -= dt;
         if (pr.zapTimer <= 0) {
           pr.zapTimer = pr.isUltOrb ? 0.18 : 0.25;
-          const zapRange = pr.isUltOrb ? 135 : 95;
+          const zapRange = pr.isUltOrb ? 105 : 70;
           const near = this.getEnemiesInRadius(pr.x, pr.y, zapRange).find(o => o && o.hp > 0);
           if (near) {
-            this.createLightningArc(pr.x, pr.y, near.x, near.y, pr.isUltOrb ? "#FEF08A" : "#FACC15", false);
+            const arcColor = pr.isPikachuFamily ? "#38BDF8" : (pr.isUltOrb ? "#FEF08A" : "#FACC15");
+            this.createLightningArc(pr.x, pr.y, near.x, near.y, arcColor, false, true);
             this.applySkillHit(pr.team || "player", near, pr.dmg * (pr.isUltOrb ? 0.52 : 0.38), "Electric", 0.28, 0, 0);
           }
           if (pr.isUltOrb) {
-            const sibling = this.projectiles.find(o => o !== pr && o.isUltOrb && o.vfx === "electro_orb" && Math.hypot(o.x - pr.x, o.y - pr.y) <= 230);
+            const sibling = this.projectiles.find(o => o !== pr && o.isUltOrb && o.vfx === "electro_orb" && Math.hypot(o.x - pr.x, o.y - pr.y) <= 210);
             if (sibling) {
-              this.createLightningArc(pr.x, pr.y, sibling.x, sibling.y, "#FEF08A", false);
+              this.createLightningArc(pr.x, pr.y, sibling.x, sibling.y, "#FEF08A", false, true);
             }
           }
         }
@@ -2741,9 +2743,9 @@ window.SkillsEngine = {
           }
           this.applySkillHit(prTeam, e, hitDmg, pr.type, pr.statusBonus, pr.knockback || 0, pr.extraCritBonus || 0);
           if (pr.vfx === "electro_orb" && Math.random() < 0.55) {
-            const near = this.getEnemiesInRadius(e.x, e.y, 120).find(o => o && o !== e && o.hp > 0);
+            const near = this.getEnemiesInRadius(e.x, e.y, 78).find(o => o && o !== e && o.hp > 0);
             if (near) {
-              this.createLightningArc(e.x, e.y, near.x, near.y, "#FEF08A", false);
+              this.createLightningArc(e.x, e.y, near.x, near.y, pr.isPikachuFamily ? "#38BDF8" : "#FEF08A", false, true);
               this.applySkillHit(prTeam, near, pr.dmg * 0.45, "Electric", 0.25, 0, 0);
             }
           }

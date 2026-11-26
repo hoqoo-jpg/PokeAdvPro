@@ -2969,11 +2969,18 @@ Object.assign(window.SkillsEngine, {
         if (dropFrac >= 0.88) {
           const ringP = Math.max(0, (prog - 0.24) / 0.76);
           const fade = Math.max(0, 1 - ringP);
-          ctx.strokeStyle = `rgba(217, 119, 6, ${fade * 0.92})`;
-          ctx.lineWidth = 3.2 * fade + 1;
+          ctx.strokeStyle = (m.isAeroRock || m.isLv8) ? `rgba(253, 224, 71, ${fade * 0.95})` : `rgba(217, 119, 6, ${fade * 0.92})`;
+          ctx.lineWidth = ((m.isAeroRock || m.isLv8) ? 4.2 : 3.2) * fade + 1;
           ctx.beginPath();
           ctx.ellipse(0, 4, r * (0.32 + ringP * 0.68), r * 0.30 * (0.32 + ringP * 0.68), 0, 0, Math.PI * 2);
           ctx.stroke();
+          if (m.isAeroRock) {
+            ctx.strokeStyle = `rgba(254, 249, 195, ${fade * 0.85})`;
+            ctx.lineWidth = 2.0 * fade + 0.6;
+            ctx.beginPath();
+            ctx.ellipse(0, 4, r * (0.48 + ringP * 0.78), r * 0.36 * (0.48 + ringP * 0.78), 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
           for (let pIdx = 0; pIdx < 6; pIdx++) {
             const pa = seed * 2 + pIdx * 1.05;
             const pd = r * (0.18 + ringP * 0.78);
@@ -3033,9 +3040,26 @@ Object.assign(window.SkillsEngine, {
             ctx.lineTo(rr * 0.66, -rr * 0.25); ctx.lineTo(rr * 0.10, -rr * 0.08);
             ctx.closePath();
             ctx.fill();
-            // 稜線銳利暖金高光
-            ctx.strokeStyle = "#FEF3C7";
-            ctx.lineWidth = 1.6;
+            // 稜線銳利暖金高光（化石翼龍升級太古耀金晶面；Lv.8 岩體內嵌熾橘熔岩裂紋！）
+            if (m.isAeroRock) {
+              ctx.fillStyle = "#FEF08A";
+              ctx.beginPath();
+              ctx.moveTo(-rr * 0.45, -rr * 0.52); ctx.lineTo(rr * 0.18, -rr * 0.84);
+              ctx.lineTo(rr * 0.68, -rr * 0.22); ctx.lineTo(rr * 0.05, rr * 0.08); ctx.closePath();
+              ctx.fill();
+            }
+            if (m.isLv8) {
+              ctx.strokeStyle = "#EA580C";
+              ctx.lineWidth = 2.4;
+              ctx.beginPath();
+              ctx.moveTo(-rr * 0.42, rr * 0.32); ctx.lineTo(0, -rr * 0.05); ctx.lineTo(rr * 0.45, rr * 0.25);
+              ctx.stroke();
+              ctx.strokeStyle = "#FEF08A";
+              ctx.lineWidth = 1.1;
+              ctx.stroke();
+            }
+            ctx.strokeStyle = m.isAeroRock ? "#FFFFFF" : "#FEF3C7";
+            ctx.lineWidth = m.isAeroRock ? 2.2 : 1.6;
             ctx.beginPath();
             ctx.moveTo(-rr * 0.46, -rr * 0.54); ctx.lineTo(rr * 0.16, -rr * 0.78); ctx.lineTo(rr * 0.56, -rr * 0.26);
             ctx.stroke();
@@ -3166,26 +3190,26 @@ Object.assign(window.SkillsEngine, {
           ctx.quadraticCurveTo(0, -curveH * 1.25, L * 1.05, curveH * 0.35);
           ctx.quadraticCurveTo(0, -curveH * 0.25, -L * 1.05, curveH * 0.35);
           ctx.fill();
-          // 外緣殘影拖尾（飛天螳螂或 Lv.8 解鎖青金雙重殘像）
-          if (m.isScyther || m.isLv8) {
-            ctx.fillStyle = m.isScyther ? "rgba(253, 224, 71, 0.36)" : "rgba(52, 211, 153, 0.34)";
-            ctx.beginPath();
-            ctx.moveTo(-L * 1.08, curveH * 0.45);
-            ctx.quadraticCurveTo(0, -curveH * 1.38, L * 1.08, curveH * 0.45);
-            ctx.quadraticCurveTo(0, -curveH * 0.12, -L * 1.08, curveH * 0.45);
-            ctx.fill();
-          }
-          // 三段漸層翡翠光刃
+          // 三段漸層光刃（飛天螳螂切換高辨識度青碧➔亮金光刃；一般蟲系為翡翠亮綠）
           const xGrad = ctx.createLinearGradient(-L, 0, L, 0);
-          xGrad.addColorStop(0, m.isScyther ? "#059669" : "#4D7C0F");
-          xGrad.addColorStop(0.5, m.isScyther ? "#34D399" : "#84CC16");
-          xGrad.addColorStop(1, (m.isScyther || m.isLv8) ? "#FEF08A" : "#D9F99D");
+          xGrad.addColorStop(0, m.isScyther ? "#0891B2" : "#4D7C0F");
+          xGrad.addColorStop(0.5, m.isScyther ? "#22D3EE" : "#84CC16");
+          xGrad.addColorStop(1, (m.isScyther || m.isLv8) ? "#FDE047" : "#D9F99D");
           ctx.fillStyle = xGrad;
           ctx.beginPath();
           ctx.moveTo(-L * 0.96, curveH * 0.28);
           ctx.quadraticCurveTo(0, -curveH * 1.05, L * 0.96, curveH * 0.28);
           ctx.quadraticCurveTo(0, -curveH * 0.32, -L * 0.96, curveH * 0.28);
           ctx.fill();
+          // 飛天螳螂／Lv.8 專屬亮金外緣月牙鋒線（覆蓋在主刀光上緣，在深綠草地一眼分明！）
+          if (m.isScyther || m.isLv8) {
+            ctx.strokeStyle = m.isScyther ? "#FDE047" : "#67E8F9";
+            ctx.lineWidth = m.isScyther ? 3.2 : 2.4;
+            ctx.beginPath();
+            ctx.moveTo(-L * 1.02, curveH * 0.24);
+            ctx.quadraticCurveTo(0, -curveH * 1.24, L * 1.02, curveH * 0.24);
+            ctx.stroke();
+          }
           // 純白高銳度鋒刃芯
           ctx.fillStyle = "#FFFFFF";
           ctx.beginPath();
@@ -3212,7 +3236,7 @@ Object.assign(window.SkillsEngine, {
           for (let k = 0; k < 6; k++) {
             const ka = k * 1.05 + 0.3;
             const kd = r * (0.25 + sp * 0.75);
-            ctx.fillStyle = k % 2 === 0 ? "#BEF264" : "#FFFFFF";
+            ctx.fillStyle = m.isScyther ? (k % 2 === 0 ? "#22D3EE" : "#FDE047") : (m.isLv8 ? (k % 2 === 0 ? "#67E8F9" : "#BEF264") : (k % 2 === 0 ? "#BEF264" : "#FFFFFF"));
             ctx.fillRect(Math.cos(ka) * kd - 2.5, Math.sin(ka) * kd - 2.5, 5, 5);
           }
         }
@@ -4807,12 +4831,20 @@ Object.assign(window.SkillsEngine, {
         ctx.moveTo(len * 0.4, 0); ctx.lineTo(-len * 1.85, -hw * 0.95); ctx.lineTo(-len * 1.85, hw * 0.95); ctx.closePath();
         ctx.fill();
         if (pr.isLv8 || isUltSpear) {
+          // Lv.8 雙色粗線纏繞螺旋毒氣緞帶（螢光綠 ＋ 亮紫/猩紅反相交織）
+          ctx.lineWidth = 2.4;
           ctx.strokeStyle = "#4ADE80";
-          ctx.lineWidth = 1.6;
           ctx.beginPath();
-          for (let sx = -len * 1.5; sx <= len * 0.4; sx += 5) {
-            const sy = Math.sin(now * 24 + sx * 0.25) * hw * 0.85;
-            if (sx === -len * 1.5) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          for (let sx = -len * 1.6; sx <= len * 0.45; sx += 4) {
+            const sy = Math.sin(now * 26 + sx * 0.26) * hw * 1.05;
+            if (sx === -len * 1.6) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+          ctx.strokeStyle = pr.isCrimsonVenom ? "#FB7185" : "#F0ABFC";
+          ctx.beginPath();
+          for (let sx = -len * 1.6; sx <= len * 0.45; sx += 4) {
+            const sy = -Math.sin(now * 26 + sx * 0.26) * hw * 1.05;
+            if (sx === -len * 1.6) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
           }
           ctx.stroke();
         }
@@ -5691,23 +5723,42 @@ Object.assign(window.SkillsEngine, {
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      ctx.strokeStyle = "rgba(120, 53, 15, 0.85)";
-      ctx.lineWidth = 7.5;
       ctx.beginPath();
       arc.pts.forEach((pt, idx) => {
         const sx = toSx(pt.x), sy = toSy(pt.y);
         if (idx === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
       });
-      ctx.stroke();
 
-      ctx.strokeStyle = arc.color || "#FDE047";
-      ctx.lineWidth = 4.5;
-      ctx.stroke();
+      if (arc.thin) {
+        // 電球專屬輕量細電弧：去除厚重暗邊，3.0px 外暈 ＋ 1.6px 核心 ＋ 0.9px 純白細絲
+        ctx.save();
+        ctx.globalAlpha *= 0.55;
+        ctx.strokeStyle = arc.color || "#FACC15";
+        ctx.lineWidth = 3.0;
+        ctx.stroke();
+        ctx.restore();
 
-      ctx.strokeStyle = "#FFFFFF";
-      ctx.lineWidth = 2.0;
-      ctx.stroke();
+        ctx.strokeStyle = arc.color || "#FEF08A";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = "rgba(120, 53, 15, 0.85)";
+        ctx.lineWidth = 7.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = arc.color || "#FDE047";
+        ctx.lineWidth = 4.5;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+      }
 
       // 繪製兩側細微支流分叉電弧
       (arc.branches || []).forEach(br => {
