@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.4",
+  APP_VERSION: "v7.6.5",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -2595,8 +2595,8 @@ window.GameApp = {
       }
       pt.facingY = p.facingY;
 
-      pt.cdTimer -= dt;
-      if (pt.cdTimer <= 0) {
+      if (!isWarmupCountdown) pt.cdTimer -= dt;
+      if (!isWarmupCountdown && pt.cdTimer <= 0) {
         const target = nearTarget || this.findNearestEnemyInViewport(pt.x, pt.y, 360);
         if (target) {
           const skId = SKILLS_CATALOG[pt.data.skill] ? pt.data.skill : "Tackle";
@@ -4934,7 +4934,7 @@ window.GameApp = {
       this.hitStopTimer = Math.max(this.hitStopTimer || 0, 0.035);
       this.spawnParticleCluster(e.x, e.y, "#FACC15", "#EF4444", 18, "star", 1.15);
       if (!e.noEliteDrop) {
-        const dropId = e.guaranteedRareCandy ? "rare_candy" : (this.isExpeditionMode ? (Math.random() < 0.65 ? "rare_candy" : "partner_ball") : (Math.random() < 0.22 ? "partner_ball" : "rare_candy"));
+        const dropId = e.guaranteedRareCandy ? "rare_candy" : (this.isExpeditionMode ? (Math.random() < 0.42 ? "rare_candy" : "partner_ball") : (Math.random() < 0.22 ? "partner_ball" : "rare_candy"));
         this.spawnMapLoot(dropId, e.x, e.y);
         if (!hasActiveMagnet && Math.random() < 0.25) {
           this.spawnMapLoot("magnet", e.x + 26, e.y);
@@ -5213,7 +5213,7 @@ window.GameApp = {
       p.exp = Math.min(p.nextExp - 1, p.exp + amount);
       return;
     }
-    const expModeMod = this.isExpeditionMode ? 1.25 : 1.0;
+    const expModeMod = this.isExpeditionMode ? 0.95 : 1.0;
     const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0)) * expModeMod;
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {

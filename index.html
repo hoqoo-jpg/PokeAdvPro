@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.4');
+      background-image: url('images/skills_icons_sheet.png?v=7.6.5');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.4');
+      background-image: url('images/skills_icons_extra5.png?v=7.6.5');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -824,6 +824,49 @@
       border-color: #CBD5E1 !important;
       color: #1E293B !important;
     }
+    /* v7.6.5 修復戰後結算評級頁（#endModal）經典 GBA 掌機風對比度與雷達卡片統一 */
+    body:not(.theme-dark-gold) #endModal #endHexRatingBox > div,
+    body:not(.theme-dark-gold) #endModal #endHallOfFameBox > div {
+      background: linear-gradient(180deg, #FFFFFF 0%, #F1F5F9 100%) !important;
+      border-color: #CBD5E1 !important;
+      color: #0F172A !important;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.10) !important;
+    }
+    body:not(.theme-dark-gold) #endModal #endHallOfFameBox .bg-slate-900\/75 {
+      background-color: #E2E8F0 !important;
+      border-color: #CBD5E1 !important;
+    }
+    body:not(.theme-dark-gold) #endModal .text-amber-400 {
+      color: #B45309 !important;
+    }
+    body:not(.theme-dark-gold) #endModal .text-sky-300 {
+      color: #0369A1 !important;
+    }
+    body:not(.theme-dark-gold) #endModal .text-slate-400 {
+      color: #475569 !important;
+    }
+    body:not(.theme-dark-gold) #endModal .border-slate-700,
+    body:not(.theme-dark-gold) #endModal .border-slate-700\/80 {
+      border-color: #CBD5E1 !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp span {
+      color: inherit;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp .text-white {
+      color: #FFFFFF !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp .text-amber-300 {
+      color: #FDE047 !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp .text-sky-300 {
+      color: #7DD3FC !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp .text-emerald-300 {
+      color: #6EE7B7 !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp .text-slate-200 {
+      color: #E2E8F0 !important;
+    }
   </style>
   <script>
     (function () {
@@ -924,7 +967,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.4
+      v7.6.5
     </div>
   </div>
 
@@ -1857,7 +1900,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.4</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.5</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1905,7 +1948,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.4</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.5</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -1938,14 +1981,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.4"></script>
-  <script src="map_v11_engine.js?v=7.6.4"></script>
-  <script src="skills_engine.js?v=7.6.4"></script>
-  <script src="skills_vfx.js?v=7.6.4"></script>
-  <script src="battle_core_2.js?v=7.6.4"></script>
-  <script src="battle_renderer.js?v=7.6.4"></script>
-  <script src="modes_arcade.js?v=7.6.4"></script>
-  <script src="mode_expedition.js?v=7.6.4"></script>
-  <script src="game_ui.js?v=7.6.4"></script>
+  <script src="pokedex_data.js?v=7.6.5"></script>
+  <script src="map_v11_engine.js?v=7.6.5"></script>
+  <script src="skills_engine.js?v=7.6.5"></script>
+  <script src="skills_vfx.js?v=7.6.5"></script>
+  <script src="battle_core_2.js?v=7.6.5"></script>
+  <script src="battle_renderer.js?v=7.6.5"></script>
+  <script src="modes_arcade.js?v=7.6.5"></script>
+  <script src="mode_expedition.js?v=7.6.5"></script>
+  <script src="game_ui.js?v=7.6.5"></script>
 </body>
 </html>

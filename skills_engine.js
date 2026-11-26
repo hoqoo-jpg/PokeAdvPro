@@ -2426,7 +2426,7 @@ window.SkillsEngine = {
         branches.push([origin, { x: midBx, y: midBy }, { x: endBx, y: endBy }]);
       }
     }
-    this.lightningArcs.push({ pts, branches, color, thin: !!thin, timer: thin ? 0.14 : 0.26 });
+    this.lightningArcs.push({ pts, branches, color, thin: !!thin, timer: thin ? 0.10 : 0.24 });
   },
 
   update(dt) {
@@ -2490,7 +2490,7 @@ window.SkillsEngine = {
         pr.zapTimer -= dt;
         if (pr.zapTimer <= 0) {
           pr.zapTimer = pr.isUltOrb ? 0.18 : 0.25;
-          const zapRange = pr.isUltOrb ? 105 : 70;
+          const zapRange = pr.isUltOrb ? 85 : 65;
           const near = this.getEnemiesInRadius(pr.x, pr.y, zapRange).find(o => o && o.hp > 0);
           if (near) {
             const arcColor = pr.isPikachuFamily ? "#38BDF8" : (pr.isUltOrb ? "#FEF08A" : "#FACC15");
@@ -2498,7 +2498,7 @@ window.SkillsEngine = {
             this.applySkillHit(pr.team || "player", near, pr.dmg * (pr.isUltOrb ? 0.52 : 0.38), "Electric", 0.28, 0, 0);
           }
           if (pr.isUltOrb) {
-            const sibling = this.projectiles.find(o => o !== pr && o.isUltOrb && o.vfx === "electro_orb" && Math.hypot(o.x - pr.x, o.y - pr.y) <= 210);
+            const sibling = this.projectiles.find(o => o !== pr && o.isUltOrb && o.vfx === "electro_orb" && Math.hypot(o.x - pr.x, o.y - pr.y) <= 115);
             if (sibling) {
               this.createLightningArc(pr.x, pr.y, sibling.x, sibling.y, "#FEF08A", false, true);
             }

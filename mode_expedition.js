@@ -1870,7 +1870,7 @@ window.ModeExpedition = {
       shelf.push({ ...pickedTm, cost: expTmCost, kind: "tm", isCounterRec: counterTMs.includes(pickedTm), bought: false });
     }
 
-    const isMasterCandy = (st.currentWave >= 5 && specItems.master_candy);
+    const isMasterCandy = (st.currentWave >= 12 && specItems.master_candy);
     const candyPick = isMasterCandy ? specItems.master_candy : specItems.pp_up;
     if (candyPick) {
       const candyCost = (isMasterCandy ? 210 : 110) + (counts.candy || 0) * 45;
@@ -2199,6 +2199,10 @@ window.ModeExpedition = {
         skyGrad.addColorStop(0, "#0284C7"); skyGrad.addColorStop(1, "#BAE6FD");
       } else if (ch.stageId === "cerulean_bay") {
         skyGrad.addColorStop(0, "#0369A1"); skyGrad.addColorStop(1, "#7DD3FC");
+      } else if (ch.stageId === "power_plant") {
+        skyGrad.addColorStop(0, "#0F172A"); skyGrad.addColorStop(1, "#1E3A5F");
+      } else if (ch.stageId === "cinnabar_volcano") {
+        skyGrad.addColorStop(0, "#2B0E0E"); skyGrad.addColorStop(1, "#7C2D12");
       } else if (ch.isArena) {
         skyGrad.addColorStop(0, "#0F172A"); skyGrad.addColorStop(1, "#334155");
       } else {
@@ -2322,6 +2326,83 @@ window.ModeExpedition = {
         ctx.fillStyle = "#F59E0B";
         ctx.fillRect(startX, roadY - 16, segW, 3);
         ctx.fillRect(startX, roadY + 13, segW, 3);
+      } else if (ch.stageId === "power_plant") {
+        // ACT 3 無人發電廠：高壓蓄電塔遠景剪影 ＋ 工業霧灰鋼板 ＋ 發光青藍磁能加速軌道
+        ctx.fillStyle = "#0F172A";
+        for (let px = startX + 26; px < endX - 24; px += 72) {
+          const ph = 22 + detHash(px) * 14;
+          ctx.fillRect(px, horizonY - ph, 12, ph + 2);
+          ctx.fillStyle = "#38BDF8";
+          ctx.fillRect(px + 3, horizonY - ph + 4, 6, 4);
+          ctx.fillStyle = "#FEF08A";
+          ctx.fillRect(px + 4, horizonY - ph - 3, 4, 3);
+          ctx.fillStyle = "#0F172A";
+        }
+        const tileSz = expanded ? 26 : 20;
+        for (let gy = horizonY; gy < vpH; gy += tileSz) {
+          const rowI = Math.floor((gy - horizonY) / tileSz);
+          for (let gx = Math.floor(startX / tileSz) * tileSz; gx < endX; gx += tileSz) {
+            const colI = Math.floor(gx / tileSz);
+            const drawX = Math.max(startX, gx);
+            const drawW = Math.min(endX, gx + tileSz) - drawX;
+            if (drawW <= 0) continue;
+            ctx.fillStyle = ((rowI + colI) % 2 === 0) ? "#334155" : "#2D3B4E";
+            ctx.fillRect(drawX, gy, drawW, tileSz + 1);
+          }
+        }
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(startX, roadY - 17, segW, 34);
+        ctx.fillStyle = "#1E293B";
+        ctx.fillRect(startX, roadY - 13, segW, 26);
+        ctx.fillStyle = "rgba(56, 189, 248, 0.28)";
+        ctx.fillRect(startX, roadY - 10, segW, 20);
+        ctx.strokeStyle = "#7DD3FC";
+        ctx.lineWidth = 2;
+        const chevOff = Math.floor((walkT * 90) % 32);
+        for (let ax = startX + chevOff; ax < endX - 10; ax += 32) {
+          ctx.beginPath();
+          ctx.moveTo(ax, roadY - 6); ctx.lineTo(ax + 8, roadY); ctx.lineTo(ax, roadY + 6);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#38BDF8";
+        ctx.fillRect(startX, roadY - 15, segW, 2);
+        ctx.fillRect(startX, roadY + 13, segW, 2);
+      } else if (ch.stageId === "cinnabar_volcano") {
+        // ACT 4 紅蓮火山：火山尖峰剪影 ＋ 低飽和黑曜玄武岩地板 ＋ 碎石步道與亮橘熔岩裂隙
+        ctx.fillStyle = "#1C1917";
+        for (let mx = startX - 10; mx < endX + 20; mx += 64) {
+          const mh = 22 + detHash(mx * 0.3) * 16;
+          ctx.beginPath();
+          ctx.moveTo(mx, horizonY + 2);
+          ctx.lineTo(mx + 32, horizonY - mh);
+          ctx.lineTo(mx + 64, horizonY + 2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        const tileSz = expanded ? 26 : 20;
+        for (let gy = horizonY; gy < vpH; gy += tileSz) {
+          const rowI = Math.floor((gy - horizonY) / tileSz);
+          for (let gx = Math.floor(startX / tileSz) * tileSz; gx < endX; gx += tileSz) {
+            const colI = Math.floor(gx / tileSz);
+            const drawX = Math.max(startX, gx);
+            const drawW = Math.min(endX, gx + tileSz) - drawX;
+            if (drawW <= 0) continue;
+            ctx.fillStyle = ((rowI + colI) % 2 === 0) ? "#2A242D" : "#252028";
+            ctx.fillRect(drawX, gy, drawW, tileSz + 1);
+          }
+        }
+        ctx.fillStyle = "#1C1917";
+        ctx.fillRect(startX, roadY - 17, segW, 34);
+        ctx.fillStyle = "#3A313D";
+        ctx.fillRect(startX, roadY - 13, segW, 26);
+        ctx.fillStyle = "#524656";
+        for (let rx = startX + 10; rx < endX - 10; rx += 26) {
+          ctx.fillRect(Math.round(rx), roadY - 7, 7, 3);
+          ctx.fillRect(Math.round(rx + 12), roadY + 4, 6, 3);
+        }
+        ctx.fillStyle = "#EA580C";
+        ctx.fillRect(startX, roadY - 15, segW, 2);
+        ctx.fillRect(startX, roadY + 13, segW, 2);
       } else if (ch.isArena) {
         // FINAL 鬥技場：深灰石板格紋 ＋ 聚光燈 ＋ 紅金冠軍地毯
         const tileSz = expanded ? 28 : 20;
@@ -2424,6 +2505,32 @@ window.ModeExpedition = {
             }
             if (expanded && starImg && k % 2 === 1) {
               this.drawSpriteFitHeight(ctx, starImg, px + 16, vpH - 12 - depthOff * 14, 16, false);
+            }
+          }
+        } else if (ch.stageId === "power_plant") {
+          const grateImg = props.get("floor_grate_pixel");
+          const jboxImg  = props.get("junction_box_pixel");
+          const cabImg   = props.get("cable_h_pixel");
+          for (let k = 0; k < 6; k++) {
+            const px = startX + 40 + k * 102 + (detHash(k * 19) - 0.5) * 28;
+            if (px > endX - 28) continue;
+            const py = horizonY + (expanded ? (36 + detHash(k * 7) * 24) : 24);
+            const pImg = (k % 3 === 0) ? jboxImg : (k % 3 === 1 ? grateImg : cabImg);
+            if (pImg) this.drawSpriteFitHeight(ctx, pImg, px, py, expanded ? 24 : 16, false);
+          }
+        } else if (ch.stageId === "cinnabar_volcano") {
+          const lavaImg = props.get("lava_pool_pixel_0");
+          const obsImg  = props.get("obsidian_cluster_pixel");
+          const crysImg = props.get("lava_crystal_pixel");
+          for (let k = 0; k < 6; k++) {
+            const px = startX + 44 + k * 104 + (detHash(k * 29) - 0.5) * 26;
+            if (px > endX - 30) continue;
+            const py = horizonY + (expanded ? (36 + detHash(k * 11) * 24) : 24);
+            if (lavaImg && k % 3 === 0) {
+              this.drawSpriteFitHeight(ctx, lavaImg, px, py + 6, expanded ? 34 : 22, false);
+            } else {
+              const vImg = (k % 2 === 0) ? obsImg : crysImg;
+              if (vImg) this.drawSpriteFitHeight(ctx, vImg, px, py, expanded ? 26 : 18, false);
             }
           }
         } else if (!ch.isArena) {
