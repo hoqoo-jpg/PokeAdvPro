@@ -1382,10 +1382,10 @@ function getResolvedTrainerCostume(trainer, saveData) {
 
 // 8. 模式與難度考驗
 const DIFFICULTIES = [
-  { id: "casual", name: "輕鬆探索", badge: "休閒", desc: "怪獸血量減免，賞金獲取率 0.9x", hpMult: 0.80, atkMult: 0.75, spdMult: 0.90, spawnRateMult: 0.85, coinMult: 0.9, shinyBonus: 1.0 },
-  { id: "normal", name: "關都標準", badge: "標準", desc: "標準 8 分鐘極速通關節奏", hpMult: 1.00, atkMult: 1.00, spdMult: 1.00, spawnRateMult: 1.00, coinMult: 1.0, shinyBonus: 1.0 },
-  { id: "hard",   name: "大師挑戰", badge: "困難", desc: "怪潮密集洶湧，賞金+35%，閃光率翻倍！", hpMult: 1.40, atkMult: 1.30, spdMult: 1.12, spawnRateMult: 1.35, coinMult: 1.35, shinyBonus: 2.0 },
-  { id: "hell",   name: "冠軍之巔", badge: "地獄", desc: "極致怪潮與霸體，賞金+80%，閃光率 3 倍！", hpMult: 1.95, atkMult: 1.65, spdMult: 1.25, spawnRateMult: 1.70, coinMult: 1.80, shinyBonus: 3.0 }
+  { id: "casual", name: "輕鬆探索", badge: "簡易", desc: "經典輕鬆割草節奏，賞金獲取率 0.9x", hpMult: 1.00, atkMult: 1.00, spdMult: 1.00, spawnRateMult: 1.00, coinMult: 0.9, shinyBonus: 1.0 },
+  { id: "normal", name: "關都標準", badge: "標準", desc: "輕度挑戰怪潮與小王博弈，標準賞金 1.0x", hpMult: 1.18, atkMult: 1.12, spdMult: 1.04, spawnRateMult: 1.18, coinMult: 1.0, shinyBonus: 1.0 },
+  { id: "hard",   name: "大師挑戰", badge: "困難", desc: "怪潮密集洶湧，賞金+35%，閃光率翻倍！", hpMult: 1.55, atkMult: 1.42, spdMult: 1.14, spawnRateMult: 1.45, coinMult: 1.35, shinyBonus: 2.0 },
+  { id: "hell",   name: "冠軍之巔", badge: "地獄", desc: "極致怪潮與霸體，賞金+80%，閃光率 3 倍！", hpMult: 2.15, atkMult: 1.80, spdMult: 1.25, spawnRateMult: 1.75, coinMult: 1.80, shinyBonus: 3.0 }
 ];
 
 // 9. 寶可夢中心永久強化研究所
@@ -1483,7 +1483,7 @@ const KANTO_GYM_BADGES = [
   {
     id: "earth", name: "綠色徽章", gym: "常磐道館", type: "Ground", col: 3, row: 1, tier: "終局",
     buffText: "暴擊率 +5% ＆ 代幣 +10%",
-    condDesc: "通關【關都大遠征 15+1】，或於 1vs1 鬥技場擊敗 3 隻神獸",
+    condDesc: "通關【關都大遠征 20+1】，或於 1vs1 鬥技場擊敗 3 隻神獸",
     check: (st, sv) => (st.expeditionClears || 0) >= 1 || Object.keys((st && st.arenaBestTimes) || {}).length >= 3,
     progress: (st) => (st.expeditionClears || 0) >= 1 ? [1, 1] : [Math.min(3, Object.keys((st && st.arenaBestTimes) || {}).length), 3]
   }

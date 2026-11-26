@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.1p1",
+  APP_VERSION: "v7.6.2",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -2915,9 +2915,9 @@ window.GameApp = {
     if (prof === "extreme") return 250;
     // auto: 自動依裝置分流 (手機直向甜區 120隻、電腦寬屏 190隻)
     if (this.isMobileDevice()) {
-      return Math.min(120, Math.round(62 + minutes * 10));
+      return Math.min(130, Math.round(68 + minutes * 11));
     }
-    return Math.min(190, Math.round(80 + minutes * 16));
+    return Math.min(205, Math.round(88 + minutes * 17));
   },
 
   spawnFieldPowerup(wx, wy) {
@@ -3730,7 +3730,7 @@ window.GameApp = {
 
       // 2. 精英怪地面預警招式 (獨立執行，不再阻斷遠程射擊)
       if (inView && e.isElite && !e.treasureType && !e.isBoss) {
-        e.eliteTelegraphCd = (e.eliteTelegraphCd !== undefined ? e.eliteTelegraphCd : 3.0) - cdDt;
+        e.eliteTelegraphCd = (e.eliteTelegraphCd !== undefined ? e.eliteTelegraphCd : 1.1) - cdDt;
         if (e.eliteTelegraphCd <= 0) {
           e.eliteTelegraphCd = 3.5;
           this.spawnEnemyTelegraphAttack(e);
@@ -5058,8 +5058,9 @@ window.GameApp = {
       const capComp = this.getEffectiveMobCap(this.runTime / 60) <= 130 ? 1.22 : 1.0;
       this.gems.push({ x: e.x, y: e.y, val: Math.round(32 * capComp), tier: 2, size: 7.8, color: "#10B981", innerColor: "#A7F3D0" });
     } else {
-      const capComp = this.getEffectiveMobCap(this.runTime / 60) <= 130 ? 1.22 : 1.0;
-      this.gems.push({ x: e.x, y: e.y, val: Math.round(15 * capComp), tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
+      const capComp = this.getEffectiveMobCap(this.runTime / 60) <= 135 ? 1.20 : 1.0;
+      const diffExpBal = (this.selectedDifficulty && this.selectedDifficulty.id !== "casual") ? 0.92 : 1.0;
+      this.gems.push({ x: e.x, y: e.y, val: Math.max(10, Math.round(15 * capComp * diffExpBal)), tier: 1, size: 6.2, color: "#0284C7", innerColor: "#BAE6FD" });
     }
 
     if (this.gems.length > 120) {

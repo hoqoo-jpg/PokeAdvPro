@@ -1054,46 +1054,65 @@ const MapEngine = {
       }
       if (pil) ctx.drawImage(pil, 180, 18, 48, 60);
     } else if (stageId === "cinnabar_volcano") {
+      // v7.6.2 同步實戰精裝 GBA 像素預覽：4款玄武岩地磚 ＋ 碎石步道 ＋ 不規則鋸齒像素熔岩池 ＋ 3D噴氣口與結晶
       for (let tx = 0; tx < w; tx += 60) {
         for (let ty = 0; ty < h; ty += 60) {
-          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
-          const tCan = this.tileCache.get(`cinnabar_volcano_${isDark ? 'dark' : 'light'}`);
+          const vIdx = ((tx / 60) * 3 + (ty / 60) * 5) & 3;
+          const tCan = this.tileCache.get(`cinnabar_volcano_v${vIdx}`);
           if (tCan) ctx.drawImage(tCan, tx, ty);
         }
       }
-      ctx.fillStyle = "#451A03";
-      ctx.beginPath(); ctx.ellipse(76, 70, 52, 26, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#C2410C";
-      ctx.beginPath(); ctx.ellipse(76, 70, 44, 20, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#F97316";
-      ctx.beginPath(); ctx.ellipse(72, 68, 28, 11, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#FEF08A";
-      ctx.fillRect(60, 66, 12, 3); ctx.fillRect(82, 72, 8, 2);
-      ctx.strokeStyle = "#FB923C"; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.ellipse(178, 62, 22, 13, 0, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = "#7C2D12";
-      ctx.beginPath(); ctx.ellipse(178, 62, 11, 6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#18181B"; ctx.fillRect(18, 14, 24, 22);
-      ctx.fillStyle = "#3F3F46"; ctx.fillRect(22, 16, 14, 10);
+      // 玄武岩碎石步道
+      ctx.fillStyle = "#332C36"; ctx.fillRect(0, 44, w, 28);
+      ctx.fillStyle = "#1E1A22"; ctx.fillRect(0, 44, w, 2); ctx.fillRect(0, 70, w, 2);
+      ctx.fillStyle = "#453B48";
+      for (let rx = 10; rx < w; rx += 32) { ctx.fillRect(rx, 50, 8, 3); ctx.fillRect(rx + 14, 62, 6, 3); }
+      // 不規則鋸齒像素熔岩池
+      const lpCan = this.spritePropCache.get("lava_pool_pixel_0");
+      if (lpCan) ctx.drawImage(lpCan, 14, 52, 118, 66);
+      // 3D 像素噴氣裂口、黑曜石簇、暗紅結晶、冷卻裂縫
+      const vtCan = this.spritePropCache.get("volcano_vent_pixel");
+      if (vtCan) ctx.drawImage(vtCan, 166, 48, 44, 34);
+      const obCan = this.spritePropCache.get("obsidian_cluster_pixel");
+      if (obCan) { ctx.drawImage(obCan, 18, 12, 26, 26); ctx.drawImage(obCan, 204, 14, 24, 24); }
+      const crCan = this.spritePropCache.get("lava_crystal_pixel");
+      if (crCan) { ctx.drawImage(crCan, 138, 16, 22, 22); ctx.drawImage(crCan, 198, 84, 20, 20); }
+      const ckCan = this.spritePropCache.get("cooled_crack_pixel");
+      if (ckCan) ctx.drawImage(ckCan, 76, 16, 30, 18);
     } else if (stageId === "power_plant") {
+      // v7.6.2 同步實戰精裝 GBA 像素預覽：4款工業鋼板 ＋ 金屬導軌磁能帶 ＋ 蓄電塔 ＋ 電纜與通風網格
       for (let tx = 0; tx < w; tx += 60) {
         for (let ty = 0; ty < h; ty += 60) {
-          const isDark = (((tx / 60) + (ty / 60)) & 1) === 0;
-          const tCan = this.tileCache.get(`power_plant_${isDark ? 'dark' : 'light'}`);
+          const vIdx = ((tx / 60) * 3 + (ty / 60) * 5) & 3;
+          const tCan = this.tileCache.get(`power_plant_v${vIdx}`);
           if (tCan) ctx.drawImage(tCan, tx, ty);
         }
       }
-      ctx.fillStyle = "#0F172A"; ctx.fillRect(0, 58, w, 28);
-      ctx.fillStyle = "rgba(56, 189, 248, 0.35)"; ctx.fillRect(0, 62, w, 20);
-      ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 2;
-      for (let ax = 18; ax < w; ax += 36) {
-        ctx.beginPath(); ctx.moveTo(ax, 66); ctx.lineTo(ax + 10, 72); ctx.lineTo(ax, 78); ctx.stroke();
+      // 工業金屬導軌磁能加速帶
+      ctx.fillStyle = "#0F172A"; ctx.fillRect(0, 56, w, 30);
+      ctx.fillStyle = "#334155"; ctx.fillRect(0, 58, w, 3); ctx.fillRect(0, 81, w, 3);
+      ctx.fillStyle = "rgba(56, 189, 248, 0.34)"; ctx.fillRect(0, 62, w, 18);
+      ctx.strokeStyle = "#E0F2FE"; ctx.lineWidth = 2;
+      for (let ax = 16; ax < w; ax += 36) {
+        ctx.beginPath(); ctx.moveTo(ax, 65); ctx.lineTo(ax + 10, 71); ctx.lineTo(ax, 77); ctx.stroke();
       }
-      ctx.fillStyle = "rgba(56, 189, 248, 0.25)";
-      ctx.beginPath(); ctx.arc(178, 42, 24, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#1E293B"; ctx.fillRect(168, 22, 20, 32);
-      ctx.fillStyle = "#38BDF8"; ctx.fillRect(172, 26, 12, 8);
-      ctx.fillStyle = "#FACC15"; ctx.fillRect(175, 16, 6, 6);
+      // 工業微裝飾：通風網格、電纜、黃黑警示、電箱
+      const grCan = this.spritePropCache.get("floor_grate_pixel");
+      if (grCan) ctx.drawImage(grCan, 18, 16, 30, 22);
+      const cbCan = this.spritePropCache.get("cable_h_pixel");
+      if (cbCan) ctx.drawImage(cbCan, 66, 22, 38, 14);
+      const hzCan = this.spritePropCache.get("hazard_strip_pixel");
+      if (hzCan) ctx.drawImage(hzCan, 24, 94, 36, 12);
+      const jbCan = this.spritePropCache.get("junction_box_pixel");
+      if (jbCan) ctx.drawImage(jbCan, 114, 14, 24, 24);
+      // 高壓蓄電塔
+      ctx.fillStyle = "rgba(56, 189, 248, 0.22)";
+      ctx.beginPath(); ctx.arc(184, 38, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#38BDF8"; ctx.lineWidth = 1.8; ctx.stroke();
+      ctx.fillStyle = "#0F172A"; ctx.fillRect(175, 18, 18, 28);
+      ctx.fillStyle = "#475569"; ctx.fillRect(178, 21, 12, 22);
+      ctx.fillStyle = "#38BDF8"; ctx.fillRect(180, 26, 8, 8);
+      ctx.fillStyle = "#FEF08A"; ctx.beginPath(); ctx.arc(184, 16, 5, 0, Math.PI * 2); ctx.fill();
     }
   },
 

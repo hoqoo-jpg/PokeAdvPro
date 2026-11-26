@@ -24,24 +24,13 @@ window.EXPEDITION_CHAPTERS = [
     waves: [
       {
         title: "常磐密林・外圍探索",
-        subtitle: "淨空 22 隻野生蟲系與草系精靈，快速升級成型主招。",
+        subtitle: "淨空野生蟲系與草系精靈，快速升級成型主招。",
         enemyTypes: ["Grass", "Bug", "Normal"],
         enemyPool: [10, 13, 16, 19, 43, 69],
         elitePool: [12, 15],
         previewIds: [10, 16, 43],
         killQuota: 22,
         clearBonus: 70,
-        weather: "CLEAR"
-      },
-      {
-        title: "密林深處・叢林巡獵",
-        subtitle: "擊破 26 隻飛行與毒系野生精靈，留意遠程毒針！",
-        enemyTypes: ["Poison", "Flying", "Bug"],
-        enemyPool: [12, 15, 17, 23, 41, 48],
-        elitePool: [18, 24, 42],
-        previewIds: [12, 23, 41],
-        killQuota: 26,
-        clearBonus: 85,
         weather: "CLEAR"
       },
       {
@@ -54,59 +43,60 @@ window.EXPEDITION_CHAPTERS = [
           { bossIds: [18], title: "小王・蒼穹大比鳥領主", enemyTypes: ["Normal", "Flying"] },
           { bossIds: [45], title: "小王・毒粉霸王花領主", enemyTypes: ["Grass", "Poison"] }
         ],
-        enemyTypes: ["Bug", "Poison"],
-        enemyPool: [10, 13, 16, 23, 43],
+        enemyTypes: ["Bug", "Poison", "Flying"],
+        enemyPool: [12, 15, 17, 41, 44],
         bossIds: [15],
-        previewIds: [15],
-        clearBonus: 115,
+        previewIds: [15, 18, 45],
+        clearBonus: 110,
         weather: "CLEAR"
       },
       {
         title: "密林異變・隨機事件波",
         subtitle: "遭遇密林突發事件！淨空敵潮並把握機會收割資源！",
-        isEventWave: true,
         eventPool: [
           {
+            id: "meowth_convoy",
             title: "事件・聚寶喵喵車隊",
-            subtitle: "擊破 28 隻護衛並攔截雙倍聚寶喵喵，大賺整備代幣！",
+            subtitle: "擊破護衛並攔截雙倍聚寶喵喵，大賺整備代幣！",
             enemyTypes: ["Normal", "Poison"],
-            enemyPool: [19, 20, 23, 52, 53],
+            enemyPool: [19, 20, 23, 52, 109],
             elitePool: [24, 53],
-            previewIds: [52, 53, 24],
+            previewIds: [52, 20, 23],
             killQuota: 28,
             spawnTreasure: "meowth",
             weather: "CLEAR"
           },
           {
+            id: "forest_migration",
             title: "事件・常磐生態遷徙潮",
             subtitle: "大批草系與飛行系精靈成群遷徙，快速收割升級！",
             enemyTypes: ["Grass", "Flying", "Bug"],
-            enemyPool: [12, 17, 43, 44, 69, 70],
-            elitePool: [18, 45, 71],
-            previewIds: [17, 44, 70],
+            enemyPool: [12, 17, 44, 46, 70, 123],
+            elitePool: [18, 47, 123],
+            previewIds: [12, 70, 123],
             killQuota: 32,
             weather: "RAIN"
           }
         ],
-        enemyTypes: ["Normal", "Grass"],
-        enemyPool: [19, 43, 69],
-        elitePool: [24],
-        previewIds: [52, 43],
+        enemyTypes: ["Normal", "Grass", "Bug"],
+        enemyPool: [19, 20, 44, 70],
+        elitePool: [18, 24],
+        previewIds: [52, 12, 123],
         killQuota: 30,
-        clearBonus: 105,
+        clearBonus: 95,
         weather: "CLEAR"
       },
       {
         title: "關底・火箭隊突襲雙王",
         subtitle: "擊破阿柏怪與雙彈瓦斯雙首領即可突圍前往華藍海岬！",
         isBossWave: true,
-        enemyTypes: ["Poison", "Normal"],
-        enemyPool: [23, 41, 109, 19],
+        enemyTypes: ["Poison"],
+        enemyPool: [23, 41, 109],
         bossIds: [24, 110],
         previewIds: [24, 110],
-        clearBonus: 155,
-        actClearHeal: 0.25,
-        weather: "CLEAR"
+        clearBonus: 165,
+        weather: "CLEAR",
+        unlockRegionBadge: "常磐制霸"
       }
     ]
   },
@@ -116,35 +106,24 @@ window.EXPEDITION_CHAPTERS = [
     shortName: "華藍海岬",
     stageId: "cerulean_bay",
     isArena: false,
-    signStyle: "ocean",
-    bounds: { halfW: 580, halfH: 440 },
-    theme: { bg: "#0369A1", accent: "#38BDF8", text: "#BAE6FD", badgeBg: "#0284C7", badgeLabel: "海岬徽章" },
+    signStyle: "harbor",
+    bounds: { halfW: 600, halfH: 460 },
+    theme: { bg: "#0369A1", accent: "#0284C7", text: "#BAE6FD", badgeBg: "#0284C7", badgeLabel: "海岬徽章" },
     waves: [
       {
         title: "華藍海岬・潮汐木棧道",
-        subtitle: "淨空 30 隻海岸精靈！善用木棧道避免涉水減速。",
-        enemyTypes: ["Water", "Poison", "Electric"],
-        enemyPool: [54, 60, 72, 81, 98, 116],
-        elitePool: [62, 73, 117],
-        previewIds: [60, 72, 81],
-        killQuota: 30,
-        clearBonus: 110,
-        weather: "RAIN"
-      },
-      {
-        title: "暴風海峽・冰海精銳潮",
-        subtitle: "擊破 34 隻水系與冰系精銳，搶奪場中增益道具！",
-        enemyTypes: ["Water", "Ice", "Flying"],
-        enemyPool: [86, 87, 91, 117, 120, 130],
-        elitePool: [87, 91, 130],
-        previewIds: [87, 91, 130],
-        killQuota: 34,
-        clearBonus: 125,
+        subtitle: "淨空海岸精靈！善用木棧道避免涉水減速。",
+        enemyTypes: ["Water", "Poison"],
+        enemyPool: [54, 60, 72, 90, 98, 116, 120],
+        elitePool: [55, 61, 73],
+        previewIds: [54, 72, 120],
+        killQuota: 28,
+        clearBonus: 105,
         weather: "RAIN"
       },
       {
         title: "海峽中繼・深海霸主小王",
-        subtitle: "討伐隨機鎮守海峽的深海精英領主，衝刺三階進化！",
+        subtitle: "討伐鎮守海峽的深海精英領主，衝刺三階進化！",
         isBossWave: true,
         isMiniBoss: true,
         miniBossPool: [
@@ -154,93 +133,210 @@ window.EXPEDITION_CHAPTERS = [
           { bossIds: [121], title: "小王・閃耀寶石海星", enemyTypes: ["Water", "Psychic"] }
         ],
         enemyTypes: ["Water", "Ice"],
-        enemyPool: [60, 72, 86, 116, 120],
+        enemyPool: [61, 73, 87, 91, 117],
         bossIds: [130],
-        previewIds: [130],
+        previewIds: [130, 91, 121],
         clearBonus: 145,
         weather: "RAIN"
       },
       {
         title: "海峽異變・隨機事件波",
         subtitle: "海象突變！把握事件機會取得大量經驗或夥伴支援！",
-        isEventWave: true,
         eventPool: [
           {
+            id: "storm_surge",
             title: "事件・狂暴雷暴水潮",
             subtitle: "雷暴降臨！電系與水系精靈湧入，電系彈射 +1 爽快清場！",
             enemyTypes: ["Electric", "Water"],
-            enemyPool: [81, 82, 100, 101, 117, 120],
-            elitePool: [82, 101, 125],
-            previewIds: [82, 101, 125],
-            killQuota: 36,
+            enemyPool: [81, 82, 100, 101, 117, 121],
+            elitePool: [82, 101, 130],
+            previewIds: [82, 101, 130],
+            killQuota: 34,
             weather: "THUNDER"
           },
           {
+            id: "chansey_escort",
             title: "事件・幸福吉利蛋護送潮",
-            subtitle: "擊破 34 隻海岬守衛並攔截幸福吉利蛋，必掉神奇糖果與治癒球！",
+            subtitle: "擊破海岬守衛並攔截幸福吉利蛋，必掉神奇糖果與治癒球！",
             enemyTypes: ["Water", "Normal", "Ice"],
-            enemyPool: [54, 55, 86, 87, 98, 99],
-            elitePool: [55, 87, 99],
-            previewIds: [113, 55, 87],
-            killQuota: 34,
+            enemyPool: [55, 86, 87, 113, 120, 131],
+            elitePool: [87, 121, 131],
+            previewIds: [113, 131, 87],
+            killQuota: 32,
             spawnTreasure: "chansey",
-            weather: "RAIN"
+            weather: "CLEAR"
           }
         ],
-        enemyTypes: ["Water", "Electric"],
-        enemyPool: [60, 81, 116],
-        elitePool: [82],
-        previewIds: [82, 113],
-        killQuota: 36,
-        clearBonus: 135,
+        enemyTypes: ["Water", "Ice", "Electric"],
+        enemyPool: [82, 87, 117, 121],
+        elitePool: [130, 131],
+        previewIds: [113, 82, 131],
+        killQuota: 34,
+        clearBonus: 130,
         weather: "RAIN"
       },
       {
-        title: "關底・海峽傳說神鳥",
-        subtitle: "討伐海峽守護神獸，奪取進軍石英高原的通行權！",
+        title: "關底・極寒神鳥【急凍鳥】",
+        subtitle: "討伐雙子島冰海神獸【急凍鳥】，奪取進軍無人發電廠的通行權！",
         isBossWave: true,
-        isDynamicAct2Bird: true,
         isLegendaryBoss: true,
         enemyTypes: ["Ice", "Flying"],
-        enemyPool: [86, 91, 117, 120],
+        enemyPool: [87, 91, 131],
         bossIds: [144],
         previewIds: [144],
-        clearBonus: 210,
-        actClearHeal: 0.25,
-        weather: "BLIZZARD"
+        clearBonus: 220,
+        weather: "BLIZZARD",
+        unlockRegionBadge: "海岬制霸"
       }
     ]
   },
   {
-    id: "act3_sky_pillar",
+    id: "act3_power_plant",
+    name: "無人發電廠・高壓磁場區",
+    shortName: "無人發電廠",
+    stageId: "power_plant",
+    isArena: false,
+    signStyle: "harbor",
+    bounds: { halfW: 600, halfH: 460 },
+    theme: { bg: "#1E293B", accent: "#0284C7", text: "#7DD3FC", badgeBg: "#0369A1", badgeLabel: "電廠徽章" },
+    waves: [
+      {
+        title: "無人發電廠・磁場巡檢",
+        subtitle: "踩上磁能加速帶（+22%速／-10%CD），順手觸發蓄電塔麻痺敵群！",
+        enemyTypes: ["Electric", "Steel", "Poison"],
+        enemyPool: [81, 82, 100, 101, 88, 109],
+        elitePool: [82, 101, 125],
+        previewIds: [82, 101, 125],
+        killQuota: 34,
+        clearBonus: 125,
+        weather: "THUNDER"
+      },
+      {
+        title: "發電廠中繼・高壓雙雄小王",
+        subtitle: "討伐鎮守渦輪室的雷電精銳領主，收割高壓核心賞金！",
+        isBossWave: true,
+        isMiniBoss: true,
+        miniBossPool: [
+          { bossIds: [125], title: "小王・狂雷電擊獸領主", enemyTypes: ["Electric"] },
+          { bossIds: [135], title: "小王・疾速雷伊布領主", enemyTypes: ["Electric"] },
+          { bossIds: [89],  title: "小王・劇毒臭臭泥領主", enemyTypes: ["Poison"] }
+        ],
+        enemyTypes: ["Electric", "Poison"],
+        enemyPool: [82, 101, 89, 110],
+        bossIds: [125],
+        previewIds: [125, 135, 89],
+        clearBonus: 165,
+        weather: "THUNDER"
+      },
+      {
+        title: "高壓室異變・超載雷暴狂潮",
+        subtitle: "發電廠磁場過載！善用磁能加速軌道風箏大批雷毒精銳！",
+        enemyTypes: ["Electric", "Poison", "Steel"],
+        enemyPool: [26, 82, 89, 101, 110, 125],
+        elitePool: [26, 125, 135],
+        previewIds: [26, 125, 135],
+        killQuota: 38,
+        clearBonus: 145,
+        weather: "THUNDER"
+      },
+      {
+        title: "關底・雷鳴神鳥【閃電鳥】",
+        subtitle: "討伐盤踞發電廠核心的傳說神獸【閃電鳥】，進軍紅蓮火山！",
+        isBossWave: true,
+        isLegendaryBoss: true,
+        enemyTypes: ["Electric", "Flying"],
+        enemyPool: [82, 101, 125],
+        bossIds: [145],
+        previewIds: [145],
+        clearBonus: 260,
+        weather: "THUNDER",
+        unlockRegionBadge: "電廠制霸"
+      }
+    ]
+  },
+  {
+    id: "act4_volcano",
+    name: "紅蓮島・火山熔岩洞窟",
+    shortName: "紅蓮火山",
+    stageId: "cinnabar_volcano",
+    isArena: false,
+    signStyle: "temple",
+    bounds: { halfW: 600, halfH: 460 },
+    theme: { bg: "#451A03", accent: "#EA580C", text: "#FDBA74", badgeBg: "#C2410C", badgeLabel: "火山徽章" },
+    waves: [
+      {
+        title: "紅蓮火山・熔岩洞窟突進",
+        subtitle: "留意 12 秒週期地熱蒸氣噴口，誘怪踩入熔岩與蒸氣區灼傷清場！",
+        enemyTypes: ["Fire", "Rock", "Ground"],
+        enemyPool: [37, 58, 74, 75, 77, 104, 111],
+        elitePool: [59, 76, 78, 126],
+        previewIds: [58, 75, 111],
+        killQuota: 38,
+        clearBonus: 140,
+        weather: "HEATWAVE"
+      },
+      {
+        title: "火山中繼・炎岩霸主小王",
+        subtitle: "擊破盤踞火山口的炎岩精英領主，衝刺雙超武覺醒！",
+        isBossWave: true,
+        isMiniBoss: true,
+        miniBossPool: [
+          { bossIds: [126], title: "小王・熔岩鴨嘴火獸", enemyTypes: ["Fire"] },
+          { bossIds: [112], title: "小王・重甲鑽角犀獸", enemyTypes: ["Ground", "Rock"] },
+          { bossIds: [59],  title: "小王・烈焰風速狗", enemyTypes: ["Fire"] }
+        ],
+        enemyTypes: ["Fire", "Ground", "Rock"],
+        enemyPool: [75, 78, 105, 112],
+        bossIds: [126],
+        previewIds: [126, 112, 59],
+        clearBonus: 185,
+        weather: "HEATWAVE"
+      },
+      {
+        title: "地核震動・熾熱遠古狂潮",
+        subtitle: "火山深處沸騰！遠古化石與火岩精銳傾巢而出！",
+        enemyTypes: ["Fire", "Rock", "Ground"],
+        enemyPool: [59, 76, 78, 112, 126, 139, 141],
+        elitePool: [76, 112, 142],
+        previewIds: [76, 126, 142],
+        killQuota: 42,
+        clearBonus: 165,
+        weather: "HEATWAVE"
+      },
+      {
+        title: "關底・烈焰神鳥【火焰鳥】",
+        subtitle: "討伐紅蓮火山守護神獸【火焰鳥】，踏上最終石英高原！",
+        isBossWave: true,
+        isLegendaryBoss: true,
+        enemyTypes: ["Fire", "Flying"],
+        enemyPool: [59, 78, 126],
+        bossIds: [146],
+        previewIds: [146],
+        clearBonus: 290,
+        weather: "HEATWAVE",
+        unlockRegionBadge: "火山制霸"
+      }
+    ]
+  },
+  {
+    id: "act5_sky_pillar",
     name: "石英高原・古神殿",
     shortName: "石英高原",
     stageId: "sky_pillar",
     isArena: false,
     signStyle: "temple",
-    bounds: { halfW: 580, halfH: 440 },
-    theme: { bg: "#2E2447", accent: "#6D28D9", text: "#E9D5FF", badgeBg: "#7C3AED", badgeLabel: "神殿徽章" },
+    bounds: { halfW: 620, halfH: 480 },
+    theme: { bg: "#3B1D5A", accent: "#9333EA", text: "#E9D5FF", badgeBg: "#7E22CE", badgeLabel: "高原徽章" },
     waves: [
       {
         title: "石英高原・古神殿柱廊",
-        subtitle: "淨空 38 隻超能與幽靈守衛，善用大理石大道加速！",
-        enemyTypes: ["Psychic", "Ghost", "Rock"],
-        enemyPool: [64, 75, 93, 95, 105, 111],
-        elitePool: [65, 94, 112],
-        previewIds: [64, 93, 95],
-        killQuota: 38,
-        clearBonus: 145,
-        weather: "PSYCHIC"
-      },
-      {
-        title: "冠軍之路・遠古化石覺醒",
-        subtitle: "擊破 42 隻遠古化石霸主與龍系精銳，準備迎接雙小王！",
-        enemyTypes: ["Rock", "Dragon", "Fighting"],
-        enemyPool: [68, 112, 139, 141, 142, 148],
-        elitePool: [139, 141, 142],
-        previewIds: [141, 142, 148],
-        killQuota: 42,
-        clearBonus: 165,
+        subtitle: "淨空超能與幽靈守衛，善用大理石大道加速與冷卻縮減！",
+        enemyTypes: ["Psychic", "Ghost"],
+        enemyPool: [64, 92, 93, 96, 97, 122, 124],
+        elitePool: [65, 94, 97],
+        previewIds: [64, 93, 97],
+        killQuota: 40,
+        clearBonus: 155,
         weather: "PSYCHIC"
       },
       {
@@ -253,37 +349,36 @@ window.EXPEDITION_CHAPTERS = [
           { bossIds: [34, 31],   title: "雙小王・王者夫婦（尼多王＆尼多后）", enemyTypes: ["Poison", "Ground"] },
           { bossIds: [65, 94],   title: "雙小王・念影雙絕（胡地＆耿鬼）", enemyTypes: ["Psychic", "Ghost"] }
         ],
-        enemyTypes: ["Fighting", "Psychic"],
-        enemyPool: [64, 67, 93, 111],
+        enemyTypes: ["Fighting", "Psychic", "Ghost"],
+        enemyPool: [65, 68, 94, 106, 107],
         bossIds: [106, 107],
-        previewIds: [106, 107],
-        clearBonus: 190,
+        previewIds: [65, 94, 106],
+        clearBonus: 210,
         weather: "PSYCHIC"
       },
       {
         title: "冠軍之路・MEGA 無雙狂潮",
-        subtitle: "46 隻高階精銳集結！解放 💎 MEGA 與雙超武痛快無雙收割！",
-        enemyTypes: ["Dragon", "Psychic", "Rock"],
-        enemyPool: [59, 65, 68, 94, 112, 142, 148, 149],
-        elitePool: [59, 68, 142, 149],
-        previewIds: [149, 65, 94],
+        subtitle: "高階龍系與神殿精銳集結！解放 💎 MEGA 與雙超武痛快無雙收割！",
+        enemyTypes: ["Dragon", "Psychic", "Fighting"],
+        enemyPool: [65, 68, 94, 128, 130, 142, 148, 149],
+        elitePool: [68, 143, 149],
+        previewIds: [149, 143, 68],
         killQuota: 46,
-        clearBonus: 185,
+        clearBonus: 195,
         weather: "PSYCHIC"
       },
       {
-        title: "關底・烈焰鳥神殿試煉",
-        subtitle: "討伐烈焰神鳥【火焰鳥】（困難以上為三聖鳥接力戰），踏入石英鬥技場！",
+        title: "關底・冠軍殿堂守門雙霸",
+        subtitle: "討伐【快龍＆卡比獸】最終守衛（困難以上追加傳說試煉），踏入石英鬥技場！",
         isBossWave: true,
         isLegendaryBoss: true,
-        isAct3RelayBoss: true,
-        enemyTypes: ["Fire", "Flying"],
-        enemyPool: [59, 78, 126, 142],
-        bossIds: [146],
-        previewIds: [146],
-        clearBonus: 250,
-        actClearHeal: 0.25,
-        weather: "HEATWAVE"
+        enemyTypes: ["Dragon", "Normal"],
+        enemyPool: [65, 68, 148],
+        bossIds: [149, 143],
+        previewIds: [149, 143],
+        clearBonus: 320,
+        weather: "PSYCHIC",
+        unlockRegionBadge: "高原制霸"
       }
     ]
   },
@@ -308,7 +403,7 @@ window.EXPEDITION_CHAPTERS = [
         enemyPool: [],
         bossIds: [150],
         previewIds: [150],
-        clearBonus: 480,
+        clearBonus: 520,
         weather: "PSYCHIC"
       }
     ]
@@ -1104,7 +1199,9 @@ window.ModeExpedition = {
     st.currentWave = waveNum;
     st.spawnedCount = 0;
     st.killsInWave = 0;
-    st.killQuota = cfg.isBossWave ? 0 : (cfg.killQuota || 25);
+    const dIdQ = (app.selectedDifficulty && app.selectedDifficulty.id) || 'normal';
+    const qMult = dIdQ === 'hell' ? 1.35 : (dIdQ === 'hard' ? 1.25 : (dIdQ === 'normal' ? 1.15 : 1.0));
+    st.killQuota = cfg.isBossWave ? 0 : Math.round((cfg.killQuota || 25) * qMult);
     st.spawnCd = 0.45;
     st.eliteSpawnedCount = 0;
     st.treasureSpawned = false;
@@ -1693,7 +1790,7 @@ window.ModeExpedition = {
     if (app.saveToStorage) app.saveToStorage();
     app.showCutsceneBanner(
       isExTrueClear
-        ? `★ TRUE CHAMPION！關都大遠征 15+1 EX 夢夢制霸！`
+        ? `★ TRUE CHAMPION！關都大遠征 20+1 EX 夢夢制霸！`
         : `關都大遠征 ${st ? st.totalWaves : 16}/${st ? st.totalWaves : 16} 制霸！CHAMPION!`,
       isExTrueClear
         ? `連斬王者超夢與始祖夢幻！獲得真結局遠征賞金 +${clearCoins} 代幣！`

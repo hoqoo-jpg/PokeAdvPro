@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.1p1";
+        const ver = this.APP_VERSION || "v7.6.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.1p1";
+      const curVer = this.APP_VERSION || "v7.6.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -577,7 +577,7 @@ Object.assign(window.GameApp, {
 
     const expMetaEl = document.getElementById("lobbyExpMetaText");
     if (expMetaEl) {
-      expMetaEl.textContent = `${summary.chapterCount} 大區域 ‧ 15+1 關推進 ‧ 隨機小王＆EX連戰`;
+      expMetaEl.textContent = `${summary.chapterCount} 大區域 ‧ 20+1 關推進 ‧ 三聖鳥歸位＆EX連戰`;
     }
     const expActionsEl = document.getElementById("lobbyExpActionRow");
     if (expActionsEl) {
@@ -1371,7 +1371,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.1p1",
+      lastSeenVersion: this.APP_VERSION || "v7.6.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2300,7 +2300,7 @@ Object.assign(window.GameApp, {
     const isOpen = !!this._lobbyLoadoutOpen;
 
     const headerHtml = `
-      <div onclick="GameApp.toggleLobbySkillLoadout()" class="cursor-pointer flex items-center justify-between gap-1.5 px-2 py-1 rounded-xl bg-indigo-50/90 border border-indigo-200 hover:bg-indigo-100/80 transition select-none">
+      <div onclick="event.stopPropagation(); GameApp.toggleLobbySkillLoadout()" class="cursor-pointer flex items-center justify-between gap-1.5 px-2 py-1 rounded-xl bg-indigo-50/90 border border-indigo-200 hover:bg-indigo-100/80 transition select-none">
         <div class="flex items-center gap-1.5 min-w-0">
           <span class="text-[9px] font-black text-indigo-700 shrink-0"><i class="fa-solid fa-sliders"></i> 招式整備</span>
           ${starterMeta ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-white border border-amber-400 text-[9px] font-black text-slate-800 shrink-0">${renderSkillIconHTML(starterMeta, "w-3.5 h-3.5")}<span>★${starterMeta.name}</span></span>` : ''}
@@ -2733,7 +2733,7 @@ Object.assign(window.GameApp, {
     const completedCount = ACHIEVEMENTS.filter(a => a.check(this.saveData.stats, this.saveData)).length;
     const brMap = (this.saveData && this.saveData.bestRatings) || {};
     const modeCardsDef = [
-      { key: "expedition", label: "關都大遠征 15+1", stripe: "bg-emerald-500" },
+      { key: "expedition", label: "關都大遠征 20+1", stripe: "bg-emerald-500" },
       { key: "arena",      label: "1vs1 石英鬥技場", stripe: "bg-rose-500" },
       { key: "standard",   label: "8分鐘標準模式",   stripe: "bg-sky-500" },
       { key: "endless",    label: "無盡深淵試煉",    stripe: "bg-purple-500" }
@@ -2932,7 +2932,7 @@ Object.assign(window.GameApp, {
       const totW = st.totalWaves || 16;
       const clearedW = isVictory ? totW : Math.max(0, (st.currentWave || 1) - 1);
       isExTrueClear = !!(this.lastExpeditionResult && this.lastExpeditionResult.isExTrueClear);
-      modeLabel = isExTrueClear ? "EXPEDITION EX CLEAR" : "EXPEDITION 15+1";
+      modeLabel = isExTrueClear ? "EXPEDITION EX CLEAR" : "EXPEDITION 20+1";
 
       // v7.4.1 實測校準：DPS 滿分線收緊至 1250、效率收緊至 <= 04:00 (240s)、生存放緩斜率＋勝場保底 35、戰術納入異常與大招
       hex.atk = clamp(25 + (dps / 1250) * 75, 12, 100);
@@ -3064,7 +3064,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.1p1",
+      version: this.APP_VERSION || "v7.6.2",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3733,8 +3733,21 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.6.1 雙主題 UI 統一 ‧ 第 3～5 章地圖 GBA 像素精裝重繪</span>
+            <span class="font-black text-sm text-amber-300">v7.6.2 關都大遠征 20+1 五區三聖鳥歸位 ‧ 難度重校 ‧ 體驗收口版</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">關都大遠征升級 20+1 五區長征（三聖鳥各歸生態主場！）</div>
+            <div>• 正式將【無人發電廠】與【紅蓮火山】納入大遠征主線：常磐密林（火箭隊雙王）➔ 華藍海岬（<strong>急凍鳥</strong>）➔ 無人發電廠（<strong>閃電鳥</strong>）➔ 紅蓮火山（<strong>火焰鳥</strong>）➔ 石英高原（快龍＆卡比獸）➔ 石英鬥技場（王者超夢）！</div>
+            <div class="text-amber-300 font-black pt-1">四檔難度階梯重校 ＆ 8 分鐘小王出招加速</div>
+            <div>• 原標準難度下放為「簡易（輕鬆探索）」；新版「標準」提升怪潮密度與體質 +18%（遠征配額 +15%，並微調水晶經驗防雪球），困難／地獄同步上移；8 分鐘精英小王進視野首次鋪紅圈由 3.0s 縮短至 1.1s！</div>
+            <div class="text-sky-300 font-black pt-1">體驗修復 ＆ 選關縮圖所見即所得</div>
+            <div>• 修復大廳點擊「招式整備」誤觸外層選角視窗的事件冒泡問題；同步將 8 分鐘選關縮圖升級為 v7.6.1 精裝 GBA 像素熔岩池與工業導軌預覽圖。</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.6.1 雙主題 UI 統一 ‧ 第 3～5 章地圖 GBA 像素精裝重繪</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-amber-300 font-black pt-0.5">道館榮譽＆大廳抽屜 雙主題 100% 統一</div>
@@ -4191,7 +4204,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.1p1";
+    const curVer = this.APP_VERSION || "v7.6.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
