@@ -1261,7 +1261,7 @@ Object.assign(window.SkillsEngine, {
 
     // 地面底層：終極衝擊 (giga_impact_lance) 與撞擊 (sonic_cone) 的地面犁地焦黑溝槽與 Z 軸投影暗影
     this.meleeEffects.forEach(m => {
-      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle" && m.style !== "hydro_pump_beam" && m.style !== "flamethrower_beam" && m.style !== "ice_beam_laser" && m.style !== "x_scissor" && m.style !== "shadow_claw" && m.style !== "rock_obelisk_ult") return;
+      if (m.style !== "giga_impact_lance" && m.style !== "sonic_cone" && m.style !== "phantom_tackle" && m.style !== "hydro_pump_beam" && m.style !== "flamethrower_beam" && m.style !== "ice_beam_laser" && m.style !== "x_scissor" && m.style !== "shadow_claw" && m.style !== "shadow_claw_scar" && m.style !== "rock_obelisk_ult") return;
       if (m.style === "x_scissor") {
         // 真 X 形地面投影（貼合雙鐮交叉形狀，不再用生硬橢圓）
         const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.28))));
@@ -1305,16 +1305,51 @@ Object.assign(window.SkillsEngine, {
         ctx.restore();
         return;
       }
+      if (m.style === "shadow_claw_scar") {
+        // 【暗影爪命中焦紫／猩紅地面撕裂傷痕】：強化打擊尾韻
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.52))));
+        const sx = toSx(m.x), sy = toSy(m.y);
+        const fade = Math.max(0, 1 - prog);
+        const r = m.radius || 36;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(m.angle || 0);
+        ctx.scale(1, m.slashDir || 1);
+        ctx.globalAlpha = fade * 0.82 * sAlpha;
+        ctx.lineCap = "round";
+        [-10, 0, 10].forEach((yOff, idx) => {
+          ctx.strokeStyle = m.isMegaGengar ? "#4C0519" : "#2E1065";
+          ctx.lineWidth = idx === 1 ? 6 : 4;
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.65, yOff - r * 0.45);
+          ctx.lineTo(r * 0.65, yOff + r * 0.45);
+          ctx.stroke();
+          ctx.strokeStyle = m.isMegaGengar ? "#FB7185" : "#E879F9";
+          ctx.lineWidth = idx === 1 ? 2.4 : 1.5;
+          ctx.stroke();
+        });
+        ctx.restore();
+        return;
+      }
       if (m.style === "rock_obelisk_ult") {
-        // 不規則鋸齒折線熔岩斷層裂縫（與地震樹狀龜裂統一美術體系）
-        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.82))));
+        // 不規則鋸齒折線熔岩斷層裂縫 ＋ 地底深褐暗影塌陷坑
+        const prog = Math.max(0, Math.min(1, 1 - (m.timer / (m.maxTime || 0.86))));
         const sx = toSx(m.x), sy = toSy(m.y);
         const r = m.radius || 130;
         const fade = prog < 0.72 ? 1.0 : Math.max(0, (1 - prog) / 0.28);
         const burst = Math.min(1, prog / 0.28);
         ctx.save();
         ctx.translate(sx, sy);
-        ctx.globalAlpha = fade * 0.90 * sAlpha;
+        ctx.globalAlpha = fade * 0.92 * sAlpha;
+        // 地底深褐熔岩塌陷暗影坑
+        const pitG = ctx.createRadialGradient(0, 0, 10, 0, 0, r * 0.72 * burst);
+        pitG.addColorStop(0, "rgba(69, 26, 3, 0.82)");
+        pitG.addColorStop(0.55, "rgba(180, 83, 9, 0.45)");
+        pitG.addColorStop(1, "rgba(120, 53, 15, 0)");
+        ctx.fillStyle = pitG;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.72 * burst, r * 0.46 * burst, 0, 0, Math.PI * 2);
+        ctx.fill();
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         const arms = [
@@ -2126,10 +2161,15 @@ Object.assign(window.SkillsEngine, {
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.92, 0, Math.PI * 2);
         ctx.stroke();
-        // 4 片從外圍 30px 向外延伸的彎月翡翠金星刃
+        // 4 片從外圍 30px 向外延伸的漸層光刃（飛天螳螂享青金殘像光暈）
+        const isScy = !!hz.isScyther;
         for (let b = 0; b < 4; b++) {
           ctx.rotate(Math.PI / 2);
-          ctx.fillStyle = b % 2 === 0 ? "#84CC16" : "#BEF264";
+          const bGrad = ctx.createLinearGradient(innerGap, 0, r, 0);
+          bGrad.addColorStop(0, isScy ? "#059669" : "#4D7C0F");
+          bGrad.addColorStop(0.55, isScy ? "#34D399" : "#84CC16");
+          bGrad.addColorStop(1, isScy ? "#FEF08A" : "#ECFCCB");
+          ctx.fillStyle = bGrad;
           ctx.strokeStyle = "#14532D";
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -2159,6 +2199,12 @@ Object.assign(window.SkillsEngine, {
         }
         ctx.save();
         ctx.globalAlpha = alpha * sAlpha;
+        // 三角形內部淡電漿磁場填充（皮卡丘家族帶青金雙色高壓光）
+        ctx.fillStyle = hz.isPikachuFamily ? "rgba(56, 189, 248, 0.14)" : "rgba(250, 204, 21, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y);
+        ctx.closePath();
+        ctx.fill();
         // 繪製三角形高壓閃電牢籠邊線（每條邊帶隨機鋸齒電弧）
         for (let k = 0; k < 3; k++) {
           const p1 = pts[k], p2 = pts[(k + 1) % 3];
@@ -2231,8 +2277,12 @@ Object.assign(window.SkillsEngine, {
             ctx.quadraticCurveTo(mx + 4, my + fg.thick * 0.85, 42, fg.y0 + fg.thick * 0.65);
             ctx.closePath();
             ctx.fill();
-            // 高飽和紫紅／猩紅主爪
-            ctx.fillStyle = isC ? (fi === 1 ? "#FB7185" : "#E11D48") : (fi === 1 ? "#F0ABFC" : "#A855F7");
+            // 沿爪身漸層（深紫黑➔高飽和紫紅/猩紅➔純白爪尖）
+            const fgGrad = ctx.createLinearGradient(40, fg.y0, fg.tipX, fg.tipY);
+            fgGrad.addColorStop(0, isC ? "#881337" : "#4C1D95");
+            fgGrad.addColorStop(0.55, isC ? "#F43F5E" : "#D946EF");
+            fgGrad.addColorStop(1, "#FFFFFF");
+            ctx.fillStyle = fgGrad;
             ctx.beginPath();
             ctx.moveTo(38, fg.y0 - fg.thick * 0.42);
             ctx.quadraticCurveTo(mx, my - fg.thick * 0.45, fg.tipX, fg.tipY);
@@ -2872,7 +2922,23 @@ Object.assign(window.SkillsEngine, {
       ctx.save();
       ctx.globalAlpha = (Math.max(0, 1 - prog * 0.72)) * sAlpha;
 
-      if (m.style === "rock_slide_impact") {
+      if (m.style === "cast_origin_ring") {
+        // 起手發力氣爆環（電球靜電脈衝／毒擊毒霧噴口／岩崩震地起手）
+        const sx = toSx(m.x), sy = toSy(m.y);
+        const r = (m.radius || 24) * (0.4 + prog * 0.9);
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(m.angle || 0);
+        ctx.globalAlpha = Math.max(0, 1 - prog) * 0.85 * sAlpha;
+        ctx.strokeStyle = m.color || "#FEF08A";
+        ctx.lineWidth = 3.2 * (1 - prog) + 0.8;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, r * 0.45, r, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else if (m.style === "shadow_claw_scar") {
+        // 已於地面底層繪製
+      } else if (m.style === "rock_slide_impact") {
         // 【岩崩 v7.5.7】：縮小體積至 14-19px 實心像素主岩＋2顆副碎岩錯落天墜，內縮地面鎖定圈➔砸地碎裂飛石（無幽靈半透明）
         const sx = toSx(m.x), sy = toSy(m.y);
         const r = m.radius || 44;
@@ -2922,11 +2988,24 @@ Object.assign(window.SkillsEngine, {
           }
         }
 
-        // 3. 實心像素主岩＋2顆副碎岩（僅在墜落與砸地瞬間 0~42% 不透明顯示，之後碎裂消失）
+        // 3. 墜落熱浪沙塵彗尾（對齊天龍流星雨天降感）＋ 實心漸層像素主岩與副碎岩
         if (prog < 0.44) {
           ctx.save();
           ctx.globalAlpha = sAlpha;
           ctx.translate(fallX, -fallY);
+          if (dropFrac < 0.96) {
+            const tailG = ctx.createLinearGradient(0, 0, 36, -68);
+            tailG.addColorStop(0, m.isAeroRock ? "rgba(254, 240, 138, 0.85)" : "rgba(251, 191, 36, 0.72)");
+            tailG.addColorStop(0.5, m.isLv8 ? "rgba(234, 88, 12, 0.48)" : "rgba(217, 119, 6, 0.38)");
+            tailG.addColorStop(1, "rgba(180, 83, 9, 0)");
+            ctx.fillStyle = tailG;
+            ctx.beginPath();
+            ctx.moveTo(-br * 0.75, -br * 0.2);
+            ctx.lineTo(36, -68);
+            ctx.lineTo(br * 0.85, br * 0.2);
+            ctx.closePath();
+            ctx.fill();
+          }
           const drawPixelRock = (ox, oy, rr) => {
             ctx.save();
             ctx.translate(ox, oy);
@@ -2986,8 +3065,12 @@ Object.assign(window.SkillsEngine, {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
-        // 受光亮赭褐與琥珀金切面
-        ctx.fillStyle = "#D97706";
+        // 暖岩熔金漸層受光切面
+        const obGrad = ctx.createLinearGradient(-26, -90, 26, 12);
+        obGrad.addColorStop(0, m.isAeroRock ? "#FEF08A" : "#FBBF24");
+        obGrad.addColorStop(0.5, "#D97706");
+        obGrad.addColorStop(1, "#78350F");
+        ctx.fillStyle = obGrad;
         ctx.beginPath();
         ctx.moveTo(-22, 9); ctx.lineTo(-27, -58); ctx.lineTo(0, -90); ctx.lineTo(4, 9); ctx.closePath();
         ctx.fill();
@@ -3083,8 +3166,21 @@ Object.assign(window.SkillsEngine, {
           ctx.quadraticCurveTo(0, -curveH * 1.25, L * 1.05, curveH * 0.35);
           ctx.quadraticCurveTo(0, -curveH * 0.25, -L * 1.05, curveH * 0.35);
           ctx.fill();
-          // 翡翠亮綠主刀光
-          ctx.fillStyle = "#84CC16";
+          // 外緣殘影拖尾（飛天螳螂或 Lv.8 解鎖青金雙重殘像）
+          if (m.isScyther || m.isLv8) {
+            ctx.fillStyle = m.isScyther ? "rgba(253, 224, 71, 0.36)" : "rgba(52, 211, 153, 0.34)";
+            ctx.beginPath();
+            ctx.moveTo(-L * 1.08, curveH * 0.45);
+            ctx.quadraticCurveTo(0, -curveH * 1.38, L * 1.08, curveH * 0.45);
+            ctx.quadraticCurveTo(0, -curveH * 0.12, -L * 1.08, curveH * 0.45);
+            ctx.fill();
+          }
+          // 三段漸層翡翠光刃
+          const xGrad = ctx.createLinearGradient(-L, 0, L, 0);
+          xGrad.addColorStop(0, m.isScyther ? "#059669" : "#4D7C0F");
+          xGrad.addColorStop(0.5, m.isScyther ? "#34D399" : "#84CC16");
+          xGrad.addColorStop(1, (m.isScyther || m.isLv8) ? "#FEF08A" : "#D9F99D");
+          ctx.fillStyle = xGrad;
           ctx.beginPath();
           ctx.moveTo(-L * 0.96, curveH * 0.28);
           ctx.quadraticCurveTo(0, -curveH * 1.05, L * 0.96, curveH * 0.28);
@@ -3172,8 +3268,22 @@ Object.assign(window.SkillsEngine, {
           ctx.closePath();
           ctx.fill();
 
-          // 中層高飽和紫紅／猩紅利爪
-          ctx.fillStyle = isCrimson ? (idx === 1 ? "#FB7185" : "#E11D48") : (idx === 1 ? "#F0ABFC" : "#A855F7");
+          // Lv.8 額外半透明幽冥殘像爪
+          if (m.isLv8) {
+            ctx.fillStyle = isCrimson ? "rgba(251, 113, 133, 0.32)" : "rgba(232, 121, 249, 0.32)";
+            ctx.beginPath();
+            ctx.moveTo(sx0 - 6, sy0 - 4);
+            ctx.quadraticCurveTo(mx + halfT * 1.6, my - halfT * 1.1, tx + 4, ty + 3);
+            ctx.quadraticCurveTo(mx - halfT * 0.9, my + halfT * 0.9, sx0 - 6, sy0 - 4);
+            ctx.closePath();
+            ctx.fill();
+          }
+          // 中層沿爪身三段線性漸層（深紫黑➔高飽和紫紅/猩紅➔尖端純白）
+          const clGrad = ctx.createLinearGradient(sx0, sy0, tx, ty);
+          clGrad.addColorStop(0, isCrimson ? "#881337" : "#581C87");
+          clGrad.addColorStop(0.55, isCrimson ? (idx === 1 ? "#FB7185" : "#E11D48") : (idx === 1 ? "#F0ABFC" : "#C026D3"));
+          clGrad.addColorStop(1, "#FFFFFF");
+          ctx.fillStyle = clGrad;
           ctx.beginPath();
           ctx.moveTo(sx0 + 3, sy0 + 3);
           ctx.quadraticCurveTo(mx + halfT * 0.92, my - halfT * 0.52, tx, ty);
@@ -4687,6 +4797,25 @@ Object.assign(window.SkillsEngine, {
         ctx.rotate(pr.angle || 0);
         const len = r * (isUltSpear ? 2.1 : 1.75);
         const hw = r * (isUltSpear ? 0.42 : 0.34);
+        // 紫➔螢光綠液態漸層流光拖尾（Lv.8 與超武骨矛追加雙股螺旋毒氣緞帶）
+        const pTailG = ctx.createLinearGradient(-len * 1.85, 0, len * 0.6, 0);
+        pTailG.addColorStop(0, "rgba(74, 222, 128, 0)");
+        pTailG.addColorStop(0.55, pr.isCrimsonVenom ? "rgba(244, 63, 94, 0.52)" : "rgba(168, 85, 247, 0.55)");
+        pTailG.addColorStop(1, "rgba(74, 222, 128, 0.82)");
+        ctx.fillStyle = pTailG;
+        ctx.beginPath();
+        ctx.moveTo(len * 0.4, 0); ctx.lineTo(-len * 1.85, -hw * 0.95); ctx.lineTo(-len * 1.85, hw * 0.95); ctx.closePath();
+        ctx.fill();
+        if (pr.isLv8 || isUltSpear) {
+          ctx.strokeStyle = "#4ADE80";
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          for (let sx = -len * 1.5; sx <= len * 0.4; sx += 5) {
+            const sy = Math.sin(now * 24 + sx * 0.25) * hw * 0.85;
+            if (sx === -len * 1.5) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          }
+          ctx.stroke();
+        }
         // 細長深紫像素描邊毒針
         ctx.fillStyle = "#2E1065";
         ctx.beginPath();
@@ -4718,11 +4847,25 @@ Object.assign(window.SkillsEngine, {
         ctx.beginPath();
         ctx.ellipse(0, r * 0.92, r * 0.92, r * 0.32, 0, 0, Math.PI * 2);
         ctx.fill();
-        // 2. 高熱雙層等離子外暈
-        const grad = ctx.createRadialGradient(0, 0, r * 0.12, 0, 0, r * 1.32 * pulse);
+        // 1B. 皮卡丘家族 / Lv.8 專屬金青雙色高壓尾跡流光
+        if (pr.isPikachuFamily || pr.isLv8) {
+          ctx.save();
+          ctx.rotate(pr.angle || 0);
+          const wakeG = ctx.createLinearGradient(-r * 2.4, 0, 0, 0);
+          wakeG.addColorStop(0, "rgba(56, 189, 248, 0)");
+          wakeG.addColorStop(0.5, pr.isPikachuFamily ? "rgba(56, 189, 248, 0.55)" : "rgba(250, 204, 21, 0.45)");
+          wakeG.addColorStop(1, "rgba(254, 249, 195, 0.85)");
+          ctx.fillStyle = wakeG;
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 0.55); ctx.lineTo(-r * 2.4, 0); ctx.lineTo(0, r * 0.55); ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        // 2. 高熱雙層等離子外暈（皮卡丘家族外緣透出青白高壓電暈）
+        const grad = ctx.createRadialGradient(0, 0, r * 0.12, 0, 0, r * 1.38 * pulse);
         grad.addColorStop(0, "#FFFFFF");
-        grad.addColorStop(0.42, "#FEF08A");
-        grad.addColorStop(0.74, "#F59E0B");
+        grad.addColorStop(0.38, "#FEF08A");
+        grad.addColorStop(0.72, pr.isPikachuFamily ? "#38BDF8" : "#F59E0B");
         grad.addColorStop(1, "rgba(234, 179, 8, 0)");
         ctx.fillStyle = grad;
         ctx.beginPath();

@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.5.9";
+        const ver = this.APP_VERSION || "v7.5.10";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -561,7 +561,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.5.9";
+      const curVer = this.APP_VERSION || "v7.5.10";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.updateLobbyModeHub) this.updateLobbyModeHub();
@@ -1368,7 +1368,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.5.9",
+      lastSeenVersion: this.APP_VERSION || "v7.5.10",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2888,7 +2888,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.5.9",
+      version: this.APP_VERSION || "v7.5.10",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3557,8 +3557,19 @@ Object.assign(window.GameApp, {
       box.innerHTML = `
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3 space-y-2 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between">
-            <span class="font-black text-sm text-amber-300">v7.5.9 五大新招最終美術＆判定定案版（對齊舊 20 招商業精度）</span>
+            <span class="font-black text-sm text-amber-300">v7.5.10 五大新招標竿工藝精裝版（漸層光影 ‧ Lv.8 進化 ‧ 代表精靈彩蛋）</span>
             <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">LATEST</span>
+          </div>
+          <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
+            <div class="text-emerald-300 font-black pt-0.5">全面對齊水炮／噴射火焰／天龍流星雨 95 分美術工藝</div>
+            <div>• <strong>多層漸層光影＆起手氣爆環</strong>：岩崩補齊高空墜落沙塵彗尾與超武熔岩暗影坑＋噴湧微粒；電球與毒擊補齊出招起手脈衝環與漸層液態／高壓尾跡；十字剪與暗影爪全面改為三段高飽和線性漸層光刃，暗影爪命中加留地面焦紫撕裂傷痕！</div>
+            <div>• <strong>Lv.8 視覺外觀進化</strong>：毒擊解鎖雙股螺旋毒氣緞帶、十字剪解鎖雙重弧面殘像、暗影爪解鎖半透明幽冥殘像爪、電球解鎖高壓尾跡流光、岩崩強化熾橘熔岩彗尾！</div>
+            <div>• <strong>代表精靈專屬彩蛋</strong>：皮卡丘／雷丘／閃電鳥的電球與超武享青金雙色高壓電暈；飛天螳螂的十字剪與巨輪享青金殘像光刃；化石翼龍的岩崩與尖碑享太古耀金彗尾！</div>
+          </div>
+        </div>
+        <div class="bg-slate-950/85 border border-amber-400/45 rounded-2xl p-3 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-black text-xs text-amber-300">v7.5.9 五大新招最終美術＆判定定案版（對齊舊 20 招商業精度）</span>
           </div>
           <div class="space-y-1.5 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">五大新招美術與打擊判定終極精修</div>
@@ -3975,7 +3986,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.5.9";
+    const curVer = this.APP_VERSION || "v7.5.10";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

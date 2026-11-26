@@ -445,11 +445,21 @@ window.SkillsEngine = {
     // 1A-NEW. 岩崩 (RockSlide v7.5.7)：精巧主岩＋2顆副碎岩錯落群落感（縮小體積至14-19px），內縮鎖定陰影➔砸地碎裂飛石
     if (cleanSkillId === "RockSlide" || meta.vfx === "rock_slide") {
       const rockCnt = 3 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const isLv8 = level >= 8;
+      const isAeroRock = (caster === GameApp.player && (caster.id === 142 || caster.id === 10042));
       const areaScale = (caster === GameApp.player ? GameApp.player.areaMult : 1.0) * (1 + (trait.tackleQuakeAreaBonus || 0) * 0.75 + (trait.legendaryAreaBonus || 0));
       const kbScale = 1 + (trait.tackleQuakeKbBonus || 0);
       const baseTgtX = target ? target.x : (caster.x + Math.cos(baseAngle) * 145);
       const baseTgtY = target ? target.y : (caster.y + Math.sin(baseAngle) * 145);
       const rockR = Math.min(72, Math.round(44 * areaScale * (level >= 7 ? 1.12 : 1.0)));
+      // 起手震地聚岩氣爆環
+      this.meleeEffects.push({
+        style: "cast_origin_ring",
+        x: caster.x, y: caster.y + 8, angle: baseAngle,
+        radius: 26, color: isAeroRock ? "#FDE047" : "#F59E0B",
+        dmg: 0, type: "Rock", kb: 0, hitSet: new Set(),
+        timer: 0.22, maxTime: 0.22
+      });
       for (let rIdx = 0; rIdx < rockCnt; rIdx++) {
         this.scheduleEvent(rIdx * 0.085, () => {
           if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
@@ -466,6 +476,7 @@ window.SkillsEngine = {
             dmg: rawDmg * (rIdx === 0 ? 1.08 : 0.92),
             type: "Rock",
             kb: Math.round(18 * kbScale),
+            isLv8, isAeroRock,
             seed: Math.random() * 100,
             hitSet: new Set(),
             timer: 0.44, maxTime: 0.44,
@@ -481,8 +492,17 @@ window.SkillsEngine = {
     // 1A-NEW2. 毒擊 (PoisonJab)：高速 3～5 叉貫穿毒矛扇射；命中中毒敵人觸發 +40% 毒爆並傳染周圍 65px（受超能共鳴穿透加成）
     if (cleanSkillId === "PoisonJab" || meta.vfx === "poison_jab") {
       const needleCnt = 3 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const isLv8 = level >= 8;
+      const isCrimsonVenom = (caster === GameApp.player && (caster.id === 10094 || caster.id === 34));
       const spreadArc = Math.min(0.88, 0.30 + needleCnt * 0.085);
       const extraPierce = trait.psychicExtraPierce || 0;
+      this.meleeEffects.push({
+        style: "cast_origin_ring",
+        x: caster.x + Math.cos(baseAngle) * 14, y: caster.y + Math.sin(baseAngle) * 14, angle: baseAngle,
+        radius: 22, color: isCrimsonVenom ? "#F43F5E" : "#4ADE80",
+        dmg: 0, type: "Poison", kb: 0, hitSet: new Set(),
+        timer: 0.18, maxTime: 0.18
+      });
       for (let k = 0; k < needleCnt; k++) {
         const ang = baseAngle + ((k / Math.max(1, needleCnt - 1)) - 0.5) * spreadArc;
         this.projectiles.push({
@@ -496,7 +516,8 @@ window.SkillsEngine = {
           type: "Poison",
           skillId,
           vfx: "poison_jab",
-          color: "#A855F7",
+          isLv8, isCrimsonVenom,
+          color: isCrimsonVenom ? "#E11D48" : "#A855F7",
           pierce: (level >= 6 ? 3 : 2) + extraPierce,
           knockback: 5,
           life: 0.74, maxLife: 0.74,
@@ -513,10 +534,20 @@ window.SkillsEngine = {
     // 1A-NEW3. 電球 (ElectroBall)：高壓推進等離子球，移速越快球越大且最高增傷 +35%，飛行中每 0.25s 自動抽射電弧
     if (cleanSkillId === "ElectroBall" || meta.vfx === "electro_orb") {
       const orbCnt = 1 + (level >= 4 ? 1 : 0) + (level >= 8 ? 1 : 0) + (caster === GameApp.player ? (GameApp.player.projBonus || 0) : 0);
+      const isLv8 = level >= 8;
+      const isPikachuFamily = (caster === GameApp.player && [25, 26, 145].includes(caster.id));
       const pSpd = (caster === GameApp.player && GameApp.player) ? (GameApp.player.speed || 150) : 150;
       const spdRatio = Math.min(1.0, Math.max(0, (pSpd - 115) / 220));
       const spdBonusMult = 1 + spdRatio * 0.35;
       const sizeScale = 1 + spdRatio * 0.22;
+      // 起手靜電脈衝環
+      this.meleeEffects.push({
+        style: "cast_origin_ring",
+        x: caster.x + Math.cos(baseAngle) * 16, y: caster.y + Math.sin(baseAngle) * 16, angle: baseAngle,
+        radius: 26, color: isPikachuFamily ? "#38BDF8" : "#FEF08A",
+        dmg: 0, type: "Electric", kb: 0, hitSet: new Set(),
+        timer: 0.20, maxTime: 0.20
+      });
       for (let k = 0; k < orbCnt; k++) {
         const ang = baseAngle + (orbCnt > 1 ? ((k / (orbCnt - 1)) - 0.5) * 0.36 : 0);
         this.projectiles.push({
@@ -525,11 +556,12 @@ window.SkillsEngine = {
           vx: Math.cos(ang) * 295,
           vy: Math.sin(ang) * 295,
           angle: ang,
-          radius: Math.min(28, (17 + (level >= 8 ? 3.5 : 0)) * sizeScale * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
+          radius: Math.min(28, (17 + (isLv8 ? 3.5 : 0)) * sizeScale * (caster === GameApp.player ? GameApp.player.areaMult : 1.0)),
           dmg: rawDmg * spdBonusMult,
           type: "Electric",
           skillId,
           vfx: "electro_orb",
+          isLv8, isPikachuFamily,
           color: "#FACC15",
           pierce: 4 + (level >= 6 ? 2 : 0),
           knockback: 7,
@@ -1210,6 +1242,8 @@ window.SkillsEngine = {
             type: "Bug",
             kb: 10,
             extraCrit: 0.15 + fistCrit,
+            isLv8: level >= 8,
+            isScyther: (caster === GameApp.player && caster.id === 123),
             hitSet: new Set(),
             timer: 0.28, maxTime: 0.28,
             color: "#84CC16"
@@ -1253,6 +1287,8 @@ window.SkillsEngine = {
             kb: 9,
             extraCrit: (isMegaGengar ? 0.35 : 0.25) + fistCrit,
             isMegaGengar,
+            isLv8: level >= 8,
+            scarSpawned: false,
             hitSet: new Set(),
             timer: 0.26, maxTime: 0.26,
             color: isMegaGengar ? "#E11D48" : "#A855F7"
@@ -1808,6 +1844,7 @@ window.SkillsEngine = {
       const cx = tgt ? tgt.x : (p.x + Math.cos(p.facingAngle || 0) * 110);
       const cy = tgt ? tgt.y : (p.y + Math.sin(p.facingAngle || 0) * 110);
       const pillarR = this.getUltRadius(125, 132, 165);
+      const isAeroRock = (p.id === 142 || p.id === 10042);
       this.meleeEffects.push({
         style: "rock_obelisk_ult",
         casterRef: p,
@@ -1817,8 +1854,9 @@ window.SkillsEngine = {
         type: "Rock",
         kb: 32,
         extraCrit: 0.25,
+        isAeroRock,
         hitSet: new Set(),
-        timer: 0.82, maxTime: 0.82,
+        timer: 0.86, maxTime: 0.86,
         color: "#F59E0B"
       });
       this.scheduleEvent(0.24, () => {
@@ -1826,6 +1864,15 @@ window.SkillsEngine = {
         GameApp.camera.shakeTime = Math.max(GameApp.camera.shakeTime, 0.22);
         GameApp.camera.shakeMagnitude = Math.max(GameApp.camera.shakeMagnitude, 7.5);
         SoundFX.play("hit", "Ground");
+        // 砸地熔岩微粒噴湧
+        for (let em = 0; em < 12; em++) {
+          const ea = (em * Math.PI * 2) / 12 + Math.random() * 0.3;
+          const espd = 85 + Math.random() * 115;
+          this.spawnSubParticle(
+            cx, cy, Math.cos(ea) * espd, Math.sin(ea) * espd - 42,
+            em % 2 === 0 ? "#FEF08A" : "#F97316", 4.2, 0.42, "diamond"
+          );
+        }
         for (let k = 0; k < 8; k++) {
           const ang = (k * Math.PI * 2) / 8 + 0.15;
           this.projectiles.push({
@@ -1851,6 +1898,7 @@ window.SkillsEngine = {
         radius: wheelR,
         dmg: ultDmg * 0.42,
         type: "Bug",
+        isScyther: (p.id === 123),
         angle: 0,
         timer: 1.40, maxTime: 1.40,
         tickTimer: 0.08, tickInterval: 0.24,
@@ -1925,6 +1973,7 @@ window.SkillsEngine = {
         radius: orbitR,
         dmg: ultDmg * 0.38,
         type: "Electric",
+        isPikachuFamily: [25, 26, 145].includes(p.id),
         angle: Math.random() * Math.PI * 2,
         timer: 2.40, maxTime: 2.40,
         tickTimer: 0.10, tickInterval: 0.28,
@@ -2979,6 +3028,16 @@ window.SkillsEngine = {
                 GameApp.dealDamageToEnemy(e, m.dmg, m.type, 0.30, m.kb || 10, m.extraCrit || 0);
                 if (m.style === "rock_slide_impact" && !e.isBoss) {
                   e.hitFlash = Math.max(e.hitFlash || 0, 0.16);
+                }
+                if (m.style === "shadow_claw" && !m.scarSpawned) {
+                  m.scarSpawned = true;
+                  this.meleeEffects.push({
+                    style: "shadow_claw_scar",
+                    x: e.x, y: e.y + 8, angle: m.angle || 0, slashDir: m.slashDir || 1,
+                    radius: 36, isMegaGengar: !!m.isMegaGengar,
+                    dmg: 0, type: "Ghost", kb: 0, hitSet: new Set(),
+                    timer: 0.52, maxTime: 0.52
+                  });
                 }
                 this.spawnElementalHitSpark(e.x, e.y, m.type);
               }
