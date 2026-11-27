@@ -15,7 +15,7 @@
   <!-- Google Fonts: Retro Pixel & Modern Noto Sans -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Press+Start+2P&display=swap" rel="stylesheet" />
 
   <style>
     .hidden {
@@ -137,7 +137,7 @@
     }
 
     .font-pixel {
-      font-family: 'Press Start 2P', 'DotGothic16', monospace;
+      font-family: 'Press Start 2P', monospace;
     }
 
     /* 像素圖示銳利縮放 */
@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.7.2');
+      background-image: url('images/skills_icons_sheet.png?v=7.7.3');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.7.2');
+      background-image: url('images/skills_icons_extra5.png?v=7.7.3');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1098,7 +1098,7 @@
     /* v7.7.2 GBA 像素 UI 圖集 (4x5 Sprite Sheet: 20 icons, 含 32x32 HD 空投/寶箱/信標) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.7.2');
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.7.3');
       background-size: 400% 500%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1230,6 +1230,18 @@
     body.theme-dark-gold #fieldEventContractModal button .text-emerald-700 {
       color: #6EE7B7 !important;
     }
+    /* v7.7.3 選擇卡 vs. 交易卡交互分流：可點選擇卡統一微縮回饋 */
+    .poke-card.cursor-pointer {
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .poke-card.cursor-pointer:active {
+      transform: scale(0.985);
+    }
+    body:not(.theme-dark-gold) #expRouteTopBar #btnExpTopExitLobby {
+      background-color: #FFFFFF !important;
+      border-color: #64748B !important;
+      color: #0F172A !important;
+    }
   </style>
   <script>
     (function () {
@@ -1330,7 +1342,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.7.2
+      v7.7.3
     </div>
   </div>
 
@@ -1415,11 +1427,11 @@
     <!-- 底部主要模式直達入口群（1 主打大遠征 ＋ 3 副模式一眼看懂全內容） -->
     <div class="w-full max-w-md mx-auto flex flex-col gap-2 z-10 shrink-0 mb-1">
       <!-- NO.1 首推主線：關都大遠征 -->
-      <div id="lobbyExpeditionCard" onclick="GameApp.openModeFromLobby('expedition')" class="poke-card cursor-pointer p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
+      <div id="lobbyExpeditionCard" class="poke-card cursor-default p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-pixel text-[8px] font-black">★ 首推 ‧ 主線 RPG</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-black tracking-wide">★ 首推 ‧ 主線 RPG</span>
               <span class="font-black text-sm text-amber-300 truncate">關都大遠征</span>
             </div>
             <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">6 大區域 ‧ 20+1 關推進 ‧ 三聖鳥歸位</div>
@@ -1435,7 +1447,7 @@
       <button id="lobbyStandardCard" type="button" onclick="GameApp.openModeFromLobby('standard')" class="poke-card w-full text-left cursor-pointer px-2.5 py-2 bg-slate-900/95 border-2 border-sky-400 text-white shadow-lg flex items-center justify-between gap-2 hover:scale-[1.01] transition-transform">
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="px-1.5 py-0.5 rounded bg-blue-600 text-white font-pixel text-[8px] font-black">🔥 推薦 ‧ 經典割草</span>
+            <span class="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-black tracking-wide">🔥 推薦 ‧ 經典割草</span>
             <span class="font-black text-xs sm:text-sm text-sky-300 truncate">8分鐘標準模式</span>
           </div>
           <div class="text-[10px] font-bold text-slate-300 mt-0.5 truncate">5 張生態地圖任選 ‧ 8 分鐘極速登冠</div>
@@ -1500,7 +1512,7 @@
       <div id="hudPlayerCard" class="flex items-center gap-1.5 sm:gap-2 bg-slate-900/90 p-1.5 sm:p-2 rounded-2xl border-2 border-slate-700 shadow-xl max-w-[46%] sm:max-w-xs shrink-0">
         <div id="hudAvatarFrame" class="relative w-9 h-9 sm:w-11 sm:h-11 bg-slate-800 rounded-xl border border-slate-600 flex items-center justify-center shrink-0">
           <img id="hudAvatar" src="https://raw.githubusercontent.com/NightCatSama/pokedex/main/images/sprite/forward/25.png" class="w-8 h-8 sm:w-10 sm:h-10 pixel-sprite object-contain" alt="Current" />
-          <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 font-pixel text-[7px] sm:text-[8px] rounded font-black">羈絆</span>
+          <span id="hudAshBondBadge" class="hidden absolute -bottom-1 -right-1 px-1 py-0.2 bg-amber-400 text-slate-900 text-[9px] rounded font-black">羈絆</span>
         </div>
         <div class="min-w-0 flex-1">
           <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black text-white leading-tight mb-0.5 gap-1">
@@ -1680,13 +1692,13 @@
 
     <!-- GBA 跨區左上角地名木牌／石牌（點擊可提前隱藏） -->
     <div id="gbaRegionSign" onclick="ModeExpedition.dismissRegionSign()" class="hidden absolute top-[86px] left-2 z-30 px-3 py-1.5 rounded-r-xl border-l-4 border-2 shadow-2xl cursor-pointer pointer-events-auto">
-      <div id="gbaRegionSignTitle" class="font-pixel text-[10px] font-black tracking-wide">ACT 1 · 真新鎮</div>
+      <div id="gbaRegionSignTitle" class="text-[11px] font-black tracking-wide">ACT 1 · 真新鎮</div>
       <div id="gbaRegionSignSub" class="text-[10px] font-bold opacity-90 mt-0.5">常磐密林・外圍探索</div>
     </div>
 
     <!-- 過場宣傳條橫幅 (Cutscene / Event Banner - 精煉高度不遮戰場) -->
     <div id="cutsceneBanner" class="hidden absolute top-[88px] sm:top-24 left-0 right-0 py-1.5 bg-gradient-to-r from-transparent via-slate-950/88 to-transparent border-y border-amber-400/80 text-center shadow-xl pointer-events-none">
-      <div id="cutsceneTitle" class="font-pixel text-sm sm:text-lg text-amber-300 font-black">【火箭隊突襲】</div>
+      <div id="cutsceneTitle" class="text-sm sm:text-lg text-amber-300 font-black tracking-wide">【火箭隊突襲】</div>
       <div id="cutsceneSubtitle" class="text-[11px] sm:text-xs font-bold text-white mt-0.5">黑化阿柏怪與雙彈瓦斯帶著毒霧包夾！</div>
     </div>
   </div>
@@ -1697,7 +1709,7 @@
     <div id="cutInBannerWrap" class="relative w-full max-w-4xl flex items-center justify-center mx-auto">
       <img id="cutInBannerImg" src="images/cutin_ash.png" class="w-full max-h-[38vh] object-contain drop-shadow-[0_0_35px_rgba(245,158,11,0.85)] border-y-4 border-amber-400" alt="Special Cut-In" />
       <div id="cutInBannerOverlayBox" class="absolute bottom-2 right-3 sm:bottom-3 sm:right-6 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-red-950/95 px-4 py-2 sm:px-6 sm:py-2.5 rounded-xl border-2 border-amber-400 shadow-[0_8px_24px_rgba(0,0,0,0.95)] transform -skew-x-12 flex flex-col items-end pointer-events-none">
-        <div id="cutInBannerTrainer" class="font-pixel text-[11px] sm:text-sm text-amber-300 font-bold tracking-wider drop-shadow-[0_2px_3px_rgba(0,0,0,0.95)]">小智 (Ash) ‧ 戰術指令</div>
+        <div id="cutInBannerTrainer" class="text-xs sm:text-sm text-amber-300 font-black tracking-wider drop-shadow-[0_2px_3px_rgba(0,0,0,0.95)]">小智 (Ash) ‧ 戰術指令</div>
         <div id="cutInBannerSkill" class="text-xl sm:text-3xl font-black italic text-white tracking-wider drop-shadow-[0_3px_5px_rgba(0,0,0,1)] mt-0.5">【就決定是你了！】</div>
       </div>
     </div>
@@ -1707,7 +1719,7 @@
       <div class="flex items-center gap-4 sm:gap-6">
         <img id="cutInAvatar" src="images/Ash_01.png" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/vs-seeker.png';" class="w-20 h-20 sm:w-28 sm:h-28 pixel-sprite object-contain bg-white rounded-full border-4 border-slate-900 p-1 shadow-lg" alt="Avatar" />
         <div class="text-white drop-shadow-[0_3px_3px_rgba(0,0,0,0.8)]">
-          <div id="cutInTrainer" class="font-pixel text-sm sm:text-base text-amber-200 font-bold">小智 ‧ 戰術指令</div>
+          <div id="cutInTrainer" class="text-sm sm:text-base text-amber-200 font-black">小智 ‧ 戰術指令</div>
           <div id="cutInSkill" class="text-2xl sm:text-4xl font-black italic tracking-wider">【就決定是你了！】</div>
         </div>
       </div>
@@ -2002,7 +2014,7 @@
     <div class="gba-modal-head bg-gradient-to-r from-blue-700 via-sky-600 to-blue-800 flex items-center justify-between">
       <div class="flex items-center gap-2">
         <span class="gba-ui-icon gba-ui-mart w-5 h-5"></span>
-        <span class="font-pixel text-xs sm:text-sm text-white">POKÉ MART 友好商店</span>
+        <span class="flex items-center gap-1.5"><span class="font-pixel text-[11px] sm:text-xs text-white">POKÉ MART</span><span class="font-black text-xs sm:text-sm text-white">友好商店</span></span>
       </div>
       <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="Coins" />
@@ -2056,6 +2068,9 @@
               <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite" alt="Coins" />
               <span id="expCoinsDisplay" class="font-pixel text-[10px] text-amber-300">0</span>
             </div>
+            <button id="btnExpTopExitLobby" type="button" onclick="event.stopPropagation(); ModeExpedition.saveAndReturnToLobby()" title="保存目前進度並返回大廳" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-500 text-[10px] font-black text-slate-200 whitespace-nowrap active:scale-95 transition">
+              💾 回大廳
+            </button>
           </div>
         </div>
         <canvas id="expeditionRouteCanvas" class="w-full h-auto block pixel-sprite"></canvas>
@@ -2070,8 +2085,8 @@
 
         <div class="space-y-1.5">
           <div class="flex items-center justify-between px-0.5">
-            <span class="font-black text-xs text-amber-300 flex items-center gap-1.5"><i class="fa-solid fa-store text-sky-400"></i> 戰前整備站（可多項採購）</span>
-            <button onclick="ModeExpedition.rerollShop()" class="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/70 text-[10px] font-black text-amber-200 flex items-center gap-1">
+            <span class="font-black text-xs text-amber-300 flex items-center gap-1.5"><span class="gba-ui-icon gba-ui-mart w-4 h-4"></span> 戰前整備站（可多項採購）</span>
+            <button onclick="ModeExpedition.rerollShop()" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-amber-400/70 text-[10px] font-black text-amber-200 flex items-center gap-1">
               <i class="fa-solid fa-arrows-rotate text-[9px]"></i>
               <span>刷新 (<span id="expRerollCostText">30</span>金)</span>
             </button>
@@ -2079,9 +2094,14 @@
           <div id="expShopContainer" class="grid grid-cols-2 gap-1.5"></div>
         </div>
 
-        <button id="btnExpStartNextWave" onclick="ModeExpedition.proceedToNextWave()" class="poke-btn-red w-full py-2.5 text-xs sm:text-sm font-black shadow-xl">
-          出發！下一波 →
-        </button>
+        <div class="flex items-center gap-2 pt-0.5">
+          <button id="btnExpSaveExitLobby" type="button" onclick="ModeExpedition.saveAndReturnToLobby()" class="poke-btn-white px-3 py-2.5 min-h-[42px] text-xs font-black shrink-0 whitespace-nowrap shadow">
+            💾 存檔回大廳
+          </button>
+          <button id="btnExpStartNextWave" onclick="ModeExpedition.proceedToNextWave()" class="poke-btn-red flex-1 py-2.5 min-h-[42px] text-xs sm:text-sm font-black shadow-xl">
+            出發！下一波 →
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -2182,7 +2202,7 @@
         </div>
         <div class="flex justify-between items-center gap-2 border-b border-slate-700/70 pb-1">
           <span class="text-slate-400 shrink-0 whitespace-nowrap">即時效能：</span>
-          <span id="endStatFps" class="font-pixel text-[9px] sm:text-[10px] text-emerald-400 whitespace-nowrap text-right">60 FPS · 0怪 / 0彈</span>
+          <span id="endStatFps" class="text-[11px] font-black text-emerald-400 whitespace-nowrap text-right">60 FPS · 0怪 / 0彈</span>
         </div>
         <div class="flex justify-between">
           <span id="endStatTimeLabel" class="text-slate-400">存活時間：</span>
@@ -2256,7 +2276,7 @@
     <div class="bg-slate-950/90 border border-slate-700 rounded-xl p-2 space-y-1.5">
       <div class="flex items-center justify-between text-[10px]">
         <span class="text-slate-400 font-bold">即時幀率 / 敵人數：</span>
-        <span id="debugLiveStatsText" class="font-pixel text-[9px] text-emerald-400">60 FPS | 0 怪</span>
+        <span id="debugLiveStatsText" class="text-[10px] font-black text-emerald-400">60 FPS | 0 怪</span>
       </div>
       <div class="grid grid-cols-2 gap-1">
         <button id="btnDebugFpsToggle" onclick="GameApp.debugToggleFpsHud()" class="px-1.5 py-1 bg-slate-800 border border-slate-600 rounded text-[9px] font-bold text-emerald-300 hover:bg-slate-700">📊 頂部FPS: 關</button>
@@ -2342,7 +2362,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="font-pixel text-xs sm:text-sm text-white">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.7.2</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.7.3</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2389,8 +2409,8 @@
       <div class="gba-modal-head bg-gradient-to-r from-red-700 via-rose-700 to-indigo-900 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
-          <span class="font-pixel text-xs sm:text-sm text-white">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.7.2</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.7.3</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2423,14 +2443,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.7.2"></script>
-  <script src="map_v11_engine.js?v=7.7.2"></script>
-  <script src="skills_engine.js?v=7.7.2"></script>
-  <script src="skills_vfx.js?v=7.7.2"></script>
-  <script src="battle_core_2.js?v=7.7.2"></script>
-  <script src="battle_renderer.js?v=7.7.2"></script>
-  <script src="modes_arcade.js?v=7.7.2"></script>
-  <script src="mode_expedition.js?v=7.7.2"></script>
-  <script src="game_ui.js?v=7.7.2"></script>
+  <script src="pokedex_data.js?v=7.7.3"></script>
+  <script src="map_v11_engine.js?v=7.7.3"></script>
+  <script src="skills_engine.js?v=7.7.3"></script>
+  <script src="skills_vfx.js?v=7.7.3"></script>
+  <script src="battle_core_2.js?v=7.7.3"></script>
+  <script src="battle_renderer.js?v=7.7.3"></script>
+  <script src="modes_arcade.js?v=7.7.3"></script>
+  <script src="mode_expedition.js?v=7.7.3"></script>
+  <script src="game_ui.js?v=7.7.3"></script>
 </body>
 </html>

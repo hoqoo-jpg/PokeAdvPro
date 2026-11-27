@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.7.2";
+        const ver = this.APP_VERSION || "v7.7.3";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -569,7 +569,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.7.2";
+      const curVer = this.APP_VERSION || "v7.7.3";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1420,7 +1420,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.7.2",
+      lastSeenVersion: this.APP_VERSION || "v7.7.3",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1655,7 +1655,7 @@ Object.assign(window.GameApp, {
             <div class="flex items-center gap-2 min-w-0">
               <img src="${SpriteCache.resolveUrl(pk.forward_sprite)}" class="w-9 h-9 pixel-sprite bg-slate-800 rounded-lg border border-slate-600 p-0.5 shrink-0"/>
               <div class="min-w-0">
-                <div class="font-pixel text-[8px] text-amber-300">續關存檔（沿用原難度：${df ? df.name : '標準'}）</div>
+                <div class="text-[10px] font-black text-amber-300">續關存檔（沿用原難度：${df ? df.name : '標準'}）</div>
                 <div class="font-black text-xs text-white truncate">第 ${cp.nextWave}/${summary.totalWaves} 關（${pk.name_zh} Lv.${cp.player ? cp.player.level : 1}）</div>
               </div>
             </div>
@@ -2515,7 +2515,7 @@ Object.assign(window.GameApp, {
       }
 
       return `
-        <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
+        <div class="bg-slate-800/90 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2 cursor-default">
           <div class="flex items-start gap-2.5 min-w-0 flex-1">
             <div class="w-10 h-10 bg-slate-900 rounded-lg border border-slate-600 flex items-center justify-center shrink-0 mt-0.5">
               ${isTM && typeof renderSkillIconHTML === "function" ? renderSkillIconHTML(it.id, "w-8 h-8") : `<img src="${it.sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>`}
@@ -2529,7 +2529,7 @@ Object.assign(window.GameApp, {
               <p class="text-[10px] text-slate-300 leading-snug mt-0.5 whitespace-normal break-words line-clamp-2">${it.desc}</p>
             </div>
           </div>
-          <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-2.5 py-1.5 text-xs font-black shrink-0 flex items-center gap-1">
+          <button onclick="GameApp.buyMartItem('${it.id}', ${it.cost})" class="poke-btn-yellow px-3 py-2 min-h-[38px] text-xs font-black shrink-0 flex items-center gap-1">
             <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-3.5 h-3.5 pixel-sprite"/>
             ${it.cost}
           </button>
@@ -3129,7 +3129,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.7.2",
+      version: this.APP_VERSION || "v7.7.3",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3809,7 +3809,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.2</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.3</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3848,7 +3848,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.7.2</strong>：大廳雙核心排版（首推大遠征＋推薦8分鐘 5 張地圖）與各模式新手推薦難度標註；UI 圖集擴至 20 枚並升級空投/寶箱/信標為 32×32 HD 像素；1vs1 評分嚴格化＋全模式短板防線；全站彈窗亮色對比治本與 GBA 色帶統一。</div>
+            <div>• <strong class="text-amber-300">v7.7.3</strong>：大遠征整備站與過場頂欄新增「💾 存檔回大廳」安全離線續關；統一選擇卡與交易卡交互分流並加大商店觸控熱區；全站中英字型嚴格分流（清除中文 font-pixel 缺字與糊邊，統一 Canvas 字型）。</div>
+            <div>• <strong class="text-slate-300">v7.7.2</strong>：大廳雙核心排版（首推大遠征＋推薦8分鐘 5 張地圖）與各模式新手推薦難度標註；UI 圖集擴至 20 枚並升級空投/寶箱/信標為 32×32 HD 像素；1vs1 評分嚴格化＋全模式短板防線；全站彈窗亮色對比治本與 GBA 色帶統一。</div>
             <div>• <strong class="text-slate-300">v7.7.1</strong>：實裝全新 4×4 原生 GBA 像素 UI 圖集（16 枚透明去背圖示），全面替換大廳按鈕、換裝鈕、十大事件提示條與場外邊緣方向箭頭圖示。</div>
             <div>• <strong class="text-slate-300">v7.7.0</strong>：實裝十大隨機突發事件系統（信標佔領、空投箱、雙寶箱百變怪、電磁風暴、迷霧2x經驗、聯盟契約等，附邊緣箭頭指引）；結算頁 GBA 色帶粗框升級與大廳陣容卡收緊間距。</div>
             <div>• <strong class="text-slate-300">v7.6.13</strong>：大廳進化列改「上圖下文」大像素圖；大遠征主卡與過場走路畫框統一亮色主題；放大征途 6 區預覽圖並全面改用 Wave 寫法；路線節點純色化去重。</div>
@@ -3865,7 +3866,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.7.2";
+    const curVer = this.APP_VERSION || "v7.7.3";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

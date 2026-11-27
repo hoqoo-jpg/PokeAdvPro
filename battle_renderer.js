@@ -1027,7 +1027,7 @@ Object.assign(window.GameApp, {
         // 實心深底圓牌與圖示
         ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
         ctx.beginPath(); ctx.arc(psx, psy + bobY, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.font = "16px sans-serif";
+        ctx.font = "900 16px 'Noto Sans TC', sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(pu.icon, psx, psy + bobY + 1);

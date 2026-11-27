@@ -1105,7 +1105,7 @@ window.ModeExpedition = {
       const bossTitle = bossList.length > 1 ? `${bossList[0].name_zh} ＆ ${bossList[1].name_zh}` : bossList[0].name_zh;
       ctx.fillText(bossTitle, bx + 18, by + 25);
       ctx.fillStyle = "#FDA4AF";
-      ctx.font = "bold 9px monospace";
+      ctx.font = "900 9px 'Noto Sans TC', sans-serif";
       ctx.fillText("BOSS HP", bx + 18, by + 44);
       ctx.fillStyle = "#020617";
       ctx.fillRect(bx + 70, by + 35, 128, 10);
@@ -1124,7 +1124,7 @@ window.ModeExpedition = {
       ctx.textAlign = "left";
       ctx.fillText(`${pData.name_zh}`, px + 18, py + 25);
       ctx.fillStyle = "#FACC15";
-      ctx.font = "bold 11px monospace";
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
       ctx.textAlign = "right";
       ctx.fillText(`Lv.${p ? p.level : 1}`, px + 184, py + 25);
       ctx.fillStyle = "#020617";
@@ -2019,11 +2019,11 @@ window.ModeExpedition = {
       }).join("");
       const goalTag = nextCfg.isBossWave
         ? (nextCfg.isMiniBoss
-            ? '<span class="px-1.5 py-0.5 rounded bg-amber-800 border border-amber-400 text-amber-200 font-pixel text-[8px]">小王戰</span>'
-            : '<span class="px-1.5 py-0.5 rounded bg-rose-900 border border-rose-400 text-rose-200 font-pixel text-[8px]">區域大王</span>')
+            ? '<span class="px-1.5 py-0.5 rounded bg-amber-800 border border-amber-400 text-amber-200 text-[10px] font-black">小王戰</span>'
+            : '<span class="px-1.5 py-0.5 rounded bg-rose-900 border border-rose-400 text-rose-200 text-[10px] font-black">區域大王</span>')
         : (nextCfg.isEventWave
-            ? `<span class="px-1.5 py-0.5 rounded bg-purple-800 border border-purple-400 text-purple-200 font-pixel text-[8px]">事件 ${nextCfg.killQuota || 30}隻</span>`
-            : `<span class="px-1.5 py-0.5 rounded bg-emerald-900 border border-emerald-400 text-emerald-200 font-pixel text-[8px]">殲滅 ${nextCfg.killQuota || 25}隻</span>`);
+            ? `<span class="px-1.5 py-0.5 rounded bg-purple-800 border border-purple-400 text-purple-200 text-[10px] font-black">事件 ${nextCfg.killQuota || 30}隻</span>`
+            : `<span class="px-1.5 py-0.5 rounded bg-emerald-900 border border-emerald-400 text-emerald-200 text-[10px] font-black">殲滅 ${nextCfg.killQuota || 25}隻</span>`);
 
       intelBox.innerHTML = `
         <div class="flex items-center justify-between gap-2">
@@ -2106,7 +2106,7 @@ window.ModeExpedition = {
         : `<img src="${SpriteCache.resolveUrl(it.sprite)}" class="w-7 h-7 pixel-sprite object-contain" alt="${it.name}"/>`;
 
       return `
-        <div class="bg-slate-800/95 p-2 rounded-xl border ${it.bought ? 'border-slate-700 opacity-50' : 'border-slate-600'} flex flex-col justify-between gap-1.5">
+        <div class="bg-slate-800/95 p-2 rounded-xl border ${it.bought ? 'border-slate-700 opacity-50' : 'border-slate-600'} flex flex-col justify-between gap-1.5 cursor-default">
           <div class="flex items-start gap-2 min-w-0">
             <div class="w-8 h-8 bg-slate-950 rounded-lg border border-slate-700 flex items-center justify-center shrink-0">${iconHtml}</div>
             <div class="min-w-0 flex-1">
@@ -2117,7 +2117,7 @@ window.ModeExpedition = {
           <div class="text-[9px] text-slate-300 leading-tight line-clamp-2 min-h-[22px]">${it.desc}</div>
           ${it.bought
             ? `<div class="w-full py-1 rounded-lg bg-slate-900 border border-slate-700 font-pixel text-[8px] text-emerald-400 text-center">SOLD</div>`
-            : `<button onclick="ModeExpedition.buyShopItem(${idx})" class="poke-btn-yellow w-full py-1 text-[11px] font-black flex items-center justify-center gap-1">
+            : `<button onclick="ModeExpedition.buyShopItem(${idx})" class="poke-btn-yellow w-full py-1.5 min-h-[36px] text-xs font-black flex items-center justify-center gap-1">
                  <img src="${ITEM_SPRITES.coin}" class="w-3.5 h-3.5 pixel-sprite"/>
                  <span>${it.cost}</span>
                </button>`
@@ -2948,6 +2948,23 @@ window.ModeExpedition = {
     this.renderIntermissionModal(app, false);
   },
 
+  saveAndReturnToLobby() {
+    this.stopRouteWalkAnim();
+    const app = GameApp;
+    if (!app) return;
+    const st = app.expeditionState;
+    let savedNextWave = null;
+    if (st && st.currentWave < st.totalWaves) {
+      savedNextWave = Math.min(st.totalWaves, st.currentWave + 1);
+      this.saveCheckpoint(app, savedNextWave);
+    }
+    if (typeof app.saveToStorage === "function") app.saveToStorage();
+    if (typeof app.quitToTitle === "function") app.quitToTitle();
+    if (savedNextWave && app.pixelToast) {
+      app.pixelToast(`💾 已保存第 ${savedNextWave}/${st.totalWaves} 關進度，隨時可從大廳繼續遠征！`, "success");
+    }
+  },
+
   proceedToNextWave() {
     this.stopRouteWalkAnim();
     const app = GameApp;
@@ -2979,7 +2996,7 @@ window.ModeExpedition = {
 
     return `
       <div class="mb-3 rounded-2xl bg-gradient-to-b from-slate-950 via-indigo-950 to-slate-950 border-2 border-amber-400 p-3 text-center shadow-xl">
-        <div class="font-pixel text-[9px] text-amber-300 tracking-widest mb-2">${res.isExTrueClear ? "★ TRUE HALL OF FAME · EX 始祖夢夢制霸 ★" : "HALL OF FAME · 關都殿堂登錄"}</div>
+        <div class="text-[11px] font-black text-amber-300 tracking-wide mb-2">${res.isExTrueClear ? "<span class=\"font-pixel text-[9px]\">★ TRUE HALL OF FAME</span> · EX 始祖夢夢制霸 ★" : "<span class=\"font-pixel text-[9px]\">HALL OF FAME</span> · 關都殿堂登錄"}</div>
         <div class="flex items-end justify-center gap-2 py-1.5 bg-slate-900/75 rounded-xl border border-amber-500/40 mb-2">
           <img src="${SpriteCache.resolveUrl(trCos.sprite || tr.sprite)}" class="w-12 h-12 pixel-sprite object-contain" alt="${tr.name}"/>
           <img src="${SpriteCache.resolveUrl(pSpr)}" class="w-16 h-16 pixel-sprite object-contain drop-shadow-[0_0_8px_rgba(250,204,21,0.75)]" alt="${p.data.name_zh}"/>
