@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.8.0');
+      background-image: url('images/skills_icons_sheet.png?v=7.8.1');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.8.0');
+      background-image: url('images/skills_icons_extra5.png?v=7.8.1');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1098,7 +1098,7 @@
     /* v7.8.0 GBA 像素 UI 圖集 (4x6 Sprite Sheet: 24 icons, 新增試煉塔/遺物/營火/傳送門) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.0');
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.1');
       background-size: 400% 600%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1364,7 +1364,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.8.0
+      v7.8.1
     </div>
   </div>
 
@@ -1640,7 +1640,12 @@
       </div>
     </div>
 
-        <!-- v7.7.0 十大隨機突發事件頂部精簡提示條（不擋操作） -->
+        <!-- v7.8.1 Mega 試煉塔房間內隨時存檔回大廳浮動鈕（開門／營火／奇遇時亮起） -->
+    <button id="towerQuickExitBtn" type="button" onclick="ModeTower.saveAndReturnToLobby()" class="hidden pointer-events-auto absolute top-[92px] sm:top-[98px] right-2.5 sm:right-4 px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border-2 border-amber-400 text-[11px] font-black text-amber-300 shadow-xl active:scale-95 transition z-30 flex items-center gap-1">
+      <span>💾 存檔回大廳</span>
+    </button>
+
+    <!-- v7.7.0 十大隨機突發事件頂部精簡提示條（不擋操作） -->
     <div id="fieldEventHudBanner" class="hidden absolute top-[134px] sm:top-[142px] left-1/2 -translate-x-1/2 w-[88%] max-w-sm bg-slate-950/80 backdrop-blur-sm border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow-lg pointer-events-none z-20">
       <div class="flex items-center justify-between gap-2 text-[10px] sm:text-[11px] font-black text-white leading-tight">
         <span class="flex items-center gap-1.5 min-w-0">
@@ -2315,6 +2320,21 @@
   </div>
 
 
+
+  <!-- v7.8.1 Mega 試煉塔垂直登塔 GBA 過場動畫（點擊隨時加速跳過） -->
+  <div id="towerClimbOverlay" onclick="ModeTower.skipClimbTransition()" class="fixed inset-0 z-[64] hidden flex items-center justify-center bg-slate-950/88 backdrop-blur-sm cursor-pointer select-none px-4">
+    <div class="w-full max-w-sm rounded-2xl overflow-hidden border-[3px] border-amber-400 bg-slate-950 shadow-[0_0_40px_rgba(99,102,241,0.45)] flex flex-col">
+      <div class="bg-gradient-to-r from-indigo-900 via-purple-800 to-indigo-900 px-3 py-1.5 border-b-2 border-amber-400/70 flex items-center justify-between">
+        <span class="font-pixel text-[9px] text-amber-300 tracking-wider">MEGA BATTLE TOWER</span>
+        <span id="towerClimbFloorTag" class="font-pixel text-[9px] text-white">1F ➔ 2F</span>
+      </div>
+      <canvas id="towerClimbCanvas" class="w-full h-auto block pixel-sprite bg-slate-950"></canvas>
+      <div id="towerClimbHint" class="bg-slate-900 px-3 py-2 text-center text-[11px] font-black text-amber-200 border-t border-slate-700 animate-pulse">
+        正在攀登下一層試煉……（點擊跳過）
+      </div>
+    </div>
+  </div>
+
   <!-- v7.8.0 關都 Mega 試煉塔：過關分支傳送門 ／ 破格遺物三選一 ／ 營火 ／ 奇遇彈窗 -->
   <div id="towerModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm select-none overflow-y-auto">
     <div class="poke-card w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0 bg-white border-[3px] border-slate-900 shadow-2xl my-auto">
@@ -2436,7 +2456,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.0</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.1</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2484,7 +2504,7 @@
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
           <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.0</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.1</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2517,14 +2537,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.8.0"></script>
-  <script src="map_v11_engine.js?v=7.8.0"></script>
-  <script src="skills_engine.js?v=7.8.0"></script>
-  <script src="skills_vfx.js?v=7.8.0"></script>
-  <script src="battle_core_2.js?v=7.8.0"></script>
-  <script src="battle_renderer.js?v=7.8.0"></script>
-  <script src="modes_arcade.js?v=7.8.0"></script>
-  <script src="mode_expedition.js?v=7.8.0"></script>
-  <script src="game_ui.js?v=7.8.0"></script>
+  <script src="pokedex_data.js?v=7.8.1"></script>
+  <script src="map_v11_engine.js?v=7.8.1"></script>
+  <script src="skills_engine.js?v=7.8.1"></script>
+  <script src="skills_vfx.js?v=7.8.1"></script>
+  <script src="battle_core_2.js?v=7.8.1"></script>
+  <script src="battle_renderer.js?v=7.8.1"></script>
+  <script src="modes_arcade.js?v=7.8.1"></script>
+  <script src="mode_expedition.js?v=7.8.1"></script>
+  <script src="game_ui.js?v=7.8.1"></script>
 </body>
 </html>

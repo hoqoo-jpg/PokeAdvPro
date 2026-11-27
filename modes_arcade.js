@@ -1281,10 +1281,12 @@ window.FieldEventsEngine = {
 };
 
 // ============================================================================
-// v7.8.0 關都 Mega 試煉塔 (ModeTower)
-// 20F 主線 Mega 首領試煉 ＋ 21F+ 無上限冠軍攀登 ＋ 12 破格遺物 ＋ 分支傳送門 ＋ 每層自動存檔
+// v7.8.1 關都 Mega 試煉塔 (ModeTower - 實體場景化深度改造版)
+// 實體三道傳送門走位選關 ＋ 奇遇雙寶箱／血祭房 ＋ 實體營火房 ＋ 地面遺物水晶拾取 ＋ 垂直登塔過場 ＋ Mega 鑰石 VS 演出
 // ============================================================================
 window.ModeTower = {
+  PROPS_SHEET_URL: "images/tower_props_sheet.png",
+
   RELICS: [
     { id: "prism_split",     name: "多重稜鏡",   cat: "進攻", color: "#38BDF8", desc: "所有招式傷害 +18%，並於發射時額外強化貫穿壓制力！" },
     { id: "chain_volt",      name: "連鎖雷核",   cat: "進攻", color: "#FACC15", desc: "暴擊率 +12%，暴擊命中時引爆小範圍連鎖電弧！" },
@@ -1322,7 +1324,13 @@ window.ModeTower = {
     return !!(app && app.towerState && Array.isArray(app.towerState.activeAffixes) && app.towerState.activeAffixes.includes(id));
   },
 
+  setQuickExitVisible(show) {
+    const btn = document.getElementById("towerQuickExitBtn");
+    if (btn) btn.classList.toggle("hidden", !show);
+  },
+
   onStart(app) {
+    if (typeof SpriteCache !== "undefined") SpriteCache.get(this.PROPS_SHEET_URL);
     const resumeCp = app._resumeTowerCheckpoint || null;
     app._resumeTowerCheckpoint = null;
 
@@ -1337,7 +1345,12 @@ window.ModeTower = {
         spawnTimer: 0.4,
         floorCleared: false,
         totalCoinsEarned: resumeCp.totalCoinsEarned || 0,
-        arenaBounds: { halfW: 540, halfH: 380 }
+        arenaBounds: { halfW: 540, halfH: 380 },
+        portals: [],
+        relicDrop: null,
+        roomProps: [],
+        pendingTreasureBanner: null,
+        pendingBossSpecs: null
       };
       const p = app.player;
       if (p && resumeCp.player) {
@@ -1368,20 +1381,250 @@ window.ModeTower = {
         spawnTimer: 0.4,
         floorCleared: false,
         totalCoinsEarned: 0,
-        arenaBounds: { halfW: 540, halfH: 380 }
+        arenaBounds: { halfW: 540, halfH: 380 },
+        portals: [],
+        relicDrop: null,
+        roomProps: [],
+        pendingTreasureBanner: null,
+        pendingBossSpecs: null
       };
       if (app.saveData) {
         app.saveData.towerCheckpoint = null;
         if (app.saveToStorage) app.saveToStorage();
       }
     }
-    this.startFloor(app, app.towerState.floor, app.towerState.portalType);
+    this.launchFloorWithCeremony(app, Math.max(1, app.towerState.floor - 1), app.towerState.floor, app.towerState.portalType, app.towerState.floor === 1);
   },
 
   getStageForFloor(floor) {
     const cycle = ["pallet", "cerulean_bay", "power_plant", "cinnabar_volcano", "sky_pillar"];
     const idx = Math.floor((floor - 1) / 5) % cycle.length;
     return STAGES.find(s => s.id === cycle[idx]) || STAGES[0];
+  },
+
+  resolveBossSpecsForFloor(floor) {
+    const ms = this.MEGA_MILESTONES.find(m => m.floor === floor);
+    if (ms) {
+      if (ms.pickOne) {
+        const i = Math.floor(Math.random() * ms.bossBaseIds.length);
+        return [{ baseId: ms.bossBaseIds[i], arch: ms.archetypes[i] }];
+      }
+      return ms.bossBaseIds.map((bid, i) => ({ baseId: bid, arch: ms.archetypes[i] || "juggernaut" }));
+    }
+    const allMegas = [
+      { baseId: 3, arch: "toxic_zone" }, { baseId: 6, arch: "juggernaut" },
+      { baseId: 9, arch: "sniper" }, { baseId: 94, arch: "trickster" },
+      { baseId: 130, arch: "juggernaut" }, { baseId: 142, arch: "sniper" }
+    ].sort(() => Math.random() - 0.5);
+    return allMegas.slice(0, 2);
+  },
+
+  // 垂直登塔過場 ➔（若為 5F 倍數）Mega 鑰石 VS 遭遇戰演出 ➔ 正式開戰
+  launchFloorWithCeremony(app, fromFloor, toFloor, portalType, skipClimb = false) {
+    const st = app.towerState;
+    if (!st) return;
+    const isBossFloor = (toFloor % 5 === 0);
+    const effPortal = isBossFloor ? "boss" : portalType;
+    st.pendingBossSpecs = isBossFloor ? this.resolveBossSpecsForFloor(toFloor) : null;
+
+    const proceedToVsOrStart = () => {
+      if (isBossFloor && typeof ModeExpedition !== "undefined" && ModeExpedition.showBossVsOverlay) {
+        const specs = st.pendingBossSpecs || this.resolveBossSpecsForFloor(toFloor);
+        const bossDataList = specs.map(sp => (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[sp.baseId]) ? MEGA_FORMS[sp.baseId] : (POKEMON_MAP.get(sp.baseId) || POKEMON_MAP.get(150)));
+        const baseDataList = specs.map(sp => POKEMON_MAP.get(sp.baseId) || bossDataList[0]);
+        const stageObj = this.getStageForFloor(toFloor);
+        const ms = this.MEGA_MILESTONES.find(m => m.floor === toFloor);
+        const vsCfg = {
+          stageId: stageObj.id,
+          isMegaTowerBoss: true,
+          isLegendaryBoss: true,
+          bossIds: bossDataList.map(b => b.id),
+          bossDataList,
+          baseDataList,
+          customSubTag: `MEGA BATTLE TOWER · ${toFloor}F · ${ms ? ms.title : "冠軍雙 Mega 決戰"}`
+        };
+        ModeExpedition.showBossVsOverlay(app, vsCfg, () => {
+          this.startFloor(app, toFloor, "boss");
+        });
+      } else {
+        this.startFloor(app, toFloor, effPortal);
+      }
+    };
+
+    if (skipClimb) {
+      proceedToVsOrStart();
+    } else {
+      this.playClimbTransition(app, fromFloor, toFloor, effPortal, proceedToVsOrStart);
+    }
+  },
+
+  // 垂直 GBA 登塔動態過場（~1.35 秒，點擊畫面立即跳過）
+  playClimbTransition(app, fromFloor, toFloor, portalType, onDone) {
+    const ov = document.getElementById("towerClimbOverlay");
+    const can = document.getElementById("towerClimbCanvas");
+    const tagEl = document.getElementById("towerClimbFloorTag");
+    const hintEl = document.getElementById("towerClimbHint");
+    if (!ov || !can) {
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+    this.setQuickExitVisible(false);
+    app.state = "TOWER_CLIMB";
+    if (tagEl) tagEl.textContent = `${fromFloor}F ➔ ${toFloor}F`;
+    if (hintEl) {
+      hintEl.textContent = toFloor % 5 === 0
+        ? `👑 逼近第 ${toFloor} 層 Mega 首領領域……（點擊跳過）`
+        : `正在攀登至第 ${toFloor} 層……（點擊跳過）`;
+    }
+
+    const tr = app.selectedTrainer || TRAINERS[0];
+    const trCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(tr, app.saveData) : tr;
+    const p = app.player;
+    const pData = (p && p.data) || POKEMON_MAP.get(25);
+    const pSprUrl = (p && p.isShiny && pData.shiny_forward_sprite) ? pData.shiny_forward_sprite : pData.forward_sprite;
+    SpriteCache.get(pSprUrl);
+    if (trCos && trCos.sprite) SpriteCache.get(trCos.sprite);
+
+    const nextBossFloor = Math.ceil(toFloor / 5) * 5;
+    const nextMs = this.MEGA_MILESTONES.find(m => m.floor === nextBossFloor);
+    const nextBossBaseId = nextMs ? nextMs.bossBaseIds[0] : 6;
+    const nextBossData = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[nextBossBaseId]) ? MEGA_FORMS[nextBossBaseId] : POKEMON_MAP.get(nextBossBaseId);
+    if (nextBossData && nextBossData.forward_sprite) SpriteCache.get(nextBossData.forward_sprite);
+
+    ov.classList.remove("hidden");
+    ov.style.display = "flex";
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+
+    let finished = false;
+    let rafId = null;
+    const startTs = performance.now();
+    const durationMs = 1350;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      this._climbSkipCb = null;
+      ov.classList.add("hidden");
+      ov.style.display = "none";
+      if (typeof onDone === "function") onDone();
+    };
+    this._climbSkipCb = finish;
+
+    const drawFrame = (nowTs) => {
+      if (finished) return;
+      const t = Math.min(1, (nowTs - startTs) / durationMs);
+      const ease = 1 - Math.pow(1 - t, 3);
+      const w = can.width = 360;
+      const h = can.height = 320;
+      const ctx = can.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+
+      // 1. GBA 垂直高塔石磚背景
+      const grad = ctx.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, "#0F172A");
+      grad.addColorStop(0.5, "#1E1B4B");
+      grad.addColorStop(1, "#020617");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      // 左右石柱磚紋
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(16, 0, 46, h);
+      ctx.fillRect(w - 62, 0, 46, h);
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 2;
+      for (let by = (Math.floor(t * 48) % 24) - 24; by < h; by += 24) {
+        ctx.strokeRect(16, by, 46, 24);
+        ctx.strokeRect(w - 62, by, 46, 24);
+      }
+
+      // 中央發光登塔階梯軌道
+      const trackX = w * 0.5;
+      ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
+      ctx.lineWidth = 36;
+      ctx.beginPath(); ctx.moveTo(trackX, h); ctx.lineTo(trackX, 20); ctx.stroke();
+
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath(); ctx.moveTo(trackX, h - 30); ctx.lineTo(trackX, 55); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 繪製 3 層階梯節點（下: fromFloor, 中: toFloor, 上: nextBossFloor）
+      const yFrom = 250;
+      const yTo = 152;
+      const yTop = 58;
+
+      const drawNode = (ny, label, col, active) => {
+        ctx.fillStyle = "#0F172A";
+        ctx.strokeStyle = col;
+        ctx.lineWidth = active ? 3 : 2;
+        ctx.fillRect(74, ny - 14, 72, 26);
+        ctx.strokeRect(74, ny - 14, 72, 26);
+        ctx.fillStyle = active ? "#FEF08A" : "#CBD5E1";
+        ctx.font = "900 10px 'Press Start 2P', monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(label, 110, ny + 3);
+
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(trackX, ny, active ? 10 : 7, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      };
+
+      drawNode(yFrom, `${fromFloor}F`, "#22C55E", false);
+      drawNode(yTo, `${toFloor}F`, toFloor % 5 === 0 ? "#EF4444" : "#38BDF8", true);
+      if (nextBossFloor > toFloor) {
+        drawNode(yTop, `${nextBossFloor}F`, "#F43F5E", false);
+      }
+
+      // 頂部顯示即將鎮守的 Mega 首領剪影
+      if (nextBossData && nextBossData.forward_sprite) {
+        const bRec = SpriteCache.get(nextBossData.forward_sprite);
+        if (bRec && bRec.loaded) {
+          const sil = SpriteCache.getSilhouette ? SpriteCache.getSilhouette(nextBossData.forward_sprite, toFloor === nextBossFloor ? "#F43F5E" : "#64748B") : bRec.img;
+          ctx.save();
+          ctx.globalAlpha = toFloor === nextBossFloor ? 0.92 : 0.45;
+          ctx.drawImage(sil || bRec.img, w - 140, yTop - 34, 64, 64);
+          ctx.restore();
+        }
+      }
+
+      // 主角訓練家 ＋ 寶可夢沿光梯向上攀登
+      const curY = yFrom + (yTo - yFrom) * ease;
+      const bob = t < 0.95 ? Math.abs(Math.sin(t * 22)) * 5 : 0;
+      const pRec = SpriteCache.get(pSprUrl);
+      const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
+      if (tRec && tRec.loaded) {
+        ctx.drawImage(tRec.img, trackX - 38, curY - 26 - bob, 36, 36);
+      }
+      if (pRec && pRec.loaded) {
+        ctx.drawImage(pRec.img, trackX + 2, curY - 28 - bob, 40, 40);
+      }
+
+      // 抵達瞬間光環
+      if (t > 0.85) {
+        const ringT = (t - 0.85) / 0.15;
+        ctx.strokeStyle = `rgba(250, 204, 21, ${1 - ringT})`;
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(trackX, yTo, 12 + ringT * 38, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      if (t < 1) {
+        rafId = requestAnimationFrame(drawFrame);
+      } else {
+        setTimeout(finish, 80);
+      }
+    };
+    rafId = requestAnimationFrame(drawFrame);
+  },
+
+  skipClimbTransition() {
+    if (typeof this._climbSkipCb === "function") {
+      this._climbSkipCb();
+    }
   },
 
   startFloor(app, floor, portalType = "battle") {
@@ -1394,10 +1637,16 @@ window.ModeTower = {
     st.killsInFloor = 0;
     st.floorCleared = false;
     st.spawnTimer = 0.45;
-    st.killQuota = st.portalType === "boss" ? 0 : (st.portalType === "elite" ? 16 : Math.min(36, 16 + Math.floor(floor * 0.9)));
+    st.portals = [];
+    st.relicDrop = null;
+    st.roomProps = [];
+    st.pendingTreasureBanner = null;
+    st.killQuota = (st.portalType === "boss" || st.portalType === "campfire" || st.portalType === "mystery")
+      ? 0
+      : (st.portalType === "elite" ? 16 : Math.min(36, 16 + Math.floor(floor * 0.9)));
 
     st.activeAffixes = [];
-    if (floor >= 11) {
+    if (floor >= 11 && st.portalType !== "campfire" && st.portalType !== "mystery") {
       const count = floor >= 21 ? 2 : 1;
       const pool = [...this.AFFIXES].sort(() => Math.random() - 0.5);
       st.activeAffixes = pool.slice(0, count).map(a => a.id);
@@ -1421,56 +1670,83 @@ window.ModeTower = {
       SkillsEngine.groundHazards = [];
       SkillsEngine.meleeEffects = [];
     }
-    p.x = 0; p.y = 0;
-    app.camera.x = 0; app.camera.y = 0;
+    p.x = 0; p.y = 140;
+    app.camera.x = 0; app.camera.y = 80;
 
     if (this.hasRelic(app, "opening_charge")) p.trainerSkillCd = 0;
     if (this.hasRelic(app, "overheal_shield")) p.shieldTimer = Math.max(p.shieldTimer || 0, 4.0);
 
     const bossHud = document.getElementById("bossHudContainer");
     if (st.portalType === "boss") {
+      this.setQuickExitVisible(false);
       this.spawnMegaTowerBosses(app, floor);
       if (bossHud) bossHud.classList.remove("hidden");
+    } else if (st.portalType === "campfire") {
+      if (bossHud) bossHud.classList.add("hidden");
+      this.setQuickExitVisible(true);
+      this.setupCampfireRoom(app);
+    } else if (st.portalType === "mystery") {
+      if (bossHud) bossHud.classList.add("hidden");
+      this.setQuickExitVisible(true);
+      this.setupMysteryRoom(app);
     } else {
       if (bossHud) bossHud.classList.add("hidden");
+      this.setQuickExitVisible(false);
       if (st.portalType === "elite") {
         this.spawnTowerElitePair(app, floor);
       }
     }
 
-    app.battleCountdownTimer = 2.00;
+    const isSpecialRoom = (st.portalType === "campfire" || st.portalType === "mystery");
+    app.battleCountdownTimer = isSpecialRoom ? 0 : 1.80;
     app._lastCountdownBeat = 4;
     app.state = "PLAYING";
 
     const affNames = st.activeAffixes.map(id => (this.AFFIXES.find(a => a.id === id) || {}).name).filter(Boolean);
-    const subTxt = affNames.length > 0
-      ? `環境詞綴：${affNames.join(" ＋ ")}`
-      : (st.portalType === "boss" ? "擊敗鎮守 Mega 首領，解鎖秘寶並晉級高層！" : `目標：清剿本層敵軍（${st.portalType === "elite" ? "精英試煉 ‧ 必掉遺物" : `殲滅 ${st.killQuota} 隻`}）`);
+    let subTxt = affNames.length > 0 ? `環境詞綴：${affNames.join(" ＋ ")}` : "";
+    if (!subTxt) {
+      if (st.portalType === "boss") subTxt = "擊敗鎮守 Mega 首領，解鎖秘寶並晉級高層！";
+      else if (st.portalType === "campfire") subTxt = "走入左側療癒陣回血，或右側鍛造陣強化招式！";
+      else if (st.portalType === "mystery") subTxt = "走近地圖上的實體寶箱或祭壇做出抉擇！";
+      else subTxt = `目標：清剿本層敵軍（${st.portalType === "elite" ? "精英試煉 ‧ 必掉遺物水晶" : `殲滅 ${st.killQuota} 隻`}）`;
+    }
     if (app.showCutsceneBanner) {
-      app.showCutsceneBanner(`🗼 MEGA 試煉塔 ‧ 第 ${floor} 層`, subTxt, 2200);
+      app.showCutsceneBanner(`🗼 MEGA 試煉塔 ‧ 第 ${floor} 層`, subTxt, 2100);
     }
     if (app.refreshHUD) app.refreshHUD();
   },
 
-  spawnMegaTowerBosses(app, floor) {
-    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
-    const ms = this.MEGA_MILESTONES.find(m => m.floor === floor);
-    let specs = [];
-    if (ms) {
-      if (ms.pickOne) {
-        const i = Math.floor(Math.random() * ms.bossBaseIds.length);
-        specs = [{ baseId: ms.bossBaseIds[i], arch: ms.archetypes[i] }];
-      } else {
-        specs = ms.bossBaseIds.map((bid, i) => ({ baseId: bid, arch: ms.archetypes[i] || "juggernaut" }));
-      }
+  setupCampfireRoom(app) {
+    const st = app.towerState;
+    st.roomProps = [
+      { kind: "campfire_center", x: 0, y: -20, radius: 34, done: false },
+      { kind: "campfire_heal", x: -160, y: 25, radius: 52, standTimer: 0, done: false, label: "💚 暖火療癒陣", sub: "回復 50% HP ＋ 淨化", color: "#10B981" },
+      { kind: "campfire_forge", x: 160, y: 25, radius: 52, standTimer: 0, done: false, label: "🔨 招式鍛造陣", sub: "隨機招式 +2 級", color: "#F59E0B" }
+    ];
+  },
+
+  setupMysteryRoom(app) {
+    const st = app.towerState;
+    if (Math.random() < 0.62) {
+      // 真假雙寶箱實體房
+      const realIdx = Math.random() < 0.5 ? 0 : 1;
+      st.roomProps = [
+        { kind: "mystery_chest", x: -150, y: -15, radius: 40, isReal: realIdx === 0, stateFrame: 0, standTimer: 0, done: false, label: "神秘紫寶箱 A", color: "#A855F7" },
+        { kind: "mystery_chest", x: 150, y: -15, radius: 40, isReal: realIdx === 1, stateFrame: 0, standTimer: 0, done: false, label: "神秘紫寶箱 B", color: "#A855F7" }
+      ];
     } else {
-      const allMegas = [
-        { baseId: 3, arch: "toxic_zone" }, { baseId: 6, arch: "juggernaut" },
-        { baseId: 9, arch: "sniper" }, { baseId: 94, arch: "trickster" },
-        { baseId: 130, arch: "juggernaut" }, { baseId: 142, arch: "sniper" }
-      ].sort(() => Math.random() - 0.5);
-      specs = allMegas.slice(0, 2);
+      // 狂戰血祭祭壇 ＋ 黃金補給箱
+      st.roomProps = [
+        { kind: "blood_altar", x: -160, y: 0, radius: 50, standTimer: 0, done: false, label: "🩸 狂戰血祭陣", sub: "扣20%血 ➔ 遺物＋全招+1", color: "#F43F5E" },
+        { kind: "gold_supply", x: 160, y: 0, radius: 46, standTimer: 0, done: false, label: "💰 黃金補給箱", sub: "無傷奪 +140金 ＋ 回20%血", color: "#FACC15" }
+      ];
     }
+  },
+
+  spawnMegaTowerBosses(app, floor) {
+    const st = app.towerState;
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    const specs = (st && st.pendingBossSpecs) ? st.pendingBossSpecs : this.resolveBossSpecsForFloor(floor);
 
     const dualMod = specs.length >= 2 ? 0.68 : 1.0;
     const floorScale = 1 + (floor - 5) * 0.14;
@@ -1482,8 +1758,8 @@ window.ModeTower = {
       const bData = mf || POKEMON_MAP.get(sp.baseId) || POKEMON_MAP.get(150);
       const hp = Math.round(11500 * floorScale * diff.hpMult * dualMod * gravMod);
       const atk = Math.round((24 + floor * 0.85) * diff.atkMult);
-      const bx = idx === 0 ? 210 : -210;
-      const by = idx === 0 ? -40 : 40;
+      const bx = specs.length >= 2 ? (idx === 0 ? 190 : -190) : 0;
+      const by = -110;
       const bossObj = {
         id: bData.id,
         data: bData,
@@ -1524,7 +1800,7 @@ window.ModeTower = {
       const hp = Math.round(1350 * floorScale * diff.hpMult);
       app.enemies.push({
         id: pid, data,
-        x: i === 0 ? 220 : -220, y: i === 0 ? -60 : 60,
+        x: i === 0 ? 210 : -210, y: -90,
         hp, maxHp: hp,
         atk: Math.round((16 + floor * 0.65) * diff.atkMult),
         speed: Math.min(115, 84 * diff.spdMult),
@@ -1566,16 +1842,52 @@ window.ModeTower = {
     });
   },
 
+  spawnPhysicalPortals(app) {
+    const st = app.towerState;
+    if (!st || st.portals.length > 0) return;
+    const nextF = st.floor + 1;
+    const py = -255;
+
+    if (nextF % 5 === 0) {
+      const ms = this.MEGA_MILESTONES.find(m => m.floor === nextF);
+      const bossBaseId = ms ? ms.bossBaseIds[0] : 6;
+      const bData = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[bossBaseId]) ? MEGA_FORMS[bossBaseId] : POKEMON_MAP.get(bossBaseId);
+      if (bData && bData.forward_sprite) SpriteCache.get(bData.forward_sprite);
+      st.portals = [{
+        type: "boss", x: 0, y: py, radius: 54, standTimer: 0,
+        color: "#EF4444", label: `👑 ${nextF}F MEGA 首領`, sub: ms ? ms.title : "雙 Mega 決戰",
+        bossSprite: bData ? bData.forward_sprite : null
+      }];
+    } else {
+      const isPreBoss = ((nextF + 1) % 5 === 0);
+      const rightPortal = isPreBoss
+        ? { type: "campfire", x: 205, y: py, radius: 44, standTimer: 0, color: "#10B981", label: `🏕️ ${nextF}F 營火房`, sub: "回血 / 鍛造" }
+        : { type: "mystery",  x: 205, y: py, radius: 44, standTimer: 0, color: "#A855F7", label: `❓ ${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
+      st.portals = [
+        { type: "battle", x: -205, y: py, radius: 44, standTimer: 0, color: "#38BDF8", label: `⚔️ ${nextF}F 激戰門`, sub: "標準清剿" },
+        { type: "elite",  x: 0,    y: py, radius: 44, standTimer: 0, color: "#F59E0B", label: `💀 ${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
+        rightPortal
+      ];
+    }
+
+    this.setQuickExitVisible(true);
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+    if (app.spawnFloatingText && app.player) {
+      app.spawnFloatingText(app.player.x, app.player.y - 44, "🌀 上方傳送門已開啟！走入選擇下一層！", "#FACC15", 14);
+    }
+  },
+
   update(app, dt) {
     const st = app.towerState;
     const p = app.player;
-    if (!st || !p || st.floorCleared) return;
+    if (!st || !p) return;
 
     const b = st.arenaBounds;
     p.x = Math.max(-b.halfW + 24, Math.min(b.halfW - 24, p.x));
     p.y = Math.max(-b.halfH + 24, Math.min(b.halfH - 24, p.y));
 
-    if (st.portalType !== "boss") {
+    // 1. 戰鬥波次刷怪與清場判定
+    if (!st.floorCleared && (st.portalType === "battle" || st.portalType === "elite")) {
       const aliveMobs = app.enemies.filter(e => e.hp > 0).length;
       const remain = Math.max(0, st.killQuota - st.killsInFloor);
       if (remain > 0 && aliveMobs < Math.min(18, remain + 3)) {
@@ -1585,14 +1897,157 @@ window.ModeTower = {
           this.spawnTowerMob(app);
         }
       } else if (remain <= 0 && aliveMobs === 0) {
-        this.onFloorCleared(app);
+        this.onFloorCleared(app, 0, -40);
+      }
+    }
+
+    // 2. 實體特殊房互動（營火房 ／ 奇遇雙寶箱房 ／ 血祭祭壇房）
+    if (st.roomProps && st.roomProps.length > 0 && !st.floorCleared) {
+      for (const prop of st.roomProps) {
+        if (prop.done || prop.kind === "campfire_center") continue;
+        const dist = Math.hypot(p.x - prop.x, p.y - prop.y);
+        const triggerR = prop.radius + 16;
+        if (dist <= triggerR) {
+          if (prop.kind === "mystery_chest") prop.stateFrame = 1;
+          prop.standTimer = (prop.standTimer || 0) + dt;
+          if (prop.standTimer >= 0.45) {
+            this.activateRoomProp(app, prop);
+            break;
+          }
+        } else {
+          prop.standTimer = Math.max(0, (prop.standTimer || 0) - dt * 2.5);
+          if (prop.kind === "mystery_chest" && !prop.done) prop.stateFrame = 0;
+        }
+      }
+    }
+
+    // 3. 地面遺物水晶拾取
+    if (st.relicDrop && !st.relicDrop.picked) {
+      const rd = st.relicDrop;
+      if (Math.hypot(p.x - rd.x, p.y - rd.y) <= 44) {
+        rd.picked = true;
+        app.state = "TOWER_MENU";
+        if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+        this.openRelicChoiceModal(app, st.pendingTreasureBanner);
+        return;
+      }
+    }
+
+    // 4. 實體三道傳送門走位進入（停留 0.45s 防誤觸）
+    if (st.portals && st.portals.length > 0) {
+      for (const pt of st.portals) {
+        const dist = Math.hypot(p.x - pt.x, p.y - pt.y);
+        if (dist <= pt.radius + 12) {
+          pt.standTimer = (pt.standTimer || 0) + dt;
+          if (pt.standTimer >= 0.45) {
+            const fromF = st.floor;
+            const nextF = st.floor + 1;
+            const targetType = pt.type;
+            st.portals = [];
+            this.saveCheckpoint(app, nextF, targetType);
+            this.launchFloorWithCeremony(app, fromF, nextF, targetType, false);
+            return;
+          }
+        } else {
+          pt.standTimer = Math.max(0, (pt.standTimer || 0) - dt * 3.0);
+        }
       }
     }
   },
 
+  activateRoomProp(app, prop) {
+    const st = app.towerState;
+    const p = app.player;
+    if (!st || !p) return;
+
+    if (prop.kind === "campfire_heal" || prop.kind === "campfire_forge") {
+      st.roomProps.forEach(rp => { if (rp.kind !== "campfire_center") rp.done = true; });
+      if (prop.kind === "campfire_heal") {
+        const heal = Math.round(p.maxHp * 0.50);
+        p.hp = Math.min(p.maxHp, p.hp + heal);
+        p.status = null; p.statusTimer = 0;
+        if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 36, `💚 暖火療癒！回復 +${heal} HP！`, "#10B981", 15);
+      } else {
+        const cand = Object.values(p.skills || {}).filter(s => s.level < 10);
+        if (cand.length > 0) {
+          const pick = cand[Math.floor(Math.random() * cand.length)];
+          pick.level = Math.min(10, pick.level + 2);
+          const meta = SKILLS_CATALOG[pick.id];
+          if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 36, `🔨 鍛造成功！【${meta ? meta.name : pick.id}】+2 級！`, "#FACC15", 15);
+        } else {
+          p.dmgMult = (p.dmgMult || 1.0) + 0.10;
+          if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 36, `🔨 鍛造極限！全傷害永久 +10%！`, "#FACC15", 15);
+        }
+      }
+      if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+      this.finishSpecialRoom(app);
+    } else if (prop.kind === "mystery_chest") {
+      st.roomProps.forEach(rp => { rp.done = true; });
+      if (prop.isReal) {
+        prop.stateFrame = 2; // 金光開箱
+        app.runCoins = (app.runCoins || 0) + 130;
+        if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 130;
+        if (app.spawnMapLoot) app.spawnMapLoot("rare_candy", prop.x, prop.y + 34);
+        if (app.spawnFloatingText) app.spawnFloatingText(prop.x, prop.y - 36, "🎁 真品秘寶箱！+130 金 ＋ 神奇糖果！", "#FACC15", 15);
+        if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+        this.finishSpecialRoom(app);
+      } else {
+        prop.stateFrame = 3; // 百變怪紫煙現形！
+        const ditto = POKEMON_MAP.get(132);
+        const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0 };
+        if (ditto) {
+          const dHp = Math.round((1100 + st.floor * 160) * diff.hpMult);
+          app.enemies.push({
+            id: 132, data: ditto, x: prop.x, y: prop.y + 12,
+            hp: dHp, maxHp: dHp, atk: Math.round((18 + st.floor * 0.6) * diff.atkMult), speed: 92, radius: 26,
+            isElite: true, isMiniBoss: true, isBoss: false, isShiny: true,
+            isTowerMimic: true, guaranteedRareCandy: true, expVal: 160,
+            whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
+          });
+        }
+        if (app.spawnFloatingText) app.spawnFloatingText(prop.x, prop.y - 36, "😈 是閃光百變怪假扮的！擊倒它才能開門！", "#C084FC", 14);
+        if (typeof SoundFX !== "undefined") SoundFX.play("boss_encounter");
+      }
+    } else if (prop.kind === "blood_altar" || prop.kind === "gold_supply") {
+      st.roomProps.forEach(rp => { rp.done = true; });
+      if (prop.kind === "blood_altar") {
+        p.hp = Math.max(1, p.hp - Math.floor(p.hp * 0.20));
+        Object.values(p.skills || {}).forEach(s => { if (s.level < 10) s.level = Math.min(10, s.level + 1); });
+        if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 36, "🩸 狂戰血祭！全招 +1 級 ＆ 掉落遺物水晶！", "#F43F5E", 15);
+        if (typeof SoundFX !== "undefined") SoundFX.play("super");
+        st.floorCleared = true;
+        st.relicDrop = { x: prop.x, y: prop.y + 42, picked: false };
+      } else {
+        app.runCoins = (app.runCoins || 0) + 140;
+        if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 140;
+        p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.20));
+        if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 36, "💰 奪取黃金補給！+140 金 ＋ 回 20% HP！", "#FACC15", 15);
+        if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+        this.finishSpecialRoom(app);
+      }
+    }
+  },
+
+  finishSpecialRoom(app) {
+    const st = app.towerState;
+    if (!st) return;
+    st.floorCleared = true;
+    if (app.saveData) {
+      if (!app.saveData.stats) app.saveData.stats = {};
+      app.saveData.stats.bestTowerFloor = Math.max(app.saveData.stats.bestTowerFloor || 0, st.floor);
+    }
+    this.saveCheckpoint(app, st.floor + 1, "battle");
+    this.spawnPhysicalPortals(app);
+  },
+
   onEnemyKilled(app, enemy) {
     const st = app.towerState;
-    if (!st || st.floorCleared) return;
+    if (!st) return;
+    if (enemy && enemy.isTowerMimic && !st.floorCleared) {
+      this.finishSpecialRoom(app);
+      return;
+    }
+    if (st.floorCleared) return;
     if (enemy && enemy.isTowerQuotaMob && st.portalType !== "boss") {
       st.killsInFloor = Math.min(st.killQuota, (st.killsInFloor || 0) + 1);
     }
@@ -1611,11 +2066,11 @@ window.ModeTower = {
     if (!st || st.floorCleared) return false;
     const stillAlive = app.enemies.some(e => e.isBoss && e.hp > 0 && e !== boss);
     if (stillAlive) return true;
-    this.onFloorCleared(app);
+    this.onFloorCleared(app, boss ? boss.x : 0, boss ? boss.y : -40);
     return true;
   },
 
-  onFloorCleared(app) {
+  onFloorCleared(app, dropX = 0, dropY = -40) {
     const st = app.towerState;
     if (!st || st.floorCleared) return;
     st.floorCleared = true;
@@ -1647,18 +2102,29 @@ window.ModeTower = {
 
     this.saveCheckpoint(app, floor + 1, "battle");
     if (app.saveToStorage) app.saveToStorage();
-
-    app.state = "TOWER_MENU";
-    if (typeof SoundFX !== "undefined") SoundFX.play(st.portalType === "boss" ? "shiny" : "levelup");
-
+    if (app.spawnFloatingText && app.player) {
+      app.spawnFloatingText(app.player.x, app.player.y - 30, `🏆 第 ${floor} 層通關！賞金 +${coinGain} 金！`, "#FACC15", 15);
+    }
     if (newlyUnlockedTreasure && app.pixelToast) {
       app.pixelToast(`🏆 永久解鎖傳說秘寶【${newlyUnlockedTreasure.name}】！`, "success");
     }
 
+    // 精英／Mega 首領層：於場中掉落發光「遺物水晶」，玩家親自走去拾取才展開卡片三選一！
     if (st.portalType === "elite" || st.portalType === "boss") {
-      this.openTowerModal(app, "relic", coinGain, newlyUnlockedTreasure);
+      const b = st.arenaBounds;
+      st.relicDrop = {
+        x: Math.max(-b.halfW + 90, Math.min(b.halfW - 90, dropX)),
+        y: Math.max(-b.halfH + 110, Math.min(b.halfH - 90, dropY)),
+        picked: false
+      };
+      st.pendingTreasureBanner = newlyUnlockedTreasure;
+      this.setQuickExitVisible(true);
+      if (app.spawnFloatingText) {
+        app.spawnFloatingText(st.relicDrop.x, st.relicDrop.y - 36, "💎 掉落破格遺物水晶！走去拾取！", "#38BDF8", 14);
+      }
     } else {
-      this.openTowerModal(app, "portals", coinGain, newlyUnlockedTreasure);
+      // 普通層：直接開啟房間上方實體傳送門！
+      this.spawnPhysicalPortals(app);
     }
   },
 
@@ -1678,7 +2144,7 @@ window.ModeTower = {
     }).join("");
   },
 
-  openTowerModal(app, phase, coinGain = 0, unlockedTreasure = null) {
+  openRelicChoiceModal(app, unlockedTreasure = null) {
     const modal = document.getElementById("towerModal");
     if (!modal) return;
     const st = app.towerState;
@@ -1702,88 +2168,21 @@ window.ModeTower = {
          </div>`
       : "";
 
-    if (phase === "relic") {
-      if (titleEl) titleEl.textContent = `第 ${st.floor} 層制霸 ‧ 領取破格遺物`;
-      if (subEl) subEl.textContent = `賞金 +${coinGain} 金！請從下方挑選 1 件本局專屬「塔內破格遺物」：`;
-      const avail = this.RELICS.filter(r => !st.relics.includes(r.id)).sort(() => Math.random() - 0.5).slice(0, 3);
-      const picks = avail.length > 0 ? avail : this.RELICS.slice(0, 3);
-      grid.innerHTML = treasureBanner + picks.map(r => `
-        <button type="button" onclick="ModeTower.chooseRelic('${r.id}')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-slate-800 shadow-[0_3px_0_#CBD5E1] hover:border-indigo-600 active:scale-[0.985] transition">
-          <div class="flex items-center justify-between gap-2">
-            <span class="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
-              <span class="gba-ui-icon gba-ui-relic w-4 h-4"></span>${r.name}
-            </span>
-            <span class="px-2 py-0.5 rounded-full text-[9px] font-black text-white" style="background:${r.color};">${r.cat}遺物</span>
-          </div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1 leading-snug">${r.desc}</p>
-        </button>
-      `).join("");
-    } else if (phase === "campfire") {
-      if (titleEl) titleEl.textContent = `🏕️ 寶可夢中心營火（第 ${st.floor} 層）`;
-      if (subEl) subEl.textContent = "在迎接強敵前稍作休整，請選擇一項營火強化：";
-      grid.innerHTML = `
-        <button type="button" onclick="ModeTower.chooseCampfire('heal')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-emerald-600 shadow-[0_3px_0_#059669] active:scale-[0.985] transition">
-          <div class="font-black text-sm text-emerald-700 flex items-center gap-1.5"><span class="gba-ui-icon gba-ui-campfire w-4 h-4"></span> 營火療癒休息</div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1">免費回復 50% 最大 HP，並清除所有異常狀態！</p>
-        </button>
-        <button type="button" onclick="ModeTower.chooseCampfire('upgrade')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-amber-500 shadow-[0_3px_0_#D97706] active:scale-[0.985] transition">
-          <div class="font-black text-sm text-amber-700 flex items-center gap-1.5"><span class="gba-ui-icon gba-ui-relic w-4 h-4"></span> 營火招式鍛造</div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1">隨機強化 1 項未滿級招式直接 +2 級（若全滿則全傷 +10%）！</p>
-        </button>
-      `;
-    } else if (phase === "mystery") {
-      if (titleEl) titleEl.textContent = `❓ 試煉塔未知奇遇（第 ${st.floor} 層）`;
-      if (subEl) subEl.textContent = "古老的祭壇散發著微光，請做出你的選擇：";
-      grid.innerHTML = `
-        <button type="button" onclick="ModeTower.chooseMystery('gamble')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-purple-600 shadow-[0_3px_0_#7E22CE] active:scale-[0.985] transition">
-          <div class="font-black text-sm text-purple-700">🎲 狂戰血祭（高風險高回報）</div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1">扣除 20% 當前 HP，立刻獲得 1 件隨機塔內破格遺物 ＋ 全招式 +1 級！</p>
-        </button>
-        <button type="button" onclick="ModeTower.chooseMystery('safe')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-sky-600 shadow-[0_3px_0_#0284C7] active:scale-[0.985] transition">
-          <div class="font-black text-sm text-sky-700">💰 穩健搜刮秘寶</div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1">無傷帶走 +140 金幣並回復 20% HP！</p>
-        </button>
-      `;
-    } else {
-      const nextF = st.floor + 1;
-      if (titleEl) titleEl.textContent = `第 ${st.floor} 層通關 ‧ 選擇第 ${nextF} 層路線`;
-      if (subEl) subEl.textContent = coinGain > 0
-        ? `本層賞金 +${coinGain} 金（已自動存檔）！選擇下一層傳送門：`
-        : `選擇前往第 ${nextF} 層的傳送門：`;
-
-      let portals = [];
-      if (nextF % 5 === 0) {
-        const msNext = this.MEGA_MILESTONES.find(m => m.floor === nextF);
-        portals = [{
-          type: "boss", icon: "tower", badge: "MEGA 首領戰", badgeBg: "#DC2626",
-          name: msNext ? `👑 第 ${nextF} 層：${msNext.title}` : `👑 第 ${nextF} 層：冠軍雙 Mega 首領戰`,
-          desc: msNext ? `擊敗鎮守 Mega 首領，永久解鎖傳說秘寶並領取破格遺物！` : "極限雙 Mega 聯手鎮守！擊破領取高階賞金與破格遺物！"
-        }];
-      } else {
-        const isPreBoss = ((nextF + 1) % 5 === 0);
-        portals = [
-          { type: "battle", icon: "portal", badge: "穩健推進", badgeBg: "#2563EB", name: `⚔️ 第 ${nextF} 層 ‧ 激戰門`, desc: "標準怪潮清剿，穩定收穫經驗、升級與金幣。" },
-          { type: "elite",  icon: "rival_ambush", badge: "必掉遺物", badgeBg: "#D97706", name: `💀 第 ${nextF} 層 ‧ 精英試煉門`, desc: "雙精英強敵圍攻！高壓挑戰，過關必選 1 件破格遺物！" }
-        ];
-        if (isPreBoss) {
-          portals.push({ type: "campfire", icon: "campfire", badge: "王前必出", badgeBg: "#059669", name: `🏕️ 第 ${nextF} 層 ‧ 中心營火門`, desc: "免戰鬥直接休整：免費回 50% HP 或強化招式 +2 級！" });
-        } else {
-          portals.push({ type: "mystery", icon: "ditto_chests", badge: "隨機奇遇", badgeBg: "#7E22CE", name: `❓ 第 ${nextF} 層 ‧ 未知奇遇門`, desc: "進入神秘祭壇觸發隨機抉擇（血祭遺物或穩健奪金）！" });
-        }
-      }
-
-      grid.innerHTML = treasureBanner + portals.map(pt => `
-        <button type="button" onclick="ModeTower.choosePortal('${pt.type}')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-slate-800 shadow-[0_3px_0_#CBD5E1] hover:border-red-500 active:scale-[0.985] transition">
-          <div class="flex items-center justify-between gap-2">
-            <span class="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
-              <span class="gba-ui-icon gba-ui-${pt.icon} w-4 h-4"></span>${pt.name}
-            </span>
-            <span class="px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0" style="background:${pt.badgeBg};">${pt.badge}</span>
-          </div>
-          <p class="text-[11px] font-bold text-slate-600 mt-1 leading-snug">${pt.desc}</p>
-        </button>
-      `).join("");
-    }
+    if (titleEl) titleEl.textContent = `💎 拾取遺物水晶 ‧ 三選一`;
+    if (subEl) subEl.textContent = "挑選 1 件本局專屬「塔內破格遺物」，選完即開啟上方傳送門：";
+    const avail = this.RELICS.filter(r => !st.relics.includes(r.id)).sort(() => Math.random() - 0.5).slice(0, 3);
+    const picks = avail.length > 0 ? avail : this.RELICS.slice(0, 3);
+    grid.innerHTML = treasureBanner + picks.map(r => `
+      <button type="button" onclick="ModeTower.chooseRelic('${r.id}')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-slate-800 shadow-[0_3px_0_#CBD5E1] hover:border-indigo-600 active:scale-[0.985] transition">
+        <div class="flex items-center justify-between gap-2">
+          <span class="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
+            <span class="gba-ui-icon gba-ui-relic w-4 h-4"></span>${r.name}
+          </span>
+          <span class="px-2 py-0.5 rounded-full text-[9px] font-black text-white" style="background:${r.color};">${r.cat}遺物</span>
+        </div>
+        <p class="text-[11px] font-bold text-slate-600 mt-1 leading-snug">${r.desc}</p>
+      </button>
+    `).join("");
 
     modal.classList.remove("hidden");
     modal.style.display = "flex";
@@ -1807,69 +2206,173 @@ window.ModeTower = {
       }
     }
     this.saveCheckpoint(app, st.floor + 1, "battle");
-    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
-    this.openTowerModal(app, "portals", 0, null);
-  },
-
-  choosePortal(portalType) {
-    const app = GameApp;
-    const st = app && app.towerState;
-    if (!st) return;
-    const nextF = st.floor + 1;
-    st.floor = nextF;
-    if (portalType === "campfire") {
-      this.openTowerModal(app, "campfire", 0, null);
-      return;
-    }
-    if (portalType === "mystery") {
-      this.openTowerModal(app, "mystery", 0, null);
-      return;
-    }
     this.closeTowerModal();
-    this.startFloor(app, nextF, portalType);
+    app.state = "PLAYING";
+    this.spawnPhysicalPortals(app);
   },
 
-  chooseCampfire(choice) {
-    const app = GameApp;
-    const p = app && app.player;
-    const st = app && app.towerState;
-    if (!p || !st) return;
-    if (choice === "heal") {
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.50));
-      p.status = null; p.statusTimer = 0;
-    } else {
-      const cand = Object.values(p.skills || {}).filter(s => s.level < 10);
-      if (cand.length > 0) {
-        const pick = cand[Math.floor(Math.random() * cand.length)];
-        pick.level = Math.min(10, pick.level + 2);
-      } else {
-        p.dmgMult = (p.dmgMult || 1.0) + 0.10;
+  // 繪製所有試煉塔實體物件（使用 images/tower_props_sheet.png 4x4 逐幀動畫精靈表）
+  renderGroundEntities(app, ctx, toSx, toSy) {
+    if (!app || !app.isTowerMode || !app.towerState) return;
+    const st = app.towerState;
+    const propRec = SpriteCache.get(this.PROPS_SHEET_URL);
+    const hasSheet = !!(propRec && propRec.loaded);
+    const frame4 = Math.floor(performance.now() / 160) % 4;
+    const bob = Math.sin(performance.now() * 0.006) * 3.5;
+
+    const drawPropFrame = (row, col, sx, sy, size) => {
+      if (!hasSheet) return;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(propRec.img, col * 128, row * 128, 128, 128, sx - size / 2, sy - size / 2, size, size);
+    };
+
+    const drawLabel = (sx, sy, text, sub, borderCol) => {
+      ctx.save();
+      ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+      const w = Math.max(92, ctx.measureText(text).width + 18);
+      const h = sub ? 32 : 20;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = borderCol;
+      ctx.lineWidth = 2;
+      ctx.fillRect(sx - w / 2, sy, w, h);
+      ctx.strokeRect(sx - w / 2, sy, w, h);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.textAlign = "center";
+      ctx.fillText(text, sx, sy + 14);
+      if (sub) {
+        ctx.fillStyle = "#FEF08A";
+        ctx.font = "700 8.5px 'Noto Sans TC', sans-serif";
+        ctx.fillText(sub, sx, sy + 26);
       }
+      ctx.restore();
+    };
+
+    // 1. 營火房 ／ 奇遇房實體物件
+    if (st.roomProps && st.roomProps.length > 0) {
+      st.roomProps.forEach(prop => {
+        const sx = toSx(prop.x), sy = toSy(prop.y);
+        ctx.save();
+        if (prop.kind === "campfire_center") {
+          const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 85);
+          glow.addColorStop(0, "rgba(251, 146, 60, 0.42)");
+          glow.addColorStop(1, "rgba(251, 146, 60, 0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(sx, sy, 85, 0, Math.PI * 2); ctx.fill();
+          drawPropFrame(1, frame4, sx, sy, 68);
+        } else if (prop.kind === "mystery_chest") {
+          const glow = ctx.createRadialGradient(sx, sy, 6, sx, sy, 46);
+          glow.addColorStop(0, "rgba(168, 85, 247, 0.35)");
+          glow.addColorStop(1, "rgba(168, 85, 247, 0)");
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(sx, sy, 46, 0, Math.PI * 2); ctx.fill();
+          drawPropFrame(3, prop.stateFrame || 0, sx, sy + (prop.done ? 0 : bob * 0.5), 56);
+          if (!prop.done) {
+            if (prop.standTimer > 0) {
+              const prog = Math.min(1, prop.standTimer / 0.45);
+              ctx.strokeStyle = "#FACC15";
+              ctx.lineWidth = 4;
+              ctx.beginPath(); ctx.arc(sx, sy, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
+            }
+            drawLabel(sx, sy + 30, prop.label, "走近開啟", "#A855F7");
+          }
+        } else {
+          // 圓形互動魔法陣（療癒陣 / 鍛造陣 / 血祭陣 / 黃金補給箱）
+          ctx.globalAlpha = prop.done ? 0.28 : 1.0;
+          ctx.fillStyle = `${prop.color}28`;
+          ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = prop.color;
+          ctx.lineWidth = 3;
+          ctx.setLineDash([8, 5]);
+          ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          if (prop.kind === "gold_supply") {
+            drawPropFrame(3, prop.done ? 2 : 0, sx, sy - 4, 48);
+          } else {
+            drawPropFrame(prop.kind === "campfire_heal" ? 1 : 2, frame4, sx, sy - 4, 44);
+          }
+          if (!prop.done && prop.standTimer > 0) {
+            const prog = Math.min(1, prop.standTimer / 0.45);
+            ctx.strokeStyle = "#FFFFFF";
+            ctx.lineWidth = 4.5;
+            ctx.beginPath(); ctx.arc(sx, sy, prop.radius + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
+          }
+          if (!prop.done) drawLabel(sx, sy + prop.radius + 6, prop.label, prop.sub, prop.color);
+        }
+        ctx.restore();
+      });
     }
-    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
-    this.saveCheckpoint(app, st.floor + 1, "battle");
-    this.openTowerModal(app, "portals", 0, null);
+
+    // 2. 地面破格遺物水晶
+    if (st.relicDrop && !st.relicDrop.picked) {
+      const rd = st.relicDrop;
+      const sx = toSx(rd.x), sy = toSy(rd.y);
+      ctx.save();
+      const beam = ctx.createLinearGradient(sx, sy - 110, sx, sy + 20);
+      beam.addColorStop(0, "rgba(56, 189, 248, 0)");
+      beam.addColorStop(1, "rgba(56, 189, 248, 0.38)");
+      ctx.fillStyle = beam;
+      ctx.fillRect(sx - 20, sy - 110, 40, 125);
+      drawPropFrame(2, frame4, sx, sy + bob, 56);
+      drawLabel(sx, sy + 30, "💎 遺物水晶", "走近拾取三選一", "#38BDF8");
+      ctx.restore();
+    }
+
+    // 3. 房間上方實體傳送門（2~3 道門或 Mega 首領巨門）
+    if (st.portals && st.portals.length > 0) {
+      st.portals.forEach(pt => {
+        const sx = toSx(pt.x), sy = toSy(pt.y);
+        const isBoss = pt.type === "boss";
+        const sz = isBoss ? 88 : 68;
+        ctx.save();
+        const aura = ctx.createRadialGradient(sx, sy, 10, sx, sy, pt.radius + 22);
+        aura.addColorStop(0, `${pt.color}66`);
+        aura.addColorStop(1, `${pt.color}00`);
+        ctx.fillStyle = aura;
+        ctx.beginPath(); ctx.arc(sx, sy, pt.radius + 22, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = pt.color;
+        ctx.lineWidth = isBoss ? 4 : 3;
+        ctx.beginPath(); ctx.arc(sx, sy, pt.radius, 0, Math.PI * 2); ctx.stroke();
+
+        drawPropFrame(0, frame4, sx, sy, sz);
+
+        // Mega 首領門頂部懸浮 Mega 首領像素頭像
+        if (isBoss && pt.bossSprite) {
+          const bRec = SpriteCache.get(pt.bossSprite);
+          if (bRec && bRec.loaded) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(bRec.img, sx - 28, sy - sz / 2 - 44 + bob * 0.6, 56, 56);
+          }
+        }
+
+        // 停留 0.45s 傳送進度環
+        if (pt.standTimer > 0) {
+          const prog = Math.min(1, pt.standTimer / 0.45);
+          ctx.strokeStyle = "#FFFFFF";
+          ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.arc(sx, sy, pt.radius + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
+        }
+        drawLabel(sx, sy + pt.radius + 6, pt.label, pt.sub, pt.color);
+        ctx.restore();
+      });
+    }
   },
 
-  chooseMystery(choice) {
-    const app = GameApp;
-    const p = app && app.player;
-    const st = app && app.towerState;
-    if (!p || !st) return;
-    if (choice === "gamble") {
-      p.hp = Math.max(1, p.hp - Math.floor(p.hp * 0.20));
-      const avail = this.RELICS.filter(r => !st.relics.includes(r.id));
-      if (avail.length > 0) st.relics.push(avail[Math.floor(Math.random() * avail.length)].id);
-      Object.values(p.skills || {}).forEach(s => { if (s.level < 10) s.level = Math.min(10, s.level + 1); });
-      if (typeof SoundFX !== "undefined") SoundFX.play("super");
-    } else {
-      app.runCoins = (app.runCoins || 0) + 140;
-      if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 140;
-      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.20));
-      if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+  renderEdgeIndicators(app, drawEdgeIconIndicator) {
+    if (!app || !app.isTowerMode || !app.towerState) return;
+    const st = app.towerState;
+    const uiRec = (typeof FieldEventsEngine !== "undefined") ? SpriteCache.get(FieldEventsEngine.UI_SHEET_URL) : null;
+    const uiImg = (uiRec && uiRec.loaded) ? uiRec.img : null;
+
+    if (st.relicDrop && !st.relicDrop.picked) {
+      const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect("relic") : null;
+      drawEdgeIconIndicator(st.relicDrop.x, st.relicDrop.y, "#38BDF8", "遺物", uiImg, 24, sr);
     }
-    this.saveCheckpoint(app, st.floor + 1, "battle");
-    this.openTowerModal(app, "portals", 0, null);
+    if (st.portals && st.portals.length > 0) {
+      const targetPt = st.portals[Math.floor(st.portals.length / 2)];
+      const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect(targetPt.type === "boss" ? "tower" : "portal") : null;
+      drawEdgeIconIndicator(targetPt.x, targetPt.y, targetPt.color, targetPt.type === "boss" ? "MEGA門" : "傳送門", uiImg, 24, sr);
+    }
   },
 
   saveCheckpoint(app, nextFloor, nextPortalType = "battle") {
@@ -1902,12 +2405,16 @@ window.ModeTower = {
     if (!app) return;
     const st = app.towerState;
     this.closeTowerModal();
+    this.setQuickExitVisible(false);
     if (st) {
-      this.saveCheckpoint(app, st.floor + 1, "battle");
+      const saveF = st.floorCleared ? (st.floor + 1) : st.floor;
+      const saveType = st.floorCleared ? "battle" : (st.portalType || "battle");
+      this.saveCheckpoint(app, saveF, saveType);
     }
     if (typeof app.quitToTitle === "function") app.quitToTitle();
     if (st && app.pixelToast) {
-      app.pixelToast(`💾 已保存 Mega 試煉塔第 ${st.floor + 1} 層進度，隨時可回大廳續爬！`, "success");
+      const saveF = st.floorCleared ? (st.floor + 1) : st.floor;
+      app.pixelToast(`💾 已保存 Mega 試煉塔第 ${saveF} 層進度，隨時可回大廳續爬！`, "success");
     }
   }
 };

@@ -911,6 +911,11 @@ Object.assign(window.GameApp, {
     // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
     SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
 
+    // v7.8.1 關都 Mega 試煉塔實體場景物件渲染（傳送門 ／ 營火 ／ 遺物水晶 ／ 雙寶箱）
+    if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.renderGroundEntities) {
+      ModeTower.renderGroundEntities(this, ctx, toSx, toSy);
+    }
+
     // v7.7.0 突發事件戰場實體渲染（信標佔領圈 ／ 空投補給箱 ／ 真假雙寶箱）
     if (this.activeFieldEvent && Array.isArray(this.activeFieldEvent.nodes) && this.activeFieldEvent.nodes.length > 0) {
       const ev = this.activeFieldEvent;
@@ -1519,7 +1524,23 @@ Object.assign(window.GameApp, {
 
     // 精英小王腳底雙層頭目威壓底座 ＆ 神獸 Boss 二階段 Overdrive 狂暴光環（貼地層）
     visibleEnemies.forEach(e => {
-      if (e.isBoss && e.overdriveTriggered) {
+      if (e.isTowerMegaBoss) {
+        const esx = e._esx, esy = e._esy, sz = e._sz;
+        const tRot = performance.now() * (e.overdriveTriggered ? 0.006 : 0.0025);
+        const typeCol = (typeof TYPE_COLORS !== "undefined" && e.data && TYPE_COLORS[e.data.type1]) || "#38BDF8";
+        ctx.save();
+        ctx.translate(esx, esy + sz * 0.35);
+        ctx.strokeStyle = e.overdriveTriggered ? "#EF4444" : typeCol;
+        ctx.lineWidth = e.overdriveTriggered ? 3.5 : 2.8;
+        ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.48, sz * 0.21, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "#FACC15";
+        ctx.lineWidth = 2.0;
+        ctx.setLineDash([7, 5]);
+        ctx.lineDashOffset = -tRot * 28;
+        ctx.beginPath(); ctx.ellipse(0, 0, sz * 0.38, sz * 0.16, 0, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
+      } else if (e.isBoss && e.overdriveTriggered) {
         const esx = e._esx, esy = e._esy, sz = e._sz;
         const pulse = Math.sin(performance.now() * 0.01) * 4;
         ctx.save();
@@ -3050,6 +3071,10 @@ Object.assign(window.GameApp, {
       }
       drawEdgeIconIndicator(it.x, it.y, cfg.color, cfg.label, iconImg, cfg.size);
     });
+
+    if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.renderEdgeIndicators) {
+      ModeTower.renderEdgeIndicators(this, drawEdgeIconIndicator);
+    }
 
     // v7.7.0 突發事件場外邊緣方向箭頭（信標 ／ 空投 ／ 寶箱）＋ 迷霧與電磁風暴氛圍邊框
     if (this.activeFieldEvent) {

@@ -767,7 +767,12 @@ window.ModeExpedition = {
     const p = app.player;
     const pData = (p && p.data) || POKEMON_MAP.get(25);
     const bossIds = (cfg.bossIds && cfg.bossIds.length > 0) ? cfg.bossIds : [150];
-    const bossList = bossIds.map(id => POKEMON_MAP.get(id) || POKEMON_MAP.get(150));
+    const bossList = (Array.isArray(cfg.bossDataList) && cfg.bossDataList.length > 0)
+      ? cfg.bossDataList
+      : bossIds.map(id => POKEMON_MAP.get(id) || POKEMON_MAP.get(150));
+    if (Array.isArray(cfg.baseDataList)) {
+      cfg.baseDataList.forEach(b => { if (b && b.forward_sprite) SpriteCache.get(b.forward_sprite); });
+    }
 
     // 預熱像素圖與剪影快取（主角背影、訓練家背影、Boss 正面）
     const pBackUrl = (p && p.isShiny && pData.shiny_back_sprite) ? pData.shiny_back_sprite : (pData.back_sprite || pData.forward_sprite);
@@ -778,16 +783,18 @@ window.ModeExpedition = {
     bossList.forEach(b => { if (b && b.forward_sprite) SpriteCache.get(b.forward_sprite); });
 
     const bossNames = bossList.map(b => b.name_zh).join(" ＆ ");
-    const fullDialog = cfg.isLegendaryBoss
-      ? `傳說神獸【${bossNames}】降臨戰場！全力迎戰！`
-      : `關底首領【${bossNames}】擋住了去路！準備決戰！`;
+    const fullDialog = cfg.customDialog || (cfg.isMegaTowerBoss
+      ? `💎 鑰石共鳴覺醒！【${bossNames}】鎮守此層，全力迎戰！`
+      : (cfg.isLegendaryBoss
+        ? `傳說神獸【${bossNames}】降臨戰場！全力迎戰！`
+        : `關底首領【${bossNames}】擋住了去路！準備決戰！`));
     const subTagEl = document.getElementById("vsSubTag");
     if (subTagEl) {
-      subTagEl.textContent = `ACT ${cfg.act} · WAVE ${cfg.wave}/${app.expeditionState.totalWaves} · ${cfg.chapterShortName}`;
+      subTagEl.textContent = cfg.customSubTag || `ACT ${cfg.act || 1} · WAVE ${cfg.wave || 1}/${(app.expeditionState && app.expeditionState.totalWaves) || 21} · ${cfg.chapterShortName || ""}`;
     }
     const speakerEl = document.getElementById("bossEncounterSpeakerTag");
     if (speakerEl) {
-      speakerEl.textContent = cfg.isLegendaryBoss ? "LEGENDARY ALERT" : "BOSS WARNING";
+      speakerEl.textContent = cfg.isMegaTowerBoss ? "💎 MEGA AWAKENING" : (cfg.isLegendaryBoss ? "LEGENDARY ALERT" : "BOSS WARNING");
     }
     const dlgEl = document.getElementById("bossEncounterDialogText");
     if (dlgEl) dlgEl.textContent = "";
@@ -999,6 +1006,17 @@ window.ModeExpedition = {
       ctx.beginPath();
       ctx.arc(enemyBaseX, enemyBaseY - 58, 16 + revealT * 88, 0, Math.PI * 2);
       ctx.stroke();
+      if (cfg.isMegaTowerBoss) {
+        // v7.8.1 Mega 鑰石七彩 DNA 覺醒雙環
+        const megaColors = ["#38BDF8", "#F472B6", "#FACC15", "#A855F7"];
+        megaColors.forEach((mc, mi) => {
+          ctx.strokeStyle = mc;
+          ctx.lineWidth = 3.5 * (1 - revealT) + 1;
+          ctx.beginPath();
+          ctx.arc(enemyBaseX, enemyBaseY - 58, 36 + revealT * (95 + mi * 22), 0, Math.PI * 2);
+          ctx.stroke();
+        });
+      }
       ctx.restore();
     }
 
@@ -1023,11 +1041,17 @@ window.ModeExpedition = {
       }
     };
 
+    const getShownBoss = (idx) => {
+      if (cfg.isMegaTowerBoss && !isRevealed && Array.isArray(cfg.baseDataList) && cfg.baseDataList[idx]) {
+        return cfg.baseDataList[idx];
+      }
+      return bossList[idx];
+    };
     if (bossList.length >= 2) {
-      drawBossSprite(bossList[1], enemyBaseX + 42, enemyBaseY - 4, 122);
-      drawBossSprite(bossList[0], enemyBaseX - 36, enemyBaseY + 10, 132);
+      drawBossSprite(getShownBoss(1), enemyBaseX + 42, enemyBaseY - 4, 122);
+      drawBossSprite(getShownBoss(0), enemyBaseX - 36, enemyBaseY + 10, 132);
     } else {
-      drawBossSprite(bossList[0], enemyBaseX, enemyBaseY + 8, 148);
+      drawBossSprite(getShownBoss(0), enemyBaseX, enemyBaseY + 8, 148);
     }
 
     // 3. 左下角：我方台座（從右向左高速滑入至左下）
