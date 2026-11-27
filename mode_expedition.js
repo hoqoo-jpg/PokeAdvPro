@@ -1968,7 +1968,7 @@ window.ModeExpedition = {
     const isCrossingAct = !!(clearedCfg && nextCfg && clearedCfg.act !== nextCfg.act);
 
     const titleEl = document.getElementById("expModalTitle");
-    if (titleEl) titleEl.textContent = `W${clearedWave}/${st.totalWaves} CLEAR`;
+    if (titleEl) titleEl.textContent = `WAVE ${clearedWave}/${st.totalWaves} CLEAR`;
 
     const coinEl = document.getElementById("expCoinsDisplay");
     if (coinEl) coinEl.textContent = app.runCoins.toLocaleString();
@@ -2020,7 +2020,7 @@ window.ModeExpedition = {
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0 flex-1 space-y-1">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="px-1.5 py-0.5 rounded bg-red-600 text-white font-pixel text-[8px] font-black">NEXT W${nextWave}</span>
+              <span class="px-1.5 py-0.5 rounded bg-red-600 text-white font-pixel text-[8px] font-black">NEXT WAVE ${nextWave}</span>
               ${goalTag}
               <span class="font-black text-[11px] text-amber-300 truncate">${nextCfg.chapterShortName} · ${nextCfg.title}</span>
             </div>
@@ -2637,20 +2637,32 @@ window.ModeExpedition = {
       const isCleared = wNum <= clearedWave;
       const isNext = wNum === nextWave;
 
-      const r = isBoss ? 16 : 13;
-      ctx.fillStyle = "#0F172A";
-      ctx.beginPath(); ctx.arc(sx, sy, r + 3.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = isCleared ? "#22C55E" : (isNext ? "#EF4444" : (isBoss ? "#991B1B" : "#334155"));
-      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#FFFFFF";
-      ctx.font = "900 12px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText(isCleared ? "OK" : String(wNum), sx, sy + 4);
+      // v7.6.13 GBA 純色路線節點（移除重複 OK 與數字，透過高辨識色與外環清晰表達狀態）
+      const isRegionBoss = isBoss && !cfg.isMiniBoss;
+      const r = isRegionBoss ? 11.5 : (isBoss ? 9.5 : 8);
 
       if (isNext) {
-        ctx.strokeStyle = "#FEF08A";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(sx - 22, sy - 22, 44, 44);
+        const haloPulse = 1 + Math.sin(performance.now() * 0.009) * 0.16;
+        ctx.save();
+        ctx.strokeStyle = "rgba(254, 240, 138, 0.92)";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(sx, sy, (r + 6) * haloPulse, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+
+      // 深色外框 ＋ 狀態純色圓心 ＋ 亮白／金細環
+      ctx.fillStyle = "#0F172A";
+      ctx.beginPath(); ctx.arc(sx, sy, r + 3, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = isCleared
+        ? "#22C55E"
+        : (isNext ? "#FACC15" : (isBoss ? "#DC2626" : "#475569"));
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+
+      if (isCleared || isNext || isRegionBoss) {
+        ctx.strokeStyle = isRegionBoss && !isCleared ? "#FACC15" : "#FFFFFF";
+        ctx.lineWidth = isNext ? 2.2 : 1.6;
+        ctx.beginPath(); ctx.arc(sx, sy, r - 0.5, 0, Math.PI * 2); ctx.stroke();
       }
 
       // 未通關 Boss 節點上方顯示原比例 Boss 頭像
@@ -2659,22 +2671,26 @@ window.ModeExpedition = {
         if (bData && bData.forward_sprite) {
           const rec = SpriteCache.get(bData.forward_sprite);
           if (rec && rec.loaded) {
-            this.drawSpriteFitHeight(ctx, rec.img, sx, sy - (expanded ? 22 : 16), expanded ? 60 : 44, false);
+            this.drawSpriteFitHeight(ctx, rec.img, sx, sy - (expanded ? 20 : 14), expanded ? 60 : 44, false);
           }
         }
       }
 
-      // 下方關卡標籤（統一使用 WAVE 1 / WAVE 2 / W3 BOSS）
-      const signY = sy + (expanded ? 26 : 20);
+      // 下方關卡銘牌（全面統一使用 WAVE 1 / WAVE 2 MINI / WAVE 4 BOSS 寫法）
+      const signY = sy + (expanded ? 24 : 18);
+      const signW = 116;
       ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
-      ctx.strokeStyle = isNext ? "#FACC15" : "#64748B";
+      ctx.strokeStyle = isNext ? "#FACC15" : (isCleared ? "#22C55E" : "#64748B");
       ctx.lineWidth = 2;
-      ctx.fillRect(sx - 50, signY, 100, 23);
-      ctx.strokeRect(sx - 50, signY, 100, 23);
-      ctx.fillStyle = isNext ? "#FEF08A" : (isCleared ? "#86EFAC" : "#CBD5E1");
-      ctx.font = "900 11px 'Press Start 2P', 'Noto Sans TC', monospace";
-      const lblTxt = isBoss ? (cfg.isMiniBoss ? `W${wNum} MINI` : `W${wNum} BOSS`) : (cfg.isEventWave ? `W${wNum} EVENT` : `WAVE ${wNum}`);
-      ctx.fillText(lblTxt, sx, signY + 16);
+      ctx.fillRect(sx - signW / 2, signY, signW, 22);
+      ctx.strokeRect(sx - signW / 2, signY, signW, 22);
+      ctx.fillStyle = isNext ? "#FEF08A" : (isCleared ? "#86EFAC" : "#E2E8F0");
+      ctx.font = "900 9px 'Press Start 2P', 'Noto Sans TC', monospace";
+      ctx.textAlign = "center";
+      const lblTxt = isBoss
+        ? (cfg.isMiniBoss ? `WAVE ${wNum} MINI` : `WAVE ${wNum} BOSS`)
+        : (cfg.isEventWave ? `WAVE ${wNum} EVENT` : `WAVE ${wNum}`);
+      ctx.fillText(lblTxt, sx, signY + 15);
     });
 
     // 4. 高清原比例鎖定「訓練家 ＋ 主角寶可夢」（同步戰鬥內 walkBob += dt * 12 的步頻與上下擺幅）

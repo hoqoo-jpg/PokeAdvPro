@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.12');
+      background-image: url('images/skills_icons_sheet.png?v=7.6.13');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.12');
+      background-image: url('images/skills_icons_extra5.png?v=7.6.13');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -993,6 +993,54 @@
     #bossHudContainer.boss-enraged {
       animation: bossHudRagePulse 0.9s ease-in-out infinite;
     }
+    /* v7.6.13 經典 GBA 掌機風統一：大廳大遠征主卡 ＆ 遠征過場走路畫框 */
+    body:not(.theme-dark-gold) #lobbyExpeditionCard {
+      background: linear-gradient(135deg, #FFFFFF 0%, #FFFBEB 60%, #FEF3C7 100%) !important;
+      border-color: #1E293B !important;
+      color: #0F172A !important;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14) !important;
+    }
+    body:not(.theme-dark-gold) #lobbyExpeditionCard .text-amber-300 {
+      color: #0F172A !important;
+    }
+    body:not(.theme-dark-gold) #lobbyExpeditionCard .text-slate-300 {
+      color: #475569 !important;
+    }
+    body:not(.theme-dark-gold) #lobbyExpeditionCard .text-emerald-400 {
+      color: #059669 !important;
+    }
+    body:not(.theme-dark-gold) #lobbyExpeditionCard .bg-emerald-600 {
+      color: #FFFFFF !important;
+    }
+    body:not(.theme-dark-gold) #expRouteFrameCard {
+      background-color: #F8FAFC !important;
+      border-color: #1E293B !important;
+      box-shadow: 0 10px 26px rgba(15, 23, 42, 0.25) !important;
+    }
+    body:not(.theme-dark-gold) #expRouteTopBar {
+      background-color: #F1F5F9 !important;
+      border-bottom-color: #CBD5E1 !important;
+    }
+    body:not(.theme-dark-gold) #expModalTitle {
+      color: #B45309 !important;
+    }
+    body:not(.theme-dark-gold) #expHpDisplay {
+      background-color: #ECFDF5 !important;
+      border-color: #10B981 !important;
+      color: #047857 !important;
+    }
+    body:not(.theme-dark-gold) #expRouteTopBar .bg-slate-800 {
+      background-color: #FFFBEB !important;
+      border-color: #F59E0B !important;
+    }
+    body:not(.theme-dark-gold) #expCoinsDisplay {
+      color: #B45309 !important;
+    }
+    body:not(.theme-dark-gold) #expWalkingStatusRow {
+      background-color: #F1F5F9 !important;
+      color: #1E293B !important;
+      border-top: 1px solid #CBD5E1;
+    }
   </style>
   <script>
     (function () {
@@ -1093,7 +1141,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.12
+      v7.6.13
     </div>
   </div>
 
@@ -1178,7 +1226,7 @@
     <!-- 底部主要模式直達入口群（1 主打大遠征 ＋ 3 副模式一眼看懂全內容） -->
     <div class="w-full max-w-md mx-auto flex flex-col gap-2 z-10 shrink-0 mb-1">
       <!-- 主推模式大卡：關都大遠征 -->
-      <div onclick="GameApp.openModeFromLobby('expedition')" class="poke-card cursor-pointer p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
+      <div id="lobbyExpeditionCard" onclick="GameApp.openModeFromLobby('expedition')" class="poke-card cursor-pointer p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
             <div class="flex items-center gap-1.5">
@@ -1514,7 +1562,7 @@
             <div class="flex items-center justify-between gap-2 mb-1.5">
               <h3 class="font-black text-xs sm:text-sm text-slate-800 flex items-center gap-1.5 min-w-0">
                 <i class="fa-solid fa-route text-emerald-600 shrink-0"></i>
-                <span id="expeditionDynamicRouteText" class="truncate">連續闖關征途（W1 ➔ W21 依序推進，無需選關）</span>
+                <span id="expeditionDynamicRouteText" class="truncate">連續闖關征途（Wave 1 至 Wave 21，依序推進）</span>
               </h3>
               <span class="text-[9px] font-bold text-slate-500 shrink-0">← 左右預覽 →</span>
             </div>
@@ -1778,9 +1826,9 @@
   <div id="expeditionModal" class="absolute inset-0 z-50 hidden flex flex-col items-center justify-start pt-3 sm:pt-5 pb-4 px-2.5 sm:px-4 bg-slate-950/38 select-none overflow-y-auto">
     <div class="w-full max-w-lg flex flex-col gap-2.5 my-auto">
       <!-- 1. 外置透明感火車站長卷區塊（直接浮在遊戲戰場上，點擊可加速行軍） -->
-      <div onclick="ModeExpedition.skipRouteWalkAnim()" class="cursor-pointer rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900/90 shadow-2xl">
-        <div class="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-slate-700 gap-2">
-          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 whitespace-nowrap">W1/16 CLEAR</div>
+      <div id="expRouteFrameCard" onclick="ModeExpedition.skipRouteWalkAnim()" class="cursor-pointer rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900/90 shadow-2xl">
+        <div id="expRouteTopBar" class="flex items-center justify-between px-3 py-1.5 bg-slate-950/90 border-b border-slate-700 gap-2">
+          <div id="expModalTitle" class="font-pixel text-[10px] sm:text-xs text-amber-300 whitespace-nowrap">WAVE 1/21 CLEAR</div>
           <div class="flex items-center gap-1.5 shrink-0">
             <span id="expHpDisplay" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 font-pixel text-[9px] text-emerald-300">HP 100/100</span>
             <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
@@ -2044,7 +2092,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.12</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.13</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2092,7 +2140,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.12</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.13</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2125,14 +2173,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.12"></script>
-  <script src="map_v11_engine.js?v=7.6.12"></script>
-  <script src="skills_engine.js?v=7.6.12"></script>
-  <script src="skills_vfx.js?v=7.6.12"></script>
-  <script src="battle_core_2.js?v=7.6.12"></script>
-  <script src="battle_renderer.js?v=7.6.12"></script>
-  <script src="modes_arcade.js?v=7.6.12"></script>
-  <script src="mode_expedition.js?v=7.6.12"></script>
-  <script src="game_ui.js?v=7.6.12"></script>
+  <script src="pokedex_data.js?v=7.6.13"></script>
+  <script src="map_v11_engine.js?v=7.6.13"></script>
+  <script src="skills_engine.js?v=7.6.13"></script>
+  <script src="skills_vfx.js?v=7.6.13"></script>
+  <script src="battle_core_2.js?v=7.6.13"></script>
+  <script src="battle_renderer.js?v=7.6.13"></script>
+  <script src="modes_arcade.js?v=7.6.13"></script>
+  <script src="mode_expedition.js?v=7.6.13"></script>
+  <script src="game_ui.js?v=7.6.13"></script>
 </body>
 </html>

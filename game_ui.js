@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.12";
+        const ver = this.APP_VERSION || "v7.6.13";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -497,12 +497,14 @@ Object.assign(window.GameApp, {
           const stepsHtml = chain.map((stPoke, idx) => {
             const isKnown = idx === 0 || !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[stPoke.id]) || !!(this.saveData.unlockedPokemon && this.saveData.unlockedPokemon[stPoke.id]);
             const prevLv = idx > 0 ? chain[idx - 1].evo_level : null;
-            const arrowHtml = idx > 0 ? `<span class="text-[7px] sm:text-[8px] font-black text-amber-600 shrink-0 leading-none">→L${prevLv}</span>` : '';
+            const arrowHtml = idx > 0
+              ? `<div class="flex flex-col items-center justify-center shrink-0 px-0.5 leading-none"><span class="text-[7px] sm:text-[8px] font-black text-amber-600">Lv.${prevLv}</span><span class="text-[10px] font-black text-amber-500">→</span></div>`
+              : '';
             return `
               ${arrowHtml}
-              <div class="flex items-center gap-0.5 bg-white px-1 py-0.5 rounded-md border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shrink-0">
-                <img src="${stPoke.forward_sprite}" class="w-5 h-5 sm:w-6 sm:h-6 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
-                <span class="text-[8px] sm:text-[9px] font-black whitespace-nowrap ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
+              <div class="flex-1 min-w-[58px] flex flex-col items-center justify-center bg-white px-1 py-1 rounded-lg border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shadow-xs">
+                <img src="${stPoke.forward_sprite}" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
+                <span class="text-[8.5px] sm:text-[9.5px] font-black whitespace-nowrap leading-tight mt-0.5 ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
               </div>
             `;
           }).join("");
@@ -512,16 +514,15 @@ Object.assign(window.GameApp, {
           if (megaFormLobby) {
             const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[megaFormLobby.baseId]);
             megaStepHtml = `
-              <span class="text-[7px] sm:text-[8px] font-black text-cyan-600 shrink-0 leading-none">→</span>
-              <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex items-center gap-0.5 px-1 py-0.5 rounded-md border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                <img src="${megaFormLobby.forward_sprite}" class="w-5 h-5 sm:w-6 sm:h-6 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
-                <span class="text-[8px] sm:text-[9px] font-black whitespace-nowrap ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
+              <div class="flex flex-col items-center justify-center shrink-0 px-0.5 leading-none"><span class="text-[7px] font-black text-cyan-600">覺醒</span><span class="text-[10px] font-black text-cyan-500">→</span></div>
+              <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex-1 min-w-[58px] flex flex-col items-center justify-center px-1 py-1 rounded-lg border cursor-pointer shadow-xs ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
+                <img src="${megaFormLobby.forward_sprite}" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                <span class="text-[8.5px] sm:text-[9.5px] font-black whitespace-nowrap leading-tight mt-0.5 ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
               </div>
             `;
           }
           evoEl.innerHTML = `
             <div class="flex items-center gap-0.5 sm:gap-1 flex-nowrap overflow-x-auto w-full py-0.5">
-              <span class="text-[8px] font-black text-blue-700 shrink-0 mr-0.5"><i class="fa-solid fa-angles-up"></i></span>
               ${stepsHtml}${megaStepHtml}
             </div>
           `;
@@ -568,7 +569,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.12";
+      const curVer = this.APP_VERSION || "v7.6.13";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1413,7 +1414,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.12",
+      lastSeenVersion: this.APP_VERSION || "v7.6.13",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1602,31 +1603,31 @@ Object.assign(window.GameApp, {
       : { chapterCount: 4, totalWaves: 10, chapters: [] };
     const routeTextEl = document.getElementById("expeditionDynamicRouteText");
     if (routeTextEl) {
-      routeTextEl.textContent = `連續闖關征途（W1 ➔ W${summary.totalWaves} 依序推進，無需選關）`;
+      routeTextEl.textContent = `連續闖關征途（Wave 1 至 Wave ${summary.totalWaves}，依序推進）`;
     }
     const stageCardsEl = document.getElementById("expeditionStageCardsGrid");
     if (stageCardsEl && summary.chapters.length > 0) {
       let waveCursor = 1;
       stageCardsEl.innerHTML = summary.chapters.map((ch, idx) => {
         const wLen = (ch.waves && ch.waves.length) || 1;
-        const wRange = wLen === 1 ? `W${waveCursor}` : `W${waveCursor}-${waveCursor + wLen - 1}`;
+        const wRange = wLen === 1 ? `Wave ${waveCursor}` : `Wave ${waveCursor}-${waveCursor + wLen - 1}`;
         waveCursor += wLen;
         const previewKey = ch.isArena ? "arena" : (ch.stageId || "pallet");
         const stObj = (typeof STAGES !== "undefined") ? STAGES.find(s => s.id === ch.stageId) : null;
-        const buffText = ch.isArena ? "最終 1vs1 決戰" : (stObj ? stObj.buffDesc : (ch.name || ""));
+        const buffText = ch.isArena ? "封閉石柱競技場 ‧ 最終 1vs1 決戰" : (stObj ? stObj.buffDesc : (ch.name || ""));
         const arrowSep = idx > 0
-          ? `<div class="flex items-center justify-center shrink-0 px-0.5 text-amber-600 font-black text-xs pointer-events-none">➔</div>`
+          ? `<div class="flex items-center justify-center shrink-0 px-1 text-amber-600 font-black text-sm pointer-events-none">➔</div>`
           : "";
         return `
           ${arrowSep}
-          <div class="w-[132px] sm:w-[146px] shrink-0 rounded-xl overflow-hidden flex flex-col justify-between border border-slate-300 bg-white shadow-xs pointer-events-none">
-            <div class="relative w-full h-16 sm:h-[72px] bg-slate-900 overflow-hidden border-b border-slate-200">
+          <div class="w-[192px] sm:w-[208px] shrink-0 rounded-xl overflow-hidden flex flex-col justify-between border border-slate-300 bg-white shadow-sm pointer-events-none">
+            <div class="relative w-full h-[112px] sm:h-[124px] bg-slate-900 overflow-hidden border-b border-slate-200">
               <canvas data-exp-stage-preview="${previewKey}" class="w-full h-full block pixel-sprite object-cover"></canvas>
-              <div class="absolute inset-x-0 bottom-0 h-9 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent"></div>
-              <span class="absolute top-1 left-1 px-1.5 py-0.2 rounded-full bg-slate-950/85 text-amber-300 font-pixel text-[7.5px] font-black border border-amber-400/70">${ch.isFinalChapter ? 'FINAL' : `ACT ${idx + 1}`} · ${wRange}</span>
-              <div class="absolute bottom-1 left-1.5 right-1.5 font-black text-[10px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${ch.name}</div>
+              <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-transparent"></div>
+              <span class="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-full bg-slate-950/85 text-amber-300 font-pixel text-[8px] font-black border border-amber-400/70">${ch.isFinalChapter ? 'FINAL' : `ACT ${idx + 1}`} · ${wRange}</span>
+              <div class="absolute bottom-1.5 left-2 right-2 font-black text-[11px] sm:text-xs text-white drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${ch.name}</div>
             </div>
-            <div class="px-1.5 py-1 bg-white text-[8.5px] font-bold text-slate-600 leading-tight truncate">${buffText}</div>
+            <div class="px-2 py-1.5 bg-white text-[9.5px] font-bold text-slate-700 leading-snug line-clamp-2 min-h-[34px]">${buffText}</div>
           </div>
         `;
       }).join("");
@@ -3118,7 +3119,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.12",
+      version: this.APP_VERSION || "v7.6.13",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3799,7 +3800,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.12</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.13</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3838,7 +3839,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.6.12</strong>：大廳進化列單行化與「初始／禁用」明示按鈕；「更換陣容」與「模式出發」動線職責分離；大遠征 6 區地圖改為唯讀連續路線軸（附 ➔ 箭頭）。</div>
+            <div>• <strong class="text-amber-300">v7.6.13</strong>：大廳進化列改「上圖下文」大像素圖；大遠征主卡與過場走路畫框統一亮色主題；放大征途 6 區預覽圖並全面改用 Wave 寫法；路線節點純色化去重。</div>
+            <div>• <strong class="text-slate-300">v7.6.12</strong>：大廳進化列單行化與「初始／禁用」明示按鈕；「更換陣容」與「模式出發」動線職責分離；大遠征 6 區地圖改為唯讀連續路線軸（附 ➔ 箭頭）。</div>
             <div>• <strong class="text-slate-300">v7.6.11</strong>：3-2-1 倒數與 VS 遇敵各放慢 0.5 秒；小王／Boss 半血猩紅憤怒演出＋火星粒子；小怪／精英血條瘦身去噪、Boss 頂部纖細半透血條與白色扣血殘影。</div>
             <div>• <strong class="text-slate-300">v7.6.10</strong>：全模式數值平衡封板——大師／冠軍難度引入 Boss 減傷與回復壓制、特攻手攻擊保底、遠征後段神獸血量與研究所經濟重校、修正殿堂徽章白字。</div>
             <div>• <strong class="text-slate-300">v7.6.9</strong>：修透戰後結算頁亮色主題對比；大遠征導入平滑初期升級曲線（每波穩升 1～2 級）；新增版本簡錄。</div>
@@ -3851,7 +3853,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.12";
+    const curVer = this.APP_VERSION || "v7.6.13";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
