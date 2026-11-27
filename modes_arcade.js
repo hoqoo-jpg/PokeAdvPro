@@ -1458,7 +1458,7 @@ window.ModeTower = {
     }
   },
 
-  // 垂直 GBA 登塔動態過場（~1.35 秒，點擊畫面立即跳過）
+  // v7.8.2 五大海拔生態外立面 ＋ 螺旋斜向攀登 GBA 過場（雙層視差捲動 ＋ 王座大露台 ＋ 點擊跳過）
   playClimbTransition(app, fromFloor, toFloor, portalType, onDone) {
     const ov = document.getElementById("towerClimbOverlay");
     const can = document.getElementById("towerClimbCanvas");
@@ -1470,11 +1470,42 @@ window.ModeTower = {
     }
     this.setQuickExitVisible(false);
     app.state = "TOWER_CLIMB";
-    if (tagEl) tagEl.textContent = `${fromFloor}F ➔ ${toFloor}F`;
+
+    // 依海拔高度決定 5 大塔體建築風格與天色
+    const getTierTheme = (fl) => {
+      if (fl <= 5) return {
+        name: "底層 ‧ 密林石基", skyTop: "#1E3A5F", skyMid: "#3B6978", skyBot: "#7C9D96",
+        wallMain: "#475569", wallHi: "#64748B", wallDk: "#334155", trim: "#22C55E", stair: "#94A3B8",
+        accent: "#4ADE80", widthRatio: 0.64, isGround: fl <= 2, particle: "leaf"
+      };
+      if (fl <= 10) return {
+        name: "中下層 ‧ 潮汐水閣", skyTop: "#0C4A6E", skyMid: "#0284C7", skyBot: "#38BDF8",
+        wallMain: "#334155", wallHi: "#7DD3FC", wallDk: "#1E293B", trim: "#38BDF8", stair: "#BAE6FD",
+        accent: "#38BDF8", widthRatio: 0.58, isGround: false, particle: "mist"
+      };
+      if (fl <= 15) return {
+        name: "中上層 ‧ 熔岩鐵塔", skyTop: "#1C1917", skyMid: "#450A0A", skyBot: "#9A3412",
+        wallMain: "#292524", wallHi: "#57534E", wallDk: "#1C1917", trim: "#F97316", stair: "#78716C",
+        accent: "#FB923C", widthRatio: 0.54, isGround: false, particle: "ember"
+      };
+      if (fl <= 20) return {
+        name: "頂層 ‧ 石英聖殿", skyTop: "#0F172A", skyMid: "#312E81", skyBot: "#4C1D95",
+        wallMain: "#CBD5E1", wallHi: "#F8FAFC", wallDk: "#94A3B8", trim: "#FACC15", stair: "#E2E8F0",
+        accent: "#FDE047", widthRatio: 0.50, isGround: false, particle: "star"
+      };
+      return {
+        name: "天際 ‧ 星界之巔", skyTop: "#020617", skyMid: "#1E1B4B", skyBot: "#581C87",
+        wallMain: "#312E81", wallHi: "#A855F7", wallDk: "#1E1B4B", trim: "#E879F9", stair: "#C084FC",
+        accent: "#F472B6", widthRatio: 0.44, isGround: false, particle: "star"
+      };
+    };
+
+    const theme = getTierTheme(toFloor);
+    if (tagEl) tagEl.textContent = `${fromFloor}F ➔ ${toFloor}F · ${theme.name}`;
     if (hintEl) {
       hintEl.textContent = toFloor % 5 === 0
-        ? `👑 逼近第 ${toFloor} 層 Mega 首領領域……（點擊跳過）`
-        : `正在攀登至第 ${toFloor} 層……（點擊跳過）`;
+        ? `逼近第 ${toFloor} 層 Mega 首領王座露台……（點擊跳過）`
+        : `沿螺旋石階攀登至第 ${toFloor} 層……（點擊跳過）`;
     }
 
     const tr = app.selectedTrainer || TRAINERS[0];
@@ -1498,7 +1529,7 @@ window.ModeTower = {
     let finished = false;
     let rafId = null;
     const startTs = performance.now();
-    const durationMs = 1350;
+    const durationMs = 1450;
 
     const finish = () => {
       if (finished) return;
@@ -1511,105 +1542,221 @@ window.ModeTower = {
     };
     this._climbSkipCb = finish;
 
+    // 奇數層左下➔右上，偶數層右下➔左上，營造真實螺旋環繞感
+    const climbLeftToRight = (toFloor % 2 === 0);
+
     const drawFrame = (nowTs) => {
       if (finished) return;
       const t = Math.min(1, (nowTs - startTs) / durationMs);
       const ease = 1 - Math.pow(1 - t, 3);
       const w = can.width = 360;
-      const h = can.height = 320;
+      const h = can.height = 330;
       const ctx = can.getContext("2d");
       ctx.imageSmoothingEnabled = false;
 
-      // 1. GBA 垂直高塔石磚背景
-      const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0, "#0F172A");
-      grad.addColorStop(0.5, "#1E1B4B");
-      grad.addColorStop(1, "#020617");
-      ctx.fillStyle = grad;
+      // 雙層視差偏移（前景塔身 1.0x 往下捲，遠景雲海 0.35x 緩慢下沉）
+      const fgScroll = ease * 36;
+      const bgScroll = ease * 12;
+
+      // 1. 海拔天空漸層背景
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+      skyGrad.addColorStop(0, theme.skyTop);
+      skyGrad.addColorStop(0.55, theme.skyMid);
+      skyGrad.addColorStop(1, theme.skyBot);
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, h);
 
-      // 左右石柱磚紋
-      ctx.fillStyle = "#1E293B";
-      ctx.fillRect(16, 0, 46, h);
-      ctx.fillRect(w - 62, 0, 46, h);
-      ctx.strokeStyle = "#334155";
-      ctx.lineWidth = 2;
-      for (let by = (Math.floor(t * 48) % 24) - 24; by < h; by += 24) {
-        ctx.strokeRect(16, by, 46, 24);
-        ctx.strokeRect(w - 62, by, 46, 24);
+      // 遠景星空／雲海視差層
+      if (theme.particle === "star") {
+        ctx.fillStyle = "#FEF08A";
+        for (let i = 0; i < 24; i++) {
+          const sx = (i * 53 + 17) % w;
+          const sy = ((i * 37 + bgScroll) % (h - 40)) + 10;
+          ctx.fillRect(sx, sy, (i % 3 === 0) ? 3 : 2, (i % 3 === 0) ? 3 : 2);
+        }
+      } else {
+        // 像素蓬鬆雲帶
+        ctx.fillStyle = theme.particle === "ember" ? "rgba(124, 45, 18, 0.45)" : "rgba(255, 255, 255, 0.22)";
+        for (let i = 0; i < 5; i++) {
+          const cx = ((i * 95 + nowTs * 0.012 * (i % 2 === 0 ? 1 : -0.7)) % (w + 90)) - 45;
+          const cy = 42 + i * 58 + bgScroll;
+          ctx.fillRect(cx, cy, 68, 12);
+          ctx.fillRect(cx + 10, cy - 6, 44, 6);
+        }
       }
 
-      // 中央發光登塔階梯軌道
-      const trackX = w * 0.5;
-      ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
-      ctx.lineWidth = 36;
-      ctx.beginPath(); ctx.moveTo(trackX, h); ctx.lineTo(trackX, 20); ctx.stroke();
+      // 1F-2F 底部草地與森林地平線
+      if (theme.isGround) {
+        const gY = h - 38 + fgScroll * 0.65;
+        ctx.fillStyle = "#14532D";
+        ctx.fillRect(0, gY - 12, w, 16);
+        ctx.fillStyle = "#166534";
+        ctx.fillRect(0, gY, w, 50);
+        // 遠景像素樹冠剪影
+        ctx.fillStyle = "#064E3B";
+        for (let tx = 8; tx < w; tx += 28) {
+          ctx.fillRect(tx, gY - 18, 18, 14);
+          ctx.fillRect(tx + 4, gY - 24, 10, 6);
+        }
+      }
 
-      ctx.strokeStyle = "#FACC15";
-      ctx.lineWidth = 3;
-      ctx.setLineDash([8, 6]);
-      ctx.beginPath(); ctx.moveTo(trackX, h - 30); ctx.lineTo(trackX, 55); ctx.stroke();
-      ctx.setLineDash([]);
+      // 2. 巨塔外立面本體（依海拔收窄 ＋ 錯縫磚紋 ＋ 拱窗 ＋ 搖曳火把）
+      const tw = Math.round(w * theme.widthRatio);
+      const tx0 = Math.round((w - tw) / 2);
+      const tx1 = tx0 + tw;
 
-      // 繪製 3 層階梯節點（下: fromFloor, 中: toFloor, 上: nextBossFloor）
-      const yFrom = 250;
-      const yTo = 152;
-      const yTop = 58;
+      ctx.fillStyle = "#0F172A";
+      ctx.fillRect(tx0 - 4, 0, tw + 8, h);
+      ctx.fillStyle = theme.wallMain;
+      ctx.fillRect(tx0, 0, tw, h);
+      // 左亮面與右陰影面營造圓柱立體感
+      ctx.fillStyle = theme.wallHi;
+      ctx.fillRect(tx0, 0, 14, h);
+      ctx.fillStyle = theme.wallDk;
+      ctx.fillRect(tx1 - 18, 0, 18, h);
 
-      const drawNode = (ny, label, col, active) => {
+      // 錯縫石磚紋理（隨 fgScroll 滾動）
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.35)";
+      ctx.lineWidth = 2;
+      const brickH = 18;
+      const startRow = Math.floor(-fgScroll / brickH) - 1;
+      for (let r = startRow; r < startRow + 22; r++) {
+        const by = Math.round(r * brickH + fgScroll);
+        ctx.beginPath(); ctx.moveTo(tx0, by); ctx.lineTo(tx1, by); ctx.stroke();
+        const offset = (r % 2 === 0) ? 0 : 18;
+        for (let bx = tx0 + offset + 18; bx < tx1 - 6; bx += 36) {
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by + brickH); ctx.stroke();
+        }
+      }
+
+      // 塔身中軸像素拱窗與生態裝飾
+      [96, 194, 286].forEach(wy => {
+        const py = Math.round(wy + (fgScroll % 96) * 0.4);
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(w / 2 - 12, py - 14, 24, 26);
+        ctx.fillStyle = theme.accent;
+        ctx.globalAlpha = 0.55;
+        ctx.fillRect(w / 2 - 9, py - 11, 18, 20);
+        ctx.globalAlpha = 1;
+      });
+
+      // 3. 定義三層平台座標（底部 fromFloor ➔ 中央 toFloor ➔ 頂部 5F Mega 王座露台）
+      const yFrom = 264 + Math.round(fgScroll * 0.25);
+      const yTo   = 166 + Math.round(fgScroll * 0.25);
+      const yTop  = 70;
+
+      const xFrom = climbLeftToRight ? (tx0 + 26) : (tx1 - 26);
+      const xTo   = climbLeftToRight ? (tx1 - 26) : (tx0 + 26);
+
+      // 繪製外掛螺旋斜向像素石階（從 xFrom,yFrom 斜向踏階攀升至 xTo,yTo）
+      const steps = 9;
+      for (let i = 0; i <= steps; i++) {
+        const stT = i / steps;
+        const sx = Math.round(xFrom + (xTo - xFrom) * stT);
+        const sy = Math.round(yFrom + (yTo - yFrom) * stT);
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(sx - 18, sy - 2, 36, 10);
+        ctx.fillStyle = theme.stair;
+        ctx.fillRect(sx - 16, sy, 32, 6);
+        ctx.fillStyle = theme.trim;
+        ctx.fillRect(sx - 16, sy, 32, 2);
+      }
+
+      // 繪製普通樓層外凸石平台與樓層牌
+      const drawFloorLedge = (lx, ly, label, col, active) => {
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(lx - 34, ly - 4, 68, 12);
+        ctx.fillStyle = active ? col : theme.stair;
+        ctx.fillRect(lx - 32, ly - 2, 64, 8);
+        // 樓層銘牌
+        const tagX = lx < w / 2 ? tx0 - 52 : tx1 + 6;
         ctx.fillStyle = "#0F172A";
         ctx.strokeStyle = col;
-        ctx.lineWidth = active ? 3 : 2;
-        ctx.fillRect(74, ny - 14, 72, 26);
-        ctx.strokeRect(74, ny - 14, 72, 26);
-        ctx.fillStyle = active ? "#FEF08A" : "#CBD5E1";
-        ctx.font = "900 10px 'Press Start 2P', monospace";
+        ctx.lineWidth = active ? 2.5 : 1.5;
+        ctx.fillRect(tagX, ly - 13, 46, 20);
+        ctx.strokeRect(tagX, ly - 13, 46, 20);
+        ctx.fillStyle = active ? "#FEF08A" : "#E2E8F0";
+        ctx.font = "900 9px 'Press Start 2P', monospace";
         ctx.textAlign = "center";
-        ctx.fillText(label, 110, ny + 3);
-
-        ctx.fillStyle = col;
-        ctx.beginPath(); ctx.arc(trackX, ny, active ? 10 : 7, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.fillText(label, tagX + 23, ly + 1);
       };
 
-      drawNode(yFrom, `${fromFloor}F`, "#22C55E", false);
-      drawNode(yTo, `${toFloor}F`, toFloor % 5 === 0 ? "#EF4444" : "#38BDF8", true);
-      if (nextBossFloor > toFloor) {
-        drawNode(yTop, `${nextBossFloor}F`, "#F43F5E", false);
-      }
+      drawFloorLedge(xFrom, yFrom, `${fromFloor}F`, "#22C55E", false);
+      drawFloorLedge(xTo, yTo, `${toFloor}F`, toFloor % 5 === 0 ? "#EF4444" : theme.accent, true);
 
-      // 頂部顯示即將鎮守的 Mega 首領剪影
+      // 4. 頂部大型節點：向外突出的王座大露台（5F / 10F / 15F / 20F Mega 首領）
+      const balW = tw + 46;
+      const balX = Math.round((w - balW) / 2);
+      // 聚光燈柱
+      const spot = ctx.createLinearGradient(w / 2, 0, w / 2, yTop + 10);
+      spot.addColorStop(0, toFloor === nextBossFloor ? "rgba(239, 68, 68, 0.45)" : "rgba(250, 204, 21, 0.20)");
+      spot.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = spot;
+      ctx.fillRect(balX + 24, 0, balW - 48, yTop + 6);
+
+      // 露台石座＋左右王旗
+      ctx.fillStyle = "#0F172A";
+      ctx.fillRect(balX - 2, yTop - 2, balW + 4, 16);
+      ctx.fillStyle = "#B91C1C";
+      ctx.fillRect(balX, yTop, balW, 12);
+      ctx.fillStyle = "#FACC15";
+      ctx.fillRect(balX, yTop, balW, 4);
+      // 露台樓層標牌
+      ctx.fillStyle = "#0F172A";
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 2;
+      ctx.fillRect(w / 2 - 38, yTop + 14, 76, 17);
+      ctx.strokeRect(w / 2 - 38, yTop + 14, 76, 17);
+      ctx.fillStyle = "#FEF08A";
+      ctx.font = "900 8px 'Press Start 2P', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(`MEGA ${nextBossFloor}F`, w / 2, yTop + 26);
+
+      // Mega 首領佇立於王座露台上方
       if (nextBossData && nextBossData.forward_sprite) {
         const bRec = SpriteCache.get(nextBossData.forward_sprite);
         if (bRec && bRec.loaded) {
-          const sil = SpriteCache.getSilhouette ? SpriteCache.getSilhouette(nextBossData.forward_sprite, toFloor === nextBossFloor ? "#F43F5E" : "#64748B") : bRec.img;
+          const sil = SpriteCache.getSilhouette ? SpriteCache.getSilhouette(nextBossData.forward_sprite, toFloor === nextBossFloor ? "#EF4444" : "#1E293B") : bRec.img;
           ctx.save();
-          ctx.globalAlpha = toFloor === nextBossFloor ? 0.92 : 0.45;
-          ctx.drawImage(sil || bRec.img, w - 140, yTop - 34, 64, 64);
+          ctx.globalAlpha = toFloor === nextBossFloor ? 0.95 : 0.72;
+          ctx.drawImage(sil || bRec.img, w / 2 - 32, yTop - 62, 64, 64);
           ctx.restore();
         }
       }
 
-      // 主角訓練家 ＋ 寶可夢沿光梯向上攀登
+      // 5. 訓練家 ＋ 出戰寶可夢實際踩在斜向螺旋石階上攀登
+      const curX = xFrom + (xTo - xFrom) * ease;
       const curY = yFrom + (yTo - yFrom) * ease;
-      const bob = t < 0.95 ? Math.abs(Math.sin(t * 22)) * 5 : 0;
+      const bob = t < 0.94 ? Math.abs(Math.sin(t * 24)) * 5 : 0;
       const pRec = SpriteCache.get(pSprUrl);
       const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
+
+      // 腳底接地陰影
+      ctx.fillStyle = "rgba(2, 6, 23, 0.55)";
+      ctx.beginPath(); ctx.ellipse(curX, curY - 1, 26, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+      const drawFacingSprite = (img, cx, cy, sz, flip) => {
+        ctx.save();
+        ctx.translate(Math.round(cx), Math.round(cy));
+        if (flip) ctx.scale(-1, 1);
+        ctx.drawImage(img, -sz / 2, -sz, sz, sz);
+        ctx.restore();
+      };
+
+      const leadOffset = climbLeftToRight ? 14 : -14;
       if (tRec && tRec.loaded) {
-        ctx.drawImage(tRec.img, trackX - 38, curY - 26 - bob, 36, 36);
+        drawFacingSprite(tRec.img, curX - leadOffset, curY - bob, 36, !climbLeftToRight);
       }
       if (pRec && pRec.loaded) {
-        ctx.drawImage(pRec.img, trackX + 2, curY - 28 - bob, 40, 40);
+        drawFacingSprite(pRec.img, curX + leadOffset, curY - bob, 40, !climbLeftToRight);
       }
 
-      // 抵達瞬間光環
+      // 抵達新樓層光環
       if (t > 0.85) {
         const ringT = (t - 0.85) / 0.15;
         ctx.strokeStyle = `rgba(250, 204, 21, ${1 - ringT})`;
         ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(trackX, yTo, 12 + ringT * 38, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(xTo, yTo - 12, 12 + ringT * 36, 0, Math.PI * 2); ctx.stroke();
       }
 
       if (t < 1) {
@@ -1720,8 +1867,8 @@ window.ModeTower = {
     const st = app.towerState;
     st.roomProps = [
       { kind: "campfire_center", x: 0, y: -20, radius: 34, done: false },
-      { kind: "campfire_heal", x: -160, y: 25, radius: 52, standTimer: 0, done: false, label: "💚 暖火療癒陣", sub: "回復 50% HP ＋ 淨化", color: "#10B981" },
-      { kind: "campfire_forge", x: 160, y: 25, radius: 52, standTimer: 0, done: false, label: "🔨 招式鍛造陣", sub: "隨機招式 +2 級", color: "#F59E0B" }
+      { kind: "campfire_heal", x: -160, y: 25, radius: 52, standTimer: 0, done: false, iconKey: "campfire", label: "暖火療癒陣", sub: "回復 50% HP ＋ 淨化", color: "#10B981" },
+      { kind: "campfire_forge", x: 160, y: 25, radius: 52, standTimer: 0, done: false, iconKey: "relic", label: "招式鍛造陣", sub: "隨機招式 +2 級", color: "#F59E0B" }
     ];
   },
 
@@ -1731,14 +1878,14 @@ window.ModeTower = {
       // 真假雙寶箱實體房
       const realIdx = Math.random() < 0.5 ? 0 : 1;
       st.roomProps = [
-        { kind: "mystery_chest", x: -150, y: -15, radius: 40, isReal: realIdx === 0, stateFrame: 0, standTimer: 0, done: false, label: "神秘紫寶箱 A", color: "#A855F7" },
-        { kind: "mystery_chest", x: 150, y: -15, radius: 40, isReal: realIdx === 1, stateFrame: 0, standTimer: 0, done: false, label: "神秘紫寶箱 B", color: "#A855F7" }
+        { kind: "mystery_chest", x: -150, y: -15, radius: 40, isReal: realIdx === 0, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 A", color: "#A855F7" },
+        { kind: "mystery_chest", x: 150, y: -15, radius: 40, isReal: realIdx === 1, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 B", color: "#A855F7" }
       ];
     } else {
       // 狂戰血祭祭壇 ＋ 黃金補給箱
       st.roomProps = [
-        { kind: "blood_altar", x: -160, y: 0, radius: 50, standTimer: 0, done: false, label: "🩸 狂戰血祭陣", sub: "扣20%血 ➔ 遺物＋全招+1", color: "#F43F5E" },
-        { kind: "gold_supply", x: 160, y: 0, radius: 46, standTimer: 0, done: false, label: "💰 黃金補給箱", sub: "無傷奪 +140金 ＋ 回20%血", color: "#FACC15" }
+        { kind: "blood_altar", x: -160, y: 0, radius: 50, standTimer: 0, done: false, iconKey: "rival_ambush", label: "狂戰血祭陣", sub: "扣20%血 ➔ 遺物＋全招+1", color: "#F43F5E" },
+        { kind: "gold_supply", x: 160, y: 0, radius: 46, standTimer: 0, done: false, iconKey: "meowth_convoy", label: "黃金補給箱", sub: "無傷奪 +140金 ＋ 回20%血", color: "#FACC15" }
       ];
     }
   },
@@ -1854,18 +2001,18 @@ window.ModeTower = {
       const bData = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[bossBaseId]) ? MEGA_FORMS[bossBaseId] : POKEMON_MAP.get(bossBaseId);
       if (bData && bData.forward_sprite) SpriteCache.get(bData.forward_sprite);
       st.portals = [{
-        type: "boss", x: 0, y: py, radius: 54, standTimer: 0,
-        color: "#EF4444", label: `👑 ${nextF}F MEGA 首領`, sub: ms ? ms.title : "雙 Mega 決戰",
+        type: "boss", propRow: 4, iconKey: "tower", x: 0, y: py, radius: 54, standTimer: 0,
+        color: "#EF4444", label: `${nextF}F MEGA 首領`, sub: ms ? ms.title : "雙 Mega 決戰",
         bossSprite: bData ? bData.forward_sprite : null
       }];
     } else {
       const isPreBoss = ((nextF + 1) % 5 === 0);
       const rightPortal = isPreBoss
-        ? { type: "campfire", x: 205, y: py, radius: 44, standTimer: 0, color: "#10B981", label: `🏕️ ${nextF}F 營火房`, sub: "回血 / 鍛造" }
-        : { type: "mystery",  x: 205, y: py, radius: 44, standTimer: 0, color: "#A855F7", label: `❓ ${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
+        ? { type: "campfire", propRow: 3, iconKey: "campfire",     x: 205, y: py, radius: 44, standTimer: 0, color: "#10B981", label: `${nextF}F 營火房`, sub: "回血 / 鍛造" }
+        : { type: "mystery",  propRow: 2, iconKey: "ditto_chests", x: 205, y: py, radius: 44, standTimer: 0, color: "#A855F7", label: `${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
       st.portals = [
-        { type: "battle", x: -205, y: py, radius: 44, standTimer: 0, color: "#38BDF8", label: `⚔️ ${nextF}F 激戰門`, sub: "標準清剿" },
-        { type: "elite",  x: 0,    y: py, radius: 44, standTimer: 0, color: "#F59E0B", label: `💀 ${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
+        { type: "battle", propRow: 0, iconKey: "arena",        x: -205, y: py, radius: 44, standTimer: 0, color: "#38BDF8", label: `${nextF}F 激戰門`, sub: "標準清剿" },
+        { type: "elite",  propRow: 1, iconKey: "rival_ambush", x: 0,    y: py, radius: 44, standTimer: 0, color: "#F59E0B", label: `${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
         rightPortal
       ];
     }
@@ -2211,74 +2358,102 @@ window.ModeTower = {
     this.spawnPhysicalPortals(app);
   },
 
-  // 繪製所有試煉塔實體物件（使用 images/tower_props_sheet.png 4x4 逐幀動畫精靈表）
+  // v7.8.2 繪製所有試煉塔實體物件（8x4 拱形多色石門精靈表 ＋ GBA 像素圖示銘牌 ＋ 零矢量細圓圈）
   renderGroundEntities(app, ctx, toSx, toSy) {
     if (!app || !app.isTowerMode || !app.towerState) return;
     const st = app.towerState;
     const propRec = SpriteCache.get(this.PROPS_SHEET_URL);
     const hasSheet = !!(propRec && propRec.loaded);
+    const uiRec = (typeof FieldEventsEngine !== "undefined") ? SpriteCache.get(FieldEventsEngine.UI_SHEET_URL) : null;
+    const hasUiSheet = !!(uiRec && uiRec.loaded);
     const frame4 = Math.floor(performance.now() / 160) % 4;
     const bob = Math.sin(performance.now() * 0.006) * 3.5;
 
     const drawPropFrame = (row, col, sx, sy, size) => {
       if (!hasSheet) return;
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(propRec.img, col * 128, row * 128, 128, 128, sx - size / 2, sy - size / 2, size, size);
+      ctx.drawImage(propRec.img, col * 128, row * 128, 128, 128, Math.round(sx - size / 2), Math.round(sy - size / 2), size, size);
     };
 
-    const drawLabel = (sx, sy, text, sub, borderCol) => {
+    // 使用自繪 GBA 像素圖示 ＋ 純繁中文字，徹底根除 iOS Safari Emoji 置中破框 Bug
+    const drawPlaque = (sx, sy, text, sub, borderCol, iconKey = null) => {
       ctx.save();
-      ctx.font = "900 10px 'Noto Sans TC', sans-serif";
-      const w = Math.max(92, ctx.measureText(text).width + 18);
-      const h = sub ? 32 : 20;
-      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
+      const textW = ctx.measureText(text).width;
+      const hasIcon = !!(iconKey && hasUiSheet && typeof FieldEventsEngine !== "undefined" && FieldEventsEngine.getIconSrcRect(iconKey));
+      const iconSz = 14;
+      const gap = hasIcon ? 5 : 0;
+      const contentW = textW + (hasIcon ? iconSz + gap : 0);
+      const subW = sub ? (() => { ctx.font = "700 9px 'Noto Sans TC', sans-serif"; return ctx.measureText(sub).width; })() : 0;
+      const boxW = Math.ceil(Math.max(96, contentW + 18, subW + 16));
+      const boxH = sub ? 34 : 22;
+      const bx = Math.round(sx - boxW / 2);
+      const by = Math.round(sy);
+
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
       ctx.strokeStyle = borderCol;
       ctx.lineWidth = 2;
-      ctx.fillRect(sx - w / 2, sy, w, h);
-      ctx.strokeRect(sx - w / 2, sy, w, h);
+      ctx.fillRect(bx, by, boxW, boxH);
+      ctx.strokeRect(bx, by, boxW, boxH);
+
+      const startX = Math.round(sx - contentW / 2);
+      if (hasIcon) {
+        const sr = FieldEventsEngine.getIconSrcRect(iconKey);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(uiRec.img, sr.x, sr.y, sr.w, sr.h, startX, by + 3, iconSz, iconSz);
+      }
+      ctx.font = "900 11px 'Noto Sans TC', sans-serif";
       ctx.fillStyle = "#FFFFFF";
-      ctx.textAlign = "center";
-      ctx.fillText(text, sx, sy + 14);
+      ctx.textAlign = "left";
+      ctx.fillText(text, startX + (hasIcon ? iconSz + gap : 0), by + 14);
+
       if (sub) {
+        ctx.font = "700 9px 'Noto Sans TC', sans-serif";
         ctx.fillStyle = "#FEF08A";
-        ctx.font = "700 8.5px 'Noto Sans TC', sans-serif";
-        ctx.fillText(sub, sx, sy + 26);
+        ctx.textAlign = "center";
+        ctx.fillText(sub, Math.round(sx), by + 28);
       }
       ctx.restore();
     };
 
-    // 1. 營火房 ／ 奇遇房實體物件
+    const drawPixelChargeBar = (sx, sy, prog, color) => {
+      const bw = 64, bh = 7;
+      const bx = Math.round(sx - bw / 2);
+      const by = Math.round(sy);
+      ctx.save();
+      ctx.fillStyle = "#0F172A";
+      ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = color;
+      ctx.fillRect(bx, by, Math.round(bw * Math.max(0, Math.min(1, prog))), bh);
+      ctx.restore();
+    };
+
+    // 1. 營火房 ／ 奇遇房實體物件（Row 5=營火, Row 6=遺物水晶, Row 7=寶箱）
     if (st.roomProps && st.roomProps.length > 0) {
       st.roomProps.forEach(prop => {
         const sx = toSx(prop.x), sy = toSy(prop.y);
         ctx.save();
         if (prop.kind === "campfire_center") {
-          const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 85);
-          glow.addColorStop(0, "rgba(251, 146, 60, 0.42)");
+          const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 88);
+          glow.addColorStop(0, "rgba(251, 146, 60, 0.44)");
           glow.addColorStop(1, "rgba(251, 146, 60, 0)");
           ctx.fillStyle = glow;
-          ctx.beginPath(); ctx.arc(sx, sy, 85, 0, Math.PI * 2); ctx.fill();
-          drawPropFrame(1, frame4, sx, sy, 68);
+          ctx.beginPath(); ctx.arc(sx, sy, 88, 0, Math.PI * 2); ctx.fill();
+          drawPropFrame(5, frame4, sx, sy, 70);
         } else if (prop.kind === "mystery_chest") {
-          const glow = ctx.createRadialGradient(sx, sy, 6, sx, sy, 46);
-          glow.addColorStop(0, "rgba(168, 85, 247, 0.35)");
-          glow.addColorStop(1, "rgba(168, 85, 247, 0)");
-          ctx.fillStyle = glow;
-          ctx.beginPath(); ctx.arc(sx, sy, 46, 0, Math.PI * 2); ctx.fill();
-          drawPropFrame(3, prop.stateFrame || 0, sx, sy + (prop.done ? 0 : bob * 0.5), 56);
+          // 落地石板底座
+          ctx.fillStyle = "rgba(15, 23, 42, 0.55)";
+          ctx.fillRect(Math.round(sx - 30), Math.round(sy + 14), 60, 14);
+          drawPropFrame(7, prop.stateFrame || 0, sx, sy + (prop.done ? 0 : bob * 0.4), 60);
           if (!prop.done) {
-            if (prop.standTimer > 0) {
-              const prog = Math.min(1, prop.standTimer / 0.45);
-              ctx.strokeStyle = "#FACC15";
-              ctx.lineWidth = 4;
-              ctx.beginPath(); ctx.arc(sx, sy, 34, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
-            }
-            drawLabel(sx, sy + 30, prop.label, "走近開啟", "#A855F7");
+            if (prop.standTimer > 0) drawPixelChargeBar(sx, sy - 38, prop.standTimer / 0.45, "#FACC15");
+            drawPlaque(sx, sy + 30, prop.label, "走近開啟", "#A855F7", prop.iconKey);
           }
         } else {
-          // 圓形互動魔法陣（療癒陣 / 鍛造陣 / 血祭陣 / 黃金補給箱）
           ctx.globalAlpha = prop.done ? 0.28 : 1.0;
-          ctx.fillStyle = `${prop.color}28`;
+          ctx.fillStyle = `${prop.color}26`;
           ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = prop.color;
           ctx.lineWidth = 3;
@@ -2286,23 +2461,18 @@ window.ModeTower = {
           ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.stroke();
           ctx.setLineDash([]);
           if (prop.kind === "gold_supply") {
-            drawPropFrame(3, prop.done ? 2 : 0, sx, sy - 4, 48);
+            drawPropFrame(7, prop.done ? 2 : 0, sx, sy - 4, 52);
           } else {
-            drawPropFrame(prop.kind === "campfire_heal" ? 1 : 2, frame4, sx, sy - 4, 44);
+            drawPropFrame(prop.kind === "campfire_heal" ? 5 : 6, frame4, sx, sy - 4, 48);
           }
-          if (!prop.done && prop.standTimer > 0) {
-            const prog = Math.min(1, prop.standTimer / 0.45);
-            ctx.strokeStyle = "#FFFFFF";
-            ctx.lineWidth = 4.5;
-            ctx.beginPath(); ctx.arc(sx, sy, prop.radius + 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
-          }
-          if (!prop.done) drawLabel(sx, sy + prop.radius + 6, prop.label, prop.sub, prop.color);
+          if (!prop.done && prop.standTimer > 0) drawPixelChargeBar(sx, sy - prop.radius - 12, prop.standTimer / 0.45, "#FFFFFF");
+          if (!prop.done) drawPlaque(sx, sy + prop.radius + 6, prop.label, prop.sub, prop.color, prop.iconKey);
         }
         ctx.restore();
       });
     }
 
-    // 2. 地面破格遺物水晶
+    // 2. 地面破格遺物水晶（Row 6）
     if (st.relicDrop && !st.relicDrop.picked) {
       const rd = st.relicDrop;
       const sx = toSx(rd.x), sy = toSy(rd.y);
@@ -2312,47 +2482,61 @@ window.ModeTower = {
       beam.addColorStop(1, "rgba(56, 189, 248, 0.38)");
       ctx.fillStyle = beam;
       ctx.fillRect(sx - 20, sy - 110, 40, 125);
-      drawPropFrame(2, frame4, sx, sy + bob, 56);
-      drawLabel(sx, sy + 30, "💎 遺物水晶", "走近拾取三選一", "#38BDF8");
+      drawPropFrame(6, frame4, sx, sy + bob, 58);
+      drawPlaque(sx, sy + 30, "遺物水晶", "走近拾取三選一", "#38BDF8", "relic");
       ctx.restore();
     }
 
-    // 3. 房間上方實體傳送門（2~3 道門或 Mega 首領巨門）
+    // 3. 房間上方實體拱形傳送門（落地石磚庭院台階 ＋ 5 種專屬拱門 Row 0~4，徹底去除平滑矢量細圓圈）
     if (st.portals && st.portals.length > 0) {
+      // 淨空並鋪設門前統一石磚庭院平台，視覺自然隔離下方草地／跳崖等地形裝飾
+      const padLeft = toSx(st.portals.length > 1 ? -275 : -82);
+      const padRight = toSx(st.portals.length > 1 ? 275 : 82);
+      const padTop = toSy(-308);
+      const padBot = toSy(-206);
+      ctx.save();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.62)";
+      ctx.fillRect(Math.round(padLeft - 4), Math.round(padTop - 4), Math.round(padRight - padLeft + 8), Math.round(padBot - padTop + 8));
+      ctx.fillStyle = "rgba(51, 65, 85, 0.78)";
+      ctx.fillRect(Math.round(padLeft), Math.round(padTop), Math.round(padRight - padLeft), Math.round(padBot - padTop));
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.55)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(Math.round(padLeft), Math.round(padTop), Math.round(padRight - padLeft), Math.round(padBot - padTop));
+      ctx.restore();
+
       st.portals.forEach(pt => {
         const sx = toSx(pt.x), sy = toSy(pt.y);
         const isBoss = pt.type === "boss";
-        const sz = isBoss ? 88 : 68;
+        const sz = isBoss ? 96 : 78;
+        const propRow = (pt.propRow !== undefined) ? pt.propRow : (isBoss ? 4 : 0);
+
         ctx.save();
-        const aura = ctx.createRadialGradient(sx, sy, 10, sx, sy, pt.radius + 22);
-        aura.addColorStop(0, `${pt.color}66`);
+        // 柔和門洞溢光（不畫平滑細線圈）
+        const aura = ctx.createRadialGradient(sx, sy, 8, sx, sy, sz * 0.72);
+        aura.addColorStop(0, `${pt.color}55`);
         aura.addColorStop(1, `${pt.color}00`);
         ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(sx, sy, pt.radius + 22, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(sx, sy, sz * 0.72, 0, Math.PI * 2); ctx.fill();
 
-        ctx.strokeStyle = pt.color;
-        ctx.lineWidth = isBoss ? 4 : 3;
-        ctx.beginPath(); ctx.arc(sx, sy, pt.radius, 0, Math.PI * 2); ctx.stroke();
-
-        drawPropFrame(0, frame4, sx, sy, sz);
+        // 繪製對應顏色的拱形石門精靈（4 幀動態能量渦）
+        drawPropFrame(propRow, frame4, sx, sy, sz);
 
         // Mega 首領門頂部懸浮 Mega 首領像素頭像
         if (isBoss && pt.bossSprite) {
           const bRec = SpriteCache.get(pt.bossSprite);
           if (bRec && bRec.loaded) {
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(bRec.img, sx - 28, sy - sz / 2 - 44 + bob * 0.6, 56, 56);
+            ctx.drawImage(bRec.img, Math.round(sx - 28), Math.round(sy - sz / 2 - 42 + bob * 0.5), 56, 56);
           }
         }
 
-        // 停留 0.45s 傳送進度環
+        // 走入停留 0.45s 像素充能條
         if (pt.standTimer > 0) {
-          const prog = Math.min(1, pt.standTimer / 0.45);
-          ctx.strokeStyle = "#FFFFFF";
-          ctx.lineWidth = 5;
-          ctx.beginPath(); ctx.arc(sx, sy, pt.radius + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog); ctx.stroke();
+          drawPixelChargeBar(sx, sy - sz / 2 - 14, pt.standTimer / 0.45, pt.color);
         }
-        drawLabel(sx, sy + pt.radius + 6, pt.label, pt.sub, pt.color);
+
+        // 零破框 GBA 像素圖示銘牌
+        drawPlaque(sx, sy + sz / 2 + 4, pt.label, pt.sub, pt.color, pt.iconKey);
         ctx.restore();
       });
     }

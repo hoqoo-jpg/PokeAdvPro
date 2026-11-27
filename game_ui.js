@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.1";
+        const ver = this.APP_VERSION || "v7.8.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -586,7 +586,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.1";
+      const curVer = this.APP_VERSION || "v7.8.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1450,7 +1450,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.1",
+      lastSeenVersion: this.APP_VERSION || "v7.8.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -2957,6 +2957,34 @@ Object.assign(window.GameApp, {
             `;
           }).join("")}
         </div>
+        ${(() => {
+          const bestF = (this.saveData && this.saveData.stats && this.saveData.stats.bestTowerFloor) || 0;
+          const tRec = brMap.tower;
+          const unlockedMap = (this.saveData && this.saveData.unlockedLegendaryTreasures) || {};
+          const ltList = (typeof LEGENDARY_TREASURES !== "undefined") ? Object.values(LEGENDARY_TREASURES) : [];
+          const unlockedCnt = ltList.filter(lt => unlockedMap[lt.id]).length;
+          return `
+            <div class="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between gap-2 bg-indigo-50/70 rounded-xl px-2.5 py-2 border border-indigo-200">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="gba-ui-icon gba-ui-tower w-6 h-6 shrink-0"></span>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[11px] font-black text-indigo-950">關都 Mega 試煉塔</span>
+                    <span class="px-1.5 py-0.2 rounded bg-indigo-700 text-white font-pixel text-[8px]">BEST ${bestF}F</span>
+                    ${tRec ? `<span class="px-1.5 py-0.2 rounded border font-black italic text-[9px] ${rankColorMap[tRec.rank] || rankColorMap.C}">${tRec.rank}</span>` : ""}
+                  </div>
+                  <div class="text-[9.5px] font-bold text-slate-600 mt-0.5">永久傳說秘寶收集：${unlockedCnt}/${ltList.length} 件</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                ${ltList.map(lt => {
+                  const ok = !!unlockedMap[lt.id];
+                  return `<img src="${lt.sprite}" title="${lt.name}（${ok ? '已解鎖' : `通關 ${lt.unlockFloor}F 解鎖`}）" class="w-6 h-6 pixel-sprite rounded bg-white border ${ok ? 'border-amber-400' : 'border-slate-300 opacity-35 grayscale'} p-0.5"/>`;
+                }).join("")}
+              </div>
+            </div>
+          `;
+        })()}
       </div>
     `;
 
@@ -3072,9 +3100,11 @@ Object.assign(window.GameApp, {
     const dmgRatio = rs.damageTaken / Math.max(1, p.maxHp);
     const trUses = rs.trainerSkillsUsed || 0;
 
-    const modeKey = this.isExpeditionMode
-      ? "expedition"
-      : (this.isArenaMode ? "arena" : (this.isEndlessMode ? "endless" : "standard"));
+    const modeKey = this.isTowerMode
+      ? "tower"
+      : (this.isExpeditionMode
+        ? "expedition"
+        : (this.isArenaMode ? "arena" : (this.isEndlessMode ? "endless" : "standard")));
 
     let diffId = "normal";
     let diffMult = 1.0;
@@ -3172,6 +3202,27 @@ Object.assign(window.GameApp, {
       hex.eco = clamp(18 + coinPts + bonusPts + (isVictory ? 16 : 0), 15, 100);
 
       hardcoreMasterGate = diffId === "hard" || diffId === "hell" || rs.hitsTaken === 0;
+    } else if (modeKey === "tower") {
+      // v7.8.2 關都 Mega 試煉塔專屬六維評級（以通關 10F 為 S 基準、20F+ 為 MASTER 門檻）
+      const df = this.selectedDifficulty || { id: "normal" };
+      diffId = df.id || "normal";
+      diffMult = ({ easy: 0.85, normal: 1.0, hard: 1.25, hell: 1.50 })[diffId] || 1.0;
+      const tst = this.towerState || { floor: 1, relics: [], totalCoinsEarned: 0 };
+      const reachedFloor = Math.max(1, tst.floor || 1);
+      const relicCount = Array.isArray(tst.relics) ? tst.relics.length : 0;
+      modeLabel = `MEGA TOWER · ${reachedFloor}F`;
+      effectiveVictory = (reachedFloor >= 10);
+
+      hex.atk = clamp(24 + (dps / 1150) * 76, 14, 100);
+      hex.sur = clamp(25 + Math.min(55, (reachedFloor / 20) * 55) + Math.max(0, 20 - rs.hitsTaken * 1.2), 15, 100);
+      hex.spd = clamp(20 + Math.min(80, (reachedFloor / 20) * 80), 15, 100);
+      const statusRate = Math.min(1, rs.statusProcs / Math.max(10, (this.kills || 1) * 0.25));
+      hex.tac = clamp(34 + seRatio * 72 + statusRate * 28 + Math.min(20, relicCount * 5), 22, 100);
+      hex.bld = clamp(commonBuildScore + Math.min(18, relicCount * 4), 18, 100);
+      const coinPts = Math.min(52, ((this.runCoins || 0) / 1400) * 52);
+      hex.eco = clamp(18 + coinPts + Math.min(30, reachedFloor * 1.5), 15, 100);
+
+      hardcoreMasterGate = (reachedFloor >= 20);
     } else {
       // 無盡深淵試煉（以存活 8 分鐘為 S 基準、12 分鐘以上可衝 MASTER）
       const df = this.selectedDifficulty || { id: "normal" };
@@ -3220,6 +3271,8 @@ Object.assign(window.GameApp, {
     const allHigh = Object.values(hex).every(v => v >= 85);
     let title = "關都挑戰者";
     if (isExTrueClear) title = "EX 破界者";
+    else if (modeKey === "tower" && ((this.towerState && this.towerState.floor) || 1) >= 20) title = "試煉塔征服者";
+    else if (modeKey === "tower" && ((this.towerState && this.towerState.floor) || 1) >= 10) title = "深塔攀登者";
     else if (modeKey === "endless" && runSec >= 720) title = "深淵不滅者";
     else if (rs.hitsTaken === 0 && isVictory) title = "無傷幻影";
     else if (allHigh && effectiveVictory) title = "六邊形戰士";
@@ -3229,11 +3282,11 @@ Object.assign(window.GameApp, {
     else if (hex.atk >= 94) title = "火力霸主";
     else if (hex.bld >= 95) title = "滿配大宗師";
     else if (effectiveVictory) {
-      title = modeKey === "arena" ? "鬥技場勝者" : (modeKey === "endless" ? "深淵征服者" : (modeKey === "standard" ? "關都冠軍" : "關都遠征軍"));
+      title = modeKey === "tower" ? "試煉塔勇者" : (modeKey === "arena" ? "鬥技場勝者" : (modeKey === "endless" ? "深淵征服者" : (modeKey === "standard" ? "關都冠軍" : "關都遠征軍")));
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.1",
+      version: this.APP_VERSION || "v7.8.2",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3913,7 +3966,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.1</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.2</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3952,7 +4005,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.1</strong>：關都 Mega 試煉塔實體場景化大改版！新增 4×4 動態場景精靈表（傳送門／營火／遺物水晶／真假雙寶箱），實裝戰場走位進三道門、實體營火與奇遇房、地面拾取遺物水晶、垂直 GBA 登塔過場與 Mega 鑰石七彩 VS 演出。</div>
+            <div>• <strong class="text-amber-300">v7.8.2</strong>：重繪 8×4 拱形多色石門精靈表（5 種門一眼分色＋落地庭院石板）並以像素圖示銘牌根除 iOS Emoji 破框；重做五大海拔生態螺旋斜向登塔過場（視差雲海＋王座大露台）；實裝試煉塔專屬六維評級與道館榮譽牆秘寶進度展示。</div>
+            <div>• <strong class="text-slate-300">v7.8.1</strong>：關都 Mega 試煉塔實體場景化大改版！新增 4×4 動態場景精靈表（傳送門／營火／遺物水晶／真假雙寶箱），實裝戰場走位進三道門、實體營火與奇遇房、地面拾取遺物水晶、垂直 GBA 登塔過場與 Mega 鑰石七彩 VS 演出。</div>
             <div>• <strong class="text-slate-300">v7.8.0</strong>：全新終局模式【關都 Mega 試煉塔】（20F 主線 Mega 首領試煉＋21F+ 無上限攀登、分支選門、12 破格遺物、環境詞綴、每層自動存檔）；首通 5/10/15/20F 永久解鎖 4 件平衡版傳說秘寶；大廳進化鏈連動閃光版並新增「★ 可突破」快捷角標。</div>
             <div>• <strong class="text-slate-300">v7.7.3</strong>：大遠征整備站與過場頂欄新增「💾 存檔回大廳」安全離線續關；統一選擇卡與交易卡交互分流並加大商店觸控熱區；全站中英字型嚴格分流（清除中文 font-pixel 缺字與糊邊，統一 Canvas 字型）。</div>
             <div>• <strong class="text-slate-300">v7.7.2</strong>：大廳雙核心排版（首推大遠征＋推薦8分鐘 5 張地圖）與各模式新手推薦難度標註；UI 圖集擴至 20 枚並升級空投/寶箱/信標為 32×32 HD 像素；1vs1 評分嚴格化＋全模式短板防線；全站彈窗亮色對比治本與 GBA 色帶統一。</div>
@@ -3972,7 +4026,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.1";
+    const curVer = this.APP_VERSION || "v7.8.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
