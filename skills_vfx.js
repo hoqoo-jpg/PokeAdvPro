@@ -99,25 +99,25 @@ Object.assign(window.SkillsEngine, {
         const rx = hz.radius;
         const ry = hz.radius * (isUltSwamp ? 0.72 : 0.62);
 
-        // 1. 底層腐蝕泥沼漸層底盤（超級耿鬼為紫紅冥界腐蝕沼、超級妙蛙花為粉紅花毒霧）
-        const swampGrad = ctx.createRadialGradient(sx, sy, rx * 0.15, sx, sy, rx);
-        swampGrad.addColorStop(0, isCrimson ? `rgba(159, 18, 57, ${alpha * 0.72})` : `rgba(20, 83, 45, ${alpha * 0.65})`);
-        swampGrad.addColorStop(0.55, isCrimson ? `rgba(107, 33, 168, ${alpha * 0.62})` : `rgba(88, 28, 135, ${alpha * 0.58})`);
+        // 1. v7.8.4 柔和半透明腐蝕毒沼底盤（杜絕與敵方致命紅圈預警混淆、不遮擋怪物與掉落物）
+        const swampGrad = ctx.createRadialGradient(sx, sy, rx * 0.12, sx, sy, rx);
+        swampGrad.addColorStop(0, isCrimson ? `rgba(159, 18, 57, ${alpha * 0.44})` : `rgba(20, 83, 45, ${alpha * 0.42})`);
+        swampGrad.addColorStop(0.58, isCrimson ? `rgba(107, 33, 168, ${alpha * 0.34})` : `rgba(88, 28, 135, ${alpha * 0.32})`);
         swampGrad.addColorStop(1, isCrimson ? `rgba(76, 5, 25, 0)` : `rgba(59, 7, 100, 0)`);
         ctx.fillStyle = swampGrad;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. 雙層沸騰毒波外環與順逆旋轉劇毒漩渦紋 (超武專屬強化)
-        ctx.strokeStyle = isCrimson ? `rgba(225, 29, 72, ${alpha * 0.92})` : `rgba(147, 51, 234, ${alpha * 0.9})`;
-        ctx.lineWidth = isUltSwamp ? 4.0 : 3.0;
+        // 2. 低調半透明外圍細環與緩轉虛線（外框降至 0.32~0.36）
+        ctx.strokeStyle = isCrimson ? `rgba(225, 29, 72, ${alpha * 0.34})` : `rgba(147, 51, 234, ${alpha * 0.34})`;
+        ctx.lineWidth = isUltSwamp ? 2.0 : 1.5;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx * 0.92, ry * 0.92, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = isCrimson ? `rgba(251, 113, 133, ${alpha * 0.88})` : `rgba(74, 222, 128, ${alpha * 0.85})`;
-        ctx.lineWidth = 2.0;
+        ctx.strokeStyle = isCrimson ? `rgba(251, 113, 133, ${alpha * 0.32})` : `rgba(74, 222, 128, ${alpha * 0.32})`;
+        ctx.lineWidth = 1.5;
         ctx.setLineDash(isUltSwamp ? [16, 10] : [10, 8]);
         ctx.lineDashOffset = -now * 16;
         ctx.beginPath();
@@ -5177,7 +5177,8 @@ Object.assign(window.SkillsEngine, {
         ctx.fill();
 
       } else if (pr.vfx === "shadow_orb") {
-        // 【耿鬼・暗影球】：純黑奇點核心 ＋ 不規則跳動紫黑幽冥鬼火外殼 ＋ 蒼白閃電紋
+        // 【耿鬼・暗影球】：v7.8.4 收斂視覺上限 16px，多發連射更俐落
+        r = Math.min(16, r);
         const rot = -now * 2.8;
         ctx.save();
         ctx.rotate(rot);
@@ -5328,14 +5329,17 @@ Object.assign(window.SkillsEngine, {
         ctx.stroke();
 
       } else if (pr.vfx === "sludge_lob" || pr.vfx === "sludge_ball") {
+        // v7.8.4 收斂污泥炸彈視覺半徑上限 14px 與高拋縮放 1.20x（不影響實際傷害判定）
+        const rOrig = r;
+        r = Math.min(14, rOrig);
         if (pr.vfx === "sludge_lob" && pr.startX !== undefined) {
           const t = Math.min(1, pr.progress || 0);
           const groundY = (pr.startY + (pr.targetY - pr.startY) * t) - pr.y;
-          ctx.fillStyle = "rgba(15, 23, 42, 0.38)";
+          ctx.fillStyle = "rgba(15, 23, 42, 0.34)";
           ctx.beginPath();
-          ctx.ellipse(0, groundY + 8, r * (0.55 + 0.45 * Math.abs(t - 0.5)), r * 0.28, 0, 0, Math.PI * 2);
+          ctx.ellipse(0, groundY + 8, r * (0.55 + 0.40 * Math.abs(t - 0.5)), r * 0.26, 0, 0, Math.PI * 2);
           ctx.fill();
-          const liftScale = 1 + Math.sin(t * Math.PI) * 0.32;
+          const liftScale = 1 + Math.sin(t * Math.PI) * 0.20;
           ctx.scale(liftScale, liftScale);
         }
         ctx.rotate(pr.angle || 0);

@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.8.3');
+      background-image: url('images/skills_icons_sheet.png?v=7.8.4');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.8.3');
+      background-image: url('images/skills_icons_extra5.png?v=7.8.4');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1098,7 +1098,7 @@
     /* v7.8.0 GBA 像素 UI 圖集 (4x6 Sprite Sheet: 24 icons, 新增試煉塔/遺物/營火/傳送門) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.3');
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.4');
       background-size: 400% 600%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1264,6 +1264,40 @@
     body.theme-dark-gold #towerModal .tower-choice-card .text-slate-700 {
       color: #CBD5E1 !important;
     }
+    /* v7.8.4 Mega 檔案彈窗暗黑黑金主題適配 */
+    body.theme-dark-gold #megaInfoModal > .poke-card {
+      background-color: #0F172A !important;
+      border-color: #38BDF8 !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-modal-body {
+      background-color: #0F172A !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-hero-box {
+      background: #020617 !important;
+      border-color: #38BDF8 !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-hero-name {
+      color: #67E8F9 !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-trait-card,
+    body.theme-dark-gold #megaInfoModal .mega-checklist-card {
+      background-color: #1E293B !important;
+      border-color: #334155 !important;
+      color: #E2E8F0 !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-trait-title {
+      color: #FCD34D !important;
+    }
+    body.theme-dark-gold #megaInfoModal .mega-bond-tip {
+      background-color: rgba(120, 53, 15, 0.55) !important;
+      border-color: #F59E0B !important;
+      color: #FEF3C7 !important;
+    }
+    body.theme-dark-gold #megaInfoModal .text-slate-600,
+    body.theme-dark-gold #megaInfoModal .text-slate-700,
+    body.theme-dark-gold #megaInfoModal .text-slate-800 {
+      color: #E2E8F0 !important;
+    }
   </style>
   <script>
     (function () {
@@ -1364,7 +1398,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.8.3
+      v7.8.4
     </div>
   </div>
 
@@ -1911,25 +1945,28 @@
   </div>
 
   <!-- 7B. MEGA 超級進化檔案與解鎖進度彈窗 (Mystery Hook & Checklist Modal) -->
-  <div id="megaInfoModal" class="absolute inset-0 z-[60] hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
-    <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-cyan-400 text-white shadow-2xl max-h-[88vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-3">
-        <div class="flex items-center gap-2">
-          <span class="text-base">💎</span>
-          <span class="font-pixel text-xs sm:text-sm text-cyan-300">MEGA EVOLUTION FILE</span>
+  <div id="megaInfoModal" class="absolute inset-0 z-[60] hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm select-none">
+    <div class="poke-card w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden p-0 bg-white border-[3px] border-slate-900 shadow-2xl">
+      <div class="bg-gradient-to-r from-sky-800 via-cyan-700 to-indigo-900 px-3.5 py-2.5 border-b-[3px] border-slate-900 flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="gba-ui-icon gba-ui-relic w-5 h-5 shrink-0"></span>
+          <span class="font-pixel text-[10px] sm:text-xs text-white tracking-wider truncate">MEGA EVOLUTION</span>
+          <span class="font-black text-xs sm:text-sm text-cyan-200 whitespace-nowrap">超級進化檔案</span>
         </div>
-        <button onclick="GameApp.closeMegaInfoModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
+        <button onclick="GameApp.closeMegaInfoModal()" class="px-2 py-0.5 rounded-lg bg-slate-900/60 hover:bg-slate-900 border border-white/30 text-white text-xs font-black shrink-0">✕</button>
       </div>
 
-      <div id="megaInfoContent"></div>
+      <div class="mega-modal-body flex-1 overflow-y-auto p-3.5 bg-slate-100">
+        <div id="megaInfoContent"></div>
 
-      <div class="mt-3.5 flex gap-2">
-        <button id="btnMegaGoLab" onclick="GameApp.goToMegaRingLab()" class="poke-btn-yellow flex-1 py-2 text-xs font-black flex items-center justify-center gap-1">
-          <i class="fa-solid fa-house-medical"></i> 前往研究所研發手環 ➔
-        </button>
-        <button onclick="GameApp.closeMegaInfoModal()" class="poke-btn-white flex-1 py-2 text-xs font-black">
-          關閉檔案
-        </button>
+        <div class="mt-3.5 flex gap-2">
+          <button id="btnMegaGoLab" onclick="GameApp.goToMegaRingLab()" class="poke-btn-yellow flex-1 py-2 text-xs font-black flex items-center justify-center gap-1">
+            <i class="fa-solid fa-house-medical"></i> 前往研究所研發手環 ➔
+          </button>
+          <button onclick="GameApp.closeMegaInfoModal()" class="poke-btn-white flex-1 py-2 text-xs font-black">
+            關閉檔案
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -2456,7 +2493,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.3</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.4</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2504,7 +2541,7 @@
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
           <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.3</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.4</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2537,14 +2574,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.8.3"></script>
-  <script src="map_v11_engine.js?v=7.8.3"></script>
-  <script src="skills_engine.js?v=7.8.3"></script>
-  <script src="skills_vfx.js?v=7.8.3"></script>
-  <script src="battle_core_2.js?v=7.8.3"></script>
-  <script src="battle_renderer.js?v=7.8.3"></script>
-  <script src="modes_arcade.js?v=7.8.3"></script>
-  <script src="mode_expedition.js?v=7.8.3"></script>
-  <script src="game_ui.js?v=7.8.3"></script>
+  <script src="pokedex_data.js?v=7.8.4"></script>
+  <script src="map_v11_engine.js?v=7.8.4"></script>
+  <script src="skills_engine.js?v=7.8.4"></script>
+  <script src="skills_vfx.js?v=7.8.4"></script>
+  <script src="battle_core_2.js?v=7.8.4"></script>
+  <script src="battle_renderer.js?v=7.8.4"></script>
+  <script src="modes_arcade.js?v=7.8.4"></script>
+  <script src="mode_expedition.js?v=7.8.4"></script>
+  <script src="game_ui.js?v=7.8.4"></script>
 </body>
 </html>

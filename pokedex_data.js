@@ -588,6 +588,64 @@ const LEGENDARY_TREASURES = {
   }
 };
 
+
+// v7.8.4 全精靈專屬招式變化總表（Single Source of Truth：驅動升級三選一角標、大廳與圖鑑提示）
+const POKEMON_SIGNATURE_SKILLS = {
+  1:   { skills: ["Vine Whip", "Seed Bomb"], label: "雙巨藤 1.22x ‧ Mega三藤毒花霧" },
+  2:   { skills: ["Vine Whip", "Seed Bomb"], label: "進化妙蛙花解鎖雙巨藤 ‧ Mega三藤" },
+  3:   { skills: ["Vine Whip", "Seed Bomb"], label: "雙巨藤 1.22x ‧ Mega三藤毒花霧" },
+  4:   { skills: ["Flamethrower", "Dragon Rush"], label: "進化噴火龍蒼藍火簇 ‧ Mega X 冥炎" },
+  5:   { skills: ["Flamethrower", "Dragon Rush"], label: "進化噴火龍蒼藍火簇 ‧ Mega X 冥炎" },
+  6:   { skills: ["Flamethrower", "Dragon Rush"], label: "高溫藍炎噴射 ‧ Mega X 龍爪必灼傷" },
+  7:   { skills: ["Hydro Pump", "Water Gun"], label: "進化水箭龜雙管重炮 ‧ Mega三管齊射" },
+  8:   { skills: ["Hydro Pump", "Water Gun"], label: "進化水箭龜雙管重炮 ‧ Mega三管齊射" },
+  9:   { skills: ["Hydro Pump", "Water Gun"], label: "背甲雙管重炮 ‧ Mega三管齊射水炮" },
+  25:  { skills: ["Thunderbolt"], label: "蒼藍超壓電弧 ‧ 連鎖電光強化" },
+  26:  { skills: ["Thunderbolt"], label: "蒼藍超壓電弧 ‧ 連鎖電光強化" },
+  32:  { skills: ["Sludge Bomb"], label: "進化尼多王解鎖猩紅劇毒塗裝" },
+  33:  { skills: ["Sludge Bomb"], label: "進化尼多王解鎖猩紅劇毒塗裝" },
+  34:  { skills: ["Sludge Bomb"], label: "猩紅劇毒污泥炸彈專屬特效" },
+  92:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥界猩紅三連昇華" },
+  93:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥界猩紅三連昇華" },
+  94:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥火暗影球 ‧ 猩紅暗影爪" },
+  123: { skills: ["X-Scissor"], label: "青金雙鐮十字剪 ‧ 專屬雙色刀光" },
+  129: { skills: ["Dragon Rush", "Hydro Pump"], label: "進化暴鯉龍 ‧ Mega深海赤紅狂龍" },
+  130: { skills: ["Dragon Rush", "Hydro Pump"], label: "Mega暴鯉龍赤紅龍衝 ＋ 雙柱狂濤" },
+  142: { skills: ["Rock Slide", "Air Slash", "Earthquake"], label: "太古巨岩 ‧ Mega金紫岩刃風暴" },
+  144: { skills: ["Ice Beam"], label: "三束極寒冷凍光線齊射" },
+  145: { skills: ["Thunderbolt"], label: "蒼藍超壓電弧 ＋ 額外 2 道天雷" },
+  146: { skills: ["Flamethrower"], label: "三束神鳥烈焰齊射 ＋ 移動火焰腳印" },
+  147: { skills: ["Dragon Rush"], label: "進化快龍解鎖黃金龍皇衝鋒" },
+  148: { skills: ["Dragon Rush"], label: "進化快龍解鎖黃金龍皇衝鋒" },
+  149: { skills: ["Dragon Rush"], label: "黃金龍皇衝鋒專屬龍威特效" },
+  150: { skills: ["Psystrike"], label: "超能念力領域範圍 1.35x 放大" },
+  151: { skills: ["Metronome"], label: "始祖雙重施法：揮指同時釋放 2 招" },
+  10033: { skills: ["Vine Whip", "Seed Bomb"], label: "Mega三條粉金巨藤 ＋ 毒花孢子霧" },
+  10034: { skills: ["Flamethrower", "Dragon Rush"], label: "Mega蒼藍冥炎火簇 ＋ 龍爪必灼傷" },
+  10036: { skills: ["Hydro Pump", "Water Gun"], label: "Mega背甲三管齊射 ＋ 三連重壓水彈" },
+  10038: { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega冥火彈 ＋ 腐蝕毒沼 ＋ 猩紅暗影爪" },
+  10041: { skills: ["Dragon Rush", "Hydro Pump"], label: "Mega赤紅巨龍衝鋒 ＋ 雙柱深海狂濤" },
+  10042: { skills: ["Air Slash", "Earthquake", "Rock Slide"], label: "Mega太古金紫岩刃風暴 ＋ 地震+15%" }
+};
+
+function getSkillSynergyTagsForPokemon(pokeId, skillId) {
+  const cleanSk = (skillId || "").replace(/\s+/g, "");
+  const tags = [];
+  // 1. Check Mega Core Skill
+  if (typeof MEGA_FORMS !== "undefined") {
+    const mf = Object.values(MEGA_FORMS).find(m => m.baseId === pokeId || m.id === pokeId || (Array.isArray(m.evoLineIds) && m.evoLineIds.includes(pokeId)));
+    if (mf && Array.isArray(mf.reqSkills) && mf.reqSkills.some(s => s.replace(/\s+/g, "") === cleanSk)) {
+      tags.push({ kind: "mega", text: "💎 Mega核心", cls: "bg-cyan-600 text-white font-black" });
+    }
+  }
+  // 2. Check Signature Skill
+  const sig = POKEMON_SIGNATURE_SKILLS[pokeId];
+  if (sig && sig.skills.some(s => s.replace(/\s+/g, "") === cleanSk)) {
+    tags.push({ kind: "sig", text: "★ 專屬強化", cls: "bg-amber-500 text-slate-950 font-black" });
+  }
+  return tags;
+}
+
 // 4. Boss 與精英小王多重攻擊模式資料庫
 const BOSS_ATTACK_PATTERNS = {
   145: {
@@ -1016,9 +1074,9 @@ const MEGA_FORMS = {
     bondTrainerNames: "小智、赤紅、莉莉艾",
     reqLevel: 24,
     bondReqLevel: 23,
-    reqSkills: ["Shadow Ball", "Sludge Bomb", "Psystrike"],
+    reqSkills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw", "Psystrike"],
     reqSkillSum: 10,
-    reqSkillsText: "暗影球 ＋ 污泥炸彈 ＋ 精神擊破 合計達 Lv.10",
+    reqSkillsText: "暗影球 ＋ 污泥炸彈 ＋ 暗影爪 ＋ 精神擊破 合計達 Lv.10",
     hpBoost: 1.22,
     dmgBoost: 1.22,
     critBoost: 0.10,
@@ -1029,7 +1087,7 @@ const MEGA_FORMS = {
     evoPreText: "👻 冥界踩影暗物質覺醒中，時空凍結 👻",
     evoDoneTitle: "👻 MEGA 超級進化！【超級耿鬼】冥界降臨！",
     evoDoneSub: "踩影收割覺醒 ‧ 紫紅暗影球連發與暴擊 +10%",
-    megaTraitDesc: "踩影冥界收割：HP上限 +22% 回滿、全傷 +22%、暴擊 +10%、14% 霸體；【暗影球】昇華為紫紅冥火彈（彈數 +1、暴擊 +20%），【污泥炸彈】留下冥界腐蝕紫紅毒沼！",
+    megaTraitDesc: "踩影冥界收割：HP上限 +22% 回滿、全傷 +22%、暴擊 +10%、14% 霸體；【暗影球】昇華為紫紅冥火彈（彈數 +1、暴擊 +20%），【污泥炸彈】留下冥界腐蝕紫紅毒沼，【暗影爪／冥界裂空爪】化為猩紅冥炎並額外暴擊 +15% 且機率混亂！",
     stoneSprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/gengarite.png",
     forward_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/10038.png",
     back_sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/back/10038.png"

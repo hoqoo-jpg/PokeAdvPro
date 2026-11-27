@@ -985,16 +985,17 @@ window.FieldEventsEngine = {
       spawnTick: 0
     };
 
+    const isBounded = !!(app.isExpeditionMode || app.isTowerMode);
     if (meta.id === "energy_beacon") {
-      const pos = this.spawnOffsetPos(app, 175, 250);
+      const pos = this.spawnOffsetPos(app, isBounded ? 240 : 380, isBounded ? 340 : 500);
       ev.nodes.push({ kind: "beacon", x: pos.x, y: pos.y, radius: 76, label: "信標", color: "#38BDF8" });
     } else if (meta.id === "rocket_airdrop") {
-      const pos = this.spawnOffsetPos(app, 185, 270);
+      const pos = this.spawnOffsetPos(app, isBounded ? 250 : 390, isBounded ? 350 : 520);
       ev.nodes.push({ kind: "airdrop", x: pos.x, y: pos.y, radius: 34, label: "空投", color: "#FACC15", opened: false });
     } else if (meta.id === "ditto_chests") {
       const p = app.player;
       const baseAng = Math.random() * Math.PI * 2;
-      const d = 195;
+      const d = isBounded ? 245 : 410;
       const realIdx = Math.random() < 0.5 ? 0 : 1;
       [0, 1].forEach(idx => {
         const ang = baseAng + (idx === 0 ? -0.55 : 0.55);
@@ -1393,7 +1394,11 @@ window.ModeTower = {
         if (app.saveToStorage) app.saveToStorage();
       }
     }
-    this.launchFloorWithCeremony(app, Math.max(1, app.towerState.floor - 1), app.towerState.floor, app.towerState.portalType, app.towerState.floor === 1);
+    if (app.towerState.floor === 1) {
+      this.playTowerEntranceCinematic(app, () => this.startFloor(app, 1, "battle"));
+    } else {
+      this.launchFloorWithCeremony(app, Math.max(1, app.towerState.floor - 1), app.towerState.floor, app.towerState.portalType, false);
+    }
   },
 
   getStageForFloor(floor) {
@@ -1456,6 +1461,151 @@ window.ModeTower = {
     } else {
       this.playClimbTransition(app, fromFloor, toFloor, effPortal, proceedToVsOrStart);
     }
+  },
+
+  // v7.8.4 全新 1F 入場儀式感過場：從關都草徑走向巨塔宏偉大門，踏入發光門洞切換進 1F 戰場（~1.6s，點擊跳過）
+  playTowerEntranceCinematic(app, onDone) {
+    const ov = document.getElementById("towerClimbOverlay");
+    const can = document.getElementById("towerClimbCanvas");
+    const tagEl = document.getElementById("towerClimbFloorTag");
+    const hintEl = document.getElementById("towerClimbHint");
+    if (!ov || !can) {
+      if (typeof onDone === "function") onDone();
+      return;
+    }
+    this.setQuickExitVisible(false);
+    app.state = "TOWER_CLIMB";
+    if (tagEl) tagEl.textContent = "ENTRANCE ➔ 1F";
+    if (hintEl) hintEl.textContent = "踏入關都 Mega 試煉塔大門……（點擊跳過）";
+
+    const tr = app.selectedTrainer || TRAINERS[0];
+    const trCos = (typeof getResolvedTrainerCostume === "function") ? getResolvedTrainerCostume(tr, app.saveData) : tr;
+    const p = app.player;
+    const pData = (p && p.data) || POKEMON_MAP.get(25);
+    const pSprUrl = (p && p.isShiny && pData.shiny_back_sprite) ? pData.shiny_back_sprite : (pData.back_sprite || pData.forward_sprite);
+    SpriteCache.get(pSprUrl);
+    if (trCos && trCos.sprite) SpriteCache.get(trCos.sprite);
+    SpriteCache.get(this.PROPS_SHEET_URL);
+
+    ov.classList.remove("hidden");
+    ov.style.display = "flex";
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+
+    let finished = false;
+    let rafId = null;
+    const startTs = performance.now();
+    const durationMs = 1600;
+
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      this._climbSkipCb = null;
+      ov.classList.add("hidden");
+      ov.style.display = "none";
+      if (typeof onDone === "function") onDone();
+    };
+    this._climbSkipCb = finish;
+
+    const drawFrame = (nowTs) => {
+      if (finished) return;
+      const t = Math.min(1, (nowTs - startTs) / durationMs);
+      const ease = 1 - Math.pow(1 - t, 2.2);
+      const w = can.width = 360;
+      const h = can.height = 336;
+      const ctx = can.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+
+      // 1. 黃昏常磐天色與遠山樹海
+      const sky = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+      sky.addColorStop(0, "#0F172A");
+      sky.addColorStop(0.55, "#1E3A5F");
+      sky.addColorStop(1, "#3B6978");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      // 飄動雲帶
+      ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+      for (let i = 0; i < 4; i++) {
+        const cx = ((i * 110 + nowTs * 0.015) % (w + 90)) - 45;
+        ctx.fillRect(cx, 26 + i * 32, 66, 10);
+        ctx.fillRect(cx + 12, 20 + i * 32, 38, 6);
+      }
+
+      // 2. 高聳入雲的 Mega 試煉塔外立面底座
+      const tx0 = 86, tw = 188, tx1 = tx0 + tw;
+      const baseH = 218;
+      ctx.fillStyle = "#0F172A"; ctx.fillRect(tx0 - 4, 0, tw + 8, baseH);
+      ctx.fillStyle = "#475569"; ctx.fillRect(tx0, 0, tw, baseH);
+      ctx.fillStyle = "#64748B"; ctx.fillRect(tx0, 0, 18, baseH);
+      ctx.fillStyle = "#1E293B"; ctx.fillRect(tx1 - 22, 0, 22, baseH);
+
+      // 外牆石磚錯縫與藤蔓
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+      ctx.lineWidth = 2;
+      for (let ry = 16; ry < baseH; ry += 18) {
+        ctx.beginPath(); ctx.moveTo(tx0, ry); ctx.lineTo(tx1, ry); ctx.stroke();
+      }
+      ctx.fillStyle = "#15803D";
+      ctx.fillRect(tx0 + 6, 42, 12, 64);
+      ctx.fillRect(tx1 - 18, 28, 12, 82);
+
+      // 門楣金色「MEGA TOWER」牌匾與旗幟
+      ctx.fillStyle = "#0F172A"; ctx.fillRect(w / 2 - 58, 76, 116, 22);
+      ctx.strokeStyle = "#FACC15"; ctx.lineWidth = 2; ctx.strokeRect(w / 2 - 58, 76, 116, 22);
+      ctx.fillStyle = "#FEF08A";
+      ctx.font = "900 8px 'Press Start 2P', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("MEGA TOWER", w / 2, 91);
+
+      // 3. 常磐草坪與通往巨塔正門的透視石板參道
+      ctx.fillStyle = "#166534"; ctx.fillRect(0, baseH - 6, w, h - baseH + 10);
+      ctx.fillStyle = "#14532D"; ctx.fillRect(0, baseH - 6, w, 10);
+      // 透視石板路（下寬上窄指向塔門）
+      ctx.fillStyle = "#94A3B8";
+      ctx.beginPath();
+      ctx.moveTo(w / 2 - 44, baseH - 2);
+      ctx.lineTo(w / 2 + 44, baseH - 2);
+      ctx.lineTo(w / 2 + 86, h);
+      ctx.lineTo(w / 2 - 86, h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke();
+
+      // 4. 巨塔正門發光拱門（使用 HD-GBA 精靈表 Row 0 藍光石門）
+      const propRec = SpriteCache.get(this.PROPS_SHEET_URL);
+      const frame4 = Math.floor(nowTs / 140) % 4;
+      if (propRec && propRec.loaded) {
+        ctx.drawImage(propRec.img, frame4 * 128, 0, 128, 128, w / 2 - 54, baseH - 102, 108, 108);
+      }
+
+      // 5. 訓練家與寶可夢從下方草徑並肩走向巨塔大門（隨距離透視微縮）
+      const curY = (h - 22) - ease * (h - 22 - (baseH - 8));
+      const scale = 1.15 - ease * 0.42;
+      const bob = t < 0.85 ? Math.abs(Math.sin(t * 26)) * 5 : 0;
+      const alphaChar = t > 0.82 ? Math.max(0, 1 - (t - 0.82) / 0.16) : 1;
+
+      const pRec = SpriteCache.get(pSprUrl);
+      const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
+      ctx.save();
+      ctx.globalAlpha = alphaChar;
+      const ts = Math.round(40 * scale);
+      const ps = Math.round(44 * scale);
+      if (tRec && tRec.loaded) ctx.drawImage(tRec.img, Math.round(w / 2 - ts * 0.95), Math.round(curY - ts - bob), ts, ts);
+      if (pRec && pRec.loaded) ctx.drawImage(pRec.img, Math.round(w / 2 + ps * 0.05), Math.round(curY - ps - bob), ps, ps);
+      ctx.restore();
+
+      // 6. 踏入大門瞬間白光切換特效
+      if (t > 0.84) {
+        const ft = (t - 0.84) / 0.16;
+        ctx.fillStyle = `rgba(255, 255, 255, ${ft * 0.92})`;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      if (t < 1) rafId = requestAnimationFrame(drawFrame);
+      else setTimeout(finish, 40);
+    };
+    rafId = requestAnimationFrame(drawFrame);
   },
 
   // v7.8.3 三層縱深剖面建築登塔過場（遠景海拔天色 ➔ 中層中空塔內大廳與室內石階 ➔ 前景厚實外牆切面 ＋ 挑高 Mega 王座大廳）

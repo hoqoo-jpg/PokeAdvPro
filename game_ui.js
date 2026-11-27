@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.3";
+        const ver = this.APP_VERSION || "v7.8.4";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -574,6 +574,18 @@ Object.assign(window.GameApp, {
           }
         }
       }
+      if (evoEl && p) {
+        const traitMeta = (typeof getPokemonInnateTrait === "function") ? getPokemonInnateTrait(p, 1) : null;
+        const sigInfo = (typeof POKEMON_SIGNATURE_SKILLS !== "undefined") ? POKEMON_SIGNATURE_SKILLS[p.id] : null;
+        if (traitMeta || sigInfo) {
+          evoEl.insertAdjacentHTML("beforeend", `
+            <div class="w-full mt-1 pt-1 border-t border-slate-200/80 flex items-center gap-1.5 flex-wrap text-[9px]">
+              ${traitMeta ? `<span class="px-1.5 py-0.2 rounded-full text-white font-black shrink-0" style="background:${traitMeta.badgeColor || '#475569'};">${traitMeta.name}</span>` : ''}
+              ${sigInfo ? `<span class="font-bold text-amber-800 truncate">★ ${sigInfo.label}</span>` : ''}
+            </div>
+          `);
+        }
+      }
     }
 
     const hasAch = typeof ACHIEVEMENTS !== "undefined" && ACHIEVEMENTS.some(a => a.check(this.saveData.stats, this.saveData) && !this.saveData.claimedAch[a.id]);
@@ -586,7 +598,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.3";
+      const curVer = this.APP_VERSION || "v7.8.4";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1450,7 +1462,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.3",
+      lastSeenVersion: this.APP_VERSION || "v7.8.4",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1507,50 +1519,50 @@ Object.assign(window.GameApp, {
     const box = document.getElementById("megaInfoContent");
     if (box) {
       box.innerHTML = `
-        <div class="relative flex flex-col items-center justify-center py-4 px-3 rounded-2xl border-2 ${isUnlocked ? 'bg-slate-950 border-cyan-400 shadow-[0_0_24px_rgba(56,189,248,0.35)]' : 'bg-slate-950 border-purple-500/70'} mb-3 overflow-hidden">
-          <div class="absolute inset-0 opacity-25 pointer-events-none" style="background: radial-gradient(circle at center, ${isUnlocked ? '#38BDF8' : '#A855F7'} 0%, transparent 68%);"></div>
-          <img src="${mf.forward_sprite}" class="w-24 h-24 pixel-sprite object-contain relative z-10 ${isUnlocked ? '' : 'brightness-0 drop-shadow-[0_0_10px_rgba(56,189,248,0.85)]'}" alt="MEGA" />
+        <div class="mega-hero-box relative flex flex-col items-center justify-center py-4 px-3 rounded-2xl border-2 ${isUnlocked ? 'bg-gradient-to-b from-sky-50 to-white border-sky-500 shadow-sm' : 'bg-slate-100 border-purple-400'} mb-3 overflow-hidden">
+          <div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at center, ${isUnlocked ? '#0EA5E9' : '#A855F7'} 0%, transparent 68%);"></div>
+          <img src="${mf.forward_sprite}" class="w-24 h-24 pixel-sprite object-contain relative z-10 ${isUnlocked ? '' : 'brightness-0 opacity-65'}" alt="MEGA" />
           <div class="relative z-10 mt-1 text-center">
-            <div class="font-black text-base ${isUnlocked ? 'text-cyan-300' : 'text-purple-200'}">
+            <div class="mega-hero-name font-black text-base ${isUnlocked ? 'text-sky-800' : 'text-purple-800'}">
               ${isUnlocked ? `💎 ${mf.name_zh}` : '？？？・未知超級進化形態'}
             </div>
             <div class="flex items-center justify-center gap-1 mt-1">
-              ${isUnlocked ? (renderTypeBadgeHTML(mf.type1) + renderTypeBadgeHTML(mf.type2)) : '<span class="px-2 py-0.5 rounded-full bg-purple-900/90 border border-purple-400/60 text-[10px] font-black text-purple-200">首次於戰場覺醒後解禁真容</span>'}
+              ${isUnlocked ? (renderTypeBadgeHTML(mf.type1) + renderTypeBadgeHTML(mf.type2)) : '<span class="px-2 py-0.5 rounded-full bg-purple-700 text-[10px] font-black text-white">首次於戰場覺醒後解禁真容</span>'}
             </div>
           </div>
         </div>
 
         ${isUnlocked ? `
-          <div class="bg-sky-950/70 border border-cyan-400/60 rounded-xl p-2.5 mb-3 text-[11px] font-bold text-cyan-100 leading-relaxed">
-            <div class="text-amber-300 font-black mb-1"><i class="fa-solid fa-fire-flame-curved mr-1"></i>超級進化覺醒特性</div>
+          <div class="mega-trait-card bg-sky-50 border-2 border-sky-300 rounded-xl p-2.5 mb-3 text-[11px] font-bold text-slate-800 leading-relaxed">
+            <div class="mega-trait-title text-amber-700 font-black mb-1"><i class="fa-solid fa-fire-flame-curved mr-1"></i>超級進化覺醒特性</div>
             ${mf.megaTraitDesc}
           </div>
         ` : ''}
 
-        <div class="bg-slate-800/90 border border-slate-700 rounded-xl p-3 space-y-2 text-xs">
-          <div class="font-black text-amber-300 flex items-center gap-1.5">
+        <div class="mega-checklist-card bg-white border-2 border-slate-300 rounded-xl p-3 space-y-2.5 text-xs">
+          <div class="font-black text-amber-700 flex items-center gap-1.5">
             <i class="fa-solid fa-list-check"></i>
             <span>MEGA 超級進化解鎖進度清單</span>
           </div>
 
-          <div class="flex items-start gap-2 ${hasRing ? 'text-emerald-300' : 'text-slate-200'}">
+          <div class="flex items-start gap-2 ${hasRing ? 'text-emerald-700' : 'text-slate-800'}">
             <span class="shrink-0 mt-0.5">${hasRing ? '✅' : '⬜'}</span>
             <div class="leading-snug">
               <div class="font-black">條件 1：研發【超級手環 (MEGA RING)】</div>
-              <div class="text-[10px] text-slate-400">於【寶可夢中心研究所 ➔ 訓練家戰術槽位】消耗 500 代幣研發（全訓練家永久通用）。</div>
+              <div class="text-[10.5px] font-bold text-slate-600 mt-0.5">於【寶可夢中心研究所 ➔ 訓練家戰術槽位】消耗 500 代幣研發（全訓練家永久通用）。</div>
             </div>
           </div>
 
-          <div class="flex items-start gap-2 ${isUnlocked ? 'text-emerald-300' : 'text-slate-200'}">
+          <div class="flex items-start gap-2 ${isUnlocked ? 'text-emerald-700' : 'text-slate-800'}">
             <span class="shrink-0 mt-0.5">${isUnlocked ? '✅' : '⬜'}</span>
             <div class="leading-snug">
               <div class="font-black">條件 2：雙重門檻 ＋ 手動鑰石覺醒</div>
-              <div class="text-[10px] text-slate-400">使用【${starterPoke ? starterPoke.name_zh : '小火龍'}】進化至【${basePoke ? basePoke.name_zh : '噴火龍'}】，等級達 <strong class="text-amber-300">Lv.${mf.reqLevel || 24}</strong> <strong class="text-cyan-300">且</strong> ${mf.reqSkillsText}，右下角將浮現【💎 MEGA】按鍵（快捷鍵 [M]），隨時由你親手引爆！</div>
+              <div class="text-[10.5px] font-bold text-slate-600 mt-0.5">使用【${starterPoke ? starterPoke.name_zh : '小火龍'}】進化至【${basePoke ? basePoke.name_zh : '噴火龍'}】，等級達 <strong class="text-amber-700">Lv.${mf.reqLevel || 24}</strong> <strong class="text-sky-700">且</strong> ${mf.reqSkillsText}，右下角將浮現【💎 MEGA】按鍵（快捷鍵 [M]），隨時由你親手引爆！</div>
             </div>
           </div>
 
-          <div class="bg-amber-950/60 border border-amber-500/60 rounded-lg p-2 text-[10px] text-amber-200 font-bold leading-snug">
-            ★ <span class="text-amber-300 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-white">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-cyan-300">Lv.${mf.bondReqLevel || 23}</strong>，按下【💎 MEGA】瞬間額外引爆 235px 專屬鑰石共鳴震波！
+          <div class="mega-bond-tip bg-amber-50 border border-amber-400 rounded-lg p-2 text-[10.5px] text-amber-950 font-bold leading-snug">
+            ★ <span class="text-amber-800 font-black">羈絆加速秘訣：</span>搭配 <strong class="text-slate-900">${mf.bondTrainerNames}</strong> 出戰，覺醒等級提前至 <strong class="text-sky-700">Lv.${mf.bondReqLevel || 23}</strong>，按下【💎 MEGA】瞬間額外引爆 235px 專屬鑰石共鳴震波！
           </div>
         </div>
       `;
@@ -3286,7 +3298,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.3",
+      version: this.APP_VERSION || "v7.8.4",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3966,7 +3978,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.3</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.4</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4005,7 +4017,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.3</strong>：全面升級 HD-GBA 精繪試煉塔場景精靈表（5 色雕花拱門、石砌營火、多切面遺物水晶、紫金寶箱與百變怪）；重做「三層縱深建築剖面」室內登塔過場；傳送門改為門頂近距柔顯提示＋三門手機同框間距與獨立落地石台。</div>
+            <div>• <strong class="text-amber-300">v7.8.4</strong>：24 枚大廳與事件小圖示全面升級 HD-GBA 精繪；試煉塔傳送門改為極座標真旋轉旋渦＋營火波浪跳動；空投與信標生成距離拉遠至 380–520px；新增 1F「塔外走進巨塔大門」入場過場；建立全精靈專屬技能總表並於升級三選一與大廳顯示「★ 專屬強化 / 💎 Mega核心」角標（補齊超級耿鬼暗影爪）；收斂污泥炸彈／暗影球視覺尺寸、毒池改為半透明，並全面翻新 Mega 進化檔案彈窗亮暗對比。</div>
+            <div>• <strong class="text-slate-300">v7.8.3</strong>：全面升級 HD-GBA 精繪試煉塔場景精靈表（5 色雕花拱門、石砌營火、多切面遺物水晶、紫金寶箱與百變怪）；重做「三層縱深建築剖面」室內登塔過場；傳送門改為門頂近距柔顯提示＋三門手機同框間距與獨立落地石台。</div>
             <div>• <strong class="text-slate-300">v7.8.2</strong>：重繪 8×4 拱形多色石門精靈表（5 種門一眼分色＋落地庭院石板）並以像素圖示銘牌根除 iOS Emoji 破框；重做五大海拔生態螺旋斜向登塔過場（視差雲海＋王座大露台）；實裝試煉塔專屬六維評級與道館榮譽牆秘寶進度展示。</div>
             <div>• <strong class="text-slate-300">v7.8.1</strong>：關都 Mega 試煉塔實體場景化大改版！新增 4×4 動態場景精靈表（傳送門／營火／遺物水晶／真假雙寶箱），實裝戰場走位進三道門、實體營火與奇遇房、地面拾取遺物水晶、垂直 GBA 登塔過場與 Mega 鑰石七彩 VS 演出。</div>
             <div>• <strong class="text-slate-300">v7.8.0</strong>：全新終局模式【關都 Mega 試煉塔】（20F 主線 Mega 首領試煉＋21F+ 無上限攀登、分支選門、12 破格遺物、環境詞綴、每層自動存檔）；首通 5/10/15/20F 永久解鎖 4 件平衡版傳說秘寶；大廳進化鏈連動閃光版並新增「★ 可突破」快捷角標。</div>
@@ -4027,7 +4040,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.3";
+    const curVer = this.APP_VERSION || "v7.8.4";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4612,6 +4625,9 @@ Object.assign(window.GameApp, {
               <span class="font-black text-sm sm:text-base text-slate-800 leading-tight whitespace-nowrap">${c.title}</span>
               ${c.typeBadge || ''}
               <span class="px-2 py-0.5 rounded-full text-[9px] ${c.badgeBg} whitespace-nowrap">${c.badge}</span>
+              ${(p && c.skillIconMeta && typeof getSkillSynergyTagsForPokemon === "function")
+                ? getSkillSynergyTagsForPokemon(p.id, c.skillIconMeta.id).map(tg => `<span class="px-1.5 py-0.5 rounded-full text-[8.5px] ${tg.cls} whitespace-nowrap shadow-xs">${tg.text}</span>`).join("")
+                : ""}
             </div>
             <p class="text-[11px] sm:text-xs font-bold text-slate-600 leading-snug mt-0.5 break-words">${c.desc}</p>
           </div>
