@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.4";
+        const ver = this.APP_VERSION || "v7.8.5";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -598,7 +598,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.4";
+      const curVer = this.APP_VERSION || "v7.8.5";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1462,7 +1462,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.4",
+      lastSeenVersion: this.APP_VERSION || "v7.8.5",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3298,7 +3298,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.4",
+      version: this.APP_VERSION || "v7.8.5",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3978,7 +3978,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.4</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.5</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4017,7 +4017,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.4</strong>：24 枚大廳與事件小圖示全面升級 HD-GBA 精繪；試煉塔傳送門改為極座標真旋轉旋渦＋營火波浪跳動；空投與信標生成距離拉遠至 380–520px；新增 1F「塔外走進巨塔大門」入場過場；建立全精靈專屬技能總表並於升級三選一與大廳顯示「★ 專屬強化 / 💎 Mega核心」角標（補齊超級耿鬼暗影爪）；收斂污泥炸彈／暗影球視覺尺寸、毒池改為半透明，並全面翻新 Mega 進化檔案彈窗亮暗對比。</div>
+            <div>• <strong class="text-amber-300">v7.8.5</strong>：緊急修復 skills_vfx.js 飛行道具渲染常數賦值報錯（全面恢復所有飛行道具與特效）；全面以 HD-GBA 精繪場景原畫重構 1F「塔外走進巨塔大門」與「塔內三層建築剖面」登塔過場（搭配奇偶層螺旋鏡像、五大海拔氛圍光塵與王座 Mega 首領聚光演出）。</div>
+            <div>• <strong class="text-slate-300">v7.8.4</strong>：24 枚大廳與事件小圖示全面升級 HD-GBA 精繪；試煉塔傳送門改為極座標真旋轉旋渦＋營火波浪跳動；空投與信標生成距離拉遠至 380–520px；新增 1F「塔外走進巨塔大門」入場過場；建立全精靈專屬技能總表並於升級三選一與大廳顯示「★ 專屬強化 / 💎 Mega核心」角標（補齊超級耿鬼暗影爪）；收斂污泥炸彈／暗影球視覺尺寸、毒池改為半透明，並全面翻新 Mega 進化檔案彈窗亮暗對比。</div>
             <div>• <strong class="text-slate-300">v7.8.3</strong>：全面升級 HD-GBA 精繪試煉塔場景精靈表（5 色雕花拱門、石砌營火、多切面遺物水晶、紫金寶箱與百變怪）；重做「三層縱深建築剖面」室內登塔過場；傳送門改為門頂近距柔顯提示＋三門手機同框間距與獨立落地石台。</div>
             <div>• <strong class="text-slate-300">v7.8.2</strong>：重繪 8×4 拱形多色石門精靈表（5 種門一眼分色＋落地庭院石板）並以像素圖示銘牌根除 iOS Emoji 破框；重做五大海拔生態螺旋斜向登塔過場（視差雲海＋王座大露台）；實裝試煉塔專屬六維評級與道館榮譽牆秘寶進度展示。</div>
             <div>• <strong class="text-slate-300">v7.8.1</strong>：關都 Mega 試煉塔實體場景化大改版！新增 4×4 動態場景精靈表（傳送門／營火／遺物水晶／真假雙寶箱），實裝戰場走位進三道門、實體營火與奇遇房、地面拾取遺物水晶、垂直 GBA 登塔過場與 Mega 鑰石七彩 VS 演出。</div>
@@ -4040,7 +4041,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.4";
+    const curVer = this.APP_VERSION || "v7.8.5";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

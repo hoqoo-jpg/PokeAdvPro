@@ -4810,7 +4810,7 @@ Object.assign(window.SkillsEngine, {
     const projAlpha = this.getLightProjectileAlpha();
     this.projectiles.forEach(pr => {
       const sx = toSx(pr.x), sy = toSy(pr.y);
-      const r = pr.radius;
+      let r = pr.radius;
       ctx.save();
       ctx.globalAlpha = projAlpha;
       ctx.translate(sx, sy);

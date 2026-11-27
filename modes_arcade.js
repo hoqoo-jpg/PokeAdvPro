@@ -1287,6 +1287,8 @@ window.FieldEventsEngine = {
 // ============================================================================
 window.ModeTower = {
   PROPS_SHEET_URL: "images/tower_props_sheet.png",
+  ENTRANCE_BG_URL: "images/tower_entrance_bg.png",
+  CLIMB_BG_URL: "images/tower_climb_bg.png",
 
   RELICS: [
     { id: "prism_split",     name: "多重稜鏡",   cat: "進攻", color: "#38BDF8", desc: "所有招式傷害 +18%，並於發射時額外強化貫穿壓制力！" },
@@ -1331,7 +1333,11 @@ window.ModeTower = {
   },
 
   onStart(app) {
-    if (typeof SpriteCache !== "undefined") SpriteCache.get(this.PROPS_SHEET_URL);
+    if (typeof SpriteCache !== "undefined") {
+      SpriteCache.get(this.PROPS_SHEET_URL);
+      SpriteCache.get(this.ENTRANCE_BG_URL);
+      SpriteCache.get(this.CLIMB_BG_URL);
+    }
     const resumeCp = app._resumeTowerCheckpoint || null;
     app._resumeTowerCheckpoint = null;
 
@@ -1463,7 +1469,7 @@ window.ModeTower = {
     }
   },
 
-  // v7.8.4 全新 1F 入場儀式感過場：從關都草徑走向巨塔宏偉大門，踏入發光門洞切換進 1F 戰場（~1.6s，點擊跳過）
+  // v7.8.5 HD-GBA 1F 塔外入場儀式過場（精繪 tower_entrance_bg.png ＋ 門洞能量光塵 ＋ 沿石板參道並肩走入大門）
   playTowerEntranceCinematic(app, onDone) {
     const ov = document.getElementById("towerClimbOverlay");
     const can = document.getElementById("towerClimbCanvas");
@@ -1485,7 +1491,7 @@ window.ModeTower = {
     const pSprUrl = (p && p.isShiny && pData.shiny_back_sprite) ? pData.shiny_back_sprite : (pData.back_sprite || pData.forward_sprite);
     SpriteCache.get(pSprUrl);
     if (trCos && trCos.sprite) SpriteCache.get(trCos.sprite);
-    SpriteCache.get(this.PROPS_SHEET_URL);
+    SpriteCache.get(this.ENTRANCE_BG_URL);
 
     ov.classList.remove("hidden");
     ov.style.display = "flex";
@@ -1494,7 +1500,7 @@ window.ModeTower = {
     let finished = false;
     let rafId = null;
     const startTs = performance.now();
-    const durationMs = 1600;
+    const durationMs = 1650;
 
     const finish = () => {
       if (finished) return;
@@ -1512,93 +1518,70 @@ window.ModeTower = {
       const t = Math.min(1, (nowTs - startTs) / durationMs);
       const ease = 1 - Math.pow(1 - t, 2.2);
       const w = can.width = 360;
-      const h = can.height = 336;
+      const h = can.height = 360;
       const ctx = can.getContext("2d");
       ctx.imageSmoothingEnabled = false;
 
-      // 1. 黃昏常磐天色與遠山樹海
-      const sky = ctx.createLinearGradient(0, 0, 0, h * 0.65);
-      sky.addColorStop(0, "#0F172A");
-      sky.addColorStop(0.55, "#1E3A5F");
-      sky.addColorStop(1, "#3B6978");
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, w, h);
-
-      // 飄動雲帶
-      ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
-      for (let i = 0; i < 4; i++) {
-        const cx = ((i * 110 + nowTs * 0.015) % (w + 90)) - 45;
-        ctx.fillRect(cx, 26 + i * 32, 66, 10);
-        ctx.fillRect(cx + 12, 20 + i * 32, 38, 6);
+      // 1. 繪製 HD-GBA 精繪塔外入口底圖（伴隨鏡頭輕微拉近感 zoom 1.00 -> 1.06）
+      const bgRec = SpriteCache.get(this.ENTRANCE_BG_URL);
+      const zoom = 1.0 + ease * 0.06;
+      ctx.save();
+      if (bgRec && bgRec.loaded) {
+        const dw = w * zoom;
+        const dh = h * zoom;
+        ctx.drawImage(bgRec.img, (w - dw) * 0.5, (h - dh) * 0.52, dw, dh);
+      } else {
+        ctx.fillStyle = "#1E293B";
+        ctx.fillRect(0, 0, w, h);
       }
+      ctx.restore();
 
-      // 2. 高聳入雲的 Mega 試煉塔外立面底座
-      const tx0 = 86, tw = 188, tx1 = tx0 + tw;
-      const baseH = 218;
-      ctx.fillStyle = "#0F172A"; ctx.fillRect(tx0 - 4, 0, tw + 8, baseH);
-      ctx.fillStyle = "#475569"; ctx.fillRect(tx0, 0, tw, baseH);
-      ctx.fillStyle = "#64748B"; ctx.fillRect(tx0, 0, 18, baseH);
-      ctx.fillStyle = "#1E293B"; ctx.fillRect(tx1 - 22, 0, 22, baseH);
+      // 2. 門洞神秘青藍光暈脈動（精準對齊底圖中央門洞 x=50%, y=60%）
+      const doorX = w * 0.5;
+      const doorY = h * 0.61;
+      const pulse = 0.72 + Math.sin(nowTs * 0.008) * 0.22;
+      const glow = ctx.createRadialGradient(doorX, doorY, 6, doorX, doorY, 68 * pulse);
+      glow.addColorStop(0, "rgba(125, 211, 252, 0.52)");
+      glow.addColorStop(0.55, "rgba(56, 189, 248, 0.20)");
+      glow.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(doorX, doorY, 68 * pulse, 0, Math.PI * 2); ctx.fill();
 
-      // 外牆石磚錯縫與藤蔓
-      ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
-      ctx.lineWidth = 2;
-      for (let ry = 16; ry < baseH; ry += 18) {
-        ctx.beginPath(); ctx.moveTo(tx0, ry); ctx.lineTo(tx1, ry); ctx.stroke();
-      }
-      ctx.fillStyle = "#15803D";
-      ctx.fillRect(tx0 + 6, 42, 12, 64);
-      ctx.fillRect(tx1 - 18, 28, 12, 82);
-
-      // 門楣金色「MEGA TOWER」牌匾與旗幟
-      ctx.fillStyle = "#0F172A"; ctx.fillRect(w / 2 - 58, 76, 116, 22);
-      ctx.strokeStyle = "#FACC15"; ctx.lineWidth = 2; ctx.strokeRect(w / 2 - 58, 76, 116, 22);
+      // 3. 飄浮森林螢火光塵粒子
       ctx.fillStyle = "#FEF08A";
-      ctx.font = "900 8px 'Press Start 2P', monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("MEGA TOWER", w / 2, 91);
-
-      // 3. 常磐草坪與通往巨塔正門的透視石板參道
-      ctx.fillStyle = "#166534"; ctx.fillRect(0, baseH - 6, w, h - baseH + 10);
-      ctx.fillStyle = "#14532D"; ctx.fillRect(0, baseH - 6, w, 10);
-      // 透視石板路（下寬上窄指向塔門）
-      ctx.fillStyle = "#94A3B8";
-      ctx.beginPath();
-      ctx.moveTo(w / 2 - 44, baseH - 2);
-      ctx.lineTo(w / 2 + 44, baseH - 2);
-      ctx.lineTo(w / 2 + 86, h);
-      ctx.lineTo(w / 2 - 86, h);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "#475569"; ctx.lineWidth = 2; ctx.stroke();
-
-      // 4. 巨塔正門發光拱門（使用 HD-GBA 精靈表 Row 0 藍光石門）
-      const propRec = SpriteCache.get(this.PROPS_SHEET_URL);
-      const frame4 = Math.floor(nowTs / 140) % 4;
-      if (propRec && propRec.loaded) {
-        ctx.drawImage(propRec.img, frame4 * 128, 0, 128, 128, w / 2 - 54, baseH - 102, 108, 108);
+      for (let i = 0; i < 12; i++) {
+        const px = ((i * 37 + nowTs * 0.014 * (i % 2 === 0 ? 1 : -0.8)) % w + w) % w;
+        const py = h - ((i * 29 + nowTs * 0.025) % (h * 0.65));
+        ctx.globalAlpha = 0.35 + Math.sin(nowTs * 0.006 + i) * 0.35;
+        ctx.fillRect(Math.round(px), Math.round(py), 2, 2);
       }
+      ctx.globalAlpha = 1;
 
-      // 5. 訓練家與寶可夢從下方草徑並肩走向巨塔大門（隨距離透視微縮）
-      const curY = (h - 22) - ease * (h - 22 - (baseH - 8));
-      const scale = 1.15 - ease * 0.42;
+      // 4. 訓練家與寶可夢沿下方石板參道並肩走入發光大門（由近及遠透視微縮）
+      const startY = h - 18;
+      const endY = h * 0.69;
+      const curY = startY + (endY - startY) * ease;
+      const scale = 1.24 - ease * 0.46;
       const bob = t < 0.85 ? Math.abs(Math.sin(t * 26)) * 5 : 0;
-      const alphaChar = t > 0.82 ? Math.max(0, 1 - (t - 0.82) / 0.16) : 1;
+      const alphaChar = t > 0.80 ? Math.max(0, 1 - (t - 0.80) / 0.18) : 1;
 
       const pRec = SpriteCache.get(pSprUrl);
       const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
       ctx.save();
       ctx.globalAlpha = alphaChar;
-      const ts = Math.round(40 * scale);
-      const ps = Math.round(44 * scale);
-      if (tRec && tRec.loaded) ctx.drawImage(tRec.img, Math.round(w / 2 - ts * 0.95), Math.round(curY - ts - bob), ts, ts);
-      if (pRec && pRec.loaded) ctx.drawImage(pRec.img, Math.round(w / 2 + ps * 0.05), Math.round(curY - ps - bob), ps, ps);
+      const ts = Math.round(42 * scale);
+      const ps = Math.round(46 * scale);
+      // 腳底接地陰影
+      ctx.fillStyle = "rgba(2, 6, 23, 0.52)";
+      ctx.beginPath(); ctx.ellipse(doorX, curY - 2, 28 * scale, 6 * scale, 0, 0, Math.PI * 2); ctx.fill();
+      if (tRec && tRec.loaded) ctx.drawImage(tRec.img, Math.round(doorX - ts * 0.96), Math.round(curY - ts - bob), ts, ts);
+      if (pRec && pRec.loaded) ctx.drawImage(pRec.img, Math.round(doorX + ps * 0.04), Math.round(curY - ps - bob), ps, ps);
       ctx.restore();
 
-      // 6. 踏入大門瞬間白光切換特效
-      if (t > 0.84) {
-        const ft = (t - 0.84) / 0.16;
-        ctx.fillStyle = `rgba(255, 255, 255, ${ft * 0.92})`;
+      // 5. 踏入大門瞬間柔和白金光轉場
+      if (t > 0.83) {
+        const ft = (t - 0.83) / 0.17;
+        ctx.fillStyle = `rgba(240, 249, 255, ${ft * 0.94})`;
         ctx.fillRect(0, 0, w, h);
       }
 
@@ -1608,7 +1591,7 @@ window.ModeTower = {
     rafId = requestAnimationFrame(drawFrame);
   },
 
-  // v7.8.3 三層縱深剖面建築登塔過場（遠景海拔天色 ➔ 中層中空塔內大廳與室內石階 ➔ 前景厚實外牆切面 ＋ 挑高 Mega 王座大廳）
+  // v7.8.5 HD-GBA 三層建築剖面登塔過場（精繪 tower_climb_bg.png ＋ 奇偶層螺旋鏡像 ＋ 五大海拔氛圍色調與粒子 ＋ 王座聚光 Mega 首領）
   playClimbTransition(app, fromFloor, toFloor, portalType, onDone) {
     const ov = document.getElementById("towerClimbOverlay");
     const can = document.getElementById("towerClimbCanvas");
@@ -1621,38 +1604,13 @@ window.ModeTower = {
     this.setQuickExitVisible(false);
     app.state = "TOWER_CLIMB";
 
-    // 五大海拔建築外牆 ＋ 塔內光影配色
+    // 五大海拔大氣色調與粒子配置
     const getTierTheme = (fl) => {
-      if (fl <= 5) return {
-        name: "底層 ‧ 密林石基", skyTop: "#1E3A5F", skyMid: "#3B6978", skyBot: "#7C9D96",
-        extMain: "#475569", extHi: "#64748B", extDk: "#1E293B", intWall: "#1E293B", intBrick: "#0F172A",
-        slab: "#64748B", slabHi: "#94A3B8", stair: "#CBD5E1", trim: "#22C55E", accent: "#4ADE80",
-        widthRatio: 0.72, isGround: fl <= 2, particle: "leaf"
-      };
-      if (fl <= 10) return {
-        name: "中下層 ‧ 潮汐水閣", skyTop: "#0C4A6E", skyMid: "#0284C7", skyBot: "#38BDF8",
-        extMain: "#334155", extHi: "#7DD3FC", extDk: "#0F172A", intWall: "#0F2942", intBrick: "#081A2E",
-        slab: "#475569", slabHi: "#BAE6FD", stair: "#E0F2FE", trim: "#38BDF8", accent: "#7DD3FC",
-        widthRatio: 0.68, isGround: false, particle: "mist"
-      };
-      if (fl <= 15) return {
-        name: "中上層 ‧ 熔岩鐵塔", skyTop: "#1C1917", skyMid: "#450A0A", skyBot: "#9A3412",
-        extMain: "#292524", extHi: "#78716C", extDk: "#0C0A09", intWall: "#1C1414", intBrick: "#0F0A0A",
-        slab: "#44403C", slabHi: "#A8A29E", stair: "#D6D3D1", trim: "#F97316", accent: "#FB923C",
-        widthRatio: 0.64, isGround: false, particle: "ember"
-      };
-      if (fl <= 20) return {
-        name: "頂層 ‧ 石英聖殿", skyTop: "#0F172A", skyMid: "#312E81", skyBot: "#4C1D95",
-        extMain: "#CBD5E1", extHi: "#F8FAFC", extDk: "#64748B", intWall: "#1E1B4B", intBrick: "#131136",
-        slab: "#94A3B8", slabHi: "#F1F5F9", stair: "#F8FAFC", trim: "#FACC15", accent: "#FDE047",
-        widthRatio: 0.62, isGround: false, particle: "star"
-      };
-      return {
-        name: "天際 ‧ 星界之巔", skyTop: "#020617", skyMid: "#1E1B4B", skyBot: "#581C87",
-        extMain: "#312E81", extHi: "#C084FC", extDk: "#0F172A", intWall: "#0F0A24", intBrick: "#070414",
-        slab: "#4C1D95", slabHi: "#D8B4FE", stair: "#F3E8FF", trim: "#E879F9", accent: "#F472B6",
-        widthRatio: 0.58, isGround: false, particle: "star"
-      };
+      if (fl <= 5)  return { name: "底層 ‧ 密林石基", tint: "rgba(22, 163, 74, 0.14)",  accent: "#4ADE80", particleCol: "#86EFAC" };
+      if (fl <= 10) return { name: "中下層 ‧ 潮汐水閣", tint: "rgba(14, 165, 233, 0.16)", accent: "#38BDF8", particleCol: "#BAE6FD" };
+      if (fl <= 15) return { name: "中上層 ‧ 熔岩鐵塔", tint: "rgba(234, 88, 12, 0.22)",  accent: "#FB923C", particleCol: "#FDBA74" };
+      if (fl <= 20) return { name: "頂層 ‧ 石英聖殿", tint: "rgba(250, 204, 21, 0.14)", accent: "#FDE047", particleCol: "#FEF08A" };
+      return               { name: "天際 ‧ 星界之巔", tint: "rgba(147, 51, 234, 0.22)", accent: "#E879F9", particleCol: "#F5D0FE" };
     };
 
     const theme = getTierTheme(toFloor);
@@ -1660,7 +1618,7 @@ window.ModeTower = {
     if (hintEl) {
       hintEl.textContent = toFloor % 5 === 0
         ? `踏入第 ${toFloor} 層 Mega 王座大廳……（點擊跳過）`
-        : `於塔內石階攀登至第 ${toFloor} 層……（點擊跳過）`;
+        : `沿塔內石階攀登至第 ${toFloor} 層……（點擊跳過）`;
     }
 
     const tr = app.selectedTrainer || TRAINERS[0];
@@ -1670,6 +1628,7 @@ window.ModeTower = {
     const pSprUrl = (p && p.isShiny && pData.shiny_forward_sprite) ? pData.shiny_forward_sprite : pData.forward_sprite;
     SpriteCache.get(pSprUrl);
     if (trCos && trCos.sprite) SpriteCache.get(trCos.sprite);
+    SpriteCache.get(this.CLIMB_BG_URL);
 
     const nextBossFloor = Math.ceil(toFloor / 5) * 5;
     const nextMs = this.MEGA_MILESTONES.find(m => m.floor === nextBossFloor);
@@ -1684,7 +1643,7 @@ window.ModeTower = {
     let finished = false;
     let rafId = null;
     const startTs = performance.now();
-    const durationMs = 1450;
+    const durationMs = 1500;
 
     const finish = () => {
       if (finished) return;
@@ -1697,193 +1656,117 @@ window.ModeTower = {
     };
     this._climbSkipCb = finish;
 
-    const climbLeftToRight = (toFloor % 2 === 0);
+    // 奇偶層交替鏡像底圖，讓階梯自然呈現左右盤旋向上感
+    const mirrorBg = (toFloor % 2 === 0);
 
     const drawFrame = (nowTs) => {
       if (finished) return;
       const t = Math.min(1, (nowTs - startTs) / durationMs);
-      const ease = 1 - Math.pow(1 - t, 3);
+      const ease = 1 - Math.pow(1 - t, 2.6);
       const w = can.width = 360;
-      const h = can.height = 336;
+      const h = can.height = 360;
       const ctx = can.getContext("2d");
       ctx.imageSmoothingEnabled = false;
 
-      const fgScroll = ease * 28;
-      const bgScroll = ease * 10;
+      // 1. 繪製 HD-GBA 精繪三層剖面底圖（支持奇偶層水平鏡像）
+      const bgRec = SpriteCache.get(this.CLIMB_BG_URL);
+      ctx.save();
+      if (mirrorBg) {
+        ctx.translate(w, 0);
+        ctx.scale(-1, 1);
+      }
+      if (bgRec && bgRec.loaded) {
+        ctx.drawImage(bgRec.img, 0, 0, w, h);
+      } else {
+        ctx.fillStyle = "#0F172A";
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.restore();
 
-      // ========== 第 1 層（最遠景）：海拔天空 ＋ 視差雲海／星空 ＋ 1F-2F 地面樹海 ==========
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
-      skyGrad.addColorStop(0, theme.skyTop);
-      skyGrad.addColorStop(0.55, theme.skyMid);
-      skyGrad.addColorStop(1, theme.skyBot);
-      ctx.fillStyle = skyGrad;
+      // 2. 五大海拔氛圍色調層（柔和疊加，保留建築精細石紋）
+      ctx.fillStyle = theme.tint;
       ctx.fillRect(0, 0, w, h);
 
-      if (theme.particle === "star") {
-        ctx.fillStyle = "#FEF08A";
-        for (let i = 0; i < 24; i++) {
-          const sx = (i * 53 + 17) % w;
-          const sy = ((i * 37 + bgScroll) % (h - 40)) + 10;
-          ctx.fillRect(sx, sy, (i % 3 === 0) ? 3 : 2, (i % 3 === 0) ? 3 : 2);
-        }
-      } else {
-        ctx.fillStyle = theme.particle === "ember" ? "rgba(124, 45, 18, 0.45)" : "rgba(255, 255, 255, 0.24)";
-        for (let i = 0; i < 5; i++) {
-          const cx = ((i * 95 + nowTs * 0.012 * (i % 2 === 0 ? 1 : -0.7)) % (w + 90)) - 45;
-          const cy = 38 + i * 58 + bgScroll;
-          ctx.fillRect(cx, cy, 68, 12);
-          ctx.fillRect(cx + 10, cy - 6, 44, 6);
-        }
-      }
+      // 3. 動態搖曳火把暖光暈（對應底圖中下層壁掛火把位置）
+      const flk = 0.85 + Math.sin(nowTs * 0.022) * 0.15;
+      const torchPts = [
+        [mirrorBg ? w * 0.405 : w * 0.595, h * 0.53],
+        [mirrorBg ? w * 0.605 : w * 0.395, h * 0.79]
+      ];
+      torchPts.forEach(([tx, ty]) => {
+        const tg = ctx.createRadialGradient(tx, ty, 3, tx, ty, 34 * flk);
+        tg.addColorStop(0, "rgba(251, 146, 60, 0.42)");
+        tg.addColorStop(1, "rgba(251, 146, 60, 0)");
+        ctx.fillStyle = tg;
+        ctx.beginPath(); ctx.arc(tx, ty, 34 * flk, 0, Math.PI * 2); ctx.fill();
+      });
 
-      if (theme.isGround) {
-        const gY = h - 34 + fgScroll * 0.6;
-        ctx.fillStyle = "#14532D"; ctx.fillRect(0, gY - 12, w, 16);
-        ctx.fillStyle = "#166534"; ctx.fillRect(0, gY, w, 50);
-        ctx.fillStyle = "#064E3B";
-        for (let tx = 6; tx < w; tx += 26) {
-          ctx.fillRect(tx, gY - 18, 16, 14);
-          ctx.fillRect(tx + 3, gY - 24, 10, 6);
-        }
-      }
-
-      // ========== 第 2 層（中層剖面）：挖空的暗色塔內空間 ＋ 後牆透天拱窗 ＋ 壁掛火把 ==========
-      const tw = Math.round(w * theme.widthRatio);
-      const tx0 = Math.round((w - tw) / 2);
-      const tx1 = tx0 + tw;
-      const wallThick = 20;
-      const ix0 = tx0 + wallThick;
-      const ix1 = tx1 - wallThick;
-      const iw = ix1 - ix0;
-
-      // 塔內深色室內後牆
-      ctx.fillStyle = theme.intWall;
-      ctx.fillRect(ix0, 0, iw, h);
-
-      // 塔內後牆錯縫微暗磚紋
-      ctx.strokeStyle = theme.intBrick;
-      ctx.lineWidth = 1.5;
-      const brickH = 16;
-      const startRow = Math.floor(-fgScroll / brickH) - 1;
-      for (let r = startRow; r < startRow + 24; r++) {
-        const by = Math.round(r * brickH + fgScroll);
-        ctx.beginPath(); ctx.moveTo(ix0, by); ctx.lineTo(ix1, by); ctx.stroke();
-        const off = (r % 2 === 0) ? 0 : 16;
-        for (let bx = ix0 + off + 16; bx < ix1 - 4; bx += 32) {
-          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by + brickH); ctx.stroke();
-        }
-      }
-
-      // 樓層縱向座標：頂部挑高 Mega 王座大廳 (y=0..96)，中層 toFloor (y=176)，底層 fromFloor (y=272)
-      const yTopFloor  = 96;
-      const yToFloor   = 186 + Math.round(fgScroll * 0.22);
-      const yFromFloor = 278 + Math.round(fgScroll * 0.22);
-
-      // 室內後牆拱形透天窗（露出外面天色，強化「在塔裡面」的空間感）
-      const drawInteriorWindow = (wx, wy, ww, wh) => {
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(wx - 2, wy - 2, ww + 4, wh + 4);
-        ctx.fillStyle = theme.skyMid;
-        ctx.fillRect(wx, wy, ww, wh);
-        ctx.fillStyle = theme.skyTop;
-        ctx.fillRect(wx, wy, ww, Math.round(wh * 0.45));
-        // 窗格十字框
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(wx + Math.round(ww / 2) - 1, wy, 2, wh);
-        ctx.fillRect(wx, wy + Math.round(wh * 0.45), ww, 2);
-      };
-      drawInteriorWindow(Math.round(w / 2 - 14), yToFloor - 54, 28, 36);
-      drawInteriorWindow(Math.round(w / 2 - 14), yFromFloor - 54, 28, 36);
-
-      // 室內左右壁掛搖曳火把
-      const flicker = Math.sin(nowTs * 0.018) * 1.5;
-      const drawWallTorch = (fx, fy) => {
-        const g = ctx.createRadialGradient(fx, fy - 4, 2, fx, fy - 4, 24 + flicker);
-        g.addColorStop(0, "rgba(251, 146, 60, 0.55)");
-        g.addColorStop(1, "rgba(251, 146, 60, 0)");
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(fx, fy - 4, 24 + flicker, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#78350F"; ctx.fillRect(fx - 2, fy, 4, 9);
-        ctx.fillStyle = "#F97316"; ctx.fillRect(fx - 3, fy - 6, 6, 7);
-        ctx.fillStyle = "#FEF08A"; ctx.fillRect(fx - 1, fy - 5 - (flicker > 0 ? 1 : 0), 3, 4);
-      };
-      drawWallTorch(ix0 + 14, yToFloor - 36);
-      drawWallTorch(ix1 - 14, yToFloor - 36);
-      drawWallTorch(ix0 + 14, yFromFloor - 36);
-      drawWallTorch(ix1 - 14, yFromFloor - 36);
-
-      // 頂部挑高 Mega 王座大廳（雙倍空間 ＋ 紅金聚光燈 ＋ 石王座 ＋ 首領剪影）
-      const spot = ctx.createLinearGradient(w / 2, 0, w / 2, yTopFloor);
-      spot.addColorStop(0, toFloor === nextBossFloor ? "rgba(239, 68, 68, 0.48)" : "rgba(250, 204, 21, 0.22)");
+      // 4. 頂部挑高 Mega 王座祭壇（y=34% 處石座）：疊加聚光燈與鎮守 Mega 首領剪影
+      const altarX = w * 0.5;
+      const altarY = h * 0.34;
+      const isBossNow = (toFloor === nextBossFloor);
+      const spot = ctx.createLinearGradient(altarX, 0, altarX, altarY);
+      spot.addColorStop(0, isBossNow ? "rgba(239, 68, 68, 0.42)" : "rgba(250, 204, 21, 0.18)");
       spot.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx.fillStyle = spot;
-      ctx.fillRect(ix0 + 12, 0, iw - 24, yTopFloor);
-
-      // 王座石階底座
-      ctx.fillStyle = "#0F172A"; ctx.fillRect(w / 2 - 44, yTopFloor - 12, 88, 12);
-      ctx.fillStyle = "#991B1B"; ctx.fillRect(w / 2 - 42, yTopFloor - 10, 84, 10);
-      ctx.fillStyle = "#FACC15"; ctx.fillRect(w / 2 - 42, yTopFloor - 10, 84, 3);
+      ctx.fillRect(altarX - 58, 0, 116, altarY);
 
       if (nextBossData && nextBossData.forward_sprite) {
         const bRec = SpriteCache.get(nextBossData.forward_sprite);
         if (bRec && bRec.loaded) {
-          const sil = SpriteCache.getSilhouette ? SpriteCache.getSilhouette(nextBossData.forward_sprite, toFloor === nextBossFloor ? "#EF4444" : "#334155") : bRec.img;
+          const sil = SpriteCache.getSilhouette ? SpriteCache.getSilhouette(nextBossData.forward_sprite, isBossNow ? "#EF4444" : "#0F172A") : bRec.img;
           ctx.save();
-          ctx.globalAlpha = toFloor === nextBossFloor ? 0.96 : 0.72;
-          ctx.drawImage(sil || bRec.img, w / 2 - 32, yTopFloor - 70, 64, 64);
+          ctx.globalAlpha = isBossNow ? 0.94 : 0.76;
+          ctx.drawImage(sil || bRec.img, Math.round(altarX - 34), Math.round(altarY - 68), 68, 68);
           ctx.restore();
         }
       }
 
-      // 實心橫向石造樓板（明確隔開每層室內空間）
-      const drawFloorSlab = (sy, isBossSlab = false) => {
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(ix0, sy, iw, 12);
-        ctx.fillStyle = isBossSlab ? "#B91C1C" : theme.slab;
-        ctx.fillRect(ix0, sy + 2, iw, 8);
-        ctx.fillStyle = isBossSlab ? "#FACC15" : theme.slabHi;
-        ctx.fillRect(ix0, sy + 2, iw, 3);
-      };
-      drawFloorSlab(yTopFloor, true);
-      drawFloorSlab(yToFloor, false);
-      drawFloorSlab(yFromFloor, false);
-
-      // 王座大廳樓層牌
-      ctx.fillStyle = "#0F172A";
+      // 頂部王座樓層徽章
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
       ctx.strokeStyle = "#FACC15";
       ctx.lineWidth = 2;
-      ctx.fillRect(w / 2 - 38, yTopFloor + 14, 76, 16);
-      ctx.strokeRect(w / 2 - 38, yTopFloor + 14, 76, 16);
+      ctx.fillRect(altarX - 42, h * 0.385, 84, 17);
+      ctx.strokeRect(altarX - 42, h * 0.385, 84, 17);
       ctx.fillStyle = "#FEF08A";
       ctx.font = "900 8px 'Press Start 2P', monospace";
       ctx.textAlign = "center";
-      ctx.fillText(`MEGA ${nextBossFloor}F`, w / 2, yTopFloor + 25);
+      ctx.fillText(`MEGA ${nextBossFloor}F`, altarX, h * 0.385 + 12);
 
-      // 塔內斜向像素石階（實實在在建在塔內，連接 fromFloor 與 toFloor 兩塊樓板！）
-      const xStart = climbLeftToRight ? (ix0 + 34) : (ix1 - 34);
-      const xEnd   = climbLeftToRight ? (ix1 - 34) : (ix0 + 34);
-      const steps = 9;
-      for (let i = 0; i <= steps; i++) {
-        const stT = i / steps;
-        const sx = Math.round(xStart + (xEnd - xStart) * stT);
-        const sy = Math.round(yFromFloor + (yToFloor - yFromFloor) * stT);
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(sx - 16, sy - 2, 32, 9);
-        ctx.fillStyle = theme.stair;
-        ctx.fillRect(sx - 14, sy, 28, 5);
-        ctx.fillStyle = theme.trim;
-        ctx.fillRect(sx - 14, sy, 28, 2);
+      // 5. 訓練家與寶可夢沿真實精繪石階攀登（精準對齊底圖斜向階梯路徑）
+      // 底圖原圖階梯路徑：底層右中 (0.60, 0.91) ➔ 轉折 (0.74, 0.80) ➔ 中層樓板 (0.62, 0.66) ➔ 轉折 (0.40, 0.66) ➔ 上段 (0.26, 0.54)
+      const normWaypoints = isBossNow
+        ? [[0.42, 0.66], [0.28, 0.55], [0.36, 0.44], [0.50, 0.37]]
+        : [[0.56, 0.92], [0.73, 0.80], [0.62, 0.66], [0.46, 0.66]];
+      const pts = normWaypoints.map(([nx, ny]) => [mirrorBg ? (1 - nx) * w : nx * w, ny * h]);
+
+      // 依總路徑折線插值計算角色當前座標與面向
+      const segLens = [];
+      let totalLen = 0;
+      for (let i = 0; i < pts.length - 1; i++) {
+        const d = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+        segLens.push(d);
+        totalLen += d;
+      }
+      let targetD = ease * totalLen;
+      let curX = pts[0][0], curY = pts[0][1], dirX = 1;
+      for (let i = 0; i < segLens.length; i++) {
+        if (targetD <= segLens[i] || i === segLens.length - 1) {
+          const st = segLens[i] > 0 ? Math.min(1, targetD / segLens[i]) : 1;
+          curX = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * st;
+          curY = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * st;
+          dirX = (pts[i + 1][0] - pts[i][0]) >= 0 ? 1 : -1;
+          break;
+        }
+        targetD -= segLens[i];
       }
 
-      // 訓練家 ＋ 寶可夢真正「在塔內」沿著室內石階往上爬
-      const curX = xStart + (xEnd - xStart) * ease;
-      const curY = yFromFloor + (yToFloor - yFromFloor) * ease;
-      const bob = t < 0.94 ? Math.abs(Math.sin(t * 24)) * 5 : 0;
+      const bob = t < 0.94 ? Math.abs(Math.sin(t * 26)) * 4.5 : 0;
       const pRec = SpriteCache.get(pSprUrl);
       const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
 
-      ctx.fillStyle = "rgba(2, 6, 23, 0.55)";
-      ctx.beginPath(); ctx.ellipse(curX, curY - 1, 24, 5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(2, 6, 23, 0.58)";
+      ctx.beginPath(); ctx.ellipse(curX, curY - 1, 22, 5, 0, 0, Math.PI * 2); ctx.fill();
 
       const drawFacingSprite = (img, cx, cy, sz, flip) => {
         ctx.save();
@@ -1892,58 +1775,45 @@ window.ModeTower = {
         ctx.drawImage(img, -sz / 2, -sz, sz, sz);
         ctx.restore();
       };
-      const leadOffset = climbLeftToRight ? 13 : -13;
-      if (tRec && tRec.loaded) drawFacingSprite(tRec.img, curX - leadOffset, curY - bob, 34, !climbLeftToRight);
-      if (pRec && pRec.loaded) drawFacingSprite(pRec.img, curX + leadOffset, curY - bob, 38, !climbLeftToRight);
+      const leadOff = dirX * 12;
+      if (tRec && tRec.loaded) drawFacingSprite(tRec.img, curX - leadOff, curY - bob, 32, dirX < 0);
+      if (pRec && pRec.loaded) drawFacingSprite(pRec.img, curX + leadOff, curY - bob, 36, dirX < 0);
 
-      // 抵達新樓層光環
-      if (t > 0.85) {
-        const ringT = (t - 0.85) / 0.15;
-        ctx.strokeStyle = `rgba(250, 204, 21, ${1 - ringT})`;
-        ctx.lineWidth = 4;
-        ctx.beginPath(); ctx.arc(xEnd, yToFloor - 12, 10 + ringT * 32, 0, Math.PI * 2); ctx.stroke();
-      }
-
-      // ========== 第 3 層（前景框層）：厚實外牆剖面切口 ＋ 外側樓層標牌 ==========
-      const drawCutawayWall = (wx) => {
-        ctx.fillStyle = "#0F172A";
-        ctx.fillRect(wx - 2, 0, wallThick + 4, h);
-        ctx.fillStyle = theme.extMain;
-        ctx.fillRect(wx, 0, wallThick, h);
-        ctx.fillStyle = theme.extHi;
-        ctx.fillRect(wx + 2, 0, 4, h);
-        ctx.fillStyle = theme.extDk;
-        ctx.fillRect(wx + wallThick - 5, 0, 5, h);
-        // 外牆剖面橫磚縫
-        ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
-        for (let r = startRow; r < startRow + 24; r++) {
-          ctx.fillRect(wx, Math.round(r * brickH + fgScroll), wallThick, 2);
-        }
-      };
-      drawCutawayWall(tx0);
-      drawCutawayWall(ix1);
-
-      // 左右外側樓層刻度牌（乾淨不遮擋塔內人物）
+      // 6. 左右邊緣樓層刻度標牌（對應起點層與目標層）
       const drawSideTag = (isLeft, ly, label, col, active) => {
-        const bx = isLeft ? Math.max(4, tx0 - 48) : Math.min(w - 50, tx1 + 4);
-        ctx.fillStyle = "#0F172A";
+        const bx = isLeft ? 6 : (w - 50);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
         ctx.strokeStyle = col;
         ctx.lineWidth = active ? 2.5 : 1.5;
-        ctx.fillRect(bx, ly - 10, 44, 19);
-        ctx.strokeRect(bx, ly - 10, 44, 19);
+        ctx.fillRect(bx, Math.round(ly - 10), 44, 19);
+        ctx.strokeRect(bx, Math.round(ly - 10), 44, 19);
         ctx.fillStyle = active ? "#FEF08A" : "#CBD5E1";
-        ctx.font = "900 8.5px 'Press Start 2P', monospace";
+        ctx.font = "900 8px 'Press Start 2P', monospace";
         ctx.textAlign = "center";
-        ctx.fillText(label, bx + 22, ly + 3);
+        ctx.fillText(label, bx + 22, Math.round(ly + 3));
       };
-      drawSideTag(climbLeftToRight, yFromFloor, `${fromFloor}F`, "#22C55E", false);
-      drawSideTag(!climbLeftToRight, yToFloor, `${toFloor}F`, toFloor % 5 === 0 ? "#EF4444" : theme.accent, true);
+      drawSideTag(!mirrorBg, h * 0.89, `${fromFloor}F`, "#22C55E", false);
+      drawSideTag(mirrorBg, isBossNow ? h * 0.36 : h * 0.64, `${toFloor}F`, isBossNow ? "#EF4444" : theme.accent, true);
 
-      if (t < 1) {
-        rafId = requestAnimationFrame(drawFrame);
-      } else {
-        setTimeout(finish, 80);
+      // 飄浮海拔環境光塵
+      ctx.fillStyle = theme.particleCol;
+      for (let i = 0; i < 10; i++) {
+        const px = ((i * 41 + nowTs * 0.012) % w);
+        const py = h - ((i * 37 + nowTs * 0.022) % h);
+        ctx.globalAlpha = 0.45;
+        ctx.fillRect(Math.round(px), Math.round(py), 2, 2);
       }
+      ctx.globalAlpha = 1;
+
+      if (t > 0.86) {
+        const ringT = (t - 0.86) / 0.14;
+        ctx.strokeStyle = `rgba(250, 204, 21, ${1 - ringT})`;
+        ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.arc(curX, curY - 12, 10 + ringT * 30, 0, Math.PI * 2); ctx.stroke();
+      }
+
+      if (t < 1) rafId = requestAnimationFrame(drawFrame);
+      else setTimeout(finish, 70);
     };
     rafId = requestAnimationFrame(drawFrame);
   },
