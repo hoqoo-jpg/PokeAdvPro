@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.7.1";
+        const ver = this.APP_VERSION || "v7.7.2";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -569,7 +569,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.7.1";
+      const curVer = this.APP_VERSION || "v7.7.2";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1100,8 +1100,14 @@ Object.assign(window.GameApp, {
 
     document.getElementById("difficultyGrid").innerHTML = DIFFICULTIES.map(d => {
       const sel = this.selectedDifficulty.id === d.id;
+      const isRec = (d.id === "normal");
+      const isWarmup = (d.id === "casual" && this.selectedGameMode === "standard");
+      const recPill = isRec
+        ? `<span class="absolute -top-2 right-1 px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[7.5px] font-black shadow border border-white whitespace-nowrap">★新手推薦</span>`
+        : (isWarmup ? `<span class="absolute -top-2 right-1 px-1.5 py-0.2 rounded-full bg-sky-600 text-white text-[7.5px] font-black shadow border border-white whitespace-nowrap">首局暖身</span>` : "");
       return `
-        <button type="button" onclick="GameApp.selectDifficulty('${d.id}')" class="px-2 py-2 rounded-xl border-2 text-center transition-all ${sel ? 'bg-red-600 text-white border-red-800 shadow-md' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'}">
+        <button type="button" onclick="GameApp.selectDifficulty('${d.id}')" class="relative px-2 py-2 rounded-xl border-2 text-center transition-all ${sel ? 'bg-red-600 text-white border-red-800 shadow-md' : 'bg-white text-slate-800 border-slate-300 hover:bg-slate-50'}">
+          ${recPill}
           <div class="font-black text-xs leading-tight">${d.name}</div>
           <div class="text-[9px] font-bold ${sel ? 'text-amber-200' : 'text-amber-700'} mt-0.5">${d.badge}</div>
         </button>
@@ -1414,7 +1420,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.7.1",
+      lastSeenVersion: this.APP_VERSION || "v7.7.2",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1713,10 +1719,11 @@ Object.assign(window.GameApp, {
     if (diffGrid && diffs.length > 0) {
       diffGrid.innerHTML = diffs.map(d => {
         const sel = activeDiff.id === d.id;
+        const isRec = (d.id === "standard");
         return `
-          <div onclick="GameApp.selectArenaDifficulty('${d.id}')" class="poke-card cursor-pointer p-2 flex flex-col justify-between ${sel ? 'selected ring-2 ring-red-500' : ''}">
+          <div onclick="GameApp.selectArenaDifficulty('${d.id}')" class="poke-card relative cursor-pointer p-2 flex flex-col justify-between ${sel ? 'selected ring-2 ring-red-500' : ''}">
             <div class="flex items-center justify-between gap-1 mb-0.5">
-              <span class="font-black text-xs text-slate-900">${d.name}</span>
+              <span class="font-black text-xs text-slate-900 flex items-center gap-1">${d.name}${isRec ? `<span class="px-1.5 py-0.2 rounded-full bg-emerald-600 text-white text-[8px] font-black">★新手推薦</span>` : ""}</span>
               <span class="px-1.5 py-0.2 rounded-full text-[9px] font-black ${sel ? 'bg-red-600 text-white' : 'bg-amber-100 text-amber-800'} shrink-0">${d.badge}</span>
             </div>
             <p class="text-[9px] font-bold text-slate-600 leading-snug">${d.desc}</p>
@@ -3014,26 +3021,26 @@ Object.assign(window.GameApp, {
       diffMult = ({ standard: 1.0, master: 1.3, champion: 1.6 })[diffId] || 1.0;
       modeLabel = `1VS1 ARENA · ${ad.name || "標準試煉"}`;
 
-      const parSec = ({ standard: 36, master: 56, champion: 78 })[diffId] || 40;
-      const parDps = ({ standard: 540, master: 700, champion: 860 })[diffId] || 580;
+      // v7.7.2 業界動作單挑評分嚴格校準：杜絕硬扛受擊 10 次、0 閃避拿 S+
+      const parSec = ({ standard: 24, master: 32, champion: 45 })[diffId] || 28;
+      const parDps = ({ standard: 750, master: 1050, champion: 1350 })[diffId] || 800;
 
-      hex.atk = clamp(25 + (dps / parDps) * 75, 15, 100);
-      // v7.4.1 實測校準：放緩受擊斜率（7.5 -> 4.5）並設勝場保底 35 分
+      hex.atk = clamp(22 + (dps / parDps) * 78, 15, 100);
       hex.sur = (rs.hitsTaken === 0 && isVictory)
         ? 100
-        : clamp(100 - rs.hitsTaken * 4.5 - dmgRatio * 20 - (isVictory ? 0 : 20), isVictory ? 35 : 12, 100);
+        : clamp(100 - rs.hitsTaken * 7.0 - dmgRatio * 24 - (isVictory ? 0 : 20), 12, 100);
       if (isVictory) {
         const clearSec = (this.lastArenaResult && this.lastArenaResult.clearSec) || runSec;
-        hex.spd = clamp(100 - Math.max(0, clearSec - parSec) * 0.85, 52, 100);
+        hex.spd = clamp(100 - Math.max(0, clearSec - parSec) * 1.15, 45, 100);
       } else {
         const bossRemainPct = (this.activeBoss && this.activeBoss.maxHp > 0) ? (this.activeBoss.hp / this.activeBoss.maxHp) : 0.7;
         hex.spd = clamp((1 - bossRemainPct) * 65, 12, 65);
       }
-      // 戰術納入完美閃避 ＋ 屬性克制 ＋ 異常控場 ＋ 訓練家大招
-      hex.tac = clamp(38 + Math.min(40, rs.perfectDodges * 16) + seRatio * 48 + Math.min(22, rs.statusProcs * 3.5) + Math.min(16, trUses * 8), 25, 100);
-      const stabBonus = seRatio >= 0.30 ? 18 : 10;
-      hex.bld = clamp(56 + (isMega ? 24 : 0) + evolvedSkills * 12 + (p.isTrainerBond ? 10 : 0) + stabBonus, 35, 100);
-      const tierBase = diffId === "champion" ? 90 : (diffId === "master" ? 76 : 62);
+      // 戰術強調主動完美閃避（0 閃避無法單靠屬性克制拿滿分）
+      hex.tac = clamp(28 + Math.min(40, rs.perfectDodges * 16) + seRatio * 32 + Math.min(18, rs.statusProcs * 3.0) + Math.min(14, trUses * 7), 20, 100);
+      const stabBonus = seRatio >= 0.30 ? 14 : 6;
+      hex.bld = clamp(42 + (isMega ? 24 : 0) + evolvedSkills * 14 + (p.isTrainerBond ? 10 : 0) + stabBonus, 30, 100);
+      const tierBase = diffId === "champion" ? 76 : (diffId === "master" ? 62 : 48);
       hex.eco = clamp(tierBase + rs.arenaPowerupsPicked * 8 - (isVictory ? 0 : 18), 20, 100);
 
       hardcoreMasterGate = diffId === "master" || diffId === "champion" || rs.hitsTaken === 0;
@@ -3094,8 +3101,11 @@ Object.assign(window.GameApp, {
       else if (avgHex >= 54) rank = "B";
       else rank = "C";
     } else {
-      if (avgHex >= 90 && hardcoreMasterGate) rank = "MASTER";
-      else if (avgHex >= 85) rank = "S+";
+      // v7.7.2 全模式木桶短板防線：S+ 需生存 >= 65；MASTER 需全軸 >= 75（1vs1 另需受擊 <= 2 次）
+      const minHex = Math.min(hex.atk, hex.sur, hex.spd, hex.tac, hex.bld, hex.eco);
+      const arenaMasterOk = (modeKey !== "arena" || rs.hitsTaken <= 2);
+      if (avgHex >= 90 && hardcoreMasterGate && minHex >= 75 && arenaMasterOk) rank = "MASTER";
+      else if (avgHex >= 85 && hex.sur >= 65) rank = "S+";
       else if (avgHex >= 73) rank = "S";
       else if (avgHex >= 60) rank = "A";
       else if (avgHex >= 46) rank = "B";
@@ -3119,7 +3129,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.7.1",
+      version: this.APP_VERSION || "v7.7.2",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3799,7 +3809,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.1</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.2</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3838,7 +3848,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.7.1</strong>：實裝全新 4×4 原生 GBA 像素 UI 圖集（16 枚透明去背圖示），全面替換大廳按鈕、換裝鈕、十大事件提示條與場外邊緣方向箭頭圖示。</div>
+            <div>• <strong class="text-amber-300">v7.7.2</strong>：大廳雙核心排版（首推大遠征＋推薦8分鐘 5 張地圖）與各模式新手推薦難度標註；UI 圖集擴至 20 枚並升級空投/寶箱/信標為 32×32 HD 像素；1vs1 評分嚴格化＋全模式短板防線；全站彈窗亮色對比治本與 GBA 色帶統一。</div>
+            <div>• <strong class="text-slate-300">v7.7.1</strong>：實裝全新 4×4 原生 GBA 像素 UI 圖集（16 枚透明去背圖示），全面替換大廳按鈕、換裝鈕、十大事件提示條與場外邊緣方向箭頭圖示。</div>
             <div>• <strong class="text-slate-300">v7.7.0</strong>：實裝十大隨機突發事件系統（信標佔領、空投箱、雙寶箱百變怪、電磁風暴、迷霧2x經驗、聯盟契約等，附邊緣箭頭指引）；結算頁 GBA 色帶粗框升級與大廳陣容卡收緊間距。</div>
             <div>• <strong class="text-slate-300">v7.6.13</strong>：大廳進化列改「上圖下文」大像素圖；大遠征主卡與過場走路畫框統一亮色主題；放大征途 6 區預覽圖並全面改用 Wave 寫法；路線節點純色化去重。</div>
             <div>• <strong class="text-slate-300">v7.6.12</strong>：大廳進化列單行化與「初始／禁用」明示按鈕；「更換陣容」與「模式出發」動線職責分離；大遠征 6 區地圖改為唯讀連續路線軸（附 ➔ 箭頭）。</div>
@@ -3854,7 +3865,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.7.1";
+    const curVer = this.APP_VERSION || "v7.7.2";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

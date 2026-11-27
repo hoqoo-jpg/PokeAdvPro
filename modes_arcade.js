@@ -894,7 +894,8 @@ window.FieldEventsEngine = {
     expedition: [0, 0], arena: [1, 0], lab: [2, 0], trophy: [3, 0],
     costume: [0, 1], settings: [1, 1], energy_beacon: [2, 1], rocket_airdrop: [3, 1],
     chansey_patrol: [0, 2], meowth_convoy: [1, 2], shiny_swarm: [2, 2], ditto_chests: [3, 2],
-    overdrive_storm: [0, 3], exp_mist: [1, 3], rival_ambush: [2, 3], league_contract: [3, 3]
+    overdrive_storm: [0, 3], exp_mist: [1, 3], rival_ambush: [2, 3], league_contract: [3, 3],
+    pokedex: [0, 4], timer: [1, 4], abyss: [2, 4], mart: [3, 4]
   },
   getIconSrcRect(key) {
     const pos = this.UI_CELLS[key];

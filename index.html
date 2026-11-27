@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.7.1');
+      background-image: url('images/skills_icons_sheet.png?v=7.7.2');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.7.1');
+      background-image: url('images/skills_icons_extra5.png?v=7.7.2');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1095,11 +1095,11 @@
       align-items: center;
       gap: 4px;
     }
-    /* v7.7.1 GBA 像素 UI 圖集 (4x4 Sprite Sheet: images/gba_ui_icons_sheet.png) */
+    /* v7.7.2 GBA 像素 UI 圖集 (4x5 Sprite Sheet: 20 icons, 含 32x32 HD 空投/寶箱/信標) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.7.1');
-      background-size: 400% 400%;
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.7.2');
+      background-size: 400% 500%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
@@ -1110,18 +1110,126 @@
     .gba-ui-arena           { background-position: 33.333% 0%; }
     .gba-ui-lab             { background-position: 66.666% 0%; }
     .gba-ui-trophy          { background-position: 100% 0%; }
-    .gba-ui-costume         { background-position: 0% 33.333%; }
-    .gba-ui-settings        { background-position: 33.333% 33.333%; }
-    .gba-ui-energy_beacon   { background-position: 66.666% 33.333%; }
-    .gba-ui-rocket_airdrop  { background-position: 100% 33.333%; }
-    .gba-ui-chansey_patrol  { background-position: 0% 66.666%; }
-    .gba-ui-meowth_convoy   { background-position: 33.333% 66.666%; }
-    .gba-ui-shiny_swarm     { background-position: 66.666% 66.666%; }
-    .gba-ui-ditto_chests    { background-position: 100% 66.666%; }
-    .gba-ui-overdrive_storm { background-position: 0% 100%; }
-    .gba-ui-exp_mist        { background-position: 33.333% 100%; }
-    .gba-ui-rival_ambush    { background-position: 66.666% 100%; }
-    .gba-ui-league_contract { background-position: 100% 100%; }
+    .gba-ui-costume         { background-position: 0% 25%; }
+    .gba-ui-settings        { background-position: 33.333% 25%; }
+    .gba-ui-energy_beacon   { background-position: 66.666% 25%; }
+    .gba-ui-rocket_airdrop  { background-position: 100% 25%; }
+    .gba-ui-chansey_patrol  { background-position: 0% 50%; }
+    .gba-ui-meowth_convoy   { background-position: 33.333% 50%; }
+    .gba-ui-shiny_swarm     { background-position: 66.666% 50%; }
+    .gba-ui-ditto_chests    { background-position: 100% 50%; }
+    .gba-ui-overdrive_storm { background-position: 0% 75%; }
+    .gba-ui-exp_mist        { background-position: 33.333% 75%; }
+    .gba-ui-rival_ambush    { background-position: 66.666% 75%; }
+    .gba-ui-league_contract { background-position: 100% 75%; }
+    .gba-ui-pokedex         { background-position: 0% 100%; }
+    .gba-ui-timer           { background-position: 33.333% 100%; }
+    .gba-ui-abyss           { background-position: 66.666% 100%; }
+    .gba-ui-mart            { background-position: 100% 100%; }
+
+    /* v7.7.2 全站亮色主題治本規則：徹底根除友好商店／升級／設定／MEGA／EX／公告的暗底黑字問題，統一 GBA 粗框硬陰影 */
+    body:not(.theme-dark-gold) #pokeMartModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #pokeMartModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #pokeMartModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #levelUpModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #levelUpModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #levelUpModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #settingsModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #settingsModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #settingsModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #changelogModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #changelogModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #changelogModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #megaInfoModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #megaInfoModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #megaInfoModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #expExChoiceModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #expExChoiceModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #expExChoiceModal [class*="bg-slate-950"],
+    body:not(.theme-dark-gold) #pixelDialogModal [class*="bg-slate-800"],
+    body:not(.theme-dark-gold) #pixelDialogModal [class*="bg-slate-900"],
+    body:not(.theme-dark-gold) #pixelDialogModal [class*="bg-slate-950"] {
+      background-color: #FFFFFF !important;
+      border-color: #1E293B !important;
+    }
+    body:not(.theme-dark-gold) #pokeMartModal > .poke-card,
+    body:not(.theme-dark-gold) #levelUpModal > div,
+    body:not(.theme-dark-gold) #settingsModal > .poke-card,
+    body:not(.theme-dark-gold) #changelogModal > .poke-card,
+    body:not(.theme-dark-gold) #megaInfoModal > .poke-card,
+    body:not(.theme-dark-gold) #expExChoiceModal > div,
+    body:not(.theme-dark-gold) #pixelDialogModal > .poke-card {
+      background-color: #F1F5F9 !important;
+      border: 3px solid #0F172A !important;
+      color: #0F172A !important;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35) !important;
+    }
+    body:not(.theme-dark-gold) #pokeMartModal .text-slate-400,
+    body:not(.theme-dark-gold) #megaInfoModal .text-slate-400,
+    body:not(.theme-dark-gold) #changelogModal .text-slate-400,
+    body:not(.theme-dark-gold) #expExChoiceModal .text-slate-400,
+    body:not(.theme-dark-gold) #pixelDialogModal .text-slate-400 {
+      color: #475569 !important;
+    }
+    /* 保留友好商店與升級彈窗內深色圖示底盒與彩色標籤白字 */
+    body:not(.theme-dark-gold) #pokeMartModal .bg-emerald-600,
+    body:not(.theme-dark-gold) #pokeMartModal .bg-rose-600,
+    body:not(.theme-dark-gold) #pokeMartModal .bg-red-600,
+    body:not(.theme-dark-gold) #pokeMartModal .bg-sky-600,
+    body:not(.theme-dark-gold) #pokeMartModal .bg-purple-600,
+    body:not(.theme-dark-gold) #pokeMartModal .bg-indigo-600 {
+      color: #FFFFFF !important;
+    }
+    /* 大廳第二推薦「8分鐘標準」亮色主題白藍卡底 */
+    body:not(.theme-dark-gold) #lobbyStandardCard {
+      background: linear-gradient(135deg, #FFFFFF 0%, #EFF6FF 65%, #DBEAFE 100%) !important;
+      border-color: #1E293B !important;
+      color: #0F172A !important;
+    }
+    body:not(.theme-dark-gold) #lobbyStandardCard .text-sky-300 {
+      color: #1D4ED8 !important;
+    }
+    body:not(.theme-dark-gold) #lobbyStandardCard .text-slate-300 {
+      color: #475569 !important;
+    }
+    /* 統一 GBA 彈窗滿版色帶頂欄 */
+    .gba-modal-head {
+      margin: -1rem -1rem 0.75rem -1rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 3px solid #0F172A;
+    }
+    .gba-modal-head * {
+      color: #FFFFFF !important;
+    }
+    .gba-modal-head .gba-head-sub,
+    .gba-modal-head #martCoinsDisplay,
+    .gba-modal-head #settingsVersionBadge {
+      color: #FEF08A !important;
+    }
+    body:not(.theme-dark-gold) .gba-modal-head .bg-slate-800 {
+      background-color: rgba(15, 23, 42, 0.72) !important;
+      border-color: #FACC15 !important;
+    }
+    /* 深藍黑金主題下補齊聯盟緊急契約配色 */
+    body.theme-dark-gold #fieldEventContractModal > .poke-card {
+      background-color: #0F172A !important;
+      border-color: #FACC15 !important;
+    }
+    body.theme-dark-gold #fieldEventContractModal .bg-slate-100 {
+      background-color: #0F172A !important;
+    }
+    body.theme-dark-gold #fieldEventContractModal button.bg-white {
+      background-color: #1E293B !important;
+    }
+    body.theme-dark-gold #fieldEventContractModal button .text-slate-700 {
+      color: #E2E8F0 !important;
+    }
+    body.theme-dark-gold #fieldEventContractModal button .text-rose-700 {
+      color: #FDA4AF !important;
+    }
+    body.theme-dark-gold #fieldEventContractModal button .text-emerald-700 {
+      color: #6EE7B7 !important;
+    }
   </style>
   <script>
     (function () {
@@ -1222,7 +1330,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.7.1
+      v7.7.2
     </div>
   </div>
 
@@ -1306,12 +1414,12 @@
 
     <!-- 底部主要模式直達入口群（1 主打大遠征 ＋ 3 副模式一眼看懂全內容） -->
     <div class="w-full max-w-md mx-auto flex flex-col gap-2 z-10 shrink-0 mb-1">
-      <!-- 主推模式大卡：關都大遠征 -->
+      <!-- NO.1 首推主線：關都大遠征 -->
       <div id="lobbyExpeditionCard" onclick="GameApp.openModeFromLobby('expedition')" class="poke-card cursor-pointer p-2.5 bg-slate-900/95 border-2 border-amber-400 text-white shadow-xl space-y-2">
         <div class="flex items-center justify-between gap-2">
           <div class="min-w-0">
-            <div class="flex items-center gap-1.5">
-              <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-pixel text-[8px] font-black">主線 RPG</span>
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="px-1.5 py-0.5 rounded bg-emerald-600 text-white font-pixel text-[8px] font-black">★ 首推 ‧ 主線 RPG</span>
               <span class="font-black text-sm text-amber-300 truncate">關都大遠征</span>
             </div>
             <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">6 大區域 ‧ 20+1 關推進 ‧ 三聖鳥歸位</div>
@@ -1323,19 +1431,36 @@
         </div>
       </div>
 
-      <!-- 3 格副模式直達卡 -->
-      <div class="grid grid-cols-3 gap-1.5">
-        <button onclick="GameApp.openModeFromLobby('standard')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
-          <span class="font-black text-[11px] text-slate-900 leading-tight">8分鐘標準</span>
-          <span class="text-[9px] font-bold text-blue-700">3張生態地圖</span>
+      <!-- NO.2 推薦核心玩法：8分鐘標準（獨立寬幅中卡，明確顯示 5 張生態地圖） -->
+      <button id="lobbyStandardCard" type="button" onclick="GameApp.openModeFromLobby('standard')" class="poke-card w-full text-left cursor-pointer px-2.5 py-2 bg-slate-900/95 border-2 border-sky-400 text-white shadow-lg flex items-center justify-between gap-2 hover:scale-[1.01] transition-transform">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="px-1.5 py-0.5 rounded bg-blue-600 text-white font-pixel text-[8px] font-black">🔥 推薦 ‧ 經典割草</span>
+            <span class="font-black text-xs sm:text-sm text-sky-300 truncate">8分鐘標準模式</span>
+          </div>
+          <div class="text-[10px] font-bold text-slate-300 mt-0.5 truncate">5 張生態地圖任選 ‧ 8 分鐘極速登冠</div>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="gba-ui-icon gba-ui-timer w-6 h-6"></span>
+          <span class="font-black text-xs text-blue-600">→</span>
+        </div>
+      </button>
+
+      <!-- 2 格進階副模式直達卡（1vs1 鬥技場 / 無盡深淵） -->
+      <div class="grid grid-cols-2 gap-1.5">
+        <button onclick="GameApp.openModeFromLobby('arena')" class="poke-btn-white py-2 px-2 shadow flex items-center justify-center gap-2">
+          <span class="gba-ui-icon gba-ui-arena w-5 h-5 shrink-0"></span>
+          <div class="text-left min-w-0">
+            <div class="font-black text-[11px] text-slate-900 leading-tight truncate">1vs1 鬥技場</div>
+            <div id="lobbyArenaSubText" class="text-[9px] font-bold text-rose-700 truncate">5大神獸 (0/5)</div>
+          </div>
         </button>
-        <button onclick="GameApp.openModeFromLobby('arena')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
-          <span class="font-black text-[11px] text-slate-900 leading-tight">1vs1 鬥技場</span>
-          <span id="lobbyArenaSubText" class="text-[9px] font-bold text-rose-700">5大神獸 (0/5)</span>
-        </button>
-        <button onclick="GameApp.openModeFromLobby('endless')" class="poke-btn-white py-2 px-1.5 text-center shadow flex flex-col items-center justify-center gap-0.5">
-          <span class="font-black text-[11px] text-slate-900 leading-tight">無盡深淵</span>
-          <span id="lobbyEndlessSubText" class="text-[9px] font-bold text-purple-700">8分後無限波</span>
+        <button onclick="GameApp.openModeFromLobby('endless')" class="poke-btn-white py-2 px-2 shadow flex items-center justify-center gap-2">
+          <span class="gba-ui-icon gba-ui-abyss w-5 h-5 shrink-0"></span>
+          <div class="text-left min-w-0">
+            <div class="font-black text-[11px] text-slate-900 leading-tight truncate">無盡深淵</div>
+            <div id="lobbyEndlessSubText" class="text-[9px] font-bold text-purple-700 truncate">8分後無限波</div>
+          </div>
         </button>
       </div>
 
@@ -1343,7 +1468,7 @@
       <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
         <button onclick="GameApp.openPokedexModal()" class="poke-btn-white relative py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-book-open text-red-500 text-xs sm:text-sm"></i>
+            <span class="gba-ui-icon gba-ui-pokedex w-4 h-4"></span>
             <span>151 圖鑑</span>
           </div>
           <span id="pokedexRewardBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
@@ -1873,11 +1998,11 @@
   
   <!-- 友好商店採購彈窗 (Poké Mart Modal - 支援滿槽自選遺忘) -->
 <div id="pokeMartModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
-  <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-sky-400 text-white shadow-2xl">
-    <div class="flex items-center justify-between border-b border-slate-700 pb-2 mb-2.5">
+  <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-sky-400 text-white shadow-2xl overflow-hidden">
+    <div class="gba-modal-head bg-gradient-to-r from-blue-700 via-sky-600 to-blue-800 flex items-center justify-between">
       <div class="flex items-center gap-2">
-        <i class="fa-solid fa-store text-sky-400 text-base"></i>
-        <span class="font-pixel text-xs sm:text-sm text-sky-300">POKÉ MART 友好商店</span>
+        <span class="gba-ui-icon gba-ui-mart w-5 h-5"></span>
+        <span class="font-pixel text-xs sm:text-sm text-white">POKÉ MART 友好商店</span>
       </div>
       <div class="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-amber-400">
         <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/amulet-coin.png" class="w-4 h-4 pixel-sprite" alt="Coins" />
@@ -2213,11 +2338,11 @@
 
   <!-- 15B. 系統設定彈窗 (Settings Modal - 跨裝置怪量分流、復古濾鏡、傷害字體精簡、震動與FPS開關) -->
   <div id="settingsModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
-    <div class="poke-card w-full max-w-md p-4 sm:p-5 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl max-h-[88vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
+    <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl max-h-[88vh] overflow-y-auto overflow-x-hidden">
+      <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.7.1</span>
+          <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
+          <span class="font-pixel text-xs sm:text-sm text-white">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.7.2</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2260,12 +2385,12 @@
 
   <!-- 15E. 版本更新日誌彈窗 (Changelog Modal) -->
   <div id="changelogModal" class="fixed inset-0 z-[70] hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm select-none">
-    <div class="poke-card w-full max-w-md p-4 sm:p-5 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl max-h-[86vh] flex flex-col">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3 shrink-0">
+    <div class="poke-card w-full max-w-md p-4 bg-slate-900 border-2 border-amber-400 text-white shadow-2xl max-h-[86vh] flex flex-col overflow-hidden">
+      <div class="gba-modal-head bg-gradient-to-r from-red-700 via-rose-700 to-indigo-900 flex items-center justify-between shrink-0">
         <div class="flex items-center gap-2">
-          <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.7.1</span>
+          <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
+          <span class="font-pixel text-xs sm:text-sm text-white">PATCH NOTES 更新日誌</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.7.2</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2298,14 +2423,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.7.1"></script>
-  <script src="map_v11_engine.js?v=7.7.1"></script>
-  <script src="skills_engine.js?v=7.7.1"></script>
-  <script src="skills_vfx.js?v=7.7.1"></script>
-  <script src="battle_core_2.js?v=7.7.1"></script>
-  <script src="battle_renderer.js?v=7.7.1"></script>
-  <script src="modes_arcade.js?v=7.7.1"></script>
-  <script src="mode_expedition.js?v=7.7.1"></script>
-  <script src="game_ui.js?v=7.7.1"></script>
+  <script src="pokedex_data.js?v=7.7.2"></script>
+  <script src="map_v11_engine.js?v=7.7.2"></script>
+  <script src="skills_engine.js?v=7.7.2"></script>
+  <script src="skills_vfx.js?v=7.7.2"></script>
+  <script src="battle_core_2.js?v=7.7.2"></script>
+  <script src="battle_renderer.js?v=7.7.2"></script>
+  <script src="modes_arcade.js?v=7.7.2"></script>
+  <script src="mode_expedition.js?v=7.7.2"></script>
+  <script src="game_ui.js?v=7.7.2"></script>
 </body>
 </html>
