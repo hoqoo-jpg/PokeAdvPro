@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.7.3";
+        const ver = this.APP_VERSION || "v7.8.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -464,7 +464,19 @@ Object.assign(window.GameApp, {
       const pNameEl = document.getElementById("lobbyPokemonName");
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
       const starStr = starLv > 0 ? ` ${'★'.repeat(starLv)}` : '';
-      if (pNameEl) pNameEl.textContent = `${p.name_zh} (#${String(p.id).padStart(3,'0')})${starStr}`;
+      if (pNameEl) pNameEl.textContent = `${useShiny ? '✨' : ''}${p.name_zh} (#${String(p.id).padStart(3,'0')})${starStr}`;
+
+      const starUpBtn = document.getElementById("lobbyStarUpgradeBtn");
+      if (starUpBtn) {
+        const starCostsTbl = [400, 800, 1500];
+        const canBreak = starLv < 3 && (this.saveData.coins || 0) >= starCostsTbl[starLv];
+        starUpBtn.classList.toggle("hidden", !canBreak);
+        if (canBreak) starUpBtn.textContent = `★ 可突破 (${starCostsTbl[starLv]}金)`;
+      }
+
+      const getEvoSprite = (pk) => (useShiny && pk.shiny_forward_sprite) ? pk.shiny_forward_sprite : pk.forward_sprite;
+      const getMegaShinyUrl = (mf) => useShiny ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${mf.id}.png` : mf.forward_sprite;
+      const shinyTagHtml = useShiny ? `<span class="px-1.5 py-0.2 rounded-full bg-amber-100 border border-amber-400 text-[8px] font-black text-amber-800 shrink-0">✨閃光路線</span>` : "";
 
       const evoEl = document.getElementById("lobbyEvolutionPreview");
       if (evoEl && typeof POKEMON_MAP !== "undefined") {
@@ -475,13 +487,14 @@ Object.assign(window.GameApp, {
           const s136 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[136]);
           evoEl.innerHTML = `
             <span class="text-[9px] font-black text-purple-700 shrink-0"><i class="fa-solid fa-code-branch"></i> 進化鏈：</span>
+            ${shinyTagHtml}
             <div class="flex items-center gap-1 overflow-x-auto py-0.5">
               <span class="px-1.5 py-0.2 bg-white rounded border border-slate-300 text-[9px] font-black text-slate-800">伊布</span>
               <span class="text-purple-600 font-black text-[9px]">➔ Lv.${p.evo_level || 18} 三選一 ➔</span>
               <div class="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-purple-300">
-                ${v134 ? `<img src="${v134.forward_sprite}" title="${s134 ? v134.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v135 ? `<img src="${v135.forward_sprite}" title="${s135 ? v135.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v136 ? `<img src="${v136.forward_sprite}" title="${s136 ? v136.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v134 ? `<img src="${getEvoSprite(v134)}" onerror="this.onerror=null;this.src='${v134.forward_sprite}'" title="${s134 ? v134.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v135 ? `<img src="${getEvoSprite(v135)}" onerror="this.onerror=null;this.src='${v135.forward_sprite}'" title="${s135 ? v135.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                ${v136 ? `<img src="${getEvoSprite(v136)}" onerror="this.onerror=null;this.src='${v136.forward_sprite}'" title="${s136 ? v136.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
               </div>
             </div>
           `;
@@ -503,7 +516,7 @@ Object.assign(window.GameApp, {
             return `
               ${arrowHtml}
               <div class="flex-1 min-w-[58px] flex flex-col items-center justify-center bg-white px-1 py-1 rounded-lg border ${idx === chain.length - 1 ? 'border-amber-400 bg-amber-50/40' : 'border-slate-300'} shadow-xs">
-                <img src="${stPoke.forward_sprite}" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
+                <img src="${getEvoSprite(stPoke)}" onerror="this.onerror=null;this.src='${stPoke.forward_sprite}'" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isKnown ? '' : 'brightness-0 opacity-25'}" alt="${isKnown ? stPoke.name_zh : '???'}"/>
                 <span class="text-[8.5px] sm:text-[9.5px] font-black whitespace-nowrap leading-tight mt-0.5 ${isKnown ? 'text-slate-800' : 'text-slate-400'}">${isKnown ? stPoke.name_zh : '???'}</span>
               </div>
             `;
@@ -516,14 +529,17 @@ Object.assign(window.GameApp, {
             megaStepHtml = `
               <div class="flex flex-col items-center justify-center shrink-0 px-0.5 leading-none"><span class="text-[7px] font-black text-cyan-600">覺醒</span><span class="text-[10px] font-black text-cyan-500">→</span></div>
               <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${megaFormLobby.baseId})" class="flex-1 min-w-[58px] flex flex-col items-center justify-center px-1 py-1 rounded-lg border cursor-pointer shadow-xs ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                <img src="${megaFormLobby.forward_sprite}" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                <img src="${getMegaShinyUrl(megaFormLobby)}" onerror="this.onerror=null;this.src='${megaFormLobby.forward_sprite}'" class="w-9 h-9 sm:w-10 sm:h-10 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
                 <span class="text-[8.5px] sm:text-[9.5px] font-black whitespace-nowrap leading-tight mt-0.5 ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? '💎MEGA' : '💎???'}</span>
               </div>
             `;
           }
           evoEl.innerHTML = `
-            <div class="flex items-center gap-0.5 sm:gap-1 flex-nowrap overflow-x-auto w-full py-0.5">
-              ${stepsHtml}${megaStepHtml}
+            <div class="flex flex-col gap-0.5 w-full py-0.5">
+              ${useShiny ? `<div class="flex justify-end">${shinyTagHtml}</div>` : ''}
+              <div class="flex items-center gap-0.5 sm:gap-1 flex-nowrap overflow-x-auto w-full">
+                ${stepsHtml}${megaStepHtml}
+              </div>
             </div>
           `;
         } else {
@@ -533,14 +549,15 @@ Object.assign(window.GameApp, {
             const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[singleMega.baseId]);
             evoEl.innerHTML = `
               <span class="text-[9px] font-black text-amber-700 shrink-0"><i class="fa-solid fa-gem"></i> 超級進化：</span>
+              ${shinyTagHtml}
               <div class="flex items-center gap-1 overflow-x-auto">
                 <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border border-slate-300 shrink-0">
-                  <img src="${p.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain" alt="${p.name_zh}"/>
+                  <img src="${getEvoSprite(p)}" onerror="this.onerror=null;this.src='${p.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain" alt="${p.name_zh}"/>
                   <span class="text-[9px] font-black text-slate-800">${p.name_zh}</span>
                 </div>
                 <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
                 <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${singleMega.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                  <img src="${singleMega.forward_sprite}" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                  <img src="${getMegaShinyUrl(singleMega)}" onerror="this.onerror=null;this.src='${singleMega.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
                   <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? singleMega.name_zh : 'MEGA ???'}</span>
                 </div>
               </div>
@@ -569,7 +586,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.7.3";
+      const curVer = this.APP_VERSION || "v7.8.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -612,6 +629,12 @@ Object.assign(window.GameApp, {
     const bestSec = (this.saveData && this.saveData.stats && this.saveData.stats.bestEndlessTime) || 0;
     const bm = String(Math.floor(bestSec / 60)).padStart(2, "0");
     const bs = String(bestSec % 60).padStart(2, "0");
+    const towerSub = document.getElementById("lobbyTowerSubText");
+    if (towerSub) {
+      const tcp = this.saveData && this.saveData.towerCheckpoint;
+      const bestF = (this.saveData && this.saveData.stats && this.saveData.stats.bestTowerFloor) || 0;
+      towerSub.textContent = (tcp && tcp.nextFloor >= 2) ? `續爬第 ${tcp.nextFloor} 層` : `最高 ${bestF} 層`;
+    }
     const endSub = document.getElementById("lobbyEndlessSubText");
     if (endSub) endSub.textContent = bestSec > 0 ? `最高 ${bm}:${bs}` : "8分後無限波";
   },
@@ -792,7 +815,8 @@ Object.assign(window.GameApp, {
       expedition: ["關都大遠征 ‧ 征途與難度設定", "依序推進 6 大區域 20+1 關（無需選關），調整難度與補給後即可出發！"],
       standard:   ["8分鐘標準 ‧ 地圖與難度設定", "挑選一張 GBA 自然生態地圖與挑戰難度，8 分鐘極速登冠！"],
       endless:    ["無盡深淵 ‧ 地圖與難度設定", "挑選生態地圖挑戰 8 分鐘後無限雙神波次，刷新生存紀錄！"],
-      arena:      ["1vs1 石英鬥技場 ‧ 挑戰設定", "選擇鬥技場難度、單挑神獸與免費攜帶物，展開純動作對決！"]
+      arena:      ["1vs1 石英鬥技場 ‧ 挑戰設定", "選擇鬥技場難度、單挑神獸與免費攜帶物，展開純動作對決！"],
+      tower:      ["關都 Mega 試煉塔 ‧ 攀登設定", "20F Mega 首領試煉 ＋ 21F+ 無上限攀登！每層分支選門、破格遺物與自動存檔！"]
     };
     const mKey = this.selectedGameMode || "expedition";
     const stepTotalLbl = isRosterOnly ? "2" : "3";
@@ -1241,8 +1265,9 @@ Object.assign(window.GameApp, {
     }
     const isArena = (this.selectedGameMode === "arena");
     const isExpedition = (this.selectedGameMode === "expedition");
+    const isTower = (this.selectedGameMode === "tower");
     const stageEl = document.getElementById("stageSectionWrap");
-    if (stageEl) stageEl.classList.toggle("hidden", isArena || isExpedition);
+    if (stageEl) stageEl.classList.toggle("hidden", isArena || isExpedition || isTower);
     const diffEl = document.getElementById("difficultySectionWrap");
     if (diffEl) diffEl.classList.toggle("hidden", isArena);
     const loadEl = document.getElementById("loadoutSectionWrap");
@@ -1257,6 +1282,11 @@ Object.assign(window.GameApp, {
     if (expPreviewPanel) {
       expPreviewPanel.classList.toggle("hidden", !isExpedition);
       if (isExpedition) this.renderExpeditionSetupPreview();
+    }
+    const towerPreviewPanel = document.getElementById("towerPreviewPanel");
+    if (towerPreviewPanel) {
+      towerPreviewPanel.classList.toggle("hidden", !isTower);
+      if (isTower && this.renderTowerSetupPreview) this.renderTowerSetupPreview();
     }
 
     this.updateWizardNextButtonText();
@@ -1420,7 +1450,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.7.3",
+      lastSeenVersion: this.APP_VERSION || "v7.8.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -1707,6 +1737,70 @@ Object.assign(window.GameApp, {
     this.renderArenaConfigPanel();
   },
 
+  renderTowerSetupPreview() {
+    const bestF = (this.saveData && this.saveData.stats && this.saveData.stats.bestTowerFloor) || 0;
+    const badgeEl = document.getElementById("towerBestFloorBadge");
+    if (badgeEl) badgeEl.textContent = `BEST ${bestF}F`;
+
+    const grid = document.getElementById("towerMilestonesGrid");
+    if (grid && typeof ModeTower !== "undefined" && typeof LEGENDARY_TREASURES !== "undefined") {
+      const unlockedMap = (this.saveData && this.saveData.unlockedLegendaryTreasures) || {};
+      grid.innerHTML = ModeTower.MEGA_MILESTONES.map(ms => {
+        const lt = LEGENDARY_TREASURES[ms.treasureId];
+        const ok = !!unlockedMap[ms.treasureId];
+        return `
+          <div class="rounded-xl p-2 border ${ok ? 'bg-amber-50 border-amber-500' : 'bg-white border-slate-300'} flex items-center gap-2">
+            ${lt ? `<img src="${lt.sprite}" class="w-7 h-7 pixel-sprite shrink-0 ${ok ? '' : 'opacity-40 grayscale'}"/>` : ''}
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between gap-1">
+                <span class="font-pixel text-[8px] ${ok ? 'text-amber-700' : 'text-indigo-700'}">${ms.floor}F</span>
+                <span class="text-[8.5px] font-black ${ok ? 'text-emerald-700' : 'text-slate-400'}">${ok ? '✓已解鎖' : '未解鎖'}</span>
+              </div>
+              <div class="font-black text-[10px] text-slate-900 truncate">${lt ? lt.name : ms.title}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    const cpBox = document.getElementById("towerCheckpointBanner");
+    const cp = this.saveData && this.saveData.towerCheckpoint;
+    if (cpBox) {
+      if (cp && cp.nextFloor >= 2) {
+        const pk = POKEMON_MAP.get(cp.player ? cp.player.id : cp.starterId) || POKEMON_MAP.get(25);
+        cpBox.classList.remove("hidden");
+        cpBox.innerHTML = `
+          <div class="flex items-center justify-between gap-2 bg-slate-900 text-white p-2.5 rounded-xl border-2 border-amber-400">
+            <div class="flex items-center gap-2 min-w-0">
+              <img src="${SpriteCache.resolveUrl(pk.forward_sprite)}" class="w-9 h-9 pixel-sprite bg-slate-800 rounded-lg border border-slate-600 p-0.5 shrink-0"/>
+              <div class="min-w-0">
+                <div class="text-[10px] font-black text-amber-300">試煉塔續爬存檔（持有 ${(cp.relics || []).length} 遺物）</div>
+                <div class="font-black text-xs text-white truncate">第 ${cp.nextFloor} 層（${pk.name_zh} Lv.${cp.player ? cp.player.level : 1}）</div>
+              </div>
+            </div>
+            <button type="button" onclick="GameApp.resumeSavedTower()" class="poke-btn-yellow px-3 py-1.5 text-xs font-black shrink-0">繼續爬塔</button>
+          </div>
+        `;
+      } else {
+        cpBox.classList.add("hidden");
+        cpBox.innerHTML = "";
+      }
+    }
+  },
+
+  resumeSavedTower() {
+    const cp = this.saveData && this.saveData.towerCheckpoint;
+    if (!cp || cp.nextFloor < 2) return;
+    this.selectedGameMode = "tower";
+    if (cp.starterId) this.selectedStarterId = cp.starterId;
+    if (cp.trainerId) {
+      const tr = TRAINERS.find(t => t.id === cp.trainerId);
+      if (tr) this.selectedTrainer = tr;
+    }
+    this._resumeTowerCheckpoint = cp;
+    this.startGameRunWithTransition();
+  },
+
   renderArenaConfigPanel() {
     const diffGrid = document.getElementById("arenaDiffGrid");
     const bossGrid = document.getElementById("arenaBossGrid");
@@ -1835,6 +1929,10 @@ Object.assign(window.GameApp, {
     }
     if (this.selectedGameMode === "arena") {
       btn.textContent = "進入石英大會 1vs1 鬥技場 →";
+      return;
+    }
+    if (this.selectedGameMode === "tower") {
+      btn.textContent = "踏入關都 Mega 試煉塔 (1F) →";
       return;
     }
     if (this.selectedGameMode === "expedition") {
@@ -2665,7 +2763,8 @@ Object.assign(window.GameApp, {
     }
 
     const p = this.player;
-    const isConsumable = ["pp_up", "full_restore", "x_attack", "x_speed", "master_candy", "mystery_held"].includes(itemId);
+    const isLegTreasure = (typeof LEGENDARY_TREASURES !== "undefined" && !!LEGENDARY_TREASURES[itemId]);
+    const isConsumable = isLegTreasure || ["pp_up", "full_restore", "x_attack", "x_speed", "master_candy", "mystery_held"].includes(itemId);
 
     const cleanItemId = itemId.replace(/\s+/g, '');
     const existingSkillKey = !isConsumable
@@ -2685,7 +2784,12 @@ Object.assign(window.GameApp, {
     this.runCoins -= cost;
     this.saveData.coins = Math.max(0, this.saveData.coins - cost);
 
-    if (itemId === "pp_up") {
+    if (isLegTreasure) {
+      if (!p.legendaryTreasures) p.legendaryTreasures = {};
+      p.legendaryTreasures[itemId] = true;
+      SoundFX.play("shiny");
+      this.spawnFloatingText(p.x, p.y - 26, `🏆 裝備傳說秘寶【${LEGENDARY_TREASURES[itemId].name}】！`, "#FACC15", 15);
+    } else if (itemId === "pp_up") {
       const upgradeable = Object.values(p.skills).filter(s => s.level < 10);
       if (upgradeable.length > 0) {
         const pick = upgradeable[Math.floor(Math.random() * upgradeable.length)];
@@ -3129,7 +3233,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.7.3",
+      version: this.APP_VERSION || "v7.8.0",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3436,13 +3540,13 @@ Object.assign(window.GameApp, {
       fpsEl.className = `font-pixel text-[9px] sm:text-[10px] whitespace-nowrap text-right ${fpsVal >= 50 ? 'text-emerald-400' : (fpsVal >= 35 ? 'text-amber-300' : 'text-rose-400')}`;
     }
     const timeLblEl = document.getElementById("endStatTimeLabel");
-    if (timeLblEl) timeLblEl.textContent = this.isExpeditionMode ? "通關進度：" : "存活時間：";
+    if (timeLblEl) timeLblEl.textContent = this.isTowerMode ? "爬塔進度：" : (this.isExpeditionMode ? "通關進度：" : "存活時間：");
     document.getElementById("endStatTime").textContent = document.getElementById("hudTimer").textContent;
     const modeTag = this.isExpeditionMode
       ? ` [關都大遠征 W${(this.expeditionState && this.expeditionState.currentWave) || 1}/${(this.expeditionState && this.expeditionState.totalWaves) || 16}]`
       : (this.isArenaMode
           ? ` [1vs1 ‧ ${(this.arenaDiff && this.arenaDiff.name) || "標準試煉"}]`
-          : (this.isEndlessMode ? " [無盡試煉]" : ""));
+          : (this.isTowerMode ? ` [Mega 試煉塔 ${(this.towerState && this.towerState.floor) || 1}F]` : (this.isEndlessMode ? " [無盡試煉]" : "")));
     const trShortName = (this.selectedTrainer && this.selectedTrainer.name ? this.selectedTrainer.name.split(" ")[0] : "小智");
     document.getElementById("endStatPartner").textContent = `${trShortName} & ${this.player.data.name_zh} Lv.${this.player.level}${modeTag}`;
     document.getElementById("endStatKills").textContent = this.kills;
@@ -3809,7 +3913,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.3</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.0</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3848,7 +3952,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.7.3</strong>：大遠征整備站與過場頂欄新增「💾 存檔回大廳」安全離線續關；統一選擇卡與交易卡交互分流並加大商店觸控熱區；全站中英字型嚴格分流（清除中文 font-pixel 缺字與糊邊，統一 Canvas 字型）。</div>
+            <div>• <strong class="text-amber-300">v7.8.0</strong>：全新終局模式【關都 Mega 試煉塔】（20F 主線 Mega 首領試煉＋21F+ 無上限攀登、分支選門、12 破格遺物、環境詞綴、每層自動存檔）；首通 5/10/15/20F 永久解鎖 4 件平衡版傳說秘寶；大廳進化鏈連動閃光版並新增「★ 可突破」快捷角標。</div>
+            <div>• <strong class="text-slate-300">v7.7.3</strong>：大遠征整備站與過場頂欄新增「💾 存檔回大廳」安全離線續關；統一選擇卡與交易卡交互分流並加大商店觸控熱區；全站中英字型嚴格分流（清除中文 font-pixel 缺字與糊邊，統一 Canvas 字型）。</div>
             <div>• <strong class="text-slate-300">v7.7.2</strong>：大廳雙核心排版（首推大遠征＋推薦8分鐘 5 張地圖）與各模式新手推薦難度標註；UI 圖集擴至 20 枚並升級空投/寶箱/信標為 32×32 HD 像素；1vs1 評分嚴格化＋全模式短板防線；全站彈窗亮色對比治本與 GBA 色帶統一。</div>
             <div>• <strong class="text-slate-300">v7.7.1</strong>：實裝全新 4×4 原生 GBA 像素 UI 圖集（16 枚透明去背圖示），全面替換大廳按鈕、換裝鈕、十大事件提示條與場外邊緣方向箭頭圖示。</div>
             <div>• <strong class="text-slate-300">v7.7.0</strong>：實裝十大隨機突發事件系統（信標佔領、空投箱、雙寶箱百變怪、電磁風暴、迷霧2x經驗、聯盟契約等，附邊緣箭頭指引）；結算頁 GBA 色帶粗框升級與大廳陣容卡收緊間距。</div>
@@ -3866,7 +3971,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.7.3";
+    const curVer = this.APP_VERSION || "v7.8.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4005,7 +4110,7 @@ Object.assign(window.GameApp, {
       SpriteCache.clearVolatileCaches();
     }
     SoundFX.startBgm("lobby");
-    ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "expeditionModal", "cutInLayer", "setupModal"].forEach(mId => {
+    ["endModal", "hudLayer", "levelUpModal", "eevee-evo-modal", "pokeMartModal", "expeditionModal", "towerModal", "fieldEventContractModal", "cutInLayer", "setupModal"].forEach(mId => {
       const el = document.getElementById(mId);
       if (el) {
         el.classList.add("hidden");
@@ -4121,6 +4226,16 @@ Object.assign(window.GameApp, {
       shelf.push(highTierPool[Math.floor(Math.random() * highTierPool.length)]);
     }
 
+    if (typeof LEGENDARY_TREASURES !== "undefined" && this.saveData && this.saveData.unlockedLegendaryTreasures) {
+      const ownedLeg = Object.keys(p.legendaryTreasures || {}).filter(k => p.legendaryTreasures[k]);
+      if (ownedLeg.length < 2) {
+        const availLeg = Object.values(LEGENDARY_TREASURES).filter(lt => this.saveData.unlockedLegendaryTreasures[lt.id] && !(p.legendaryTreasures && p.legendaryTreasures[lt.id]));
+        if (availLeg.length > 0 && Math.random() < 0.45) {
+          const pick = availLeg[Math.floor(Math.random() * availLeg.length)];
+          shelf.push({ ...pick, isLegendaryTreasure: true });
+        }
+      }
+    }
     if (this.renderMartModal) this.renderMartModal(shelf);
   },
 
@@ -4723,6 +4838,20 @@ Object.assign(window.GameApp, {
           const rem = Math.max(0, (est.killQuota || 0) - (est.killsInWave || 0));
           waveRemBadge.textContent = `剩${rem}`;
           waveRemBadge.className = "px-1 py-0.2 rounded bg-emerald-700 text-emerald-100 font-black text-[8px]";
+        }
+      }
+    } else if (this.isTowerMode && this.towerState) {
+      const tst = this.towerState;
+      document.getElementById("hudTimer").textContent = `TOWER ${tst.floor}F`;
+      if (waveRemBadge) {
+        waveRemBadge.classList.remove("hidden");
+        if (tst.portalType === "boss") {
+          waveRemBadge.textContent = "MEGA";
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-rose-600 text-white font-pixel text-[7px] font-black";
+        } else {
+          const rem = Math.max(0, (tst.killQuota || 0) - (tst.killsInFloor || 0));
+          waveRemBadge.textContent = `剩${rem}`;
+          waveRemBadge.className = "px-1 py-0.2 rounded bg-indigo-700 text-indigo-100 font-black text-[8px]";
         }
       }
     } else {

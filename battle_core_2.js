@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.7.3",
+  APP_VERSION: "v7.8.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -571,9 +571,43 @@ window.GameApp = {
   },
 
   recordPlayerHit(dmg) {
-    if (!this.runStats) return;
-    this.runStats.hitsTaken = (this.runStats.hitsTaken || 0) + 1;
-    this.runStats.damageTaken = (this.runStats.damageTaken || 0) + Math.max(0, dmg || 0);
+    if (this.runStats) {
+      this.runStats.hitsTaken = (this.runStats.hitsTaken || 0) + 1;
+      this.runStats.damageTaken = (this.runStats.damageTaken || 0) + Math.max(0, dmg || 0);
+    }
+    if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.hasRelic(this, "counter_pulse") && this.player) {
+      const p = this.player;
+      (this.enemies || []).forEach(en => {
+        if (en && en.hp > 0 && Math.hypot(en.x - p.x, en.y - p.y) <= 210) {
+          this.dealDamageToEnemy(en, Math.max(85, Math.round(p.baseAtk * 1.4 * p.dmgMult)), "Electric", 0.35, en.isBoss ? 0 : 45);
+        }
+      });
+      if (typeof SkillsEngine !== "undefined") {
+        SkillsEngine.meleeEffects.push({ style: "slam_wave", x: p.x, y: p.y, radius: 195, timer: 0.32, maxTime: 0.32, color: "#22D3EE" });
+      }
+    }
+  },
+
+  applyFatalGuardIfAny(p) {
+    if (!p || p.hp > 0) return false;
+    if (p.legendaryTreasures && p.legendaryTreasures.focus_sash && !p.focusSashUsed) {
+      p.focusSashUsed = true;
+      p.hp = 1;
+      p.invulnTimer = Math.max(p.invulnTimer || 0, 2.5);
+      (this.enemies || []).forEach(en => {
+        if (en && en.hp > 0 && !en.isBoss) {
+          const d = Math.hypot(en.x - p.x, en.y - p.y);
+          if (d > 0 && d < 220) {
+            en.x += ((en.x - p.x) / d) * 110;
+            en.y += ((en.y - p.y) / d) * 110;
+          }
+        }
+      });
+      this.spawnFloatingText(p.x, p.y - 38, "🎗️ 氣勢披帶發動！鎖血 1 HP！", "#FACC15", 15);
+      if (typeof SoundFX !== "undefined") SoundFX.play("super");
+      return true;
+    }
+    return false;
   },
 
   debugSetWeather(weatherType) {
@@ -1086,6 +1120,8 @@ window.GameApp = {
       maxSkillSlots,
       skills: {},
       heldItems: {},
+      legendaryTreasures: {},
+      focusSashUsed: false,
       invulnTimer: 0,
       lillieSanctuaryTimer: 0,
       maxLillieSanctuaryTimer: 2.0,
@@ -1222,6 +1258,7 @@ window.GameApp = {
     this.isArenaMode = (this.selectedGameMode === "arena");
     this.isEndlessMode = (this.selectedGameMode === "endless");
     this.isExpeditionMode = (this.selectedGameMode === "expedition");
+    this.isTowerMode = (this.selectedGameMode === "tower");
     this.arenaHealEff = 1.0;
     this.arenaDiff = null;
     this.arenaPowerups = [];
@@ -1231,11 +1268,13 @@ window.GameApp = {
     this.areaClearStampTimer = 0;
     this._deferLevelUpDuringClear = false;
     this._deferredLevelUps = 0;
-    this.activeMode = this.isExpeditionMode
-      ? (typeof ModeExpedition !== "undefined" ? ModeExpedition : ModeSurvivor)
-      : (this.isArenaMode
-          ? (typeof ModeArena !== "undefined" ? ModeArena : ModeSurvivor)
-          : (typeof ModeSurvivor !== "undefined" ? ModeSurvivor : null));
+    this.activeMode = this.isTowerMode
+      ? (typeof ModeTower !== "undefined" ? ModeTower : ModeSurvivor)
+      : (this.isExpeditionMode
+          ? (typeof ModeExpedition !== "undefined" ? ModeExpedition : ModeSurvivor)
+          : (this.isArenaMode
+              ? (typeof ModeArena !== "undefined" ? ModeArena : ModeSurvivor)
+              : (typeof ModeSurvivor !== "undefined" ? ModeSurvivor : null)));
     this.endlessNextBossTime = 480;
     this.endlessCycleIdx = 0;
     this.endlessNextKillMilestone = 150;
@@ -1488,6 +1527,8 @@ window.GameApp = {
   getArenaAdjustedIncomingDmg(normalDmg, kind = "bullet") {
     const p = this.player;
     if (!p) return normalDmg;
+    const _lifeOrbInMod = (p.legendaryTreasures && p.legendaryTreasures.life_orb) ? 1.15 : 1.0;
+    normalDmg = Math.round(normalDmg * _lifeOrbInMod);
     const activeShieldMod = (p.shieldTimer > 0 ? 0.55 : 1.0);
     if (this.isArenaMode && this.arenaDiff) {
       const d = this.arenaDiff;
@@ -1938,7 +1979,12 @@ window.GameApp = {
     const diffHealEff = (this.selectedDifficulty && this.selectedDifficulty.healEff !== undefined) ? this.selectedDifficulty.healEff : 1.0;
       const arenaHealEff = this.isArenaMode ? (this.arenaHealEff || 0.85) : diffHealEff;
     const bossHealMod = ((this.activeBoss && this.activeBoss.hp > 0) ? 0.5 : 1.0) * arenaHealEff;
-    if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * bossHealMod);
+    const _twHealMod = (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.hasAffix(this, "berserk_pact")) ? 0.75 : 1.0;
+      const _effHealMod = bossHealMod * _twHealMod;
+      if (p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.regen * dt * _effHealMod);
+      if (p.legendaryTreasures && p.legendaryTreasures.leftovers && p.hp < p.maxHp) {
+        p.hp = Math.min(p.maxHp, p.hp + p.maxHp * 0.008 * dt * _effHealMod);
+      }
     // 閃光精靈出戰專屬：每 2.2 秒於身周輕閃淡金四芒星，突顯正版官方色違質感
     if (p.isShiny) {
       p._shinySparkTick = (p._shinySparkTick || 0.8) - dt;
@@ -2402,7 +2448,9 @@ window.GameApp = {
     const arenaGaleSpdMod = (p.arenaGaleTimer > 0) ? 1.25 : 1.0;
     const rawMoveSpd = (112 + p.baseSpeed * 0.72) * p.speedMult * sharpBeakSpdMod * finalTerrainSpd * statusSpdMod * (p.buffTimer > 0 ? 1.25 : 1.0) * xSpdMod * quickStepMod * arenaGaleSpdMod;
     // 主角速度軟上限 185 px/s，拉高坦型精靈底盤同時保留快慢手感差異
-    const moveSpd = Math.min(185, rawMoveSpd);
+    const _scarfSpd = (p.legendaryTreasures && p.legendaryTreasures.choice_scarf) ? 1.12 : 1.0;
+    const _twWindSpd = (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.hasRelic(this, "wind_step")) ? 1.18 : 1.0;
+    const moveSpd = Math.min(205, rawMoveSpd * _scarfSpd * _twWindSpd);
 
     p.vx = ix * moveSpd;
     p.vy = iy * moveSpd;
@@ -2759,8 +2807,8 @@ window.GameApp = {
         const minSkillCd = (skSlot.id === "Tackle")
           ? (skSlot.level >= 8 ? 0.88 : (skSlot.level >= 4 ? 0.56 : 0.48))
           : (isLongAnimSkill ? 0.55 : 0.48);
-        const evCdMod = this.fieldEventCdMult || 1.0;
-        skSlot.timer = Math.max(minSkillCd * evCdMod, meta.baseCd * lvCdBonus * Math.max(0.42, cdFactor * traitCdMod * evCdMod));
+        const evCdMod = (this.fieldEventCdMult || 1.0) * ((p.legendaryTreasures && p.legendaryTreasures.choice_scarf) ? 0.90 : 1.0) * ((this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.hasRelic(this, "overclock_core")) ? 0.85 : 1.0);
+        skSlot.timer = Math.max(minSkillCd * Math.max(0.65, evCdMod), meta.baseCd * lvCdBonus * Math.max(0.42, cdFactor * traitCdMod * evCdMod));
         p.castStaggerTimer = 0.085;
       }
     });
@@ -3875,7 +3923,7 @@ window.GameApp = {
           SoundFX.play("hurt");
         }
 
-        if (p.hp <= 0) {
+        if (p.hp <= 0 && !this.applyFatalGuardIfAny(p)) {
           p.hp = 0;
           this.triggerGameOver(false);
           return;
@@ -4359,7 +4407,7 @@ window.GameApp = {
           p.invulnTimer = 0.45 + scarfBonus;
           this.spawnFloatingText(p.x, p.y - 20, `重擊 -${dmg}`, "#DC2626", 15);
           SoundFX.play("hurt");
-          if (p.hp <= 0) {
+          if (p.hp <= 0 && !this.applyFatalGuardIfAny(p)) {
             p.hp = 0;
             this.triggerGameOver(false);
             return;
@@ -4553,7 +4601,7 @@ window.GameApp = {
 
         this.enemyProjectiles[i] = this.enemyProjectiles[this.enemyProjectiles.length - 1];
         this.enemyProjectiles.pop();
-        if (p.hp <= 0) {
+        if (p.hp <= 0 && !this.applyFatalGuardIfAny(p)) {
           p.hp = 0;
           this.triggerGameOver(false);
           return;
@@ -4613,7 +4661,7 @@ window.GameApp = {
     this.camera.shakeMagnitude = Math.max(this.camera.shakeMagnitude || 0, 4.5);
     this.spawnFloatingText(p.x, p.y - 20, `-${dmg}`, "#EF4444", 15);
     SoundFX.play("hurt");
-    if (p.hp <= 0) {
+    if (p.hp <= 0 && !this.applyFatalGuardIfAny(p)) {
       p.hp = 0;
       this.triggerGameOver(false);
     }
@@ -4630,9 +4678,11 @@ window.GameApp = {
     const poisonBarbCritBonus = (this.player.heldItems && this.player.heldItems["poison_barb"] && enemy.status === "Poison") ? 0.25 : 0;
     const dualSuperCritBonus = Object.values(this.player.skills || {}).filter(s => s.evolved).length >= 2 ? 0.08 : 0;
     const perfectCounterCrit = (this.player.arenaPerfectCounterTimer > 0) ? 0.25 : 0;
-    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit + perfectCounterCrit + (extraCritBonus || 0));
+    const _twCrit = (this.isTowerMode && typeof ModeTower !== "undefined") ? ((ModeTower.hasRelic(this, "chain_volt") ? 0.12 : 0) + (ModeTower.hasRelic(this, "speed_crit") ? 0.15 : 0)) : 0;
+    const isCrit = Math.random() < (this.player.critRate + (this.player.buffTimer > 0 ? 0.25 : 0) + psychicCritBonus + poisonBarbCritBonus + dualSuperCritBonus + ironFistCrit + psySurgeCrit + martialGodCrit + perfectCounterCrit + _twCrit + (extraCritBonus || 0));
     // 【攜帶物：黑帶】暴擊傷害從 1.35x 提升至 1.75x
-    const critMult = isCrit ? ((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) : 1.0;
+    const _twSpdCritDmg = (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.hasRelic(this, "speed_crit")) ? 0.20 : 0;
+    const critMult = isCrit ? (((this.player.heldItems && this.player.heldItems["black_belt"]) ? 1.75 : 1.35) + _twSpdCritDmg) : 1.0;
 
     // v6.6 環境與戰術加法區（地圖 + 天氣 + 攜帶物屬性傷 + 力量強化 + 猛火龍威灼傷增傷）
     let stageBonus = 0;
@@ -4664,6 +4714,13 @@ window.GameApp = {
     }
 
     let heldBonus = 0;
+    if (this.player && this.player.legendaryTreasures && this.player.legendaryTreasures.life_orb) heldBonus += 0.22;
+    if (this.isTowerMode && typeof ModeTower !== "undefined") {
+      if (ModeTower.hasRelic(this, "prism_split")) heldBonus += 0.18;
+      if (ModeTower.hasRelic(this, "relic_resonance")) heldBonus += 0.14;
+      if (ModeTower.hasRelic(this, "exec_mark") && enemy && enemy.maxHp > 0 && (enemy.hp / enemy.maxHp) <= 0.50) heldBonus += 0.28;
+      if (ModeTower.hasAffix(this, "berserk_pact")) heldBonus += 0.15;
+    }
     const hi = this.player && this.player.heldItems;
     if (hi) {
       const heldTypeMap = {
@@ -4898,6 +4955,9 @@ window.GameApp = {
     this.saveData.stats.totalKills += 1;
     if (this.isExpeditionMode && typeof ModeExpedition !== "undefined" && ModeExpedition.onEnemyKilled) {
       ModeExpedition.onEnemyKilled(this, e);
+    }
+    if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.onEnemyKilled) {
+      ModeTower.onEnemyKilled(this, e);
     }
     if (this.isEndlessMode && this.kills >= (this.endlessNextKillMilestone || 150)) {
       this.endlessNextKillMilestone = this.kills + 150;
@@ -5894,6 +5954,11 @@ window.GameApp = {
       if (isVictory && hofBox && typeof ModeExpedition !== "undefined" && ModeExpedition.renderHallOfFameHtml) {
         hofBox.innerHTML = ModeExpedition.renderHallOfFameHtml(this);
       }
+    } else if (this.isTowerMode) {
+      if (!isVictory && this.saveData) { this.saveData.towerCheckpoint = null; if (this.saveToStorage) this.saveToStorage(); }
+      const tf = (this.towerState && this.towerState.floor) || 1;
+      document.getElementById("endModalTitle").textContent = `TOWER FLOOR ${tf} ENDED`;
+      document.getElementById("endModalSubtitle").textContent = `止步於 Mega 試煉塔第 ${tf} 層！歷史最高紀錄：第 ${(this.saveData && this.saveData.stats && this.saveData.stats.bestTowerFloor) || 0} 層`;
     } else if (this.isArenaMode) {
       const ar = this.lastArenaResult;
       document.getElementById("endModalTitle").textContent = isVictory ? "⚔️ ARENA VICTORY!" : "⚔️ ARENA DEFEAT";

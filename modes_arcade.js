@@ -895,7 +895,8 @@ window.FieldEventsEngine = {
     costume: [0, 1], settings: [1, 1], energy_beacon: [2, 1], rocket_airdrop: [3, 1],
     chansey_patrol: [0, 2], meowth_convoy: [1, 2], shiny_swarm: [2, 2], ditto_chests: [3, 2],
     overdrive_storm: [0, 3], exp_mist: [1, 3], rival_ambush: [2, 3], league_contract: [3, 3],
-    pokedex: [0, 4], timer: [1, 4], abyss: [2, 4], mart: [3, 4]
+    pokedex: [0, 4], timer: [1, 4], abyss: [2, 4], mart: [3, 4],
+    tower: [0, 5], relic: [1, 5], campfire: [2, 5], portal: [3, 5]
   },
   getIconSrcRect(key) {
     const pos = this.UI_CELLS[key];
@@ -1275,6 +1276,638 @@ window.FieldEventsEngine = {
         ? Math.min(100, (ev.progress / ev.targetProgress) * 100)
         : Math.max(0, Math.min(100, (ev.timer / ev.maxTimer) * 100));
       barEl.style.width = `${pct}%`;
+    }
+  }
+};
+
+// ============================================================================
+// v7.8.0 關都 Mega 試煉塔 (ModeTower)
+// 20F 主線 Mega 首領試煉 ＋ 21F+ 無上限冠軍攀登 ＋ 12 破格遺物 ＋ 分支傳送門 ＋ 每層自動存檔
+// ============================================================================
+window.ModeTower = {
+  RELICS: [
+    { id: "prism_split",     name: "多重稜鏡",   cat: "進攻", color: "#38BDF8", desc: "所有招式傷害 +18%，並於發射時額外強化貫穿壓制力！" },
+    { id: "chain_volt",      name: "連鎖雷核",   cat: "進攻", color: "#FACC15", desc: "暴擊率 +12%，暴擊命中時引爆小範圍連鎖電弧！" },
+    { id: "overclock_core",  name: "超頻核心",   cat: "進攻", color: "#F43F5E", desc: "全招式冷卻額外縮減 -15%（遵守全域冷卻下限）！" },
+    { id: "exec_mark",       name: "處決印記",   cat: "進攻", color: "#EF4444", desc: "對半血以下敵人與首領額外造成 +28% 斬殺傷害！" },
+    { id: "counter_pulse",   name: "反擊電場",   cat: "生存", color: "#22D3EE", desc: "每次受擊自動釋放高壓反擊衝擊波，震退並重創周圍敵人！" },
+    { id: "life_leech",      name: "生命汲取",   cat: "生存", color: "#10B981", desc: "每次擊敗敵人回復 2% 最大 HP（遵守難度回復係數）！" },
+    { id: "overheal_shield", name: "溢血護盾",   cat: "生存", color: "#60A5FA", desc: "最大 HP 上限 +22%，且每層開場贈送 4 秒堅固護盾！" },
+    { id: "wind_step",       name: "疾風閃步",   cat: "生存", color: "#34D399", desc: "移動速度 +18%，受擊無敵時間延長 +0.25 秒！" },
+    { id: "speed_crit",      name: "疾速暴擊",   cat: "戰術", color: "#A78BFA", desc: "移動速度加成同步轉化為 +15% 暴擊率與 +20% 暴擊傷害！" },
+    { id: "relic_resonance", name: "秘寶共鳴",   cat: "戰術", color: "#F59E0B", desc: "全傷害 +14%、經驗與金幣獲取 +30%！" },
+    { id: "opening_charge",  name: "開場蓄能",   cat: "戰術", color: "#FB923C", desc: "每層進場時訓練家大招冷卻立刻歸零，且大招冷卻 -18%！" },
+    { id: "gold_magnet",     name: "黃金磁場",   cat: "戰術", color: "#EAB308", desc: "拾取磁鐵範圍翻倍，每通關 1 層額外獲得 +60 金幣！" }
+  ],
+
+  AFFIXES: [
+    { id: "toxic_death",   name: "☠️ 敵亡毒沼", desc: "敵怪陣亡時短暫釋放毒氣，請保持移動！" },
+    { id: "swift_barrage", name: "⚡ 疾風強襲", desc: "敵人移速 +15%、彈幕威脅強化！" },
+    { id: "berserk_pact",  name: "🔥 狂戰代價", desc: "全傷害 +15%，但本層回復效率 -25%！" },
+    { id: "heavy_gravity", name: "🌑 重壓領域", desc: "高壓戰場！敵血 +15%，但賞金與經驗 +25%！" }
+  ],
+
+  MEGA_MILESTONES: [
+    { floor: 5,  stageId: "pallet",           bossBaseIds: [3],      archetypes: ["toxic_zone"],          treasureId: "leftovers",    title: "密林 Mega 試煉" },
+    { floor: 10, stageId: "cerulean_bay",     bossBaseIds: [9, 130], archetypes: ["sniper", "juggernaut"], treasureId: "life_orb",     title: "海岬 Mega 試煉", pickOne: true },
+    { floor: 15, stageId: "cinnabar_volcano", bossBaseIds: [6],      archetypes: ["juggernaut"],          treasureId: "choice_scarf", title: "火山 Mega 試煉" },
+    { floor: 20, stageId: "sky_pillar",       bossBaseIds: [94, 142],archetypes: ["trickster", "sniper"],  treasureId: "focus_sash",   title: "古殿雙 Mega 決戰" }
+  ],
+
+  hasRelic(app, id) {
+    return !!(app && app.towerState && Array.isArray(app.towerState.relics) && app.towerState.relics.includes(id));
+  },
+
+  hasAffix(app, id) {
+    return !!(app && app.towerState && Array.isArray(app.towerState.activeAffixes) && app.towerState.activeAffixes.includes(id));
+  },
+
+  onStart(app) {
+    const resumeCp = app._resumeTowerCheckpoint || null;
+    app._resumeTowerCheckpoint = null;
+
+    if (resumeCp && resumeCp.nextFloor >= 2) {
+      app.towerState = {
+        floor: resumeCp.nextFloor,
+        portalType: resumeCp.nextPortalType || "battle",
+        relics: Array.isArray(resumeCp.relics) ? [...resumeCp.relics] : [],
+        activeAffixes: [],
+        killsInFloor: 0,
+        killQuota: 20,
+        spawnTimer: 0.4,
+        floorCleared: false,
+        totalCoinsEarned: resumeCp.totalCoinsEarned || 0,
+        arenaBounds: { halfW: 540, halfH: 380 }
+      };
+      const p = app.player;
+      if (p && resumeCp.player) {
+        const sp = resumeCp.player;
+        p.level = sp.level || p.level;
+        p.exp = sp.exp || 0;
+        p.maxHp = sp.maxHp || p.maxHp;
+        p.hp = Math.min(p.maxHp, sp.hp || p.maxHp);
+        p.dmgMult = sp.dmgMult || p.dmgMult;
+        p.speedMult = sp.speedMult || p.speedMult;
+        if (sp.skills) p.skills = JSON.parse(JSON.stringify(sp.skills));
+        if (sp.heldItems) p.heldItems = { ...sp.heldItems };
+        if (sp.legendaryTreasures) p.legendaryTreasures = { ...sp.legendaryTreasures };
+      }
+      if (resumeCp.runCoins) app.runCoins = resumeCp.runCoins;
+      if (app.selectedDifficulty && resumeCp.difficultyId) {
+        const df = DIFFICULTIES.find(d => d.id === resumeCp.difficultyId);
+        if (df) app.selectedDifficulty = df;
+      }
+    } else {
+      app.towerState = {
+        floor: 1,
+        portalType: "battle",
+        relics: [],
+        activeAffixes: [],
+        killsInFloor: 0,
+        killQuota: 18,
+        spawnTimer: 0.4,
+        floorCleared: false,
+        totalCoinsEarned: 0,
+        arenaBounds: { halfW: 540, halfH: 380 }
+      };
+      if (app.saveData) {
+        app.saveData.towerCheckpoint = null;
+        if (app.saveToStorage) app.saveToStorage();
+      }
+    }
+    this.startFloor(app, app.towerState.floor, app.towerState.portalType);
+  },
+
+  getStageForFloor(floor) {
+    const cycle = ["pallet", "cerulean_bay", "power_plant", "cinnabar_volcano", "sky_pillar"];
+    const idx = Math.floor((floor - 1) / 5) % cycle.length;
+    return STAGES.find(s => s.id === cycle[idx]) || STAGES[0];
+  },
+
+  startFloor(app, floor, portalType = "battle") {
+    const st = app.towerState;
+    const p = app.player;
+    if (!st || !p) return;
+
+    st.floor = floor;
+    st.portalType = (floor % 5 === 0) ? "boss" : portalType;
+    st.killsInFloor = 0;
+    st.floorCleared = false;
+    st.spawnTimer = 0.45;
+    st.killQuota = st.portalType === "boss" ? 0 : (st.portalType === "elite" ? 16 : Math.min(36, 16 + Math.floor(floor * 0.9)));
+
+    st.activeAffixes = [];
+    if (floor >= 11) {
+      const count = floor >= 21 ? 2 : 1;
+      const pool = [...this.AFFIXES].sort(() => Math.random() - 0.5);
+      st.activeAffixes = pool.slice(0, count).map(a => a.id);
+    }
+
+    const stageObj = this.getStageForFloor(floor);
+    if (typeof MapEngine !== "undefined") {
+      if (MapEngine.setStage) MapEngine.setStage(stageObj.id);
+      if (MapEngine.setArenaMode) MapEngine.setArenaMode(false);
+      if (MapEngine.setBoundedMap) MapEngine.setBoundedMap(true, 540, 380);
+    }
+
+    app.enemies = [];
+    app.enemyProjectiles = [];
+    app.telegraphs = [];
+    app.gems = [];
+    app.mapItems = [];
+    app.activeBoss = null;
+    if (typeof SkillsEngine !== "undefined") {
+      SkillsEngine.projectiles = [];
+      SkillsEngine.groundHazards = [];
+      SkillsEngine.meleeEffects = [];
+    }
+    p.x = 0; p.y = 0;
+    app.camera.x = 0; app.camera.y = 0;
+
+    if (this.hasRelic(app, "opening_charge")) p.trainerSkillCd = 0;
+    if (this.hasRelic(app, "overheal_shield")) p.shieldTimer = Math.max(p.shieldTimer || 0, 4.0);
+
+    const bossHud = document.getElementById("bossHudContainer");
+    if (st.portalType === "boss") {
+      this.spawnMegaTowerBosses(app, floor);
+      if (bossHud) bossHud.classList.remove("hidden");
+    } else {
+      if (bossHud) bossHud.classList.add("hidden");
+      if (st.portalType === "elite") {
+        this.spawnTowerElitePair(app, floor);
+      }
+    }
+
+    app.battleCountdownTimer = 2.00;
+    app._lastCountdownBeat = 4;
+    app.state = "PLAYING";
+
+    const affNames = st.activeAffixes.map(id => (this.AFFIXES.find(a => a.id === id) || {}).name).filter(Boolean);
+    const subTxt = affNames.length > 0
+      ? `環境詞綴：${affNames.join(" ＋ ")}`
+      : (st.portalType === "boss" ? "擊敗鎮守 Mega 首領，解鎖秘寶並晉級高層！" : `目標：清剿本層敵軍（${st.portalType === "elite" ? "精英試煉 ‧ 必掉遺物" : `殲滅 ${st.killQuota} 隻`}）`);
+    if (app.showCutsceneBanner) {
+      app.showCutsceneBanner(`🗼 MEGA 試煉塔 ‧ 第 ${floor} 層`, subTxt, 2200);
+    }
+    if (app.refreshHUD) app.refreshHUD();
+  },
+
+  spawnMegaTowerBosses(app, floor) {
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    const ms = this.MEGA_MILESTONES.find(m => m.floor === floor);
+    let specs = [];
+    if (ms) {
+      if (ms.pickOne) {
+        const i = Math.floor(Math.random() * ms.bossBaseIds.length);
+        specs = [{ baseId: ms.bossBaseIds[i], arch: ms.archetypes[i] }];
+      } else {
+        specs = ms.bossBaseIds.map((bid, i) => ({ baseId: bid, arch: ms.archetypes[i] || "juggernaut" }));
+      }
+    } else {
+      const allMegas = [
+        { baseId: 3, arch: "toxic_zone" }, { baseId: 6, arch: "juggernaut" },
+        { baseId: 9, arch: "sniper" }, { baseId: 94, arch: "trickster" },
+        { baseId: 130, arch: "juggernaut" }, { baseId: 142, arch: "sniper" }
+      ].sort(() => Math.random() - 0.5);
+      specs = allMegas.slice(0, 2);
+    }
+
+    const dualMod = specs.length >= 2 ? 0.68 : 1.0;
+    const floorScale = 1 + (floor - 5) * 0.14;
+    const gravMod = this.hasAffix(app, "heavy_gravity") ? 1.15 : 1.0;
+    const swiftMod = this.hasAffix(app, "swift_barrage") ? 1.15 : 1.0;
+
+    specs.forEach((sp, idx) => {
+      const mf = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[sp.baseId]) ? MEGA_FORMS[sp.baseId] : null;
+      const bData = mf || POKEMON_MAP.get(sp.baseId) || POKEMON_MAP.get(150);
+      const hp = Math.round(11500 * floorScale * diff.hpMult * dualMod * gravMod);
+      const atk = Math.round((24 + floor * 0.85) * diff.atkMult);
+      const bx = idx === 0 ? 210 : -210;
+      const by = idx === 0 ? -40 : 40;
+      const bossObj = {
+        id: bData.id,
+        data: bData,
+        x: bx, y: by,
+        hp, maxHp: hp,
+        atk,
+        speed: Math.min(125, 92 * diff.spdMult * swiftMod),
+        radius: 42,
+        isElite: true,
+        isBoss: true,
+        isMiniBoss: false,
+        isLegendaryBoss: true,
+        isTowerMegaBoss: true,
+        bossArchetype: sp.arch,
+        noEliteDrop: true,
+        isShiny: false,
+        whiteFlashTimer: 0,
+        ccImmunityTimer: 0,
+        dpsBucket: 0,
+        dpsShieldFlashTimer: 0,
+        status: null,
+        statusTimer: 0,
+        bossAttackTimer: 1.6 + idx * 0.7,
+        bossAttackIdx: 0
+      };
+      app.enemies.push(bossObj);
+      if (!app.activeBoss) app.activeBoss = bossObj;
+    });
+  },
+
+  spawnTowerElitePair(app, floor) {
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    const elitePool = [59, 65, 68, 94, 130, 143, 149];
+    const floorScale = 1 + (floor - 1) * 0.13;
+    for (let i = 0; i < 2; i++) {
+      const pid = elitePool[Math.floor(Math.random() * elitePool.length)];
+      const data = POKEMON_MAP.get(pid) || POKEMON_MAP.get(68);
+      const hp = Math.round(1350 * floorScale * diff.hpMult);
+      app.enemies.push({
+        id: pid, data,
+        x: i === 0 ? 220 : -220, y: i === 0 ? -60 : 60,
+        hp, maxHp: hp,
+        atk: Math.round((16 + floor * 0.65) * diff.atkMult),
+        speed: Math.min(115, 84 * diff.spdMult),
+        radius: 26,
+        isElite: true, isMiniBoss: true, isBoss: false, isShiny: false,
+        isTowerQuotaMob: true,
+        expVal: 135,
+        whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
+      });
+    }
+  },
+
+  spawnTowerMob(app) {
+    const st = app.towerState;
+    const p = app.player;
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    const pool = [16, 19, 23, 27, 41, 43, 52, 58, 63, 66, 74, 81, 92, 100, 111, 129];
+    const pid = pool[Math.floor(Math.random() * pool.length)];
+    const data = POKEMON_MAP.get(pid) || POKEMON_MAP.get(19);
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 260 + Math.random() * 140;
+    const b = st.arenaBounds;
+    const x = Math.max(-b.halfW + 30, Math.min(b.halfW - 30, p.x + Math.cos(ang) * dist));
+    const y = Math.max(-b.halfH + 30, Math.min(b.halfH - 30, p.y + Math.sin(ang) * dist));
+    const floorScale = 1 + (st.floor - 1) * 0.14;
+    const gravMod = this.hasAffix(app, "heavy_gravity") ? 1.15 : 1.0;
+    const swiftMod = this.hasAffix(app, "swift_barrage") ? 1.15 : 1.0;
+    const hp = Math.round((72 + data.hp * 0.45) * floorScale * diff.hpMult * gravMod);
+    app.enemies.push({
+      id: pid, data, x, y,
+      hp, maxHp: hp,
+      atk: Math.round((10 + st.floor * 0.55) * diff.atkMult),
+      speed: Math.min(120, (60 + data.speed * 0.22) * diff.spdMult * swiftMod),
+      radius: 18,
+      isElite: false, isBoss: false, isShiny: Math.random() < 0.03 * (diff.shinyBonus || 1),
+      isTowerQuotaMob: true,
+      expVal: 48 + st.floor * 3,
+      whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
+    });
+  },
+
+  update(app, dt) {
+    const st = app.towerState;
+    const p = app.player;
+    if (!st || !p || st.floorCleared) return;
+
+    const b = st.arenaBounds;
+    p.x = Math.max(-b.halfW + 24, Math.min(b.halfW - 24, p.x));
+    p.y = Math.max(-b.halfH + 24, Math.min(b.halfH - 24, p.y));
+
+    if (st.portalType !== "boss") {
+      const aliveMobs = app.enemies.filter(e => e.hp > 0).length;
+      const remain = Math.max(0, st.killQuota - st.killsInFloor);
+      if (remain > 0 && aliveMobs < Math.min(18, remain + 3)) {
+        st.spawnTimer -= dt;
+        if (st.spawnTimer <= 0) {
+          st.spawnTimer = Math.max(0.32, 0.72 - st.floor * 0.015);
+          this.spawnTowerMob(app);
+        }
+      } else if (remain <= 0 && aliveMobs === 0) {
+        this.onFloorCleared(app);
+      }
+    }
+  },
+
+  onEnemyKilled(app, enemy) {
+    const st = app.towerState;
+    if (!st || st.floorCleared) return;
+    if (enemy && enemy.isTowerQuotaMob && st.portalType !== "boss") {
+      st.killsInFloor = Math.min(st.killQuota, (st.killsInFloor || 0) + 1);
+    }
+    if (this.hasRelic(app, "life_leech") && app.player && app.player.hp > 0) {
+      const diffHeal = (app.selectedDifficulty && app.selectedDifficulty.healEff !== undefined) ? app.selectedDifficulty.healEff : 1.0;
+      const berserkMod = this.hasAffix(app, "berserk_pact") ? 0.75 : 1.0;
+      app.player.hp = Math.min(app.player.maxHp, app.player.hp + app.player.maxHp * 0.02 * diffHeal * berserkMod);
+    }
+    if (this.hasAffix(app, "toxic_death") && enemy && !enemy.isBoss && typeof SkillsEngine !== "undefined") {
+      SkillsEngine.groundHazards.push({ kind: "enemy_poison_puddle", x: enemy.x, y: enemy.y, radius: 28, timer: 2.2, maxTime: 2.2 });
+    }
+  },
+
+  onBossDefeated(app, boss) {
+    const st = app.towerState;
+    if (!st || st.floorCleared) return false;
+    const stillAlive = app.enemies.some(e => e.isBoss && e.hp > 0 && e !== boss);
+    if (stillAlive) return true;
+    this.onFloorCleared(app);
+    return true;
+  },
+
+  onFloorCleared(app) {
+    const st = app.towerState;
+    if (!st || st.floorCleared) return;
+    st.floorCleared = true;
+
+    const floor = st.floor;
+    const diff = app.selectedDifficulty || { coinMult: 1.0 };
+    const gravBonus = this.hasAffix(app, "heavy_gravity") ? 1.25 : 1.0;
+    const resBonus = this.hasRelic(app, "relic_resonance") ? 1.30 : 1.0;
+    const magFlat = this.hasRelic(app, "gold_magnet") ? 60 : 0;
+    const coinGain = Math.round(((45 + floor * 12 + (st.portalType === "boss" ? 160 : 0)) * (diff.coinMult || 1.0) * gravBonus * resBonus) + magFlat);
+
+    app.runCoins = (app.runCoins || 0) + coinGain;
+    st.totalCoinsEarned = (st.totalCoinsEarned || 0) + coinGain;
+    if (app.saveData) {
+      app.saveData.coins = (app.saveData.coins || 0) + coinGain;
+      if (!app.saveData.stats) app.saveData.stats = {};
+      app.saveData.stats.bestTowerFloor = Math.max(app.saveData.stats.bestTowerFloor || 0, floor);
+    }
+
+    let newlyUnlockedTreasure = null;
+    const ms = this.MEGA_MILESTONES.find(m => m.floor === floor);
+    if (ms && app.saveData) {
+      if (!app.saveData.unlockedLegendaryTreasures) app.saveData.unlockedLegendaryTreasures = {};
+      if (!app.saveData.unlockedLegendaryTreasures[ms.treasureId]) {
+        app.saveData.unlockedLegendaryTreasures[ms.treasureId] = true;
+        newlyUnlockedTreasure = (typeof LEGENDARY_TREASURES !== "undefined") ? LEGENDARY_TREASURES[ms.treasureId] : null;
+      }
+    }
+
+    this.saveCheckpoint(app, floor + 1, "battle");
+    if (app.saveToStorage) app.saveToStorage();
+
+    app.state = "TOWER_MENU";
+    if (typeof SoundFX !== "undefined") SoundFX.play(st.portalType === "boss" ? "shiny" : "levelup");
+
+    if (newlyUnlockedTreasure && app.pixelToast) {
+      app.pixelToast(`🏆 永久解鎖傳說秘寶【${newlyUnlockedTreasure.name}】！`, "success");
+    }
+
+    if (st.portalType === "elite" || st.portalType === "boss") {
+      this.openTowerModal(app, "relic", coinGain, newlyUnlockedTreasure);
+    } else {
+      this.openTowerModal(app, "portals", coinGain, newlyUnlockedTreasure);
+    }
+  },
+
+  renderRelicStrip(app) {
+    const strip = document.getElementById("towerRelicStrip");
+    if (!strip) return;
+    const st = app.towerState;
+    const list = (st && st.relics) || [];
+    if (list.length === 0) {
+      strip.classList.add("hidden");
+      return;
+    }
+    strip.classList.remove("hidden");
+    strip.innerHTML = `<span class="text-[9px] font-black text-indigo-700 mr-1">已持有遺物 (${list.length})：</span>` + list.map(rid => {
+      const r = this.RELICS.find(x => x.id === rid);
+      return r ? `<span class="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-300 text-[9px] font-black text-indigo-900">${r.name}</span>` : "";
+    }).join("");
+  },
+
+  openTowerModal(app, phase, coinGain = 0, unlockedTreasure = null) {
+    const modal = document.getElementById("towerModal");
+    if (!modal) return;
+    const st = app.towerState;
+    const p = app.player;
+    const titleEl = document.getElementById("towerModalTitle");
+    const subEl = document.getElementById("towerModalSub");
+    const hpEl = document.getElementById("towerModalHp");
+    const grid = document.getElementById("towerChoicesGrid");
+
+    if (hpEl && p) hpEl.textContent = `HP ${Math.ceil(p.hp)}/${p.maxHp}`;
+    this.renderRelicStrip(app);
+
+    const treasureBanner = unlockedTreasure
+      ? `<div class="p-2.5 rounded-xl bg-amber-50 border-2 border-amber-500 flex items-center gap-2 mb-2">
+           <img src="${unlockedTreasure.sprite}" class="w-8 h-8 pixel-sprite shrink-0"/>
+           <div class="min-w-0">
+             <div class="text-[10px] font-black text-amber-800">🏆 首次通關 ${st.floor}F ‧ 永久解鎖傳說秘寶！</div>
+             <div class="text-xs font-black text-slate-900">${unlockedTreasure.name}</div>
+             <div class="text-[10px] font-bold text-slate-600">${unlockedTreasure.desc}</div>
+           </div>
+         </div>`
+      : "";
+
+    if (phase === "relic") {
+      if (titleEl) titleEl.textContent = `第 ${st.floor} 層制霸 ‧ 領取破格遺物`;
+      if (subEl) subEl.textContent = `賞金 +${coinGain} 金！請從下方挑選 1 件本局專屬「塔內破格遺物」：`;
+      const avail = this.RELICS.filter(r => !st.relics.includes(r.id)).sort(() => Math.random() - 0.5).slice(0, 3);
+      const picks = avail.length > 0 ? avail : this.RELICS.slice(0, 3);
+      grid.innerHTML = treasureBanner + picks.map(r => `
+        <button type="button" onclick="ModeTower.chooseRelic('${r.id}')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-slate-800 shadow-[0_3px_0_#CBD5E1] hover:border-indigo-600 active:scale-[0.985] transition">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
+              <span class="gba-ui-icon gba-ui-relic w-4 h-4"></span>${r.name}
+            </span>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black text-white" style="background:${r.color};">${r.cat}遺物</span>
+          </div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1 leading-snug">${r.desc}</p>
+        </button>
+      `).join("");
+    } else if (phase === "campfire") {
+      if (titleEl) titleEl.textContent = `🏕️ 寶可夢中心營火（第 ${st.floor} 層）`;
+      if (subEl) subEl.textContent = "在迎接強敵前稍作休整，請選擇一項營火強化：";
+      grid.innerHTML = `
+        <button type="button" onclick="ModeTower.chooseCampfire('heal')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-emerald-600 shadow-[0_3px_0_#059669] active:scale-[0.985] transition">
+          <div class="font-black text-sm text-emerald-700 flex items-center gap-1.5"><span class="gba-ui-icon gba-ui-campfire w-4 h-4"></span> 營火療癒休息</div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1">免費回復 50% 最大 HP，並清除所有異常狀態！</p>
+        </button>
+        <button type="button" onclick="ModeTower.chooseCampfire('upgrade')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-amber-500 shadow-[0_3px_0_#D97706] active:scale-[0.985] transition">
+          <div class="font-black text-sm text-amber-700 flex items-center gap-1.5"><span class="gba-ui-icon gba-ui-relic w-4 h-4"></span> 營火招式鍛造</div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1">隨機強化 1 項未滿級招式直接 +2 級（若全滿則全傷 +10%）！</p>
+        </button>
+      `;
+    } else if (phase === "mystery") {
+      if (titleEl) titleEl.textContent = `❓ 試煉塔未知奇遇（第 ${st.floor} 層）`;
+      if (subEl) subEl.textContent = "古老的祭壇散發著微光，請做出你的選擇：";
+      grid.innerHTML = `
+        <button type="button" onclick="ModeTower.chooseMystery('gamble')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-purple-600 shadow-[0_3px_0_#7E22CE] active:scale-[0.985] transition">
+          <div class="font-black text-sm text-purple-700">🎲 狂戰血祭（高風險高回報）</div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1">扣除 20% 當前 HP，立刻獲得 1 件隨機塔內破格遺物 ＋ 全招式 +1 級！</p>
+        </button>
+        <button type="button" onclick="ModeTower.chooseMystery('safe')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-sky-600 shadow-[0_3px_0_#0284C7] active:scale-[0.985] transition">
+          <div class="font-black text-sm text-sky-700">💰 穩健搜刮秘寶</div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1">無傷帶走 +140 金幣並回復 20% HP！</p>
+        </button>
+      `;
+    } else {
+      const nextF = st.floor + 1;
+      if (titleEl) titleEl.textContent = `第 ${st.floor} 層通關 ‧ 選擇第 ${nextF} 層路線`;
+      if (subEl) subEl.textContent = coinGain > 0
+        ? `本層賞金 +${coinGain} 金（已自動存檔）！選擇下一層傳送門：`
+        : `選擇前往第 ${nextF} 層的傳送門：`;
+
+      let portals = [];
+      if (nextF % 5 === 0) {
+        const msNext = this.MEGA_MILESTONES.find(m => m.floor === nextF);
+        portals = [{
+          type: "boss", icon: "tower", badge: "MEGA 首領戰", badgeBg: "#DC2626",
+          name: msNext ? `👑 第 ${nextF} 層：${msNext.title}` : `👑 第 ${nextF} 層：冠軍雙 Mega 首領戰`,
+          desc: msNext ? `擊敗鎮守 Mega 首領，永久解鎖傳說秘寶並領取破格遺物！` : "極限雙 Mega 聯手鎮守！擊破領取高階賞金與破格遺物！"
+        }];
+      } else {
+        const isPreBoss = ((nextF + 1) % 5 === 0);
+        portals = [
+          { type: "battle", icon: "portal", badge: "穩健推進", badgeBg: "#2563EB", name: `⚔️ 第 ${nextF} 層 ‧ 激戰門`, desc: "標準怪潮清剿，穩定收穫經驗、升級與金幣。" },
+          { type: "elite",  icon: "rival_ambush", badge: "必掉遺物", badgeBg: "#D97706", name: `💀 第 ${nextF} 層 ‧ 精英試煉門`, desc: "雙精英強敵圍攻！高壓挑戰，過關必選 1 件破格遺物！" }
+        ];
+        if (isPreBoss) {
+          portals.push({ type: "campfire", icon: "campfire", badge: "王前必出", badgeBg: "#059669", name: `🏕️ 第 ${nextF} 層 ‧ 中心營火門`, desc: "免戰鬥直接休整：免費回 50% HP 或強化招式 +2 級！" });
+        } else {
+          portals.push({ type: "mystery", icon: "ditto_chests", badge: "隨機奇遇", badgeBg: "#7E22CE", name: `❓ 第 ${nextF} 層 ‧ 未知奇遇門`, desc: "進入神秘祭壇觸發隨機抉擇（血祭遺物或穩健奪金）！" });
+        }
+      }
+
+      grid.innerHTML = treasureBanner + portals.map(pt => `
+        <button type="button" onclick="ModeTower.choosePortal('${pt.type}')" class="tower-choice-card w-full text-left p-3 rounded-xl bg-white border-2 border-slate-800 shadow-[0_3px_0_#CBD5E1] hover:border-red-500 active:scale-[0.985] transition">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-xs sm:text-sm text-slate-900 flex items-center gap-1.5">
+              <span class="gba-ui-icon gba-ui-${pt.icon} w-4 h-4"></span>${pt.name}
+            </span>
+            <span class="px-2 py-0.5 rounded-full text-[9px] font-black text-white shrink-0" style="background:${pt.badgeBg};">${pt.badge}</span>
+          </div>
+          <p class="text-[11px] font-bold text-slate-600 mt-1 leading-snug">${pt.desc}</p>
+        </button>
+      `).join("");
+    }
+
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+  },
+
+  closeTowerModal() {
+    const modal = document.getElementById("towerModal");
+    if (modal) { modal.classList.add("hidden"); modal.style.display = "none"; }
+  },
+
+  chooseRelic(relicId) {
+    const app = GameApp;
+    const st = app && app.towerState;
+    if (!st) return;
+    if (!st.relics.includes(relicId)) {
+      st.relics.push(relicId);
+      if (relicId === "overheal_shield" && app.player) {
+        const bonus = Math.round(app.player.maxHp * 0.22);
+        app.player.maxHp += bonus;
+        app.player.hp = Math.min(app.player.maxHp, app.player.hp + bonus);
+      }
+    }
+    this.saveCheckpoint(app, st.floor + 1, "battle");
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+    this.openTowerModal(app, "portals", 0, null);
+  },
+
+  choosePortal(portalType) {
+    const app = GameApp;
+    const st = app && app.towerState;
+    if (!st) return;
+    const nextF = st.floor + 1;
+    st.floor = nextF;
+    if (portalType === "campfire") {
+      this.openTowerModal(app, "campfire", 0, null);
+      return;
+    }
+    if (portalType === "mystery") {
+      this.openTowerModal(app, "mystery", 0, null);
+      return;
+    }
+    this.closeTowerModal();
+    this.startFloor(app, nextF, portalType);
+  },
+
+  chooseCampfire(choice) {
+    const app = GameApp;
+    const p = app && app.player;
+    const st = app && app.towerState;
+    if (!p || !st) return;
+    if (choice === "heal") {
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.50));
+      p.status = null; p.statusTimer = 0;
+    } else {
+      const cand = Object.values(p.skills || {}).filter(s => s.level < 10);
+      if (cand.length > 0) {
+        const pick = cand[Math.floor(Math.random() * cand.length)];
+        pick.level = Math.min(10, pick.level + 2);
+      } else {
+        p.dmgMult = (p.dmgMult || 1.0) + 0.10;
+      }
+    }
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+    this.saveCheckpoint(app, st.floor + 1, "battle");
+    this.openTowerModal(app, "portals", 0, null);
+  },
+
+  chooseMystery(choice) {
+    const app = GameApp;
+    const p = app && app.player;
+    const st = app && app.towerState;
+    if (!p || !st) return;
+    if (choice === "gamble") {
+      p.hp = Math.max(1, p.hp - Math.floor(p.hp * 0.20));
+      const avail = this.RELICS.filter(r => !st.relics.includes(r.id));
+      if (avail.length > 0) st.relics.push(avail[Math.floor(Math.random() * avail.length)].id);
+      Object.values(p.skills || {}).forEach(s => { if (s.level < 10) s.level = Math.min(10, s.level + 1); });
+      if (typeof SoundFX !== "undefined") SoundFX.play("super");
+    } else {
+      app.runCoins = (app.runCoins || 0) + 140;
+      if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 140;
+      p.hp = Math.min(p.maxHp, p.hp + Math.round(p.maxHp * 0.20));
+      if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+    }
+    this.saveCheckpoint(app, st.floor + 1, "battle");
+    this.openTowerModal(app, "portals", 0, null);
+  },
+
+  saveCheckpoint(app, nextFloor, nextPortalType = "battle") {
+    if (!app || !app.saveData || !app.player || !app.towerState) return;
+    const p = app.player;
+    const st = app.towerState;
+    app.saveData.towerCheckpoint = {
+      nextFloor,
+      nextPortalType,
+      starterId: app.selectedStarterId,
+      trainerId: app.selectedTrainer ? app.selectedTrainer.id : "ash",
+      difficultyId: app.selectedDifficulty ? app.selectedDifficulty.id : "normal",
+      relics: [...(st.relics || [])],
+      runCoins: app.runCoins || 0,
+      totalCoinsEarned: st.totalCoinsEarned || 0,
+      player: {
+        id: p.id, level: p.level, exp: p.exp,
+        hp: Math.ceil(p.hp), maxHp: p.maxHp,
+        dmgMult: p.dmgMult, speedMult: p.speedMult,
+        skills: JSON.parse(JSON.stringify(p.skills || {})),
+        heldItems: { ...(p.heldItems || {}) },
+        legendaryTreasures: { ...(p.legendaryTreasures || {}) }
+      }
+    };
+    if (app.saveToStorage) app.saveToStorage();
+  },
+
+  saveAndReturnToLobby() {
+    const app = GameApp;
+    if (!app) return;
+    const st = app.towerState;
+    this.closeTowerModal();
+    if (st) {
+      this.saveCheckpoint(app, st.floor + 1, "battle");
+    }
+    if (typeof app.quitToTitle === "function") app.quitToTitle();
+    if (st && app.pixelToast) {
+      app.pixelToast(`💾 已保存 Mega 試煉塔第 ${st.floor + 1} 層進度，隨時可回大廳續爬！`, "success");
     }
   }
 };

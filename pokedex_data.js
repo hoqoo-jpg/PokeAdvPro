@@ -551,6 +551,43 @@ const HELD_ITEMS = {
   }
 };
 
+
+// v7.8.0 關都 Mega 試煉塔永久解鎖：4 件傳說秘寶（獨立於一般攜帶物池，不稀釋升級三選一、1vs1 禁用、單局最多裝備 2 件）
+const LEGENDARY_TREASURES = {
+  leftovers: {
+    id: "leftovers",
+    name: "吃剩的東西",
+    unlockFloor: 5,
+    cost: 380,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/leftovers.png",
+    desc: "【5F 秘寶】每秒回復 0.8% 最大 HP（遵守難度與王戰回復壓制），穩健續航核心！"
+  },
+  life_orb: {
+    id: "life_orb",
+    name: "生命寶珠",
+    unlockFloor: 10,
+    cost: 420,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/life-orb.png",
+    desc: "【10F 秘寶】全技能傷害 +22%，但自身所受傷害 +15%，高風險極限爆發！"
+  },
+  choice_scarf: {
+    id: "choice_scarf",
+    name: "講究圍巾",
+    unlockFloor: 15,
+    cost: 420,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/choice-scarf.png",
+    desc: "【15F 秘寶】全招式冷卻 -10% ＋ 移動速度 +12%（遵守冷卻下限），行雲流水！"
+  },
+  focus_sash: {
+    id: "focus_sash",
+    name: "氣勢披帶",
+    unlockFloor: 20,
+    cost: 450,
+    sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/focus-sash.png",
+    desc: "【20F 秘寶】每局 1 次免疫致命傷（鎖血 1 HP ＋ 2.5s 無敵震退，照常計入受擊次數）！"
+  }
+};
+
 // 4. Boss 與精英小王多重攻擊模式資料庫
 const BOSS_ATTACK_PATTERNS = {
   145: {

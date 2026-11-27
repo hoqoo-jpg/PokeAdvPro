@@ -1963,6 +1963,17 @@ window.ModeExpedition = {
       shelf.push({ ...specItems.full_restore, cost: healCost, kind: "consumable", bought: false });
     }
 
+    if (st.currentWave >= 5 && typeof LEGENDARY_TREASURES !== "undefined" && app.saveData && app.saveData.unlockedLegendaryTreasures) {
+      const ownedLeg = Object.keys(p.legendaryTreasures || {}).filter(k => p.legendaryTreasures[k]);
+      if (ownedLeg.length < 2) {
+        const availLeg = Object.values(LEGENDARY_TREASURES).filter(lt => app.saveData.unlockedLegendaryTreasures[lt.id] && !(p.legendaryTreasures && p.legendaryTreasures[lt.id]));
+        if (availLeg.length > 0 && Math.random() < 0.45) {
+          const pick = availLeg[Math.floor(Math.random() * availLeg.length)];
+          shelf.push({ id: pick.id, name: pick.name, desc: pick.desc, sprite: pick.sprite, cost: pick.cost, kind: "legendary_treasure", bought: false });
+        }
+      }
+    }
+
     st.shopShelf = shelf;
   },
 
@@ -2097,6 +2108,8 @@ window.ModeExpedition = {
         if (it.isCounterRec) {
           badgeHtml += `<span class="px-1 py-0.2 rounded bg-sky-700 text-white text-[8px] font-black">克制</span>`;
         }
+      } else if (it.kind === "legendary_treasure") {
+        badgeHtml = `<span class="px-1 py-0.2 rounded bg-amber-600 text-white text-[8px] font-black">🏆 傳說秘寶</span>`;
       } else if (it.kind === "held") {
         badgeHtml = `<span class="px-1 py-0.2 rounded bg-purple-800 text-purple-100 text-[8px] font-black">${it.isStageRec ? '海域推薦' : '攜帶物'}</span>`;
       }
@@ -2840,6 +2853,18 @@ window.ModeExpedition = {
       } else {
         p.skills[it.id] = { id: it.id, level: 1, evolved: false, timer: 0.25 };
       }
+    } else if (it.kind === "legendary_treasure") {
+      const ownedLegCount = Object.keys(p.legendaryTreasures || {}).filter(k => p.legendaryTreasures[k]).length;
+      if (ownedLegCount >= 2) {
+        if (app.pixelToast) app.pixelToast("傳說秘寶單局最多裝備 2 件！", "warn");
+        return;
+      }
+      app.runCoins -= it.cost;
+      app.saveData.coins = Math.max(0, app.saveData.coins - it.cost);
+      it.bought = true;
+      if (!p.legendaryTreasures) p.legendaryTreasures = {};
+      p.legendaryTreasures[it.id] = true;
+      if (app.pixelToast) app.pixelToast(`🏆 已裝備傳說秘寶【${it.name}】！`, "success");
     } else if (it.kind === "held") {
       const ownedHeldCount = Object.keys(p.heldItems || {}).filter(k => p.heldItems[k]).length;
       if (ownedHeldCount >= 4) {
