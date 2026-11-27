@@ -883,3 +883,397 @@ window.ModeArena = {
     return true;
   }
 };
+
+// ============================================================================
+// v7.7.0 十大隨機突發事件系統 (FieldEventsEngine)
+// 涵蓋：移動搶點(3) ＋ 打寶爆發(3) ＋ 戰術異變(4)，通用於 8 分鐘 / 無盡 / 關都大遠征
+// ============================================================================
+window.FieldEventsEngine = {
+  UI_SHEET_URL: "images/gba_ui_icons_sheet.png",
+  UI_CELLS: {
+    expedition: [0, 0], arena: [1, 0], lab: [2, 0], trophy: [3, 0],
+    costume: [0, 1], settings: [1, 1], energy_beacon: [2, 1], rocket_airdrop: [3, 1],
+    chansey_patrol: [0, 2], meowth_convoy: [1, 2], shiny_swarm: [2, 2], ditto_chests: [3, 2],
+    overdrive_storm: [0, 3], exp_mist: [1, 3], rival_ambush: [2, 3], league_contract: [3, 3]
+  },
+  getIconSrcRect(key) {
+    const pos = this.UI_CELLS[key];
+    if (!pos) return null;
+    return { x: pos[0] * 128, y: pos[1] * 128, w: 128, h: 128 };
+  },
+  CATALOG: [
+    { id: "energy_beacon",  icon: "📡", name: "能量信標佔領圈",   cat: "move",   duration: 24, sub: "站入光圈充能 5 秒，引爆全屏清場波並回血！" },
+    { id: "rocket_airdrop", icon: "📦", name: "火箭隊空投補給箱", cat: "move",   duration: 22, sub: "搶先開啟空投箱，奪取無敵護盾與全場磁鐵！" },
+    { id: "chansey_patrol", icon: "🥚", name: "野生吉利蛋巡遊",   cat: "move",   duration: 22, sub: "追擊幸運吉利蛋，奪取大補包與高階經驗晶！" },
+    { id: "meowth_convoy",  icon: "💰", name: "聚寶喵喵運鈔車",   cat: "loot",   duration: 22, sub: "攔截高速逃竄的喵喵雙人組，狂賺賞金！" },
+    { id: "shiny_swarm",    icon: "✨", name: "閃光野生群襲",     cat: "loot",   duration: 16, sub: "閃光野生寶可夢大批湧現，經驗倍增助開圖鑑！" },
+    { id: "ditto_chests",   icon: "🎁", name: "真假百變怪寶箱",   cat: "loot",   duration: 24, sub: "場上出現雙寶箱！選對領秘寶，選錯迎戰百變怪！" },
+    { id: "overdrive_storm",icon: "⚡", name: "超電磁過載風暴",   cat: "tactic", duration: 15, sub: "全招冷卻 -35%！但敵軍移速 +20%，全速傾瀉火力！" },
+    { id: "exp_mist",       icon: "🌫️", name: "迷霧雙倍經驗潮",   cat: "tactic", duration: 18, sub: "戰場籠罩紫霧，期間全額經驗獲取 2.0x！" },
+    { id: "rival_ambush",   icon: "⚔️", name: "宿敵精英突襲",     cat: "tactic", duration: 28, sub: "強敵宿敵殺入戰場！擊破必掉稀世補給與賞金！" },
+    { id: "league_contract",icon: "📜", name: "聯盟緊急契約",     cat: "tactic", duration: 1,  sub: "緊急戰術抉擇：高風險全招+1 或穩健護盾回血！" }
+  ],
+
+  reset(app) {
+    app.activeFieldEvent = null;
+    app.fieldEventCooldown = 78;
+    app.lastFieldEventId = null;
+    app.fieldEventCdMult = 1.0;
+    app.fieldEventExpMult = 1.0;
+    app.fieldEventEnemySpdMult = 1.0;
+    this.syncHud(app);
+    const cm = document.getElementById("fieldEventContractModal");
+    if (cm) { cm.classList.add("hidden"); cm.style.display = "none"; }
+  },
+
+  pickRandomEventId(app, excludeContract = false) {
+    const pool = this.CATALOG.filter(ev => {
+      if (ev.id === app.lastFieldEventId) return false;
+      if (excludeContract && ev.id === "league_contract") return false;
+      return true;
+    });
+    const pick = pool[Math.floor(Math.random() * pool.length)] || this.CATALOG[0];
+    return pick.id;
+  },
+
+  spawnOffsetPos(app, minDist = 175, maxDist = 265) {
+    const p = app.player;
+    const ang = Math.random() * Math.PI * 2;
+    const dist = minDist + Math.random() * (maxDist - minDist);
+    let tx = (p ? p.x : 0) + Math.cos(ang) * dist;
+    let ty = (p ? p.y : 0) + Math.sin(ang) * dist;
+    if (app.isExpeditionMode && app.expeditionState && app.expeditionState.arenaBounds) {
+      const b = app.expeditionState.arenaBounds;
+      tx = Math.max(-b.halfW + 70, Math.min(b.halfW - 70, tx));
+      ty = Math.max(-b.halfH + 70, Math.min(b.halfH - 70, ty));
+    }
+    return { x: tx, y: ty };
+  },
+
+  triggerEvent(app, eventId = null) {
+    if (!app || !app.player || app.isArenaMode) return false;
+    const chosenId = eventId || this.pickRandomEventId(app, false);
+    const meta = this.CATALOG.find(e => e.id === chosenId) || this.CATALOG[0];
+    app.lastFieldEventId = meta.id;
+
+    if (meta.id === "league_contract") {
+      app.activeFieldEvent = null;
+      this.syncHud(app);
+      app._preContractState = app.state;
+      app.state = "CONTRACT";
+      if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+      const cm = document.getElementById("fieldEventContractModal");
+      if (cm) {
+        cm.classList.remove("hidden");
+        cm.style.display = "flex";
+      }
+      return true;
+    }
+
+    const ev = {
+      id: meta.id,
+      icon: meta.icon,
+      name: meta.name,
+      sub: meta.sub,
+      timer: meta.duration,
+      maxTimer: meta.duration,
+      progress: 0,
+      targetProgress: 5.0,
+      nodes: [],
+      spawnTick: 0
+    };
+
+    if (meta.id === "energy_beacon") {
+      const pos = this.spawnOffsetPos(app, 175, 250);
+      ev.nodes.push({ kind: "beacon", x: pos.x, y: pos.y, radius: 76, label: "信標", color: "#38BDF8" });
+    } else if (meta.id === "rocket_airdrop") {
+      const pos = this.spawnOffsetPos(app, 185, 270);
+      ev.nodes.push({ kind: "airdrop", x: pos.x, y: pos.y, radius: 34, label: "空投", color: "#FACC15", opened: false });
+    } else if (meta.id === "ditto_chests") {
+      const p = app.player;
+      const baseAng = Math.random() * Math.PI * 2;
+      const d = 195;
+      const realIdx = Math.random() < 0.5 ? 0 : 1;
+      [0, 1].forEach(idx => {
+        const ang = baseAng + (idx === 0 ? -0.55 : 0.55);
+        ev.nodes.push({
+          kind: "chest",
+          x: p.x + Math.cos(ang) * d,
+          y: p.y + Math.sin(ang) * d,
+          radius: 32,
+          isReal: idx === realIdx,
+          opened: false,
+          label: "寶箱",
+          color: "#A855F7"
+        });
+      });
+    } else if (meta.id === "chansey_patrol") {
+      if (typeof app.spawnTreasureMonster === "function") app.spawnTreasureMonster("chansey");
+    } else if (meta.id === "meowth_convoy") {
+      if (typeof app.spawnTreasureMonster === "function") {
+        app.spawnTreasureMonster("meowth");
+        app.spawnTreasureMonster("meowth");
+      }
+    } else if (meta.id === "shiny_swarm") {
+      this.spawnShinyBurst(app, 7);
+    } else if (meta.id === "overdrive_storm") {
+      app.fieldEventCdMult = 0.65;
+      app.fieldEventEnemySpdMult = 1.20;
+    } else if (meta.id === "exp_mist") {
+      app.fieldEventExpMult = 2.0;
+    } else if (meta.id === "rival_ambush") {
+      this.spawnRivalElite(app);
+    }
+
+    app.activeFieldEvent = ev;
+    if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+    if (app.spawnFloatingText) {
+      app.spawnFloatingText(app.player.x, app.player.y - 54, `${meta.icon} 突發事件：${meta.name}！`, "#FACC15", 14);
+    }
+    this.syncHud(app);
+    return true;
+  },
+
+  spawnShinyBurst(app, count = 6) {
+    const p = app.player;
+    if (!p || typeof POKEMON_MAP === "undefined") return;
+    const poolIds = [25, 133, 58, 37, 92, 63, 129, 147, 54, 19, 16];
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    for (let i = 0; i < count; i++) {
+      const pid = poolIds[Math.floor(Math.random() * poolIds.length)];
+      const data = POKEMON_MAP.get(pid);
+      if (!data) continue;
+      if (app.saveData && app.saveData.pokedexSeen) app.saveData.pokedexSeen[pid] = true;
+      const ang = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 250 + Math.random() * 90;
+      const hp = Math.round((85 + data.hp * 0.7) * diff.hpMult * (1 + (app.runTime || 0) / 180));
+      app.enemies.push({
+        id: pid,
+        data,
+        x: p.x + Math.cos(ang) * dist,
+        y: p.y + Math.sin(ang) * dist,
+        hp, maxHp: hp,
+        atk: Math.round((10 + data.atk * 0.25) * diff.atkMult),
+        speed: Math.min(115, (62 + data.speed * 0.22) * diff.spdMult),
+        radius: 19,
+        isElite: false, isBoss: false, isShiny: true,
+        expVal: 55,
+        whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0,
+        treasureType: null
+      });
+    }
+  },
+
+  spawnRivalElite(app) {
+    const p = app.player;
+    if (!p || typeof POKEMON_MAP === "undefined") return;
+    const rivalPool = [65, 94, 130, 149, 59, 143];
+    const pid = rivalPool[Math.floor(Math.random() * rivalPool.length)];
+    const data = POKEMON_MAP.get(pid) || POKEMON_MAP.get(94);
+    if (app.saveData && app.saveData.pokedexSeen) app.saveData.pokedexSeen[pid] = true;
+    const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0, spdMult: 1.0 };
+    const pos = this.spawnOffsetPos(app, 230, 290);
+    const hp = Math.round((1450 + (app.runTime || 0) * 6.5) * diff.hpMult);
+    app.enemies.push({
+      id: pid,
+      data,
+      x: pos.x,
+      y: pos.y,
+      hp, maxHp: hp,
+      atk: Math.round(24 * diff.atkMult),
+      speed: Math.min(112, 86 * diff.spdMult),
+      radius: 28,
+      isElite: true,
+      isMiniBoss: true,
+      isBoss: false,
+      isShiny: false,
+      guaranteedRareCandy: true,
+      isRivalAmbush: true,
+      expVal: 180,
+      whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0,
+      treasureType: null
+    });
+  },
+
+  resolveContractChoice(app, choice) {
+    const cm = document.getElementById("fieldEventContractModal");
+    if (cm) { cm.classList.add("hidden"); cm.style.display = "none"; }
+    const p = app && app.player;
+    if (p) {
+      if (choice === "risk") {
+        const hpCost = Math.max(1, Math.floor(p.hp * 0.20));
+        p.hp = Math.max(1, p.hp - hpCost);
+        let upgraded = 0;
+        Object.values(p.skills || {}).forEach(sk => {
+          if (sk.level < 10) { sk.level = Math.min(10, sk.level + 1); upgraded++; }
+        });
+        if (upgraded > 0) {
+          if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 44, `🔥 狂戰契約！全招式 +1 級！`, "#F43F5E", 15);
+        } else {
+          p.dmgMult = (p.dmgMult || 1.0) + 0.12;
+          if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 44, `🔥 狂戰契約！全傷永久 +12%！`, "#F43F5E", 15);
+        }
+        if (typeof SoundFX !== "undefined") SoundFX.play("super");
+      } else {
+        const healAmt = Math.round(p.maxHp * 0.35 * (p.badgeHealMult || 1.0));
+        p.hp = Math.min(p.maxHp, p.hp + healAmt);
+        p.invulnTimer = Math.max(p.invulnTimer || 0, 6.0);
+        app.runCoins = (app.runCoins || 0) + 80;
+        if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 80;
+        if (app.spawnFloatingText) app.spawnFloatingText(p.x, p.y - 44, `🛡️ 聯盟補給！+${healAmt} HP ＆ 6s無敵`, "#10B981", 14);
+        if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
+      }
+      if (app.refreshHUD) app.refreshHUD();
+    }
+    app.state = app._preContractState || "PLAYING";
+  },
+
+  clearActiveEvent(app) {
+    app.activeFieldEvent = null;
+    app.fieldEventCdMult = 1.0;
+    app.fieldEventExpMult = 1.0;
+    app.fieldEventEnemySpdMult = 1.0;
+    this.syncHud(app);
+  },
+
+  update(app, dt) {
+    if (!app || !app.player || app.isArenaMode || app.battleCountdownTimer > 0) return;
+    const p = app.player;
+
+    if (!app.isExpeditionMode && !app.activeFieldEvent) {
+      if (!app.activeBoss) {
+        app.fieldEventCooldown = (app.fieldEventCooldown !== undefined ? app.fieldEventCooldown : 78) - dt;
+        if (app.fieldEventCooldown <= 0) {
+          app.fieldEventCooldown = 75 + Math.random() * 15;
+          this.triggerEvent(app);
+        }
+      }
+      return;
+    }
+
+    const ev = app.activeFieldEvent;
+    if (!ev) return;
+
+    ev.timer -= dt;
+    if (ev.timer <= 0) {
+      this.clearActiveEvent(app);
+      return;
+    }
+
+    if (ev.id === "energy_beacon" && ev.nodes[0]) {
+      const nd = ev.nodes[0];
+      const dist = Math.hypot(p.x - nd.x, p.y - nd.y);
+      if (dist <= nd.radius) {
+        ev.progress = Math.min(ev.targetProgress, ev.progress + dt);
+        if (ev.progress >= ev.targetProgress) {
+          const heal = Math.round(p.maxHp * 0.25 * (p.badgeHealMult || 1.0));
+          p.hp = Math.min(p.maxHp, p.hp + heal);
+          app.runCoins = (app.runCoins || 0) + 90;
+          if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 90;
+          (app.enemies || []).forEach(en => {
+            if (en && en.hp > 0 && Math.hypot(en.x - nd.x, en.y - nd.y) <= 380) {
+              const dmg = en.isBoss ? Math.round(en.maxHp * 0.08) : Math.round(en.maxHp * 0.85);
+              app.dealDamageToEnemy(en, Math.max(120, dmg), "Electric", 0.2, en.isBoss ? 0 : 40);
+            }
+          });
+          if (typeof SkillsEngine !== "undefined") {
+            SkillsEngine.meleeEffects.push({ style: "slam_wave", x: nd.x, y: nd.y, radius: 340, timer: 0.45, maxTime: 0.45, color: "#38BDF8" });
+          }
+          if (app.spawnFloatingText) app.spawnFloatingText(nd.x, nd.y - 36, `📡 信標充能完成！+${heal} HP ＆ +90 金`, "#38BDF8", 15);
+          if (typeof SoundFX !== "undefined") SoundFX.play("super");
+          this.clearActiveEvent(app);
+          return;
+        }
+      }
+    }
+
+    if (ev.id === "rocket_airdrop" && ev.nodes[0] && !ev.nodes[0].opened) {
+      const nd = ev.nodes[0];
+      if (Math.hypot(p.x - nd.x, p.y - nd.y) <= nd.radius + 18) {
+        nd.opened = true;
+        p.invulnTimer = Math.max(p.invulnTimer || 0, 8.0);
+        p.xAttackTimer = Math.max(p.xAttackTimer || 0, 15.0);
+        (app.gems || []).forEach(g => { g.magnetized = true; });
+        app.runCoins = (app.runCoins || 0) + 75;
+        if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 75;
+        if (app.spawnFloatingText) app.spawnFloatingText(nd.x, nd.y - 32, `📦 奪取空投！8s無敵＋全場磁鐵＋75金`, "#FACC15", 14);
+        if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+        this.clearActiveEvent(app);
+        return;
+      }
+    }
+
+    if (ev.id === "ditto_chests" && ev.nodes.length > 0) {
+      for (const nd of ev.nodes) {
+        if (nd.opened) continue;
+        if (Math.hypot(p.x - nd.x, p.y - nd.y) <= nd.radius + 18) {
+          nd.opened = true;
+          if (nd.isReal) {
+            app.runCoins = (app.runCoins || 0) + 120;
+            if (app.saveData) app.saveData.coins = (app.saveData.coins || 0) + 120;
+            app.spawnMapLoot("rare_candy", nd.x, nd.y);
+            if (app.spawnFloatingText) app.spawnFloatingText(nd.x, nd.y - 34, `🎁 真品寶箱！神奇糖果 ＋ 120 金！`, "#FACC15", 15);
+            if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+          } else {
+            const ditto = POKEMON_MAP.get(132);
+            const diff = app.selectedDifficulty || { hpMult: 1.0, atkMult: 1.0 };
+            if (ditto) {
+              const dHp = Math.round(950 * diff.hpMult);
+              app.enemies.push({
+                id: 132, data: ditto, x: nd.x, y: nd.y,
+                hp: dHp, maxHp: dHp, atk: Math.round(20 * diff.atkMult), speed: 88, radius: 24,
+                isElite: true, isMiniBoss: true, isBoss: false, isShiny: true,
+                guaranteedRareCandy: true, expVal: 140,
+                whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
+              });
+            }
+            if (app.spawnFloatingText) app.spawnFloatingText(nd.x, nd.y - 34, `😈 是閃光百變怪假扮的！快擊倒它！`, "#C084FC", 14);
+            if (typeof SoundFX !== "undefined") SoundFX.play("boss_encounter");
+          }
+          this.clearActiveEvent(app);
+          return;
+        }
+      }
+    }
+
+    if (ev.id === "shiny_swarm") {
+      ev.spawnTick += dt;
+      if (ev.spawnTick >= 7.5) {
+        ev.spawnTick = 0;
+        this.spawnShinyBurst(app, 5);
+      }
+    }
+
+    this.syncHud(app);
+  },
+
+  syncHud(app) {
+    const ban = document.getElementById("fieldEventHudBanner");
+    if (!ban) return;
+    const ev = app && app.activeFieldEvent;
+    if (!ev) {
+      ban.classList.add("hidden");
+      return;
+    }
+    ban.classList.remove("hidden");
+    const iconEl = document.getElementById("fieldEventHudIcon");
+    const titleEl = document.getElementById("fieldEventHudTitle");
+    const timerEl = document.getElementById("fieldEventHudTimer");
+    const subEl = document.getElementById("fieldEventHudSub");
+    const barEl = document.getElementById("fieldEventHudBar");
+    if (iconEl) iconEl.innerHTML = `<span class="gba-ui-icon gba-ui-${ev.id} w-4 h-4"></span>`;
+    if (titleEl) titleEl.textContent = ev.name;
+    if (timerEl) timerEl.textContent = `${Math.ceil(ev.timer)}s`;
+    if (subEl) {
+      subEl.textContent = ev.id === "energy_beacon"
+        ? `站入信標圈充能：${Math.round((ev.progress / ev.targetProgress) * 100)}%（剩餘 ${Math.ceil(ev.timer)}s）`
+        : ev.sub;
+    }
+    if (barEl) {
+      const pct = ev.id === "energy_beacon"
+        ? Math.min(100, (ev.progress / ev.targetProgress) * 100)
+        : Math.max(0, Math.min(100, (ev.timer / ev.maxTimer) * 100));
+      barEl.style.width = `${pct}%`;
+    }
+  }
+};

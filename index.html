@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.6.13');
+      background-image: url('images/skills_icons_sheet.png?v=7.7.1');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.6.13');
+      background-image: url('images/skills_icons_extra5.png?v=7.7.1');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1041,6 +1041,87 @@
       color: #1E293B !important;
       border-top: 1px solid #CBD5E1;
     }
+    /* v7.7.0 結算頁 GBA 掌機風升級（滿版頂部色帶 ＋ 2px 粗藍黑邊框 ＋ 去除白灰套娃表單感） */
+    body:not(.theme-dark-gold) #endModal > .poke-card {
+      padding: 0 !important;
+      border: 3px solid #0F172A !important;
+      background-color: #F8FAFC !important;
+    }
+    #endModalHeaderBanner {
+      background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+      border-bottom: 3px solid #0F172A;
+    }
+    #endModalHeaderBanner.banner-victory {
+      background: linear-gradient(135deg, #DC2626 0%, #B91C1C 58%, #D97706 100%) !important;
+    }
+    #endModalHeaderBanner.banner-defeat {
+      background: linear-gradient(135deg, #1E3A8A 0%, #1E293B 100%) !important;
+    }
+    #endModalHeaderBanner.banner-pause {
+      background: linear-gradient(135deg, #334155 0%, #0F172A 100%) !important;
+    }
+    body:not(.theme-dark-gold) #endModalHeaderBanner #endModalTitle {
+      color: #FFFFFF !important;
+      text-shadow: 0 2px 0 rgba(15, 23, 42, 0.75);
+    }
+    body:not(.theme-dark-gold) #endModalHeaderBanner #endModalSubtitle {
+      color: #FEF08A !important;
+    }
+    body:not(.theme-dark-gold) #endModal .end-scroll-well {
+      background-color: #E2E8F0 !important;
+      border: 2px solid #1E293B !important;
+    }
+    body:not(.theme-dark-gold) #endModal #endHexRatingBox > div,
+    body:not(.theme-dark-gold) #endModal #endHallOfFameBox > div,
+    body:not(.theme-dark-gold) #endModal .bg-slate-900\/90,
+    body:not(.theme-dark-gold) #endModal .bg-slate-900\/95 {
+      background: #FFFFFF !important;
+      border: 2px solid #1E293B !important;
+      box-shadow: 0 3px 0 #CBD5E1 !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp {
+      box-shadow: 0 3px 0 rgba(15, 23, 42, 0.35) !important;
+    }
+    body:not(.theme-dark-gold) #endModal #hexRankStamp span:last-child {
+      color: #F8FAFC !important;
+      opacity: 0.92 !important;
+    }
+    body:not(.theme-dark-gold) #endModal .end-sec-pill {
+      background-color: #1E293B !important;
+      color: #FEF08A !important;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    /* v7.7.1 GBA 像素 UI 圖集 (4x4 Sprite Sheet: images/gba_ui_icons_sheet.png) */
+    .gba-ui-icon {
+      display: inline-block;
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.7.1');
+      background-size: 400% 400%;
+      background-repeat: no-repeat;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .gba-ui-expedition      { background-position: 0% 0%; }
+    .gba-ui-arena           { background-position: 33.333% 0%; }
+    .gba-ui-lab             { background-position: 66.666% 0%; }
+    .gba-ui-trophy          { background-position: 100% 0%; }
+    .gba-ui-costume         { background-position: 0% 33.333%; }
+    .gba-ui-settings        { background-position: 33.333% 33.333%; }
+    .gba-ui-energy_beacon   { background-position: 66.666% 33.333%; }
+    .gba-ui-rocket_airdrop  { background-position: 100% 33.333%; }
+    .gba-ui-chansey_patrol  { background-position: 0% 66.666%; }
+    .gba-ui-meowth_convoy   { background-position: 33.333% 66.666%; }
+    .gba-ui-shiny_swarm     { background-position: 66.666% 66.666%; }
+    .gba-ui-ditto_chests    { background-position: 100% 66.666%; }
+    .gba-ui-overdrive_storm { background-position: 0% 100%; }
+    .gba-ui-exp_mist        { background-position: 33.333% 100%; }
+    .gba-ui-rival_ambush    { background-position: 66.666% 100%; }
+    .gba-ui-league_contract { background-position: 100% 100%; }
   </style>
   <script>
     (function () {
@@ -1141,7 +1222,7 @@
 
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.6.13
+      v7.7.1
     </div>
   </div>
 
@@ -1164,7 +1245,7 @@
           <i id="lobbyBgmIcon" class="fa-solid fa-volume-high text-blue-600 text-xs"></i>
         </button>
         <button onclick="GameApp.openSettingsModal()" class="px-2 sm:px-2.5 py-1.5 bg-white/95 rounded-xl sm:rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-[11px] sm:text-xs shadow active:scale-95 transition-transform flex items-center gap-1 whitespace-nowrap shrink-0" title="畫面濾鏡與效能設定">
-          <i class="fa-solid fa-sliders text-amber-600 text-[10px]"></i><span>設定</span>
+          <span class="gba-ui-icon gba-ui-settings w-3.5 h-3.5"></span><span>設定</span>
         </button>
         <button onclick="GameApp.openChangelogModal()" class="relative px-2 sm:px-2.5 py-1.5 bg-white/95 rounded-xl sm:rounded-2xl border-2 border-slate-800 text-slate-800 font-black text-[11px] sm:text-xs shadow active:scale-95 transition-transform flex items-center gap-1 whitespace-nowrap shrink-0" title="版本更新日誌">
           <i class="fa-solid fa-scroll text-purple-600 text-[10px]"></i><span>更新</span>
@@ -1198,7 +1279,7 @@
                 <img id="lobbyTrainerPreview" src="images/cutin_ash.png" class="w-full h-full object-cover object-top" alt="Trainer" />
               </div>
               <button id="lobbyCostumeSwitchBtn" type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume(GameApp.selectedTrainer && GameApp.selectedTrainer.id)" title="點擊更換訓練家服裝" class="costume-switch-btn hidden absolute -bottom-1.5 -right-1.5 z-10 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 border border-white text-[8px] font-black leading-none flex items-center gap-0.5 active:scale-95">
-                <span class="costume-switch-icon">👕</span><span>換裝</span>
+                <span class="costume-switch-icon gba-ui-icon gba-ui-costume w-3 h-3"></span><span>換裝</span>
               </button>
             </div>
             <div class="relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-sky-50 via-white to-amber-50 border-2 border-slate-800 flex items-center justify-center overflow-hidden shrink-0 shadow-inner p-1">
@@ -1217,9 +1298,9 @@
           </div>
         </div>
         <!-- 進化路線與覺醒預覽列 -->
-        <div id="lobbyEvolutionPreview" class="pt-1.5 border-t border-dashed border-slate-300 flex items-center justify-between gap-1 text-[10px] font-bold text-slate-700 bg-slate-50/90 px-2 py-1 rounded-xl"></div>
+        <div id="lobbyEvolutionPreview" class="pt-1 border-t border-dashed border-slate-300 flex items-center justify-between gap-1 text-[10px] font-bold text-slate-700 bg-slate-50/90 px-1.5 py-0.5 rounded-xl"></div>
         <!-- v7.6.0 大廳招式整備（自選初始技 ＋ 全系列停用 1 招） -->
-        <div id="lobbySkillLoadoutContainer" onclick="event.stopPropagation()" class="pt-1"></div>
+        <div id="lobbySkillLoadoutContainer" onclick="event.stopPropagation()" class="-mt-0.5"></div>
       </div>
     </div>
 
@@ -1235,7 +1316,7 @@
             </div>
             <div id="lobbyExpMetaText" class="text-[10px] font-bold text-slate-300 mt-0.5">6 大區域 ‧ 20+1 關推進 ‧ 三聖鳥歸位</div>
           </div>
-          <i class="fa-solid fa-route text-emerald-400 text-lg shrink-0"></i>
+          <span class="gba-ui-icon gba-ui-expedition w-6 h-6 shrink-0"></span>
         </div>
         <div id="lobbyExpActionRow" class="flex items-center gap-1.5">
           <button onclick="event.stopPropagation(); GameApp.openModeFromLobby('expedition')" class="poke-btn-red w-full py-2 text-xs sm:text-sm font-black shadow">展開關都大遠征 →</button>
@@ -1270,14 +1351,14 @@
 
         <button onclick="GameApp.openSkillTreeModal()" class="poke-btn-white py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-house-medical text-emerald-600 text-xs sm:text-sm"></i>
+            <span class="gba-ui-icon gba-ui-lab w-4 h-4"></span>
             <span>研究所</span>
           </div>
         </button>
 
         <button onclick="GameApp.openAchievementModal()" class="poke-btn-white relative py-2 sm:py-2.5 px-1 text-xs font-black flex flex-col items-center justify-center gap-0.5 shadow">
           <div class="flex items-center gap-1">
-            <i class="fa-solid fa-medal text-amber-500 text-xs sm:text-sm"></i>
+            <span class="gba-ui-icon gba-ui-trophy w-4 h-4"></span>
             <span>道館榮譽</span>
           </div>
           <span id="achClaimBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
@@ -1392,7 +1473,22 @@
       </div>
     </div>
 
-    <!-- 左下角緊湊化：雙打夥伴與攜帶物合併同行，下方為招式微標籤，釋放直屏戰場視野 -->
+        <!-- v7.7.0 十大隨機突發事件頂部精簡提示條（不擋操作） -->
+    <div id="fieldEventHudBanner" class="hidden absolute top-[134px] sm:top-[142px] left-1/2 -translate-x-1/2 w-[88%] max-w-sm bg-slate-950/80 backdrop-blur-sm border-2 border-amber-400 rounded-xl px-2.5 py-1 shadow-lg pointer-events-none z-20">
+      <div class="flex items-center justify-between gap-2 text-[10px] sm:text-[11px] font-black text-white leading-tight">
+        <span class="flex items-center gap-1.5 min-w-0">
+          <span id="fieldEventHudIcon" class="inline-flex items-center justify-center shrink-0"><span class="gba-ui-icon gba-ui-overdrive_storm w-4 h-4"></span></span>
+          <span id="fieldEventHudTitle" class="text-amber-300 truncate">突發事件</span>
+        </span>
+        <span id="fieldEventHudTimer" class="font-pixel text-[8px] sm:text-[9px] text-sky-300 shrink-0">15s</span>
+      </div>
+      <div id="fieldEventHudSub" class="text-[9px] font-bold text-slate-200 truncate mt-0.5">前往目標點完成挑戰！</div>
+      <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1 border border-slate-700">
+        <div id="fieldEventHudBar" class="h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-emerald-400 transition-all duration-100" style="width: 100%;"></div>
+      </div>
+    </div>
+
+<!-- 左下角緊湊化：雙打夥伴與攜帶物合併同行，下方為招式微標籤，釋放直屏戰場視野 -->
     <div class="absolute hud-bottom-safe left-3 sm:left-4 flex flex-col gap-1 pointer-events-auto max-w-[66%]">
       <div class="flex items-center flex-wrap gap-1.5">
         <div id="hudPartnerList" class="flex items-center gap-1 empty:hidden"></div>
@@ -1911,14 +2007,15 @@
 
   <!-- 14. 戰鬥結算 / 暫停視窗 (End / Pause Modal - 支援手機端限高與內部獨立垂直滑動，底部按鈕永不擠出畫面) -->
   <div id="endModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm">
-    <div class="poke-card w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden p-4 sm:p-5 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
-      <div class="text-center mb-2.5 shrink-0">
-        <h2 id="endModalTitle" class="font-pixel text-lg sm:text-2xl text-amber-400">BATTLE FINISHED</h2>
-        <p id="endModalSubtitle" class="text-xs text-slate-300 font-bold mt-1">冒險已暫停或結算完成</p>
+    <div class="poke-card w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden p-0 bg-slate-900 border-2 border-slate-700 text-white shadow-2xl">
+      <div id="endModalHeaderBanner" class="banner-defeat text-center px-4 py-3 shrink-0">
+        <h2 id="endModalTitle" class="font-pixel text-base sm:text-xl text-amber-300 leading-snug">BATTLE FINISHED</h2>
+        <p id="endModalSubtitle" class="text-[11px] text-slate-200 font-bold mt-1">冒險已暫停或結算完成</p>
       </div>
 
+      <div class="flex flex-col flex-1 min-h-0 p-3 sm:p-4 overflow-hidden">
       <div id="endHallOfFameBox" class="shrink-0"></div>
-      <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3 flex-1 overflow-y-auto min-h-0">
+      <div class="end-scroll-well bg-slate-800/80 rounded-2xl p-2.5 sm:p-3 border border-slate-700 text-xs space-y-1.5 font-bold mb-3 flex-1 overflow-y-auto min-h-0">
         <!-- v7.4.0 戰後六邊形評級雷達圖 ＋ 個人最佳虛線疊影 ＋ 動態印章 -->
         <div id="endHexRatingBox" class="hidden mb-2.5 pb-2.5 border-b border-slate-700/80">
           <div class="relative rounded-2xl bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-2 border-amber-400/80 p-2.5 shadow-xl overflow-hidden">
@@ -1986,10 +2083,38 @@
           返回大廳
         </button>
         <button onclick="GameApp.openSettingsModal()" class="poke-btn-yellow px-3.5 py-2.5 text-xs font-black flex items-center justify-center gap-1 shrink-0">
-          <i class="fa-solid fa-sliders"></i> 設定
+          <span class="gba-ui-icon gba-ui-settings w-3.5 h-3.5 mr-0.5"></span>設定
         </button>
         <button id="btnResumeGame" onclick="GameApp.togglePause()" class="poke-btn-blue flex-1 py-2.5 text-xs font-black">
           繼續冒險
+        </button>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- v7.7.0 突發事件 #10：聯盟緊急契約雙選彈窗 -->
+  <div id="fieldEventContractModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
+    <div class="poke-card w-full max-w-sm overflow-hidden p-0 bg-white border-3 border-slate-900 shadow-2xl">
+      <div class="bg-gradient-to-r from-indigo-900 via-slate-900 to-rose-900 px-4 py-3 border-b-2 border-slate-900 text-center">
+        <div class="font-pixel text-[9px] text-amber-300 tracking-widest">EMERGENCY CONTRACT</div>
+        <h3 class="font-black text-base text-white mt-0.5 flex items-center justify-center gap-1.5"><span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span><span>聯盟緊急契約</span></h3>
+        <p class="text-[11px] font-bold text-slate-200 mt-0.5">突發戰術抉擇！請選擇一項立即生效：</p>
+      </div>
+      <div class="p-3.5 space-y-2.5 bg-slate-100">
+        <button type="button" onclick="FieldEventsEngine.resolveContractChoice(GameApp, 'risk')" class="w-full text-left p-3 rounded-xl bg-white border-2 border-rose-600 shadow-[0_3px_0_#BE123C] hover:bg-rose-50 active:translate-y-0.5 transition">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-xs sm:text-sm text-rose-700">🔥 狂戰突破契約</span>
+            <span class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[9px] font-black">高風險高回報</span>
+          </div>
+          <p class="text-[11px] font-bold text-slate-700 mt-1 leading-snug">扣除 <span class="text-rose-600 font-black">20% 當前 HP</span>，換取<span class="text-amber-700 font-black">所有已學招式立即 +1 級</span>（若皆滿級則全傷永久 +12%）！</p>
+        </button>
+        <button type="button" onclick="FieldEventsEngine.resolveContractChoice(GameApp, 'safe')" class="w-full text-left p-3 rounded-xl bg-white border-2 border-emerald-600 shadow-[0_3px_0_#047857] hover:bg-emerald-50 active:translate-y-0.5 transition">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-black text-xs sm:text-sm text-emerald-700">🛡️ 聯盟穩健補給</span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black">安全續航</span>
+          </div>
+          <p class="text-[11px] font-bold text-slate-700 mt-1 leading-snug">立即回復 <span class="text-emerald-700 font-black">35% 最大 HP</span>，獲得 <span class="text-sky-700 font-black">6 秒無敵護盾</span> ＋ <span class="text-amber-700 font-black">+80 賞金</span>！</p>
         </button>
       </div>
     </div>
@@ -2092,7 +2217,7 @@
       <div class="flex items-center justify-between border-b border-slate-700 pb-2.5 mb-3">
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-sliders text-amber-400 text-base"></i>
-          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.6.13</span>
+          <span class="font-pixel text-xs sm:text-sm text-amber-300">SYSTEM SETTINGS 系統設定</span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.7.1</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2140,7 +2265,7 @@
         <div class="flex items-center gap-2">
           <i class="fa-solid fa-scroll text-amber-400 text-base"></i>
           <span class="font-pixel text-xs sm:text-sm text-amber-300">PATCH NOTES 更新日誌</span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.6.13</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.7.1</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2173,14 +2298,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.6.13"></script>
-  <script src="map_v11_engine.js?v=7.6.13"></script>
-  <script src="skills_engine.js?v=7.6.13"></script>
-  <script src="skills_vfx.js?v=7.6.13"></script>
-  <script src="battle_core_2.js?v=7.6.13"></script>
-  <script src="battle_renderer.js?v=7.6.13"></script>
-  <script src="modes_arcade.js?v=7.6.13"></script>
-  <script src="mode_expedition.js?v=7.6.13"></script>
-  <script src="game_ui.js?v=7.6.13"></script>
+  <script src="pokedex_data.js?v=7.7.1"></script>
+  <script src="map_v11_engine.js?v=7.7.1"></script>
+  <script src="skills_engine.js?v=7.7.1"></script>
+  <script src="skills_vfx.js?v=7.7.1"></script>
+  <script src="battle_core_2.js?v=7.7.1"></script>
+  <script src="battle_renderer.js?v=7.7.1"></script>
+  <script src="modes_arcade.js?v=7.7.1"></script>
+  <script src="mode_expedition.js?v=7.7.1"></script>
+  <script src="game_ui.js?v=7.7.1"></script>
 </body>
 </html>

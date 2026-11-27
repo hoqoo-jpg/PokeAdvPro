@@ -911,6 +911,65 @@ Object.assign(window.GameApp, {
     // 圖層 1：地面底層技能與領域特效 (renderGroundLayer) — 繪製於所有寶可夢與訓練家腳下
     SkillsEngine.renderGroundLayer(ctx, toSx, toSy);
 
+    // v7.7.0 突發事件戰場實體渲染（信標佔領圈 ／ 空投補給箱 ／ 真假雙寶箱）
+    if (this.activeFieldEvent && Array.isArray(this.activeFieldEvent.nodes) && this.activeFieldEvent.nodes.length > 0) {
+      const ev = this.activeFieldEvent;
+      const nowT = performance.now() * 0.004;
+      ev.nodes.forEach(nd => {
+        if (nd.opened) return;
+        const nsx = toSx(nd.x), nsy = toSy(nd.y);
+        ctx.save();
+        if (nd.kind === "beacon") {
+          const prog = Math.max(0, Math.min(1, (ev.progress || 0) / (ev.targetProgress || 5)));
+          const pulse = 1 + Math.sin(nowT * 2.2) * 0.04;
+          ctx.fillStyle = "rgba(56, 189, 248, 0.16)";
+          ctx.beginPath(); ctx.arc(nsx, nsy, nd.radius * pulse, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = "rgba(125, 211, 252, 0.85)";
+          ctx.lineWidth = 3;
+          ctx.setLineDash([10, 6]);
+          ctx.beginPath(); ctx.arc(nsx, nsy, nd.radius, 0, Math.PI * 2); ctx.stroke();
+          ctx.setLineDash([]);
+          if (prog > 0) {
+            ctx.strokeStyle = "#FACC15";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(nsx, nsy, nd.radius + 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog);
+            ctx.stroke();
+          }
+          ctx.fillStyle = "#0F172A";
+          ctx.strokeStyle = "#38BDF8";
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.arc(nsx, nsy, 14, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#FEF08A";
+          ctx.font = "900 10px 'Noto Sans TC', sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(prog > 0 ? `${Math.round(prog * 100)}%` : "站入", nsx, nsy + 4);
+        } else {
+          const bob = Math.sin(nowT * 2.4) * 3.5;
+          const isDrop = nd.kind === "airdrop";
+          const col = isDrop ? "#FACC15" : "#C084FC";
+          ctx.fillStyle = isDrop ? "rgba(250, 204, 21, 0.22)" : "rgba(192, 132, 252, 0.22)";
+          ctx.beginPath(); ctx.arc(nsx, nsy, 28, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath(); ctx.arc(nsx, nsy, 22, 0, Math.PI * 2); ctx.stroke();
+          const uiRec = (typeof FieldEventsEngine !== "undefined") ? SpriteCache.get(FieldEventsEngine.UI_SHEET_URL) : null;
+          const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect(isDrop ? "rocket_airdrop" : "ditto_chests") : null;
+          if (uiRec && uiRec.loaded && sr) {
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(uiRec.img, sr.x, sr.y, sr.w, sr.h, nsx - 18, nsy - 18 + bob, 36, 36);
+          } else {
+            ctx.fillStyle = isDrop ? "#D97706" : "#7E22CE";
+            ctx.strokeStyle = "#0F172A";
+            ctx.lineWidth = 2;
+            ctx.fillRect(nsx - 13, nsy - 11 + bob, 26, 20);
+            ctx.strokeRect(nsx - 13, nsy - 11 + bob, 26, 20);
+          }
+        }
+        ctx.restore();
+      });
+    }
+
     // 戰場限時增益道具渲染（大遠征與 8 分鐘共用：像素道具圖標 ＋ 柔和光暈 ＋ 倒數環，最後 3 秒閃爍，無雜亂大字）
     if (this.fieldPowerups && this.fieldPowerups.length > 0) {
       this.fieldPowerups.forEach(pu => {
@@ -2834,7 +2893,7 @@ Object.assign(window.GameApp, {
 
     // 商業級圖像化螢幕邊緣方向指示器（圓形頭像／道具縮圖 ＋ 外緣指向箭頭 ＋ 去噪分級）
     const edgePad = 36;
-    const drawEdgeIconIndicator = (wx, wy, borderColor, labelText, iconImg, iconDrawSize = 24) => {
+    const drawEdgeIconIndicator = (wx, wy, borderColor, labelText, iconImg, iconDrawSize = 24, srcRect = null) => {
       const esx = toSx(wx), esy = toSy(wy);
       // 放寬 40px 入鏡提前隱藏容差，商店／神獸剛露頭時即刻無縫淡出指標
       if (esx >= -40 && esx <= this.width + 40 && esy >= -40 && esy <= this.height + 40) return;
@@ -2890,7 +2949,11 @@ Object.assign(window.GameApp, {
         ctx.arc(0, 0, rad - 2, 0, Math.PI * 2);
         ctx.clip();
         ctx.imageSmoothingEnabled = false;
-        ctx.drawImage(iconImg, -iconDrawSize / 2, -iconDrawSize / 2, iconDrawSize, iconDrawSize);
+        if (srcRect) {
+          ctx.drawImage(iconImg, srcRect.x, srcRect.y, srcRect.w, srcRect.h, -iconDrawSize / 2, -iconDrawSize / 2, iconDrawSize, iconDrawSize);
+        } else {
+          ctx.drawImage(iconImg, -iconDrawSize / 2, -iconDrawSize / 2, iconDrawSize, iconDrawSize);
+        }
         ctx.restore();
       }
       ctx.restore();
@@ -2987,6 +3050,38 @@ Object.assign(window.GameApp, {
       }
       drawEdgeIconIndicator(it.x, it.y, cfg.color, cfg.label, iconImg, cfg.size);
     });
+
+    // v7.7.0 突發事件場外邊緣方向箭頭（信標 ／ 空投 ／ 寶箱）＋ 迷霧與電磁風暴氛圍邊框
+    if (this.activeFieldEvent) {
+      const ev = this.activeFieldEvent;
+      if (Array.isArray(ev.nodes)) {
+        const uiRec = (typeof FieldEventsEngine !== "undefined") ? SpriteCache.get(FieldEventsEngine.UI_SHEET_URL) : null;
+        ev.nodes.forEach(nd => {
+          if (!nd.opened) {
+            const key = nd.kind === "beacon" ? "energy_beacon" : (nd.kind === "airdrop" ? "rocket_airdrop" : "ditto_chests");
+            const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect(key) : null;
+            const img = (uiRec && uiRec.loaded) ? uiRec.img : null;
+            drawEdgeIconIndicator(nd.x, nd.y, nd.color || "#FACC15", nd.label || "事件", img, 24, sr);
+          }
+        });
+      }
+      if (ev.id === "exp_mist") {
+        ctx.save();
+        const mistGrad = ctx.createRadialGradient(this.width / 2, this.height / 2, Math.min(this.width, this.height) * 0.28, this.width / 2, this.height / 2, Math.max(this.width, this.height) * 0.68);
+        mistGrad.addColorStop(0, "rgba(30, 27, 75, 0)");
+        mistGrad.addColorStop(1, "rgba(49, 46, 129, 0.42)");
+        ctx.fillStyle = mistGrad;
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.restore();
+      } else if (ev.id === "overdrive_storm") {
+        ctx.save();
+        const a = 0.25 + 0.18 * Math.sin(performance.now() * 0.014);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${a})`;
+        ctx.lineWidth = 8;
+        ctx.strokeRect(4, 4, this.width - 8, this.height - 8);
+        ctx.restore();
+      }
+    }
   },
 
   renderBattleCountdownOverlay(ctx) {

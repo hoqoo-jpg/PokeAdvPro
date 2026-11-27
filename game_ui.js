@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.6.13";
+        const ver = this.APP_VERSION || "v7.7.1";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -569,7 +569,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.6.13";
+      const curVer = this.APP_VERSION || "v7.7.1";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -905,7 +905,7 @@ Object.assign(window.GameApp, {
               <img src="${activeCostume.cutin || activeCostume.sprite}" onerror="this.onerror=null;this.src='${activeCostume.sprite}';this.className='w-16 h-16 pixel-sprite object-contain mx-auto my-auto';" class="w-full h-full object-cover object-top ${!unlocked && t.isHiddenRed ? 'brightness-0 opacity-60' : ''}" alt="${t.name}" />
               <div class="absolute inset-x-0 bottom-0 h-11 bg-gradient-to-t from-slate-950/95 via-slate-950/45 to-transparent pointer-events-none"></div>
               ${selected ? `<span class="absolute top-1.5 left-1.5 px-2 py-0.5 bg-blue-600 text-white text-[9px] font-black rounded-full border border-white/80 shadow">✓ 出戰中</span>` : ''}
-              ${hasCostumes ? `<button type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume('${t.id}')" title="點擊切換局內走路服裝" class="costume-switch-btn absolute top-1.5 right-1.5 px-2 py-0.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-[9px] font-black rounded-full border border-white shadow-md flex items-center gap-1 active:scale-95 transition-transform"><span class="costume-switch-icon">👕</span><span>換裝 ‧ ${activeCostume.badge}</span></button>` : ''}
+              ${hasCostumes ? `<button type="button" onclick="event.stopPropagation(); GameApp.cycleTrainerCostume('${t.id}')" title="點擊切換局內走路服裝" class="costume-switch-btn absolute top-1.5 right-1.5 px-2 py-0.5 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 text-[9px] font-black rounded-full border border-white shadow-md flex items-center gap-1 active:scale-95 transition-transform"><span class="costume-switch-icon gba-ui-icon gba-ui-costume w-3.5 h-3.5"></span><span>換裝 ‧ ${activeCostume.badge}</span></button>` : ''}
               <div class="absolute bottom-1.5 left-2 right-12 min-w-0">
                 <div class="font-black text-xs sm:text-sm text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)] truncate">${!unlocked && t.isHiddenRed ? '??? 傳奇冠軍' : t.name}</div>
                 <div class="text-[10px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,1)] truncate">${hasCostumes ? `${t.title} ‧ ${activeCostume.name}` : t.title}</div>
@@ -1414,7 +1414,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.6.13",
+      lastSeenVersion: this.APP_VERSION || "v7.7.1",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3119,7 +3119,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.6.13",
+      version: this.APP_VERSION || "v7.7.1",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3509,26 +3509,25 @@ Object.assign(window.GameApp, {
 
       dpsBox.innerHTML = traitBannerHtml + `
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
-          <div class="text-[11px] font-black text-amber-300 mb-1.5 flex items-center gap-1">
-            <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
-            <span>當前招式 ＆ 超武合成配方表</span>
+          <div class="mb-1.5">
+            <span class="end-sec-pill text-[10px] font-black text-amber-300"><i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i><span>當前招式 ＆ 超武合成配方表</span></span>
           </div>
           <div class="space-y-1 mb-2.5">
             ${recipeRows}
           </div>
         </div>
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
-          <div class="text-[11px] font-black text-purple-300 mb-1.5 flex items-center justify-between">
-            <span class="flex items-center gap-1"><i class="fa-solid fa-toolbox text-[10px]"></i><span>已裝備攜帶物效果 (${ownedHeldIds.length}件)</span></span>
+          <div class="mb-1.5">
+            <span class="end-sec-pill text-[10px] font-black text-purple-300"><i class="fa-solid fa-toolbox text-[9px]"></i><span>已裝備攜帶物效果 (${ownedHeldIds.length}件)</span></span>
           </div>
           <div class="space-y-1.5 mb-2.5">
             ${heldItemsHtml}
           </div>
         </div>
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
-          <div class="text-[11px] font-black text-slate-300 mb-1.5 flex justify-between">
-            <span>招式傷害統計 (DPS Breakdown)</span>
-            <span class="text-amber-400">總輸出: ${totalDmg.toLocaleString()}</span>
+          <div class="text-[11px] font-black text-slate-300 mb-1.5 flex items-center justify-between gap-2">
+            <span class="end-sec-pill text-[10px]">招式傷害統計 (DPS)</span>
+            <span class="text-amber-400 font-black">總輸出: ${totalDmg.toLocaleString()}</span>
           </div>
           <div class="space-y-1.5">
             ${sortedSkills.map(([skillType, dmg]) => {
@@ -3800,7 +3799,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.6.13</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.7.1</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -3839,7 +3838,9 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.6.13</strong>：大廳進化列改「上圖下文」大像素圖；大遠征主卡與過場走路畫框統一亮色主題；放大征途 6 區預覽圖並全面改用 Wave 寫法；路線節點純色化去重。</div>
+            <div>• <strong class="text-amber-300">v7.7.1</strong>：實裝全新 4×4 原生 GBA 像素 UI 圖集（16 枚透明去背圖示），全面替換大廳按鈕、換裝鈕、十大事件提示條與場外邊緣方向箭頭圖示。</div>
+            <div>• <strong class="text-slate-300">v7.7.0</strong>：實裝十大隨機突發事件系統（信標佔領、空投箱、雙寶箱百變怪、電磁風暴、迷霧2x經驗、聯盟契約等，附邊緣箭頭指引）；結算頁 GBA 色帶粗框升級與大廳陣容卡收緊間距。</div>
+            <div>• <strong class="text-slate-300">v7.6.13</strong>：大廳進化列改「上圖下文」大像素圖；大遠征主卡與過場走路畫框統一亮色主題；放大征途 6 區預覽圖並全面改用 Wave 寫法；路線節點純色化去重。</div>
             <div>• <strong class="text-slate-300">v7.6.12</strong>：大廳進化列單行化與「初始／禁用」明示按鈕；「更換陣容」與「模式出發」動線職責分離；大遠征 6 區地圖改為唯讀連續路線軸（附 ➔ 箭頭）。</div>
             <div>• <strong class="text-slate-300">v7.6.11</strong>：3-2-1 倒數與 VS 遇敵各放慢 0.5 秒；小王／Boss 半血猩紅憤怒演出＋火星粒子；小怪／精英血條瘦身去噪、Boss 頂部纖細半透血條與白色扣血殘影。</div>
             <div>• <strong class="text-slate-300">v7.6.10</strong>：全模式數值平衡封板——大師／冠軍難度引入 Boss 減傷與回復壓制、特攻手攻擊保底、遠征後段神獸血量與研究所經濟重校、修正殿堂徽章白字。</div>
@@ -3853,7 +3854,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.6.13";
+    const curVer = this.APP_VERSION || "v7.7.1";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

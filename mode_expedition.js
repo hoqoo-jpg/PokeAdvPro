@@ -1302,6 +1302,15 @@ window.ModeExpedition = {
       this.dismissRegionSign();
     }
 
+    // v7.7.0 大遠征事件波次掛載十大隨機突發事件（先清除前波事件）
+    if (typeof FieldEventsEngine !== "undefined") {
+      FieldEventsEngine.clearActiveEvent(app);
+      if (cfg.isEventWave) {
+        const pickedEvId = FieldEventsEngine.pickRandomEventId(app, true);
+        FieldEventsEngine.triggerEvent(app, pickedEvId);
+      }
+    }
+
     // 完整 3 ➔ 2 ➔ 1 ➔ BATTLE START! 四拍倒數（正上方同步顯示 WAVE ?/10 徽章）
     app.battleCountdownTimer = 2.00;
     app._lastCountdownBeat = 4;

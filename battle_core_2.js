@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.6.13",
+  APP_VERSION: "v7.7.1",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1226,6 +1226,7 @@ window.GameApp = {
     this.arenaDiff = null;
     this.arenaPowerups = [];
     this.fieldPowerups = [];
+    if (typeof FieldEventsEngine !== "undefined") { FieldEventsEngine.reset(this); SpriteCache.get(FieldEventsEngine.UI_SHEET_URL); }
     this.fieldPowerupTimer = 38.0;
     this.areaClearStampTimer = 0;
     this._deferLevelUpDuringClear = false;
@@ -2758,7 +2759,8 @@ window.GameApp = {
         const minSkillCd = (skSlot.id === "Tackle")
           ? (skSlot.level >= 8 ? 0.88 : (skSlot.level >= 4 ? 0.56 : 0.48))
           : (isLongAnimSkill ? 0.55 : 0.48);
-        skSlot.timer = Math.max(minSkillCd, meta.baseCd * lvCdBonus * Math.max(0.55, cdFactor * traitCdMod));
+        const evCdMod = this.fieldEventCdMult || 1.0;
+        skSlot.timer = Math.max(minSkillCd * evCdMod, meta.baseCd * lvCdBonus * Math.max(0.42, cdFactor * traitCdMod * evCdMod));
         p.castStaggerTimer = 0.085;
       }
     });
@@ -2807,6 +2809,7 @@ window.GameApp = {
     this.updateEnemies(dt);
     this.updateLootAndGems(dt);
     this.updateFieldPowerups(dt);
+    if (typeof FieldEventsEngine !== "undefined") FieldEventsEngine.update(this, dt);
     this.updateMartInteraction(dt);
     this.updateParticlesAndTexts(dt);
     this._hudRefreshTimer = (this._hudRefreshTimer || 0) - dt;
@@ -3247,7 +3250,7 @@ window.GameApp = {
       const bossKeepDistMod = (e.isBoss && dist < 90) ? 0.68 : 1.0;
       const effectiveSpd = e.isBoss
         ? Math.min(132, e.speed * bossEnrageSpd) * bossKeepDistMod
-        : e.speed * bossEnrageSpd;
+        : e.speed * bossEnrageSpd * (this.fieldEventEnemySpdMult || 1.0);
 
       let moveDir = confDir;
       let vx = (dx / dist) * effectiveSpd * paraMult * eTerrMult * moveDir;
@@ -5251,7 +5254,7 @@ window.GameApp = {
     }
     const _expPac = (typeof window !== 'undefined' && window.EXPEDITION_PACING) ? window.EXPEDITION_PACING : { earlyExpMult: 0.95, lateExpMult: 0.80 };
     const expModeMod = this.isExpeditionMode ? (p.level >= 12 ? _expPac.lateExpMult : _expPac.earlyExpMult) : 1.0;
-    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0)) * expModeMod;
+    const expMult = (this.selectedTrainer.mods.expMult || 1.0) * (1 + (this.saveData.upgrades.greed || 0) * 0.12) * (1 + (p.underdogExpBonus || 0)) * expModeMod * (this.fieldEventExpMult || 1.0);
     p.exp += amount * expMult;
     if (p.exp >= p.nextExp) {
       p.exp -= p.nextExp;
@@ -5839,6 +5842,8 @@ window.GameApp = {
     const endEl = document.getElementById("endModal");
     if (this.state === "PLAYING") {
       this.state = "PAUSED";
+      const _hbP = document.getElementById("endModalHeaderBanner");
+      if (_hbP) _hbP.className = "banner-pause text-center px-4 py-3 shrink-0";
       document.getElementById("endModalTitle").textContent = "GAME PAUSED";
       document.getElementById("endModalSubtitle").textContent = "冒險暫停中，隨時可返回挑戰！";
       document.getElementById("btnResumeGame").classList.remove("hidden");
@@ -5873,6 +5878,8 @@ window.GameApp = {
       }
     }
     if (this.saveToStorage) this.saveToStorage();
+    const _hbE = document.getElementById("endModalHeaderBanner");
+    if (_hbE) _hbE.className = `${isVictory ? "banner-victory" : "banner-defeat"} text-center px-4 py-3 shrink-0`;
     const hofBox = document.getElementById("endHallOfFameBox");
     if (hofBox) hofBox.innerHTML = "";
     if (this.isExpeditionMode) {
