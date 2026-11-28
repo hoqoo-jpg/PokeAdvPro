@@ -157,7 +157,8 @@ Object.assign(window.GameApp, {
       "images/logo_title.png", "images/skills_icons_sheet.png", "images/mega_ring_icon.png",
       "images/gba_ui_icons_sheet.png", "images/tower_props_sheet.png",
       "images/tower_entrance_bg.png", "images/tower_floor_loop.png", "images/tower_throne_top.png",
-      "images/lobby_expedition_bg.png", "images/lobby_survival_bg.png", "images/lobby_arena_bg.png"
+      "images/lobby_expedition_bg.png", "images/lobby_survival_bg.png", "images/lobby_arena_bg.png",
+      "images/arena_battle_bg.png"
     ]);
     const secondaryUrls = new Set();
 
@@ -321,7 +322,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.9.0";
+        const ver = this.APP_VERSION || "v8.0.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -617,7 +618,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.9.0";
+      const curVer = this.APP_VERSION || "v8.0.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1499,7 +1500,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.9.0",
+      lastSeenVersion: this.APP_VERSION || "v8.0.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3335,7 +3336,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.9.0",
+      version: this.APP_VERSION || "v8.0.0",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -4044,7 +4045,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.9.0</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v8.0.0</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4083,7 +4084,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.9.0</strong>：實裝十大突發事件「1.5 秒空間運鏡聚焦演出」（平滑運鏡鎖定事件目標＋目標準星與電影感上下黑邊字幕＋觀賞期間無傷保護）；徹底修復十字剪與暗影爪「外寬內窄空燒冷卻」異常（拉長十字剪基礎射程至 132、第 1 刀同步瞬發、修正飛天螳螂 XScissor 專屬技標籤）；修復大廳「關都大遠征」卡片舊白底吃字 Bug；全面升級大廳陣容主卡與訓練家／寶可夢選角卡片之屬性漸層頂欄與雙層立體描邊。</div>
+            <div>• <strong class="text-amber-300">v8.0.0</strong>：【HD-2D 視覺里程碑】1vs1 石英冠軍鬥技場全面重製為俯視 HD-2D 精繪競技場原畫（完全對齊封面畫風，搭配獨立金邊大理石掩體柱、Canvas 動態掃射探照燈光束與看台相機閃光，並納入優先預載）；徹底修復百變怪雙寶箱 1.5s 運鏡超出螢幕與越牆問題（固定 156px 雙箱構圖、放大寶箱實體＋垂直光柱與雙箱獨立聚焦環）；支援隱藏開發者網址參數（?dev=vcloud）並於測試面板補齊十大突發事件一鍵實測區。</div>
+            <div>• <strong class="text-slate-300">v7.9.0</strong>：實裝十大突發事件「1.5 秒空間運鏡聚焦演出」（平滑運鏡鎖定事件目標＋目標準星與電影感上下黑邊字幕＋觀賞期間無傷保護）；徹底修復十字剪與暗影爪「外寬內窄空燒冷卻」異常（拉長十字剪基礎射程至 132、第 1 刀同步瞬發、修正飛天螳螂 XScissor 專屬技標籤）；修復大廳「關都大遠征」卡片舊白底吃字 Bug；全面升級大廳陣容主卡與訓練家／寶可夢選角卡片之屬性漸層頂欄與雙層立體描邊。</div>
             <div>• <strong class="text-slate-300">v7.8.10</strong>：大廳四大模式全面升級「四色四景」寶可夢 HD-2D 卡片原畫（NO.1 關都大遠征晨曦雪峰、NO.2 MEGA 試煉塔暮色巨塔、NO.3 生存割草紅蓮火山雷暴、NO.4 1vs1 石英冠軍鬥技場）並納入啟動優先預載；封面底部改採方案 A 置中整合「V-Cloud Studio · v7.8.10」膠囊，徹底解決手機直屏版本號壓到版權聲明的問題。</div>
             <div>• <strong class="text-slate-300">v7.8.9</strong>：大廳全面升級為「雙王牌大卡 ＋ 雙對稱副模式」商業排版（#1 關都大遠征、#2 MEGA 試煉塔原畫特展寬卡支援一鍵續爬，並將 8 分鐘標準與無盡深淵整合為「生存割草」）；將 5 張試煉塔與 UI 精繪大圖納入啟動優先預載佇列，徹底消除首次入塔黑屏；校準試煉塔獨立經驗曲線（4F 尾聲剛好一段進化迎戰 5F 首領）並補齊清層全場自動吸取經驗水晶與掉落物。</div>
             <div>• <strong class="text-slate-300">v7.8.8</strong>：試煉塔全面儀式感與體驗打磨——屏蔽塔內野外突襲與室內下雨、修復回大廳黑底；入塔改為 2.1s 背影緩步同行（walkSheet 背影 3 幀）；北牆加厚完整嵌入三道石門＋迎賓石階＋圓角 GBA 銘牌；重整暖酒紅金邊地毯與左右台座柔光光暈；實裝遺物獲取 1.05s 聖光灌注柱演出、局內＋暫停遺物總覽與半透明毛玻璃背景；新增手機切 App 自動暫停、左下角戰術鍵 6 秒開局預熱與「⚡點擊發動」發光彈跳提示，並加入 V-Cloud Studio 署名與同人作品聲明。</div>
@@ -4114,7 +4116,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.9.0";
+    const curVer = this.APP_VERSION || "v8.0.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

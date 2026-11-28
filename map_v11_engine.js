@@ -2359,6 +2359,9 @@ const MapEngine = {
   },
 
   // P1 新增：GBA 2.5D 樹冠、屋頂與古代神獸雕像前景遮擋層（角色走到後方時自動產生半透明景深遮罩）
+  ARENA_BG_URL: "images/arena_battle_bg.png",
+
+  // v8.0.0 1vs1 石英冠軍鬥技場 HD-2D 俯視戰場（精繪競技場底圖 ＋ 獨立金邊大理石柱 ＋ Canvas 動態探照燈與閃光）
   renderIndigoArena(ctx, camX, camY, width, height) {
     const toSx = (wx) => wx - camX + width / 2;
     const toSy = (wy) => wy - camY + height / 2;
@@ -2366,104 +2369,110 @@ const MapEngine = {
     const hh = this.arenaHalfH;
     const x0 = toSx(-hw), y0 = toSy(-hh);
     const w = hw * 2, h = hh * 2;
+    const cx = toSx(0), cy = toSy(0);
+    const now = performance.now() * 0.001;
 
-    // 1. 場館外圍深色觀眾席背景
-    ctx.fillStyle = "#0F172A";
+    // 1. 場館外圍深邃夜空底色
+    ctx.fillStyle = "#080D1F";
     ctx.fillRect(0, 0, width, height);
 
-    // 外圍石階框線
-    ctx.fillStyle = "#1E293B";
-    ctx.fillRect(x0 - 26, y0 - 26, w + 52, h + 52);
-    ctx.strokeStyle = "#475569";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x0 - 26, y0 - 26, w + 52, h + 52);
-
-    // 2. 競技場米灰石磚棋盤地板
-    const tile = 40;
-    for (let tx = -hw; tx < hw; tx += tile) {
-      for (let ty = -hh; ty < hh; ty += tile) {
-        const isEven = ((Math.floor(tx / tile) + Math.floor(ty / tile)) & 1) === 0;
-        ctx.fillStyle = isEven ? "#CBD5E1" : "#B8C4D4";
-        ctx.fillRect(toSx(tx), toSy(ty), tile + 0.5, tile + 0.5);
-      }
+    // 2. 優先繪製 HD-2D 俯視冠軍競技場原畫（中場 68% x 62% 精準對齊可走位區 600x460，四周看台自然延展）
+    const bgRec = (typeof SpriteCache !== "undefined") ? SpriteCache.get(this.ARENA_BG_URL) : null;
+    if (bgRec && bgRec.loaded) {
+      const drawW = Math.round(w / 0.68);
+      const drawH = Math.round(h / 0.62);
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(bgRec.img, Math.round(cx - drawW / 2), Math.round(cy - drawH / 2), drawW, drawH);
+      ctx.restore();
+      // 可活動場地內緣微亮金白導引框（清楚標示實際碰撞邊界）
+      ctx.strokeStyle = "rgba(250, 204, 21, 0.36)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(Math.round(x0), Math.round(y0), w, h);
+    } else {
+      // 載入前極簡保底場地
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(x0 - 26, y0 - 26, w + 52, h + 52);
+      ctx.fillStyle = "#E2DFD0";
+      ctx.fillRect(x0, y0, w, h);
+      ctx.strokeStyle = "#F59E0B";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x0, y0, w, h);
     }
 
-    // 3. 左藍右紅對戰場半場淡淡染色
-    ctx.fillStyle = "rgba(56, 189, 248, 0.10)";
-    ctx.fillRect(x0, y0, w / 2, h);
-    ctx.fillStyle = "rgba(239, 68, 68, 0.10)";
-    ctx.fillRect(x0 + w / 2, y0, w / 2, h);
+    // 3. 四角立體金邊大理石掩體柱（配合 HD-2D 競技場象牙白金配色，保有實體碰撞與視線遮擋）
+    for (const pl of this.arenaPillars) {
+      const px = Math.round(toSx(pl.x)), py = Math.round(toSy(pl.y));
+      ctx.save();
+      // 柱底投射陰影
+      ctx.fillStyle = "rgba(15, 23, 42, 0.42)";
+      ctx.fillRect(px + 6, py + 8, pl.w, pl.h);
+      // 柱身深藍灰底框與象牙大理石柱體
+      ctx.fillStyle = "#1E293B";
+      ctx.fillRect(px - 1, py - 1, pl.w + 2, pl.h + 2);
+      ctx.fillStyle = "#CBD5E1";
+      ctx.fillRect(px + 1, py + 1, pl.w - 2, pl.h - 2);
+      // 2.5D 柱頂蓋板（暖白受光面 ＋ 鑲金邊框）
+      ctx.fillStyle = "#F8FAFC";
+      ctx.fillRect(px + 3, py + 2, pl.w - 6, Math.round(pl.h * 0.52));
+      ctx.fillStyle = "#94A3B8";
+      ctx.fillRect(px + 4, py + Math.round(pl.h * 0.56), pl.w - 8, Math.round(pl.h * 0.36));
+      // 柱身經典凹槽豎紋
+      ctx.fillStyle = "#64748B";
+      ctx.fillRect(px + 10, py + Math.round(pl.h * 0.58), 3, Math.round(pl.h * 0.32));
+      ctx.fillRect(px + pl.w - 13, py + Math.round(pl.h * 0.58), 3, Math.round(pl.h * 0.32));
+      // 頂緣金線與核心藍寶石點綴
+      ctx.strokeStyle = "#EAB308";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(px + 3, py + 3, pl.w - 6, Math.round(pl.h * 0.50));
+      ctx.fillStyle = "#38BDF8";
+      ctx.fillRect(px + Math.round(pl.w / 2) - 3, py + Math.round(pl.h * 0.24) - 2, 6, 4);
+      ctx.restore();
+    }
 
-    // 4. 經典石英大會場線 ＋ 中央精靈球圖騰
-    const cx = toSx(0), cy = toSy(0);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.85)";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(x0 + 18, y0 + 18, w - 36, h - 36);
-    ctx.beginPath();
-    ctx.moveTo(cx, y0 + 18);
-    ctx.lineTo(cx, y0 + h - 18);
-    ctx.stroke();
-
-    // 中央精靈球圓環
-    ctx.fillStyle = "rgba(239, 68, 68, 0.24)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 62, Math.PI, 0);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "rgba(255, 255, 255, 0.30)";
-    ctx.beginPath();
-    ctx.arc(cx, cy, 62, 0, Math.PI);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.90)";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 62, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = "#FFFFFF";
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 15, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    // 5. 競技場厚實石牆圍欄 ＋ 四角金火炬
-    ctx.strokeStyle = "#334155";
-    ctx.lineWidth = 10;
-    ctx.strokeRect(x0 - 4, y0 - 4, w + 8, h + 8);
-    ctx.strokeStyle = "#F59E0B";
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(x0, y0, w, h);
-
-    const flamePulse = 1 + Math.sin(performance.now() * 0.012) * 0.2;
-    [[-hw, -hh], [hw, -hh], [-hw, hh], [hw, hh]].forEach(([bx, by]) => {
-      const fx = toSx(bx), fy = toSy(by);
-      ctx.fillStyle = "#78350F";
-      ctx.beginPath(); ctx.arc(fx, fy, 11, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#F97316";
-      ctx.beginPath(); ctx.arc(fx, fy, 7.5 * flamePulse, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#FEF08A";
-      ctx.beginPath(); ctx.arc(fx, fy, 4 * flamePulse, 0, Math.PI * 2); ctx.fill();
+    // 4. Canvas HD-2D 動態光影層：四角緩慢掃射的探照燈光束 ＋ 看台觀眾相機閃光
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const sweep1 = Math.sin(now * 0.85) * 75;
+    const sweep2 = Math.cos(now * 0.72) * 75;
+    const beams = [
+      { ox: x0 - 90,     oy: y0 - 80,     tx: cx - 70 + sweep1, ty: cy - 20 + sweep2 * 0.4 },
+      { ox: x0 + w + 90, oy: y0 - 80,     tx: cx + 70 - sweep1, ty: cy + 20 - sweep2 * 0.4 },
+      { ox: x0 - 90,     oy: y0 + h + 80, tx: cx - 50 + sweep2, ty: cy + 10 - sweep1 * 0.3 },
+      { ox: x0 + w + 90, oy: y0 + h + 80, tx: cx + 50 - sweep2, ty: cy - 10 + sweep1 * 0.3 }
+    ];
+    beams.forEach(b => {
+      const grad = ctx.createLinearGradient(b.ox, b.oy, b.tx, b.ty);
+      grad.addColorStop(0, "rgba(186, 230, 253, 0.22)");
+      grad.addColorStop(0.65, "rgba(125, 211, 252, 0.08)");
+      grad.addColorStop(1, "rgba(56, 189, 248, 0)");
+      ctx.fillStyle = grad;
+      const dx = b.tx - b.ox, dy = b.ty - b.oy;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      ctx.beginPath();
+      ctx.moveTo(b.ox - nx * 10, b.oy - ny * 10);
+      ctx.lineTo(b.ox + nx * 10, b.oy + ny * 10);
+      ctx.lineTo(b.tx + nx * 56, b.ty + ny * 56);
+      ctx.lineTo(b.tx - nx * 56, b.ty - ny * 56);
+      ctx.closePath();
+      ctx.fill();
     });
 
-    // 6. 四角立體石柱掩體 (2.5D 陰影＋頂面高光)
-    for (const pl of this.arenaPillars) {
-      const px = toSx(pl.x), py = toSy(pl.y);
-      ctx.fillStyle = "rgba(15, 23, 42, 0.35)";
-      ctx.fillRect(px + 6, py + 8, pl.w, pl.h);
-      ctx.fillStyle = "#475569";
-      ctx.fillRect(px, py, pl.w, pl.h);
-      ctx.fillStyle = "#64748B";
-      ctx.fillRect(px + 3, py + 3, pl.w - 6, pl.h - 12);
-      ctx.fillStyle = "#94A3B8";
-      ctx.fillRect(px + 5, py + 5, pl.w - 10, 10);
-      ctx.strokeStyle = "#1E293B";
-      ctx.lineWidth = 2.5;
-      ctx.strokeRect(px, py, pl.w, pl.h);
+    // 看台四周隨機閃爍的觀眾相機閃光星點
+    for (let i = 0; i < 6; i++) {
+      const phase = (now * 2.2 + i * 1.37) % 3.2;
+      if (phase < 0.26) {
+        const alpha = Math.sin((phase / 0.26) * Math.PI) * 0.85;
+        const side = i % 4;
+        const fx = side === 0 ? toSx(-hw - 85) : (side === 1 ? toSx(hw + 85) : toSx(-hw + ((i * 197) % (hw * 2))));
+        const fy = side === 2 ? toSy(-hh - 85) : (side === 3 ? toSy(hh + 85) : toSy(-hh + ((i * 151) % (hh * 2))));
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillRect(Math.round(fx - 5), Math.round(fy - 1), 10, 2);
+        ctx.fillRect(Math.round(fx - 1), Math.round(fy - 5), 2, 10);
+      }
     }
+    ctx.restore();
   },
 
   // v7.8.7 試煉塔專屬預烘焙 GBA 像素室內殿堂 ＋ 5F/10F/15F/20F 冠軍王座戰場（北側厚石牆預留三門槽位 ＋ 純視覺四角火盆）

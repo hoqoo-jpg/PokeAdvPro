@@ -953,22 +953,32 @@ Object.assign(window.GameApp, {
           const bob = Math.sin(nowT * 2.4) * 3.5;
           const isDrop = nd.kind === "airdrop";
           const col = isDrop ? "#FACC15" : "#C084FC";
-          ctx.fillStyle = isDrop ? "rgba(250, 204, 21, 0.22)" : "rgba(192, 132, 252, 0.22)";
-          ctx.beginPath(); ctx.arc(nsx, nsy, 28, 0, Math.PI * 2); ctx.fill();
+          // v8.0.0 放大寶箱與空投實體（46x46 ＋ 垂直指引光柱 ＋ 落地石台），野外草地一眼辨識
+          const beamG = ctx.createLinearGradient(nsx, nsy - 96, nsx, nsy + 18);
+          beamG.addColorStop(0, `${col}00`);
+          beamG.addColorStop(1, `${col}44`);
+          ctx.fillStyle = beamG;
+          ctx.fillRect(Math.round(nsx - 16), Math.round(nsy - 96), 32, 114);
+
+          ctx.fillStyle = "rgba(2, 6, 23, 0.52)";
+          ctx.beginPath(); ctx.ellipse(nsx, nsy + 20, 28, 9, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = isDrop ? "rgba(250, 204, 21, 0.26)" : "rgba(192, 132, 252, 0.28)";
+          ctx.beginPath(); ctx.arc(nsx, nsy, 32, 0, Math.PI * 2); ctx.fill();
           ctx.strokeStyle = col;
           ctx.lineWidth = 2.5;
-          ctx.beginPath(); ctx.arc(nsx, nsy, 22, 0, Math.PI * 2); ctx.stroke();
+          ctx.beginPath(); ctx.arc(nsx, nsy, 27, 0, Math.PI * 2); ctx.stroke();
+
           const uiRec = (typeof FieldEventsEngine !== "undefined") ? SpriteCache.get(FieldEventsEngine.UI_SHEET_URL) : null;
           const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect(isDrop ? "rocket_airdrop" : "ditto_chests") : null;
           if (uiRec && uiRec.loaded && sr) {
             ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(uiRec.img, sr.x, sr.y, sr.w, sr.h, nsx - 18, nsy - 18 + bob, 36, 36);
+            ctx.drawImage(uiRec.img, sr.x, sr.y, sr.w, sr.h, Math.round(nsx - 23), Math.round(nsy - 23 + bob), 46, 46);
           } else {
             ctx.fillStyle = isDrop ? "#D97706" : "#7E22CE";
             ctx.strokeStyle = "#0F172A";
             ctx.lineWidth = 2;
-            ctx.fillRect(nsx - 13, nsy - 11 + bob, 26, 20);
-            ctx.strokeRect(nsx - 13, nsy - 11 + bob, 26, 20);
+            ctx.fillRect(nsx - 16, nsy - 14 + bob, 32, 24);
+            ctx.strokeRect(nsx - 16, nsy - 14 + bob, 32, 24);
           }
         }
         ctx.restore();
@@ -2806,7 +2816,14 @@ Object.assign(window.GameApp, {
         const pulseR = 38 + Math.sin(f.elapsed * 12) * 5;
         ctx.strokeStyle = f.color || "#FACC15";
         ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(fx, fy, pulseR, 0, Math.PI * 2); ctx.stroke();
+        if (this.activeFieldEvent && Array.isArray(this.activeFieldEvent.nodes) && this.activeFieldEvent.nodes.length >= 2) {
+          this.activeFieldEvent.nodes.forEach(nd => {
+            if (nd.opened) return;
+            ctx.beginPath(); ctx.arc(toSx(nd.x), toSy(nd.y), pulseR, 0, Math.PI * 2); ctx.stroke();
+          });
+        } else {
+          ctx.beginPath(); ctx.arc(fx, fy, pulseR, 0, Math.PI * 2); ctx.stroke();
+        }
         ctx.strokeStyle = "#FFFFFF";
         ctx.lineWidth = 2;
         const brk = 12, box = 48 - b * 6;

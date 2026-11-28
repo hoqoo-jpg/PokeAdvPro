@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.9.0",
+  APP_VERSION: "v8.0.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -126,7 +126,16 @@ window.GameApp = {
     }
     this.bindInputs();
     this.bindTouchJoystick();
+    try {
+      const _qDev = new URLSearchParams(window.location.search).get("dev");
+      if (_qDev === "vcloud") {
+        this.debugToolsUnlocked = true;
+      }
+    } catch (_) {}
     this.initDevToolsGuard();
+    if (this.debugToolsUnlocked && this.syncDebugButtonVisibility) {
+      this.syncDebugButtonVisibility();
+    }
 
     // v7.8.8 手機端切換 App / 回覆訊息自動暫停保護，杜絕切回即陣亡
     const autoPauseOnHide = () => {
@@ -953,6 +962,21 @@ window.GameApp = {
   debugSpawnMewtwo() {
     if (!this.player) return;
     this.spawnBoss(150, true);
+  },
+
+  debugTriggerFieldEvent(eventId) {
+    if (!this.debugToolsUnlocked || !this.player) return;
+    this.markDebugRun();
+    const menu = document.getElementById("debugDropdown");
+    if (menu) menu.classList.add("hidden");
+    if (this.isArenaMode || this.isTowerMode) {
+      if (this.spawnFloatingText) this.spawnFloatingText(this.player.x, this.player.y - 40, "⚠ 請於野外模式或大遠征實測突發事件", "#F87171", 12);
+      return;
+    }
+    if (typeof FieldEventsEngine !== "undefined") {
+      FieldEventsEngine.clearActiveEvent(this);
+      FieldEventsEngine.triggerEvent(this, eventId);
+    }
   },
 
   debugSpawnPokeMart() {

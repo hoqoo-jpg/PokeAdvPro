@@ -993,20 +993,25 @@ window.FieldEventsEngine = {
       const pos = this.spawnOffsetPos(app, isBounded ? 250 : 390, isBounded ? 350 : 520);
       ev.nodes.push({ kind: "airdrop", x: pos.x, y: pos.y, radius: 34, label: "空投", color: "#FACC15", opened: false });
     } else if (meta.id === "ditto_chests") {
-      const p = app.player;
-      const baseAng = Math.random() * Math.PI * 2;
-      const d = isBounded ? 245 : 410;
+      // v8.0.0 修復百變怪雙寶箱運鏡看不見問題：先抽出安全中心點再左右固定偏移 ±78px（總距 156px，手機直屏 100% 雙箱完整入鏡＋不越牆）
+      const center = this.spawnOffsetPos(app, isBounded ? 190 : 280, isBounded ? 260 : 370);
+      let cx = center.x;
+      let cy = center.y;
+      if (app.isExpeditionMode && app.expeditionState && app.expeditionState.arenaBounds) {
+        const b = app.expeditionState.arenaBounds;
+        cx = Math.max(-b.halfW + 135, Math.min(b.halfW - 135, cx));
+        cy = Math.max(-b.halfH + 85,  Math.min(b.halfH - 85,  cy));
+      }
       const realIdx = Math.random() < 0.5 ? 0 : 1;
-      [0, 1].forEach(idx => {
-        const ang = baseAng + (idx === 0 ? -0.55 : 0.55);
+      [-78, 78].forEach((xOff, idx) => {
         ev.nodes.push({
           kind: "chest",
-          x: p.x + Math.cos(ang) * d,
-          y: p.y + Math.sin(ang) * d,
-          radius: 32,
+          x: Math.round(cx + xOff),
+          y: Math.round(cy),
+          radius: 36,
           isReal: idx === realIdx,
           opened: false,
-          label: "寶箱",
+          label: idx === 0 ? "神秘箱 A" : "神秘箱 B",
           color: "#A855F7"
         });
       });

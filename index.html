@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.9.0');
+      background-image: url('images/skills_icons_sheet.png?v=8.0.0');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.9.0');
+      background-image: url('images/skills_icons_extra5.png?v=8.0.0');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1093,7 +1093,7 @@
     /* v7.8.0 GBA 像素 UI 圖集 (4x6 Sprite Sheet: 24 icons, 新增試煉塔/遺物/營火/傳送門) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.9.0');
+      background-image: url('images/gba_ui_icons_sheet.png?v=8.0.0');
       background-size: 400% 600%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1396,7 +1396,7 @@
       <div class="px-3 py-0.5 rounded-full bg-slate-950/80 border border-amber-400/45 font-pixel text-[9px] sm:text-[10px] text-amber-200 tracking-widest shadow flex items-center gap-1.5">
         <span>V-Cloud Studio</span>
         <span class="text-slate-400">·</span>
-        <span id="splashVersionBadge" class="text-slate-100">v7.9.0</span>
+        <span id="splashVersionBadge" class="text-slate-100">v8.0.0</span>
       </div>
       <div class="text-[8.5px] sm:text-[9px] font-bold text-slate-300/85 drop-shadow max-w-md leading-tight px-2">
         非營利同人學習作品 ‧ 寶可夢角色與設定版權歸屬 Nintendo / Creatures Inc. / GAME FREAK inc.
@@ -1571,7 +1571,7 @@
         </button>
       </div>
       <div class="w-full text-center pt-0.5 pb-1 text-[9px] font-pixel text-slate-300/85 tracking-wider drop-shadow pointer-events-none">
-        V-Cloud Studio · v7.9.0
+        V-Cloud Studio · v8.0.0
       </div>
     </div>
   </div>
@@ -2494,6 +2494,21 @@
         <button onclick="GameApp.debugAddPartner()" class="px-1.5 py-1 bg-blue-700 rounded text-[9px] font-bold">+雙打夥伴</button>
         <button onclick="GameApp.debugSpawnPokeMart()" class="px-1.5 py-1 bg-sky-600 rounded text-[9px] font-bold col-span-2">🏪 刷友好商店</button>
       </div>
+      <div class="pt-1.5 border-t border-slate-700/80 mt-1.5">
+        <div class="text-[9px] font-black text-amber-300 mb-1">🎬 十大突發事件（1.5s 運鏡實測）</div>
+        <div class="grid grid-cols-2 gap-1">
+          <button onclick="GameApp.debugTriggerFieldEvent('ditto_chests')" class="px-1.5 py-1 bg-purple-700 rounded text-[9px] font-bold">🎁 百變怪雙寶箱</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('energy_beacon')" class="px-1.5 py-1 bg-sky-700 rounded text-[9px] font-bold">📡 能量信標</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('rocket_airdrop')" class="px-1.5 py-1 bg-amber-700 rounded text-[9px] font-bold">📦 火箭隊空投</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('chansey_patrol')" class="px-1.5 py-1 bg-pink-700 rounded text-[9px] font-bold">🥚 吉利蛋巡邏</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('meowth_convoy')" class="px-1.5 py-1 bg-yellow-700 rounded text-[9px] font-bold">💰 喵喵運金隊</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('shiny_swarm')" class="px-1.5 py-1 bg-fuchsia-700 rounded text-[9px] font-bold">✨ 閃光精靈群湧</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('rival_ambush')" class="px-1.5 py-1 bg-rose-700 rounded text-[9px] font-bold">⚔️ 宿敵精英突襲</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('overdrive_storm')" class="px-1.5 py-1 bg-cyan-700 rounded text-[9px] font-bold">⚡ 超載風暴</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('exp_mist')" class="px-1.5 py-1 bg-emerald-700 rounded text-[9px] font-bold">🌿 經驗豐收霧</button>
+          <button onclick="GameApp.debugTriggerFieldEvent('league_contract')" class="px-1.5 py-1 bg-indigo-700 rounded text-[9px] font-bold">📜 聯盟契約</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2503,7 +2518,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.9.0</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v8.0.0</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2551,7 +2566,7 @@
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
           <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.9.0</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v8.0.0</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2584,14 +2599,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.9.0"></script>
-  <script src="map_v11_engine.js?v=7.9.0"></script>
-  <script src="skills_engine.js?v=7.9.0"></script>
-  <script src="skills_vfx.js?v=7.9.0"></script>
-  <script src="battle_core_2.js?v=7.9.0"></script>
-  <script src="battle_renderer.js?v=7.9.0"></script>
-  <script src="modes_arcade.js?v=7.9.0"></script>
-  <script src="mode_expedition.js?v=7.9.0"></script>
-  <script src="game_ui.js?v=7.9.0"></script>
+  <script src="pokedex_data.js?v=8.0.0"></script>
+  <script src="map_v11_engine.js?v=8.0.0"></script>
+  <script src="skills_engine.js?v=8.0.0"></script>
+  <script src="skills_vfx.js?v=8.0.0"></script>
+  <script src="battle_core_2.js?v=8.0.0"></script>
+  <script src="battle_renderer.js?v=8.0.0"></script>
+  <script src="modes_arcade.js?v=8.0.0"></script>
+  <script src="mode_expedition.js?v=8.0.0"></script>
+  <script src="game_ui.js?v=8.0.0"></script>
 </body>
 </html>
