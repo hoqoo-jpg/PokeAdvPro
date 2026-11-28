@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.8.8');
+      background-image: url('images/skills_icons_sheet.png?v=7.8.9');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.8.8');
+      background-image: url('images/skills_icons_extra5.png?v=7.8.9');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1107,7 +1107,7 @@
     /* v7.8.0 GBA 像素 UI 圖集 (4x6 Sprite Sheet: 24 icons, 新增試煉塔/遺物/營火/傳送門) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.8');
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.9');
       background-size: 400% 600%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1416,7 +1416,7 @@
     </div>
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.8.8
+      v7.8.9
     </div>
   </div>
 
@@ -1517,44 +1517,41 @@
         </div>
       </div>
 
-      <!-- NO.2 推薦核心玩法：8分鐘標準（獨立寬幅中卡，明確顯示 5 張生態地圖） -->
-      <button id="lobbyStandardCard" type="button" onclick="GameApp.openModeFromLobby('standard')" class="poke-card w-full text-left cursor-pointer px-2.5 py-2 bg-slate-900/95 border-2 border-sky-400 text-white shadow-lg flex items-center justify-between gap-2 hover:scale-[1.01] transition-transform">
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="px-2 py-0.5 rounded bg-blue-600 text-white text-[10px] font-black tracking-wide">🔥 推薦 ‧ 經典割草</span>
-            <span class="font-black text-xs sm:text-sm text-sky-300 truncate">8分鐘標準模式</span>
+      <!-- NO.2 主打精繪王牌玩法：MEGA 試煉塔（寬幅原畫特展卡，右嵌精繪高塔立面 ＋ 續爬/新開按鈕） -->
+      <div id="lobbyTowerCard" onclick="GameApp.openModeFromLobby('tower')" class="poke-card relative w-full text-left cursor-pointer px-3 py-2.5 bg-slate-900 border-2 border-indigo-400 text-white shadow-xl overflow-hidden space-y-2 hover:border-amber-300 transition">
+        <div class="absolute inset-y-0 right-0 w-[48%] pointer-events-none opacity-85" style="background-image: url('images/tower_entrance_bg.png'); background-size: cover; background-position: center 42%; mask-image: linear-gradient(to left, rgba(0,0,0,0.95) 45%, rgba(0,0,0,0) 100%); -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,0.95) 45%, rgba(0,0,0,0) 100%);"></div>
+        <div class="relative z-10 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="px-2 py-0.5 rounded bg-indigo-600 text-white text-[10px] font-black tracking-wide shadow">🔥 推薦 ‧ 肉鴿爬塔</span>
+              <span class="font-black text-sm text-cyan-300 truncate drop-shadow">MEGA 試煉塔</span>
+            </div>
+            <div id="lobbyTowerSubText" class="text-[10px] font-bold text-slate-200 mt-0.5 drop-shadow">五大殿堂爬塔 ‧ 破格遺物 ‧ 最高 0 層</div>
           </div>
-          <div class="text-[10px] font-bold text-slate-300 mt-0.5 truncate">5 張生態地圖任選 ‧ 8 分鐘極速登冠</div>
+          <span class="gba-ui-icon gba-ui-tower w-6 h-6 shrink-0 drop-shadow"></span>
         </div>
-        <div class="flex items-center gap-1.5 shrink-0">
-          <span class="gba-ui-icon gba-ui-timer w-6 h-6"></span>
-          <span class="font-black text-xs text-blue-600">→</span>
+        <div id="lobbyTowerActionRow" class="relative z-10 flex items-center gap-1.5">
+          <button onclick="event.stopPropagation(); GameApp.openModeFromLobby('tower')" class="poke-btn-blue w-full py-1.5 text-xs font-black shadow flex items-center justify-center gap-1">
+            <span>踏入 Mega 試煉塔 →</span>
+          </button>
         </div>
-      </button>
+      </div>
 
-      <!-- 3 格進階副模式直達卡（1vs1 鬥技場 / 無盡深淵 / Mega 試煉塔） -->
-      <div class="grid grid-cols-3 gap-1.5">
-        <button onclick="GameApp.openModeFromLobby('arena')" class="poke-btn-white py-2 px-1.5 shadow flex flex-col items-center justify-center gap-0.5 text-center">
+      <!-- 2 格對稱經典副模式直達卡（左：生存割草 8分/無盡整合 ｜ 右：1vs1 鬥技場） -->
+      <div class="grid grid-cols-2 gap-1.5">
+        <button id="lobbyStandardCard" type="button" onclick="GameApp.openModeFromLobby('standard')" class="poke-btn-white py-2 px-2 shadow flex flex-col items-center justify-center gap-0.5 text-center">
+          <div class="flex items-center gap-1">
+            <span class="gba-ui-icon gba-ui-timer w-4 h-4 shrink-0"></span>
+            <span class="font-black text-[11px] sm:text-xs text-slate-900 leading-tight truncate">生存割草</span>
+          </div>
+          <div id="lobbyEndlessSubText" class="text-[9px] font-bold text-sky-700 truncate">8分鐘標準 ‧ 無盡深淵</div>
+        </button>
+        <button onclick="GameApp.openModeFromLobby('arena')" class="poke-btn-white py-2 px-2 shadow flex flex-col items-center justify-center gap-0.5 text-center">
           <div class="flex items-center gap-1">
             <span class="gba-ui-icon gba-ui-arena w-4 h-4 shrink-0"></span>
-            <span class="font-black text-[11px] text-slate-900 leading-tight truncate">1vs1鬥技場</span>
+            <span class="font-black text-[11px] sm:text-xs text-slate-900 leading-tight truncate">1vs1 鬥技場</span>
           </div>
           <div id="lobbyArenaSubText" class="text-[9px] font-bold text-rose-700 truncate">5大神獸 (0/5)</div>
-        </button>
-        <button onclick="GameApp.openModeFromLobby('endless')" class="poke-btn-white py-2 px-1.5 shadow flex flex-col items-center justify-center gap-0.5 text-center">
-          <div class="flex items-center gap-1">
-            <span class="gba-ui-icon gba-ui-abyss w-4 h-4 shrink-0"></span>
-            <span class="font-black text-[11px] text-slate-900 leading-tight truncate">無盡深淵</span>
-          </div>
-          <div id="lobbyEndlessSubText" class="text-[9px] font-bold text-purple-700 truncate">8分後無限波</div>
-        </button>
-        <button onclick="GameApp.openModeFromLobby('tower')" class="poke-btn-white relative py-2 px-1.5 shadow flex flex-col items-center justify-center gap-0.5 text-center border-amber-500">
-          <span class="absolute -top-1.5 right-1 px-1 py-0 rounded bg-indigo-600 text-white text-[7.5px] font-black shadow">NEW</span>
-          <div class="flex items-center gap-1">
-            <span class="gba-ui-icon gba-ui-tower w-4 h-4 shrink-0"></span>
-            <span class="font-black text-[11px] text-slate-900 leading-tight truncate">Mega試煉塔</span>
-          </div>
-          <div id="lobbyTowerSubText" class="text-[9px] font-bold text-indigo-700 truncate">最高 0 層</div>
         </button>
       </div>
 
@@ -1584,7 +1581,7 @@
         </button>
       </div>
       <div class="w-full text-center pt-0.5 pb-1 text-[9px] font-pixel text-slate-300/85 tracking-wider drop-shadow pointer-events-none">
-        V-Cloud Studio · v7.8.8
+        V-Cloud Studio · v7.8.9
       </div>
     </div>
   </div>
@@ -2516,7 +2513,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.8</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.9</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2564,7 +2561,7 @@
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
           <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.8</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.9</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2597,14 +2594,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.8.8"></script>
-  <script src="map_v11_engine.js?v=7.8.8"></script>
-  <script src="skills_engine.js?v=7.8.8"></script>
-  <script src="skills_vfx.js?v=7.8.8"></script>
-  <script src="battle_core_2.js?v=7.8.8"></script>
-  <script src="battle_renderer.js?v=7.8.8"></script>
-  <script src="modes_arcade.js?v=7.8.8"></script>
-  <script src="mode_expedition.js?v=7.8.8"></script>
-  <script src="game_ui.js?v=7.8.8"></script>
+  <script src="pokedex_data.js?v=7.8.9"></script>
+  <script src="map_v11_engine.js?v=7.8.9"></script>
+  <script src="skills_engine.js?v=7.8.9"></script>
+  <script src="skills_vfx.js?v=7.8.9"></script>
+  <script src="battle_core_2.js?v=7.8.9"></script>
+  <script src="battle_renderer.js?v=7.8.9"></script>
+  <script src="modes_arcade.js?v=7.8.9"></script>
+  <script src="mode_expedition.js?v=7.8.9"></script>
+  <script src="game_ui.js?v=7.8.9"></script>
 </body>
 </html>

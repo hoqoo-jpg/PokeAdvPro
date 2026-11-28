@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.8.8",
+  APP_VERSION: "v7.8.9",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1112,7 +1112,7 @@ window.GameApp = {
       bondName: tr.bondName || "專屬羈絆",
       level: 1,
       exp: 0,
-      nextExp: (this.selectedGameMode === "expedition") ? ((typeof window !== "undefined" && window.EXPEDITION_PACING && window.EXPEDITION_PACING.startNextExp) || 90) : 18,
+      nextExp: (this.selectedGameMode === "expedition") ? ((typeof window !== "undefined" && window.EXPEDITION_PACING && window.EXPEDITION_PACING.startNextExp) || 90) : (this.selectedGameMode === "tower" ? 65 : 18),
       hp: maxHp,
       maxHp,
       baseAtk: (typeof getEffectiveBaseAtk === "function" ? getEffectiveBaseAtk(basePoke) : basePoke.atk) * shinyMult,
@@ -5337,6 +5337,8 @@ window.GameApp = {
       if (this.isExpeditionMode) {
         const _ep = (typeof window !== "undefined" && window.EXPEDITION_PACING) ? window.EXPEDITION_PACING : {};
         p.nextExp = Math.round(p.nextExp * (_ep.expGrowthMult || 1.14) + (_ep.expGrowthFlat || 28));
+      } else if (this.isTowerMode) {
+        p.nextExp = Math.round(p.nextExp * 1.12 + 24);
       } else {
         p.nextExp = Math.round(p.nextExp * 1.22 + 14);
       }

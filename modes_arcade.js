@@ -2093,7 +2093,7 @@ window.ModeTower = {
         radius: 26,
         isElite: true, isMiniBoss: true, isBoss: false, isShiny: false,
         isTowerQuotaMob: true,
-        expVal: 135,
+        expVal: 95,
         whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
       });
     }
@@ -2123,7 +2123,7 @@ window.ModeTower = {
       radius: 18,
       isElite: false, isBoss: false, isShiny: Math.random() < 0.03 * (diff.shinyBonus || 1),
       isTowerQuotaMob: true,
-      expVal: 48 + st.floor * 3,
+      expVal: 34 + st.floor * 6,
       whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
     });
   },
@@ -2311,7 +2311,7 @@ window.ModeTower = {
             id: 132, data: ditto, x: prop.x, y: prop.y + 12,
             hp: dHp, maxHp: dHp, atk: Math.round((18 + st.floor * 0.6) * diff.atkMult), speed: 92, radius: 26,
             isElite: true, isMiniBoss: true, isBoss: false, isShiny: true,
-            isTowerMimic: true, guaranteedRareCandy: true, expVal: 160,
+            isTowerMimic: true, guaranteedRareCandy: true, expVal: 110,
             whiteFlashTimer: 0, ccImmunityTimer: 0, status: null, statusTimer: 0, treasureType: null
           });
         }
@@ -2346,6 +2346,9 @@ window.ModeTower = {
       if (!app.saveData.stats) app.saveData.stats = {};
       app.saveData.stats.bestTowerFloor = Math.max(app.saveData.stats.bestTowerFloor || 0, st.floor);
     }
+    // v7.8.9 清層全場自動吸取經驗水晶與地面掉落物（對齊大遠征結算手感）
+    if (Array.isArray(app.gems)) app.gems.forEach(g => { g.magnetized = true; });
+    if (Array.isArray(app.mapItems)) app.mapItems.forEach(it => { it.magnetized = true; });
     this.saveCheckpoint(app, st.floor + 1, "battle");
     this.spawnPhysicalPortals(app);
   },
@@ -2384,6 +2387,9 @@ window.ModeTower = {
     const st = app.towerState;
     if (!st || st.floorCleared) return;
     st.floorCleared = true;
+    // v7.8.9 清層全場自動吸取經驗水晶與地面掉落物（對齊大遠征結算手感）
+    if (Array.isArray(app.gems)) app.gems.forEach(g => { g.magnetized = true; });
+    if (Array.isArray(app.mapItems)) app.mapItems.forEach(it => { it.magnetized = true; });
 
     const floor = st.floor;
     const diff = app.selectedDifficulty || { coinMult: 1.0 };
