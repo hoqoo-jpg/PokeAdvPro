@@ -2527,22 +2527,41 @@ const MapEngine = {
     ctx.strokeRect(x0 + 22, y0 + 22, w - 44, h - 44);
     ctx.globalAlpha = 1;
 
-    // 預規劃空間引導紅毯／石板參道
+    // v7.8.8 暖酒紅＋暗金滾邊 GBA 編織地毯（於中央聖壇圓環邊緣自然收口，徹底消除螢光綠直線）
     const cx = toSx(0), cy = toSy(0);
-    const runnerCol = isBoss ? "#991B1B" : pal.carpet;
-    const runnerEdge = isBoss ? "#FACC15" : pal.carpetEdge;
+    const runnerHalfW = isBoss ? 50 : 36;
+    const centerGapR = isBoss ? 86 : 58;
+    const drawRunnerSegment = (rx, ry, rw, rh) => {
+      if (rh <= 0 || rw <= 0) return;
+      ctx.fillStyle = isBoss ? "rgba(153, 27, 27, 0.58)" : "rgba(127, 29, 29, 0.36)";
+      ctx.fillRect(rx, ry, rw, rh);
+      ctx.fillStyle = isBoss ? "rgba(250, 204, 21, 0.72)" : "rgba(217, 179, 98, 0.45)";
+      ctx.fillRect(rx, ry, 2, rh);
+      ctx.fillRect(rx + rw - 2, ry, 2, rh);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.35)";
+      ctx.fillRect(rx - 1, ry, 1, rh);
+      ctx.fillRect(rx + rw, ry, 1, rh);
+    };
+    // 北段地毯（北門迎賓區 ➔ 中央聖壇北緣）
+    drawRunnerSegment(cx - runnerHalfW, y0 + 28, runnerHalfW * 2, (cy - centerGapR) - (y0 + 28));
+    // 南段地毯（中央聖壇南緣 ➔ 南側進場玄關）
+    drawRunnerSegment(cx - runnerHalfW, cy + centerGapR, runnerHalfW * 2, (y0 + h - 8) - (cy + centerGapR));
 
-    ctx.fillStyle = runnerCol;
-    ctx.globalAlpha = isBoss ? 0.52 : 0.32;
-    ctx.fillRect(cx - (isBoss ? 52 : 38), y0 + 8, isBoss ? 104 : 76, h - 16);
-    if (!isBoss) {
-      ctx.fillRect(toSx(-180), y0 + 8, 360, 56);
-    }
-    ctx.globalAlpha = isBoss ? 0.65 : 0.42;
-    ctx.fillStyle = runnerEdge;
-    ctx.fillRect(cx - (isBoss ? 52 : 38), y0 + 8, 3, h - 16);
-    ctx.fillRect(cx + (isBoss ? 49 : 35), y0 + 8, 3, h - 16);
-    ctx.globalAlpha = 1;
+    // 北牆門前短版石階迎賓踏墊（延伸至 y = -345，精準承接嵌牆三道拱門或首領巨門）
+    const doorXs = isBoss ? [0] : [-140, 0, 140];
+    doorXs.forEach(dx => {
+      const dsx = toSx(dx);
+      const mw = isBoss ? 54 : 42;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.45)";
+      ctx.fillRect(dsx - mw - 2, y0, mw * 2 + 4, 38);
+      ctx.fillStyle = pal.wallTop;
+      ctx.globalAlpha = 0.42;
+      ctx.fillRect(dsx - mw, y0 + 2, mw * 2, 32);
+      ctx.fillStyle = pal.trim;
+      ctx.globalAlpha = 0.55;
+      ctx.fillRect(dsx - mw + 4, y0 + 30, mw * 2 - 8, 2);
+      ctx.globalAlpha = 1;
+    });
 
     // 左右側翼台座地磚暗紋 (±150, 0)
     if (!isBoss) {
@@ -2599,8 +2618,8 @@ const MapEngine = {
     ctx.fillRect(x0, y0, w, 30);
     ctx.restore();
 
-    // 厚實 2.5D GBA 剖面石造四面圍牆（北牆加高 92px 承載嵌牆三道石門）
-    const northH = 92;
+    // 厚實 2.5D GBA 剖面石造四面圍牆（v7.8.8 北牆加厚至 106px 完整嵌入三道石門）
+    const northH = 106;
     const sideW = 34;
     ctx.fillStyle = pal.wallDk;
     ctx.fillRect(x0 - sideW, y0 - northH, w + sideW * 2, northH);
@@ -2610,7 +2629,7 @@ const MapEngine = {
     ctx.fillRect(x0 - sideW, y0 - northH, w + sideW * 2, 16);
 
     ctx.fillStyle = pal.wallDk;
-    for (let row = 0; row < 4; row++) {
+    for (let row = 0; row < 5; row++) {
       const by = y0 - northH + 16 + row * 18;
       ctx.fillRect(x0 - sideW + 4, by, w + sideW * 2 - 8, 2);
       const off = (row % 2) * 24;
@@ -2817,6 +2836,7 @@ const MapEngine = {
   },
 
   renderWeatherOverlays(ctx, width, height) {
+    if (this.towerHallMode && this.towerHallMode.enabled) return;
     if (this.weather === "RAIN" || this.weather === "THUNDER") {
       ctx.save();
       const isThunder = this.weather === "THUNDER";

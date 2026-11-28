@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.8.7",
+  APP_VERSION: "v7.8.8",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -127,6 +127,17 @@ window.GameApp = {
     this.bindInputs();
     this.bindTouchJoystick();
     this.initDevToolsGuard();
+
+    // v7.8.8 手機端切換 App / 回覆訊息自動暫停保護，杜絕切回即陣亡
+    const autoPauseOnHide = () => {
+      if (this.state === "PLAYING") {
+        this.togglePause();
+      }
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) autoPauseOnHide();
+    });
+    window.addEventListener("pagehide", autoPauseOnHide);
 
     const svEl = document.getElementById("splashVersionBadge");
     if (svEl) svEl.textContent = this.APP_VERSION;
@@ -1129,8 +1140,9 @@ window.GameApp = {
       maxBuffTimer: tr.skillDuration || 6.0,
       shieldTimer: 0,
       maxShieldTimer: 5.0,
-      trainerSkillCd: 0,
+      trainerSkillCd: 6.0,
       trainerSkillMaxCd,
+      _trainerWarmup: true,
       status: null,
       statusTimer: 0,
       statusTick: 0,

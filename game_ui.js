@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.7";
+        const ver = this.APP_VERSION || "v7.8.8";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -604,7 +604,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.7";
+      const curVer = this.APP_VERSION || "v7.8.8";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1468,7 +1468,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.7",
+      lastSeenVersion: this.APP_VERSION || "v7.8.8",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3304,7 +3304,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.7",
+      version: this.APP_VERSION || "v7.8.8",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3692,7 +3692,36 @@ Object.assign(window.GameApp, {
           }).join("")
         : `<div class="text-[10px] text-slate-400 font-bold bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-700/60">尚未裝備攜帶物（可於升級三選一、友好商店或擊敗三聖鳥取得）</div>`;
 
-      dpsBox.innerHTML = traitBannerHtml + `
+      let towerSummaryHtml = "";
+      if (this.isTowerMode && this.towerState && typeof ModeTower !== "undefined") {
+        const st = this.towerState;
+        const ownedRelics = (st.relics || []).map(rid => ModeTower.RELICS.find(r => r.id === rid)).filter(Boolean);
+        const activeAffs = (st.activeAffixes || []).map(aid => ModeTower.AFFIXES.find(a => a.id === aid)).filter(Boolean);
+        const relicCards = ownedRelics.length > 0
+          ? ownedRelics.map(r => `
+              <div class="bg-slate-900/95 border rounded-lg px-2 py-1.5 flex flex-col gap-0.5" style="border-color:${r.color}88;">
+                <div class="flex items-center justify-between gap-1 text-[10px]">
+                  <span class="font-black text-white">💎 ${r.name}</span>
+                  <span class="px-1.5 py-0.2 rounded text-[8.5px] font-black text-white" style="background:${r.color};">${r.cat}</span>
+                </div>
+                <div class="text-[9.5px] text-slate-300 font-bold leading-snug">${r.desc}</div>
+              </div>
+            `).join("")
+          : `<div class="text-[10px] text-slate-400 font-bold bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-700/60">尚未取得破格遺物（通關精英門／血祭陣／首領層即可拾取）</div>`;
+        const affHtml = activeAffs.length > 0
+          ? `<div class="mt-1.5 flex flex-wrap gap-1">${activeAffs.map(a => `<span class="px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/70 text-[9.5px] font-black text-rose-200">⚠ ${a.name}：${a.desc}</span>`).join("")}</div>`
+          : "";
+        towerSummaryHtml = `
+          <div class="mt-2 pt-2 border-t border-slate-700/80">
+            <div class="mb-1.5">
+              <span class="end-sec-pill text-[10px] font-black text-cyan-300"><i class="fa-solid fa-gem text-[9px]"></i><span>本局試煉塔遺物 (${ownedRelics.length}) ＆ 環境詞綴</span></span>
+            </div>
+            <div class="space-y-1">${relicCards}</div>
+            ${affHtml}
+          </div>
+        `;
+      }
+      dpsBox.innerHTML = traitBannerHtml + towerSummaryHtml + `
         <div class="mt-2.5 pt-2 border-t border-slate-700/80">
           <div class="mb-1.5">
             <span class="end-sec-pill text-[10px] font-black text-amber-300"><i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i><span>當前招式 ＆ 超武合成配方表</span></span>
@@ -3984,7 +4013,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.7</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.8</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4023,7 +4052,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.7</strong>：打造試煉塔五大海拔專屬預烘焙 GBA 像素室內殿堂（每段 4 款石磚變體對齊野外精度）與 5F/10F/15F/20F 冠軍王座戰場（紅金精靈球鑰石地紋＋四角純視覺烈焰火盆）；北牆預嵌封印石門（未清層為灰暗關閉石門＋紫金能量封印鎖條，清層瞬間震屏破封點亮）；暗影爪實裝隨升級分階加粗至 1.74x；修復 5F➔6F 等跨區段登塔過場倒退異常。</div>
+            <div>• <strong class="text-amber-300">v7.8.8</strong>：試煉塔全面儀式感與體驗打磨——屏蔽塔內野外突襲與室內下雨、修復回大廳黑底；入塔改為 2.1s 背影緩步同行（walkSheet 背影 3 幀）；北牆加厚完整嵌入三道石門＋迎賓石階＋圓角 GBA 銘牌；重整暖酒紅金邊地毯與左右台座柔光光暈；實裝遺物獲取 1.05s 聖光灌注柱演出、局內＋暫停遺物總覽與半透明毛玻璃背景；新增手機切 App 自動暫停、左下角戰術鍵 6 秒開局預熱與「⚡點擊發動」發光彈跳提示，並加入 V-Cloud Studio 署名與同人作品聲明。</div>
+            <div>• <strong class="text-slate-300">v7.8.7</strong>：打造試煉塔五大海拔專屬預烘焙 GBA 像素室內殿堂（每段 4 款石磚變體對齊野外精度）與 5F/10F/15F/20F 冠軍王座戰場（紅金精靈球鑰石地紋＋四角純視覺烈焰火盆）；北牆預嵌封印石門（未清層為灰暗關閉石門＋紫金能量封印鎖條，清層瞬間震屏破封點亮）；暗影爪實裝隨升級分階加粗至 1.74x；修復 5F➔6F 等跨區段登塔過場倒退異常。</div>
             <div>• <strong class="text-slate-300">v7.8.6</strong>：試煉塔全面校準為明亮任天堂寶可夢 HD-2D 風格（精靈球鑰石旗幟塔外入口 ＋ 單層貫通標準層 ＋ 聖殿王座頂）；實裝真正 5 層連續捲動登塔剖面（1F–3F 逐層攀升、3F➔4F 起首度窺見 5F 王座）；修復大廳陣容卡特性文字溢出；升級三選一角標語意分流為「💎 覺醒關鍵 / ★ 專屬異變」；毒池透明度回調至 85% 預設下的黃金可見度。</div>
             <div>• <strong class="text-slate-300">v7.8.5</strong>：緊急修復 skills_vfx.js 飛行道具渲染常數賦值報錯（全面恢復所有飛行道具與特效）；全面以 HD-GBA 精繪場景原畫重構 1F「塔外走進巨塔大門」與「塔內三層建築剖面」登塔過場（搭配奇偶層螺旋鏡像、五大海拔氛圍光塵與王座 Mega 首領聚光演出）。</div>
             <div>• <strong class="text-slate-300">v7.8.4</strong>：24 枚大廳與事件小圖示全面升級 HD-GBA 精繪；試煉塔傳送門改為極座標真旋轉旋渦＋營火波浪跳動；空投與信標生成距離拉遠至 380–520px；新增 1F「塔外走進巨塔大門」入場過場；建立全精靈專屬技能總表並於升級三選一與大廳顯示「★ 專屬強化 / 💎 Mega核心」角標（補齊超級耿鬼暗影爪）；收斂污泥炸彈／暗影球視覺尺寸、毒池改為半透明，並全面翻新 Mega 進化檔案彈窗亮暗對比。</div>
@@ -4045,11 +4075,12 @@ Object.assign(window.GameApp, {
             <div>• <strong class="text-slate-300">v7.6.6</strong>：修正大遠征過場角色浮空貼地、電球距離過濾與彩色標籤白字保護。</div>
             <div>• <strong class="text-slate-300">v7.6.5</strong>：補齊發電廠／火山大遠征小地圖、結算評級雙主題與小幫手倒數防偷跑。</div>
             <div>• <strong class="text-slate-300">v7.6.2</strong>：大遠征升級 20+1 五區三聖鳥歸位、難度階梯重校、精裝選關縮圖與小王出招加速。</div>
-          </div>
+          
+            <div class="mt-2.5 pt-2 border-t border-slate-700/80 text-[9.5px] text-slate-400 leading-relaxed text-center">V-Cloud Studio 製作之非營利同人學習作品 ‧ 所有寶可夢相關角色與設定版權均歸屬 Nintendo / Creatures Inc. / GAME FREAK inc. 所有。</div></div>
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.7";
+    const curVer = this.APP_VERSION || "v7.8.8";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
@@ -4219,6 +4250,13 @@ Object.assign(window.GameApp, {
       titleEl.classList.remove("hidden");
       titleEl.style.display = "flex";
     }
+    if (typeof MapEngine !== "undefined") {
+      if (MapEngine.setTowerHallMode) MapEngine.setTowerHallMode(false);
+      if (MapEngine.setBoundedMap) MapEngine.setBoundedMap(false);
+      if (MapEngine.setArenaMode) MapEngine.setArenaMode(false);
+    }
+    const trBadge = document.getElementById("hudTowerRelicBadge");
+    if (trBadge) trBadge.classList.add("hidden");
     this.state = "TITLE";
     this.updateTitleUI();
     window.scrollTo(0, 0);
@@ -5033,10 +5071,40 @@ Object.assign(window.GameApp, {
         cdOverlay.className = "absolute inset-0 bg-slate-950/85 flex flex-col items-center justify-center text-white";
         cdText.textContent = `${btnRemain}s`;
         cdText.className = "font-pixel text-xs text-amber-300";
-        cdSub.textContent = "冷卻中";
+        cdSub.textContent = p._trainerWarmup ? "預熱中" : "冷卻中";
+        const rPill = document.getElementById("hudActiveSkillReadyPill");
+        if (rPill) rPill.classList.add("hidden");
       } else {
-        btnEl.className = "tactical-btn-ready relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl";
+        const wasNotReady = (this._prevTacticalMode && this._prevTacticalMode !== "ready");
+        p._trainerWarmup = false;
+        btnEl.className = `tactical-btn-ready ${wasNotReady ? "tactical-btn-pop" : ""} relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 border-3 border-slate-900 flex items-center justify-center overflow-hidden active:scale-90 transition-transform shadow-xl`;
         cdOverlay.className = "hidden absolute inset-0";
+        const rPill = document.getElementById("hudActiveSkillReadyPill");
+        if (rPill) rPill.classList.remove("hidden");
+      }
+      if (btnMode === "active") {
+        const rPill = document.getElementById("hudActiveSkillReadyPill");
+        if (rPill) rPill.classList.add("hidden");
+      }
+      this._prevTacticalMode = btnMode;
+    }
+
+    // v7.8.8 試煉塔局內頂部精簡遺物徽章列（點擊直接暫停查看完整清單）
+    const trBadge = document.getElementById("hudTowerRelicBadge");
+    if (trBadge) {
+      if (this.isTowerMode && this.towerState && this.towerState.relics && this.towerState.relics.length > 0) {
+        const rCnt = this.towerState.relics.length;
+        const rKey = `r_${rCnt}_${this.towerState.relics.join(",")}`;
+        if (this._lastTowerRelicHudKey !== rKey) {
+          this._lastTowerRelicHudKey = rKey;
+          const names = (typeof ModeTower !== "undefined")
+            ? this.towerState.relics.slice(-2).map(id => (ModeTower.RELICS.find(r => r.id === id) || {}).name || "").filter(Boolean)
+            : [];
+          trBadge.innerHTML = `<span class="gba-ui-icon gba-ui-relic w-3.5 h-3.5"></span><span>遺物×${rCnt}${names.length ? ` · ${names[names.length - 1]}` : ""}</span>`;
+        }
+        trBadge.classList.remove("hidden");
+      } else {
+        trBadge.classList.add("hidden");
       }
     }
 

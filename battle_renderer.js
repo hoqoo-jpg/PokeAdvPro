@@ -2793,6 +2793,9 @@ Object.assign(window.GameApp, {
     });
     ctx.restore();
 
+    if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.renderAerialCeremony) {
+      ModeTower.renderAerialCeremony(this, ctx, toSx, toSy);
+    }
     MapEngine.renderWeatherOverlays(ctx, this.width, this.height);
     if (this.state === "EVOLVING") {
       this.renderEvolutionOverlay(ctx, toSx, toSy, false);

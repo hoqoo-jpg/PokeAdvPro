@@ -953,7 +953,7 @@ window.FieldEventsEngine = {
   },
 
   triggerEvent(app, eventId = null) {
-    if (!app || !app.player || app.isArenaMode) return false;
+    if (!app || !app.player || app.isArenaMode || app.isTowerMode) return false;
     const chosenId = eventId || this.pickRandomEventId(app, false);
     const meta = this.CATALOG.find(e => e.id === chosenId) || this.CATALOG[0];
     app.lastFieldEventId = meta.id;
@@ -1140,7 +1140,7 @@ window.FieldEventsEngine = {
   },
 
   update(app, dt) {
-    if (!app || !app.player || app.isArenaMode || app.battleCountdownTimer > 0) return;
+    if (!app || !app.player || app.isArenaMode || app.isTowerMode || app.battleCountdownTimer > 0) return;
     const p = app.player;
 
     if (!app.isExpeditionMode && !app.activeFieldEvent) {
@@ -1492,6 +1492,7 @@ window.ModeTower = {
     const pData = (p && p.data) || POKEMON_MAP.get(25);
     const pSprUrl = (p && p.isShiny && pData.shiny_back_sprite) ? pData.shiny_back_sprite : (pData.back_sprite || pData.forward_sprite);
     SpriteCache.get(pSprUrl);
+    if (trCos && trCos.walkSheet) SpriteCache.get(trCos.walkSheet);
     if (trCos && trCos.sprite) SpriteCache.get(trCos.sprite);
     SpriteCache.get(this.ENTRANCE_BG_URL);
 
@@ -1502,7 +1503,7 @@ window.ModeTower = {
     let finished = false;
     let rafId = null;
     const startTs = performance.now();
-    const durationMs = 1650;
+    const durationMs = 2100;
 
     const finish = () => {
       if (finished) return;
@@ -1559,24 +1560,34 @@ window.ModeTower = {
       }
       ctx.globalAlpha = 1;
 
-      // 4. 訓練家與寶可夢沿下方石板參道並肩走入發光大門（由近及遠透視微縮）
-      const startY = h - 18;
-      const endY = h * 0.69;
+      // 4. v7.8.8 訓練家（使用 3x4 行走圖集 Row 3 背影步態）與寶可夢（back_sprite）並肩緩步走入巨塔大門
+      const startY = h - 14;
+      const endY = h * 0.68;
       const curY = startY + (endY - startY) * ease;
-      const scale = 1.24 - ease * 0.46;
-      const bob = t < 0.85 ? Math.abs(Math.sin(t * 26)) * 5 : 0;
-      const alphaChar = t > 0.80 ? Math.max(0, 1 - (t - 0.80) / 0.18) : 1;
+      const scale = 1.24 - ease * 0.48;
+      const walkStep = Math.floor((nowTs - startTs) / 145) % 4;
+      const walkCols = [1, 0, 1, 2];
+      const bob = t < 0.86 ? Math.abs(Math.sin(t * 24)) * 3.5 : 0;
+      const alphaChar = t > 0.82 ? Math.max(0, 1 - (t - 0.82) / 0.16) : 1;
 
       const pRec = SpriteCache.get(pSprUrl);
+      const wsRec = (trCos && trCos.walkSheet) ? SpriteCache.get(trCos.walkSheet) : null;
       const tRec = (trCos && trCos.sprite) ? SpriteCache.get(trCos.sprite) : null;
       ctx.save();
       ctx.globalAlpha = alphaChar;
       const ts = Math.round(42 * scale);
       const ps = Math.round(46 * scale);
-      // 腳底接地陰影
       ctx.fillStyle = "rgba(2, 6, 23, 0.52)";
       ctx.beginPath(); ctx.ellipse(doorX, curY - 2, 28 * scale, 6 * scale, 0, 0, Math.PI * 2); ctx.fill();
-      if (tRec && tRec.loaded) ctx.drawImage(tRec.img, Math.round(doorX - ts * 0.96), Math.round(curY - ts - bob), ts, ts);
+      if (wsRec && wsRec.loaded && wsRec.img.width >= 3 && wsRec.img.height >= 4) {
+        const fw = wsRec.img.width / 3;
+        const fh = wsRec.img.height / 4;
+        const col = walkCols[walkStep];
+        const row = 3; // 第 4 列為朝上背影行走幀
+        ctx.drawImage(wsRec.img, Math.round(col * fw), Math.round(row * fh), Math.round(fw), Math.round(fh), Math.round(doorX - ts * 0.96), Math.round(curY - ts - bob * 0.5), ts, ts);
+      } else if (tRec && tRec.loaded) {
+        ctx.drawImage(tRec.img, Math.round(doorX - ts * 0.96), Math.round(curY - ts - bob), ts, ts);
+      }
       if (pRec && pRec.loaded) ctx.drawImage(pRec.img, Math.round(doorX + ps * 0.04), Math.round(curY - ps - bob), ps, ps);
       ctx.restore();
 
@@ -1942,7 +1953,13 @@ window.ModeTower = {
     st.sealBreakTimer = 0;
     this.buildFloorPortals(app, true);
 
-    if (this.hasRelic(app, "opening_charge")) p.trainerSkillCd = 0;
+    if (this.hasRelic(app, "opening_charge")) {
+      p.trainerSkillCd = 0;
+      p._trainerWarmup = false;
+    } else if (p.trainerSkillCd <= 0 && p.buffTimer <= 0 && p.shieldTimer <= 0) {
+      p.trainerSkillCd = 6.0;
+      p._trainerWarmup = true;
+    }
     if (this.hasRelic(app, "overheal_shield")) p.shieldTimer = Math.max(p.shieldTimer || 0, 4.0);
 
     const bossHud = document.getElementById("bossHudContainer");
@@ -2006,8 +2023,8 @@ window.ModeTower = {
     } else {
       // 狂戰血祭祭壇 ＋ 黃金補給箱
       st.roomProps = [
-        { kind: "blood_altar", x: -160, y: 0, radius: 50, standTimer: 0, done: false, iconKey: "rival_ambush", label: "狂戰血祭陣", sub: "扣20%血 ➔ 遺物＋全招+1", color: "#F43F5E" },
-        { kind: "gold_supply", x: 160, y: 0, radius: 46, standTimer: 0, done: false, iconKey: "meowth_convoy", label: "黃金補給箱", sub: "無傷奪 +140金 ＋ 回20%血", color: "#FACC15" }
+        { kind: "blood_altar", x: -150, y: 0, radius: 46, standTimer: 0, done: false, iconKey: "rival_ambush", label: "狂戰血祭陣", sub: "扣20%血 ➔ 遺物＋全招+1", color: "#F43F5E" },
+        { kind: "gold_supply", x: 150, y: 0, radius: 46, standTimer: 0, done: false, iconKey: "meowth_convoy", label: "黃金補給箱", sub: "無傷奪 +140金 ＋ 回20%血", color: "#FACC15" }
       ];
     }
   },
@@ -2116,7 +2133,10 @@ window.ModeTower = {
     const st = app.towerState;
     if (!st) return;
     const nextF = st.floor + 1;
-    const py = -356;
+    // v7.8.8 拱門底座嚴格貼齊北牆底線 y=-380（完整嵌進北牆石磚），觸發判定點設於門前迎賓石階踏墊 y=-356
+    const py = -416;
+    const bossPy = -424;
+    const trigY = -356;
 
     if (nextF % 5 === 0) {
       const ms = this.MEGA_MILESTONES.find(m => m.floor === nextF);
@@ -2124,18 +2144,18 @@ window.ModeTower = {
       const bData = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[bossBaseId]) ? MEGA_FORMS[bossBaseId] : POKEMON_MAP.get(bossBaseId);
       if (bData && bData.forward_sprite) SpriteCache.get(bData.forward_sprite);
       st.portals = [{
-        type: "boss", propRow: 4, iconKey: "tower", x: 0, y: py, radius: 52, standTimer: 0, locked: !!locked, floorTag: `${nextF}F`,
+        type: "boss", propRow: 4, iconKey: "tower", x: 0, y: bossPy, triggerY: trigY, radius: 48, standTimer: 0, locked: !!locked, floorTag: `${nextF}F`,
         color: "#EF4444", label: `${nextF}F MEGA 首領`, sub: ms ? ms.title : "雙 Mega 決戰",
         bossSprite: bData ? bData.forward_sprite : null
       }];
     } else {
       const isPreBoss = ((nextF + 1) % 5 === 0);
       const rightPortal = isPreBoss
-        ? { type: "campfire", propRow: 3, iconKey: "campfire",     x: 140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#10B981", floorTag: `${nextF}F`, label: `${nextF}F 營火房`, sub: "回血 / 鍛造" }
-        : { type: "mystery",  propRow: 2, iconKey: "ditto_chests", x: 140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#A855F7", floorTag: `${nextF}F`, label: `${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
+        ? { type: "campfire", propRow: 3, iconKey: "campfire",     x: 140, y: py, triggerY: trigY, radius: 40, standTimer: 0, locked: !!locked, color: "#10B981", floorTag: `${nextF}F`, label: `${nextF}F 營火房`, sub: "回血 / 鍛造" }
+        : { type: "mystery",  propRow: 2, iconKey: "ditto_chests", x: 140, y: py, triggerY: trigY, radius: 40, standTimer: 0, locked: !!locked, color: "#A855F7", floorTag: `${nextF}F`, label: `${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
       st.portals = [
-        { type: "battle", propRow: 0, iconKey: "arena",        x: -140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#38BDF8", floorTag: `${nextF}F`, label: `${nextF}F 激戰門`, sub: "標準清剿" },
-        { type: "elite",  propRow: 1, iconKey: "rival_ambush", x: 0,    y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#F59E0B", floorTag: `${nextF}F`, label: `${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
+        { type: "battle", propRow: 0, iconKey: "arena",        x: -140, y: py, triggerY: trigY, radius: 40, standTimer: 0, locked: !!locked, color: "#38BDF8", floorTag: `${nextF}F`, label: `${nextF}F 激戰門`, sub: "標準清剿" },
+        { type: "elite",  propRow: 1, iconKey: "rival_ambush", x: 0,    y: py, triggerY: trigY, radius: 40, standTimer: 0, locked: !!locked, color: "#F59E0B", floorTag: `${nextF}F`, label: `${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
         rightPortal
       ];
     }
@@ -2217,13 +2237,17 @@ window.ModeTower = {
     }
 
     if (st.sealBreakTimer > 0) st.sealBreakTimer = Math.max(0, st.sealBreakTimer - dt);
+    if (st.relicCeremony && st.relicCeremony.timer > 0) {
+      st.relicCeremony.timer = Math.max(0, st.relicCeremony.timer - dt);
+    }
 
-    // 4. 實體三道傳送門走位進入（未解封封印門不可互動；解封後停留 0.45s 防誤觸）
+    // 4. 實體三道傳送門走位進入（走上門前迎賓石階踏墊觸發，停留 0.45s 防誤觸）
     if (st.portals && st.portals.length > 0) {
       for (const pt of st.portals) {
         if (pt.locked) continue;
-        const dist = Math.hypot(p.x - pt.x, p.y - pt.y);
-        if (dist <= pt.radius + 18) {
+        const ty = (pt.triggerY !== undefined) ? pt.triggerY : pt.y;
+        const dist = Math.hypot(p.x - pt.x, p.y - ty);
+        if (dist <= pt.radius + 12) {
           pt.standTimer = (pt.standTimer || 0) + dt;
           if (pt.standTimer >= 0.45) {
             const fromF = st.floor;
@@ -2491,9 +2515,21 @@ window.ModeTower = {
         app.player.hp = Math.min(app.player.maxHp, app.player.hp + bonus);
       }
     }
+    const pickedMeta = this.RELICS.find(r => r.id === relicId);
+    st.relicCeremony = {
+      timer: 1.05,
+      maxTime: 1.05,
+      color: pickedMeta ? pickedMeta.color : "#38BDF8",
+      name: pickedMeta ? pickedMeta.name : "破格遺物"
+    };
     this.saveCheckpoint(app, st.floor + 1, "battle");
     this.closeTowerModal();
     app.state = "PLAYING";
+    if (typeof SoundFX !== "undefined") SoundFX.play("shiny");
+    if (app.spawnFloatingText && app.player && pickedMeta) {
+      app.spawnFloatingText(app.player.x, app.player.y - 62, `✨ 遺物灌注！【${pickedMeta.name}】`, pickedMeta.color || "#38BDF8", 16);
+    }
+    if (app.refreshHUD) app.refreshHUD();
     this.spawnPhysicalPortals(app);
   },
 
@@ -2573,20 +2609,30 @@ window.ModeTower = {
       const bx = Math.round(sx - boxW / 2);
       const by = Math.round(topY - boxH - 6 + liftY);
 
-      ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+      // v7.8.8 圓角 GBA 像素銘牌（與左右膠囊同曲率圓角、微透底色、粗黑外框＋主題色內描邊）
+      const rad = 10;
+      const drawRR = (x, y, rw, rh, rr) => {
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + rw - rr, y);
+        ctx.quadraticCurveTo(x + rw, y, x + rw, y + rr);
+        ctx.lineTo(x + rw, y + rh - rr);
+        ctx.quadraticCurveTo(x + rw, y + rh, x + rw - rr, y + rh);
+        ctx.lineTo(x + rr, y + rh);
+        ctx.quadraticCurveTo(x, y + rh, x, y + rh - rr);
+        ctx.lineTo(x, y + rr);
+        ctx.quadraticCurveTo(x, y, x + rr, y);
+        ctx.closePath();
+      };
+      drawRR(bx - 1, by - 1, boxW + 2, boxH + 2, rad + 1);
+      ctx.fillStyle = "rgba(2, 6, 23, 0.85)";
+      ctx.fill();
+      drawRR(bx, by, boxW, boxH, rad);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+      ctx.fill();
       ctx.strokeStyle = borderCol;
       ctx.lineWidth = 2;
-      ctx.fillRect(bx, by, boxW, boxH);
-      ctx.strokeRect(bx, by, boxW, boxH);
-
-      // 底部小三角箭頭指向物件
-      ctx.fillStyle = borderCol;
-      ctx.beginPath();
-      ctx.moveTo(Math.round(sx - 5), by + boxH);
-      ctx.lineTo(Math.round(sx + 5), by + boxH);
-      ctx.lineTo(Math.round(sx), by + boxH + 5);
-      ctx.closePath();
-      ctx.fill();
+      ctx.stroke();
 
       const startX = Math.round(sx - contentW / 2);
       if (hasIcon) {
@@ -2659,14 +2705,24 @@ window.ModeTower = {
             drawTopPlaque(sx, sy - 36, prop.label, "走近停留開啟", "#A855F7", prop.iconKey, prox);
           }
         } else {
-          ctx.globalAlpha = prop.done ? 0.25 : 1.0;
-          ctx.fillStyle = `${prop.color}24`;
-          ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = prop.color;
-          ctx.lineWidth = 2.5;
-          ctx.setLineDash([8, 5]);
-          ctx.beginPath(); ctx.arc(sx, sy, prop.radius, 0, Math.PI * 2); ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.globalAlpha = prop.done ? 0.22 : 1.0;
+          // v7.8.8 柔和發光符文光暈取代生硬紅黃虛線框；靠近時外緣亮起精緻進度環
+          const auraG = ctx.createRadialGradient(sx, sy, 6, sx, sy, prop.radius + 8);
+          auraG.addColorStop(0, `${prop.color}48`);
+          auraG.addColorStop(0.68, `${prop.color}1C`);
+          auraG.addColorStop(1, `${prop.color}00`);
+          ctx.fillStyle = auraG;
+          ctx.beginPath(); ctx.arc(sx, sy, prop.radius + 8, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `${prop.color}66`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.arc(sx, sy, prop.radius - 4, 0, Math.PI * 2); ctx.stroke();
+          if (prop.standTimer > 0 && !prop.done) {
+            ctx.strokeStyle = "#FFFFFF";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(sx, sy, prop.radius - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, prop.standTimer / 0.45));
+            ctx.stroke();
+          }
           if (prop.kind === "gold_supply") {
             drawPropFrame(7, prop.done ? 2 : 0, sx, sy - 4, 58);
           } else {
@@ -2709,7 +2765,9 @@ window.ModeTower = {
         const propRow = (pt.propRow !== undefined) ? pt.propRow : (isBoss ? 4 : 0);
 
         ctx.save();
-        drawGroundedPlinth(sx, sy + sz * 0.40, isBoss ? 48 : 38, pt.locked ? "#64748B" : pt.color);
+        // 嵌牆微暗內凹牆影（讓石門真正融入北側厚石牆）
+        ctx.fillStyle = "rgba(2, 6, 23, 0.56)";
+        ctx.fillRect(Math.round(sx - sz * 0.44), Math.round(sy - sz * 0.46), Math.round(sz * 0.88), Math.round(sz * 0.90));
 
         if (pt.locked) {
           ctx.save();
@@ -2756,7 +2814,7 @@ window.ModeTower = {
           return;
         }
 
-        const prox = getProximityAlpha(pt.x, pt.y, 92, 155);
+        const prox = getProximityAlpha(pt.x, (pt.triggerY !== undefined ? pt.triggerY : pt.y), 76, 138);
         const aura = ctx.createRadialGradient(sx, sy, 8, sx, sy, sz * 0.68);
         aura.addColorStop(0, `${pt.color}58`);
         aura.addColorStop(1, `${pt.color}00`);
@@ -2836,6 +2894,52 @@ window.ModeTower = {
       }
     };
     if (app.saveToStorage) app.saveToStorage();
+  },
+
+  // v7.8.8 遺物／祭壇獲取「聖光灌注」1.05s 儀式感演出（垂直光柱 ＋ 擴散符文衝擊波 ＋ 飄升星火）
+  renderAerialCeremony(app, ctx, toSx, toSy) {
+    if (!app || !app.isTowerMode || !app.towerState || !app.player) return;
+    const cer = app.towerState.relicCeremony;
+    if (!cer || cer.timer <= 0) return;
+    const p = app.player;
+    const sx = toSx(p.x), sy = toSy(p.y);
+    const prog = 1 - (cer.timer / (cer.maxTime || 1.05));
+    const fade = prog < 0.25 ? (prog / 0.25) : Math.max(0, 1 - (prog - 0.25) / 0.75);
+    const col = cer.color || "#38BDF8";
+
+    ctx.save();
+    // 1. 垂直聖光柱
+    const beamW = (34 + Math.sin(prog * Math.PI) * 18) * (1 - prog * 0.35);
+    const grad = ctx.createLinearGradient(sx, sy - 260, sx, sy + 20);
+    grad.addColorStop(0, `${col}00`);
+    grad.addColorStop(0.55, `${col}88`);
+    grad.addColorStop(1, "#FFFFFFCC");
+    ctx.globalAlpha = fade * 0.85;
+    ctx.fillStyle = grad;
+    ctx.fillRect(Math.round(sx - beamW / 2), Math.round(sy - 260), Math.round(beamW), 280);
+
+    // 2. 地面擴散符文衝擊波雙環
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3.5 * fade + 1;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 12, 18 + prog * 95, (18 + prog * 95) * 0.52, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#FEF08A";
+    ctx.lineWidth = 2 * fade;
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 12, 10 + prog * 62, (10 + prog * 62) * 0.52, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 3. 飄升金色與屬性星火粒子
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2 + prog * 2.2;
+      const rad = 16 + (i % 3) * 14 + prog * 24;
+      const px = sx + Math.cos(ang) * rad;
+      const py = sy + 6 - prog * (75 + (i % 4) * 28);
+      ctx.fillStyle = (i % 2 === 0) ? "#FEF08A" : col;
+      ctx.fillRect(Math.round(px - 2), Math.round(py - 2), 4, 4);
+    }
+    ctx.restore();
   },
 
   saveAndReturnToLobby() {

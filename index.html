@@ -149,7 +149,7 @@
 
     /* 20招統一像素風技能精靈圖集 (5x4 網格 480x384) */
     .skill-sheet-icon {
-      background-image: url('images/skills_icons_sheet.png?v=7.8.7');
+      background-image: url('images/skills_icons_sheet.png?v=7.8.8');
       background-size: 500% 400%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -160,7 +160,7 @@
 
     /* v7.5.5p1 擴充 5 招無框透明像素風技能圖集 (5x1 網格 480x96，原 20 招圖集零改動) */
     .skill-sheet-icon-extra {
-      background-image: url('images/skills_icons_extra5.png?v=7.8.7');
+      background-image: url('images/skills_icons_extra5.png?v=7.8.8');
       background-size: 500% 100%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -262,7 +262,16 @@
 
     /* 戰術大招按鈕發光與脈動 */
     .tactical-btn-ready {
-      animation: pulseGlow 2s infinite ease-in-out;
+      animation: pulseGlow 1.6s infinite ease-in-out;
+      box-shadow: 0 5px 0 #78350f, 0 0 18px rgba(245, 158, 11, 0.85);
+    }
+    .tactical-btn-pop {
+      animation: tacticalPop 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) forwards;
+    }
+    @keyframes tacticalPop {
+      0%   { transform: scale(0.88); box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.95); }
+      55%  { transform: scale(1.16); box-shadow: 0 0 0 18px rgba(250, 204, 21, 0); }
+      100% { transform: scale(1);    box-shadow: 0 5px 0 #78350f, 0 0 18px rgba(245, 158, 11, 0.85); }
     }
     @keyframes pulseGlow {
       0%, 100% {
@@ -1098,7 +1107,7 @@
     /* v7.8.0 GBA 像素 UI 圖集 (4x6 Sprite Sheet: 24 icons, 新增試煉塔/遺物/營火/傳送門) */
     .gba-ui-icon {
       display: inline-block;
-      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.7');
+      background-image: url('images/gba_ui_icons_sheet.png?v=7.8.8');
       background-size: 400% 600%;
       background-repeat: no-repeat;
       image-rendering: pixelated;
@@ -1396,9 +1405,18 @@
       </div>
     </div>
 
+    <!-- 封面底部：V-Cloud Studio 署名與同人聲明 -->
+    <div style="bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);" class="absolute inset-x-3 flex flex-col items-center gap-0.5 pointer-events-none z-20 text-center">
+      <div class="px-2.5 py-0.5 rounded-full bg-slate-950/75 border border-amber-400/40 font-pixel text-[9px] sm:text-[10px] text-amber-200 tracking-widest shadow">
+        V-Cloud Studio
+      </div>
+      <div class="text-[8.5px] sm:text-[9px] font-bold text-slate-300/85 drop-shadow max-w-md leading-tight">
+        非營利同人學習作品 ‧ 寶可夢角色與設定版權歸屬 Nintendo / Creatures Inc. / GAME FREAK inc.
+      </div>
+    </div>
     <!-- 封面右下角版本辨識標籤 -->
     <div id="splashVersionBadge" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);" class="absolute right-3 sm:right-4 px-2 py-0.5 rounded-full bg-slate-950/75 border border-white/25 font-pixel text-[9px] sm:text-[10px] text-slate-200 tracking-wider pointer-events-none shadow z-20">
-      v7.8.7
+      v7.8.8
     </div>
   </div>
 
@@ -1565,6 +1583,9 @@
           <span id="achClaimBadge" class="hidden absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full border-2 border-white animate-ping"></span>
         </button>
       </div>
+      <div class="w-full text-center pt-0.5 pb-1 text-[9px] font-pixel text-slate-300/85 tracking-wider drop-shadow pointer-events-none">
+        V-Cloud Studio · v7.8.8
+      </div>
     </div>
   </div>
 
@@ -1638,6 +1659,7 @@
       <span id="hudTraitBadge" class="px-2 py-0.5 bg-slate-950/90 text-amber-300 border border-amber-500/80 rounded-full font-black text-[9px] sm:text-[10px] shadow flex items-center gap-1"></span>
       <span id="hudTerrainBadge" class="hidden px-2 py-0.5 bg-emerald-950/90 text-emerald-300 border border-emerald-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">草叢</span>
       <span id="hudPlayerStatusBadge" class="hidden px-2 py-0.5 bg-rose-950/90 text-rose-300 border border-rose-500 rounded-full font-black text-[9px] sm:text-[10px] shadow">異常狀態</span>
+      <button id="hudTowerRelicBadge" type="button" onclick="GameApp.togglePause()" class="hidden pointer-events-auto px-2 py-0.5 bg-indigo-950/90 text-cyan-200 border border-cyan-400/90 rounded-full font-black text-[9px] sm:text-[10px] shadow flex items-center gap-1 hover:bg-indigo-900 active:scale-95 transition" title="點擊暫停查看全部遺物與詞綴詳情"></button>
     </div>
 
     <!-- 頂部中央：Boss 血條容器 (下移至 top-[96px] sm:top-24 避開地形與狀態列，且 z-20 置頂絕不被擋) -->
@@ -1750,6 +1772,7 @@
             <span id="trainerSkillStatusSub" class="text-[8px] font-bold text-slate-300 mt-0.5">冷卻中</span>
           </div>
         </button>
+        <span id="hudActiveSkillReadyPill" class="hidden -mt-2 mb-0.5 z-10 px-2 py-0.5 rounded-full bg-amber-400 border-2 border-slate-900 text-slate-950 font-black text-[9px] whitespace-nowrap shadow-md animate-bounce leading-none">⚡點擊發動</span>
         <span id="hudActiveSkillName" class="mt-1 px-2 py-0.5 rounded-full bg-slate-900/95 border border-amber-400 text-amber-200 font-black text-[10px] whitespace-nowrap shadow-md leading-tight">就決定是你了！</span>
         <span class="pc-only-hotkey font-pixel text-[7px] text-slate-200 bg-slate-900/80 px-1.5 py-0.2 rounded mt-0.5">[SPACE]</span>
       </div>
@@ -2147,7 +2170,7 @@
 </div>
 
   <!-- 13C. 關都大遠征：透明戰場浮層（上方火車站路線長卷慢步演出 ➔ 抵達後下方展開戰前整備） -->
-  <div id="expeditionModal" class="absolute inset-0 z-50 hidden flex flex-col items-center justify-start pt-3 sm:pt-5 pb-4 px-2.5 sm:px-4 bg-slate-950/38 select-none overflow-y-auto">
+  <div id="expeditionModal" class="absolute inset-0 z-50 hidden flex flex-col items-center justify-start pt-3 sm:pt-5 pb-4 px-2.5 sm:px-4 bg-slate-950/42 backdrop-blur-[3px] select-none overflow-y-auto">
     <div class="w-full max-w-lg flex flex-col gap-2.5 my-auto">
       <!-- 1. 外置透明感火車站長卷區塊（直接浮在遊戲戰場上，點擊可加速行軍） -->
       <div id="expRouteFrameCard" onclick="ModeExpedition.skipRouteWalkAnim()" class="cursor-pointer rounded-2xl overflow-hidden border-2 border-amber-400 bg-slate-900/90 shadow-2xl">
@@ -2373,7 +2396,7 @@
   </div>
 
   <!-- v7.8.0 關都 Mega 試煉塔：過關分支傳送門 ／ 破格遺物三選一 ／ 營火 ／ 奇遇彈窗 -->
-  <div id="towerModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-sm select-none overflow-y-auto">
+  <div id="towerModal" class="absolute inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4 bg-slate-950/45 backdrop-blur-[3px] select-none overflow-y-auto">
     <div class="poke-card w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden p-0 bg-white border-[3px] border-slate-900 shadow-2xl my-auto">
       <div class="bg-gradient-to-r from-indigo-900 via-purple-900 to-slate-900 px-3.5 py-2.5 border-b-[3px] border-slate-900 flex items-center justify-between gap-2 shrink-0">
         <div class="min-w-0">
@@ -2493,7 +2516,7 @@
       <div class="gba-modal-head bg-gradient-to-r from-slate-800 via-slate-700 to-slate-900 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-settings w-5 h-5"></span>
-          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.7</span>
+          <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">SETTINGS</span><span class="font-black text-xs sm:text-sm text-white">系統設定</span></span><span id="settingsVersionBadge" class="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-600 font-pixel text-[8px] text-slate-300">v7.8.8</span>
         </div>
         <button onclick="GameApp.closeSettingsModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2541,7 +2564,7 @@
         <div class="flex items-center gap-2">
           <span class="gba-ui-icon gba-ui-league_contract w-5 h-5"></span>
           <span class="flex items-center gap-1.5"><span class="font-pixel text-[10px] sm:text-xs text-white">PATCH NOTES</span><span class="font-black text-xs sm:text-sm text-white">更新日誌</span></span>
-          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.7</span>
+          <span class="px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-pixel text-[8px] font-black">v7.8.8</span>
         </div>
         <button onclick="GameApp.closeChangelogModal()" class="text-slate-400 hover:text-white px-2 py-0.5 text-sm font-black">✕</button>
       </div>
@@ -2574,14 +2597,14 @@
   <div id="pixelToastContainer" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] pointer-events-none flex flex-col items-center gap-1.5 w-[90vw] max-w-sm"></div>
 
   <!-- 16. 核心腳本載入順序 -->
-  <script src="pokedex_data.js?v=7.8.7"></script>
-  <script src="map_v11_engine.js?v=7.8.7"></script>
-  <script src="skills_engine.js?v=7.8.7"></script>
-  <script src="skills_vfx.js?v=7.8.7"></script>
-  <script src="battle_core_2.js?v=7.8.7"></script>
-  <script src="battle_renderer.js?v=7.8.7"></script>
-  <script src="modes_arcade.js?v=7.8.7"></script>
-  <script src="mode_expedition.js?v=7.8.7"></script>
-  <script src="game_ui.js?v=7.8.7"></script>
+  <script src="pokedex_data.js?v=7.8.8"></script>
+  <script src="map_v11_engine.js?v=7.8.8"></script>
+  <script src="skills_engine.js?v=7.8.8"></script>
+  <script src="skills_vfx.js?v=7.8.8"></script>
+  <script src="battle_core_2.js?v=7.8.8"></script>
+  <script src="battle_renderer.js?v=7.8.8"></script>
+  <script src="modes_arcade.js?v=7.8.8"></script>
+  <script src="mode_expedition.js?v=7.8.8"></script>
+  <script src="game_ui.js?v=7.8.8"></script>
 </body>
 </html>
