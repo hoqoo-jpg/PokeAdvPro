@@ -635,13 +635,13 @@ function getSkillSynergyTagsForPokemon(pokeId, skillId) {
   if (typeof MEGA_FORMS !== "undefined") {
     const mf = Object.values(MEGA_FORMS).find(m => m.baseId === pokeId || m.id === pokeId || (Array.isArray(m.evoLineIds) && m.evoLineIds.includes(pokeId)));
     if (mf && Array.isArray(mf.reqSkills) && mf.reqSkills.some(s => s.replace(/\s+/g, "") === cleanSk)) {
-      tags.push({ kind: "mega", text: "💎 Mega核心", cls: "bg-cyan-600 text-white font-black" });
+      tags.push({ kind: "mega", text: "💎 覺醒關鍵", cls: "bg-cyan-600 text-white font-black" });
     }
   }
   // 2. Check Signature Skill
   const sig = POKEMON_SIGNATURE_SKILLS[pokeId];
   if (sig && sig.skills.some(s => s.replace(/\s+/g, "") === cleanSk)) {
-    tags.push({ kind: "sig", text: "★ 專屬強化", cls: "bg-amber-500 text-slate-950 font-black" });
+    tags.push({ kind: "sig", text: "★ 專屬異變", cls: "bg-amber-500 text-slate-950 font-black" });
   }
   return tags;
 }

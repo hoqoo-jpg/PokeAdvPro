@@ -99,24 +99,24 @@ Object.assign(window.SkillsEngine, {
         const rx = hz.radius;
         const ry = hz.radius * (isUltSwamp ? 0.72 : 0.62);
 
-        // 1. v7.8.4 柔和半透明腐蝕毒沼底盤（杜絕與敵方致命紅圈預警混淆、不遮擋怪物與掉落物）
+        // 1. v7.8.6 黃金可見度毒沼底盤（針對 85% 預設透明度微調至 0.56~0.58，辨識清晰且不與敵方紅圈混淆）
         const swampGrad = ctx.createRadialGradient(sx, sy, rx * 0.12, sx, sy, rx);
-        swampGrad.addColorStop(0, isCrimson ? `rgba(159, 18, 57, ${alpha * 0.44})` : `rgba(20, 83, 45, ${alpha * 0.42})`);
-        swampGrad.addColorStop(0.58, isCrimson ? `rgba(107, 33, 168, ${alpha * 0.34})` : `rgba(88, 28, 135, ${alpha * 0.32})`);
+        swampGrad.addColorStop(0, isCrimson ? `rgba(159, 18, 57, ${alpha * 0.58})` : `rgba(20, 83, 45, ${alpha * 0.56})`);
+        swampGrad.addColorStop(0.58, isCrimson ? `rgba(107, 33, 168, ${alpha * 0.46})` : `rgba(88, 28, 135, ${alpha * 0.44})`);
         swampGrad.addColorStop(1, isCrimson ? `rgba(76, 5, 25, 0)` : `rgba(59, 7, 100, 0)`);
         ctx.fillStyle = swampGrad;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx, ry, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. 低調半透明外圍細環與緩轉虛線（外框降至 0.32~0.36）
-        ctx.strokeStyle = isCrimson ? `rgba(225, 29, 72, ${alpha * 0.34})` : `rgba(147, 51, 234, ${alpha * 0.34})`;
-        ctx.lineWidth = isUltSwamp ? 2.0 : 1.5;
+        // 2. 半透明外圍細環與緩轉虛線（0.46~0.48 清晰界定毒沼範圍）
+        ctx.strokeStyle = isCrimson ? `rgba(225, 29, 72, ${alpha * 0.48})` : `rgba(147, 51, 234, ${alpha * 0.48})`;
+        ctx.lineWidth = isUltSwamp ? 2.2 : 1.8;
         ctx.beginPath();
         ctx.ellipse(sx, sy, rx * 0.92, ry * 0.92, 0, 0, Math.PI * 2);
         ctx.stroke();
 
-        ctx.strokeStyle = isCrimson ? `rgba(251, 113, 133, ${alpha * 0.32})` : `rgba(74, 222, 128, ${alpha * 0.32})`;
+        ctx.strokeStyle = isCrimson ? `rgba(251, 113, 133, ${alpha * 0.46})` : `rgba(74, 222, 128, ${alpha * 0.46})`;
         ctx.lineWidth = 1.5;
         ctx.setLineDash(isUltSwamp ? [16, 10] : [10, 8]);
         ctx.lineDashOffset = -now * 16;

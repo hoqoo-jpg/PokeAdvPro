@@ -316,7 +316,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.5";
+        const ver = this.APP_VERSION || "v7.8.6";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -486,15 +486,17 @@ Object.assign(window.GameApp, {
           const s135 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[135]);
           const s136 = !!(this.saveData.pokedexSeen && this.saveData.pokedexSeen[136]);
           evoEl.innerHTML = `
-            <span class="text-[9px] font-black text-purple-700 shrink-0"><i class="fa-solid fa-code-branch"></i> 進化鏈：</span>
-            ${shinyTagHtml}
-            <div class="flex items-center gap-1 overflow-x-auto py-0.5">
-              <span class="px-1.5 py-0.2 bg-white rounded border border-slate-300 text-[9px] font-black text-slate-800">伊布</span>
-              <span class="text-purple-600 font-black text-[9px]">➔ Lv.${p.evo_level || 18} 三選一 ➔</span>
-              <div class="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-purple-300">
-                ${v134 ? `<img src="${getEvoSprite(v134)}" onerror="this.onerror=null;this.src='${v134.forward_sprite}'" title="${s134 ? v134.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v135 ? `<img src="${getEvoSprite(v135)}" onerror="this.onerror=null;this.src='${v135.forward_sprite}'" title="${s135 ? v135.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
-                ${v136 ? `<img src="${getEvoSprite(v136)}" onerror="this.onerror=null;this.src='${v136.forward_sprite}'" title="${s136 ? v136.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+            <div class="flex items-center justify-between gap-1 w-full">
+              <span class="text-[9px] font-black text-purple-700 shrink-0"><i class="fa-solid fa-code-branch"></i> 進化鏈：</span>
+              ${shinyTagHtml}
+              <div class="flex items-center gap-1 overflow-x-auto py-0.5">
+                <span class="px-1.5 py-0.2 bg-white rounded border border-slate-300 text-[9px] font-black text-slate-800">伊布</span>
+                <span class="text-purple-600 font-black text-[9px]">➔ Lv.${p.evo_level || 18} 三選一 ➔</span>
+                <div class="flex items-center gap-1 bg-white px-1.5 py-0.5 rounded border border-purple-300">
+                  ${v134 ? `<img src="${getEvoSprite(v134)}" onerror="this.onerror=null;this.src='${v134.forward_sprite}'" title="${s134 ? v134.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s134 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                  ${v135 ? `<img src="${getEvoSprite(v135)}" onerror="this.onerror=null;this.src='${v135.forward_sprite}'" title="${s135 ? v135.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s135 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                  ${v136 ? `<img src="${getEvoSprite(v136)}" onerror="this.onerror=null;this.src='${v136.forward_sprite}'" title="${s136 ? v136.name_zh : '???'}" class="w-7 h-7 pixel-sprite object-contain ${s136 ? '' : 'brightness-0 opacity-30'}"/>` : ''}
+                </div>
               </div>
             </div>
           `;
@@ -548,28 +550,32 @@ Object.assign(window.GameApp, {
           if (singleMega) {
             const isMegaKnown = !!(this.saveData.megaUnlocked && this.saveData.megaUnlocked[singleMega.baseId]);
             evoEl.innerHTML = `
-              <span class="text-[9px] font-black text-amber-700 shrink-0"><i class="fa-solid fa-gem"></i> 超級進化：</span>
-              ${shinyTagHtml}
-              <div class="flex items-center gap-1 overflow-x-auto">
-                <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border border-slate-300 shrink-0">
-                  <img src="${getEvoSprite(p)}" onerror="this.onerror=null;this.src='${p.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain" alt="${p.name_zh}"/>
-                  <span class="text-[9px] font-black text-slate-800">${p.name_zh}</span>
-                </div>
-                <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
-                <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${singleMega.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
-                  <img src="${getMegaShinyUrl(singleMega)}" onerror="this.onerror=null;this.src='${singleMega.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
-                  <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? singleMega.name_zh : 'MEGA ???'}</span>
+              <div class="flex items-center justify-between gap-1 w-full">
+                <span class="text-[9px] font-black text-amber-700 shrink-0"><i class="fa-solid fa-gem"></i> 超級進化：</span>
+                ${shinyTagHtml}
+                <div class="flex items-center gap-1 overflow-x-auto">
+                  <div class="flex items-center gap-0.5 bg-white px-1.5 py-0.5 rounded-lg border border-slate-300 shrink-0">
+                    <img src="${getEvoSprite(p)}" onerror="this.onerror=null;this.src='${p.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain" alt="${p.name_zh}"/>
+                    <span class="text-[9px] font-black text-slate-800">${p.name_zh}</span>
+                  </div>
+                  <span class="text-[9px] font-black text-cyan-600 shrink-0">➔ 💎</span>
+                  <div onclick="event.stopPropagation(); GameApp.openMegaInfoModal(${singleMega.baseId})" class="flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border shrink-0 cursor-pointer ${isMegaKnown ? 'border-cyan-400 bg-sky-50' : 'border-purple-400 bg-purple-50'}">
+                    <img src="${getMegaShinyUrl(singleMega)}" onerror="this.onerror=null;this.src='${singleMega.forward_sprite}'" class="w-7 h-7 pixel-sprite object-contain ${isMegaKnown ? '' : 'brightness-0 opacity-40'}" alt="MEGA"/>
+                    <span class="text-[9px] font-black ${isMegaKnown ? 'text-cyan-700' : 'text-purple-700'}">${isMegaKnown ? singleMega.name_zh : 'MEGA ???'}</span>
+                  </div>
                 </div>
               </div>
             `;
           } else {
             evoEl.innerHTML = `
-              <span class="text-[9px] font-black ${isLegend ? 'text-purple-700' : 'text-emerald-700'} shrink-0">
-                <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
-              </span>
-              <span class="text-[9px] font-bold text-slate-600 truncate">
-                ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+22% ‧ 全傷+15% ‧ 12%霸體)'}
-              </span>
+              <div class="flex items-center justify-between gap-1 w-full min-w-0">
+                <span class="text-[9px] font-black ${isLegend ? 'text-purple-700' : 'text-emerald-700'} shrink-0">
+                  <i class="fa-solid fa-crown"></i> ${isLegend ? '傳說神獸王權' : '單一完全體'}：
+                </span>
+                <span class="text-[9px] font-bold text-slate-600 truncate min-w-0 flex-1">
+                  ${isLegend ? '天生12%霸體 ‧ 每10級神聖覺醒回血+18%體質' : 'Lv.18 潛能覺醒 (HP+22% ‧ 全傷+15% ‧ 12%霸體)'}
+                </span>
+              </div>
             `;
           }
         }
@@ -579,9 +585,9 @@ Object.assign(window.GameApp, {
         const sigInfo = (typeof POKEMON_SIGNATURE_SKILLS !== "undefined") ? POKEMON_SIGNATURE_SKILLS[p.id] : null;
         if (traitMeta || sigInfo) {
           evoEl.insertAdjacentHTML("beforeend", `
-            <div class="w-full mt-1 pt-1 border-t border-slate-200/80 flex items-center gap-1.5 flex-wrap text-[9px]">
-              ${traitMeta ? `<span class="px-1.5 py-0.2 rounded-full text-white font-black shrink-0" style="background:${traitMeta.badgeColor || '#475569'};">${traitMeta.name}</span>` : ''}
-              ${sigInfo ? `<span class="font-bold text-amber-800 truncate">★ ${sigInfo.label}</span>` : ''}
+            <div class="w-full pt-1 border-t border-slate-200/80 flex items-center gap-1.5 min-w-0 text-[9px]">
+              ${traitMeta ? `<span class="px-1.5 py-0.5 rounded-full text-white font-black shrink-0 leading-none" style="background:${traitMeta.badgeColor || '#475569'};">${traitMeta.name}</span>` : ''}
+              ${sigInfo ? `<span class="font-bold text-amber-800 truncate min-w-0 flex-1">★ ${sigInfo.label}</span>` : ''}
             </div>
           `);
         }
@@ -598,7 +604,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.5";
+      const curVer = this.APP_VERSION || "v7.8.6";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -1462,7 +1468,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.5",
+      lastSeenVersion: this.APP_VERSION || "v7.8.6",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3298,7 +3304,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.5",
+      version: this.APP_VERSION || "v7.8.6",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -3978,7 +3984,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.5</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.6</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4017,7 +4023,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.5</strong>：緊急修復 skills_vfx.js 飛行道具渲染常數賦值報錯（全面恢復所有飛行道具與特效）；全面以 HD-GBA 精繪場景原畫重構 1F「塔外走進巨塔大門」與「塔內三層建築剖面」登塔過場（搭配奇偶層螺旋鏡像、五大海拔氛圍光塵與王座 Mega 首領聚光演出）。</div>
+            <div>• <strong class="text-amber-300">v7.8.6</strong>：試煉塔全面校準為明亮任天堂寶可夢 HD-2D 風格（精靈球鑰石旗幟塔外入口 ＋ 單層貫通標準層 ＋ 聖殿王座頂）；實裝真正 5 層連續捲動登塔剖面（1F–3F 逐層攀升、3F➔4F 起首度窺見 5F 王座）；修復大廳陣容卡特性文字溢出；升級三選一角標語意分流為「💎 覺醒關鍵 / ★ 專屬異變」；毒池透明度回調至 85% 預設下的黃金可見度。</div>
+            <div>• <strong class="text-slate-300">v7.8.5</strong>：緊急修復 skills_vfx.js 飛行道具渲染常數賦值報錯（全面恢復所有飛行道具與特效）；全面以 HD-GBA 精繪場景原畫重構 1F「塔外走進巨塔大門」與「塔內三層建築剖面」登塔過場（搭配奇偶層螺旋鏡像、五大海拔氛圍光塵與王座 Mega 首領聚光演出）。</div>
             <div>• <strong class="text-slate-300">v7.8.4</strong>：24 枚大廳與事件小圖示全面升級 HD-GBA 精繪；試煉塔傳送門改為極座標真旋轉旋渦＋營火波浪跳動；空投與信標生成距離拉遠至 380–520px；新增 1F「塔外走進巨塔大門」入場過場；建立全精靈專屬技能總表並於升級三選一與大廳顯示「★ 專屬強化 / 💎 Mega核心」角標（補齊超級耿鬼暗影爪）；收斂污泥炸彈／暗影球視覺尺寸、毒池改為半透明，並全面翻新 Mega 進化檔案彈窗亮暗對比。</div>
             <div>• <strong class="text-slate-300">v7.8.3</strong>：全面升級 HD-GBA 精繪試煉塔場景精靈表（5 色雕花拱門、石砌營火、多切面遺物水晶、紫金寶箱與百變怪）；重做「三層縱深建築剖面」室內登塔過場；傳送門改為門頂近距柔顯提示＋三門手機同框間距與獨立落地石台。</div>
             <div>• <strong class="text-slate-300">v7.8.2</strong>：重繪 8×4 拱形多色石門精靈表（5 種門一眼分色＋落地庭院石板）並以像素圖示銘牌根除 iOS Emoji 破框；重做五大海拔生態螺旋斜向登塔過場（視差雲海＋王座大露台）；實裝試煉塔專屬六維評級與道館榮譽牆秘寶進度展示。</div>
@@ -4041,7 +4048,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.5";
+    const curVer = this.APP_VERSION || "v7.8.6";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();
