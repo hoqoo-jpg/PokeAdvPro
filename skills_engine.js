@@ -1288,6 +1288,7 @@ window.SkillsEngine = {
             extraCrit: (isMegaGengar ? 0.40 : 0.25) + fistCrit,
             statusChance: isMegaGengar ? 0.35 : 0,
             isMegaGengar,
+            skillLevel: level,
             isLv8: level >= 8,
             scarSpawned: false,
             hitSet: new Set(),
@@ -3037,7 +3038,7 @@ window.SkillsEngine = {
                   this.meleeEffects.push({
                     style: "shadow_claw_scar",
                     x: e.x, y: e.y + 8, angle: m.angle || 0, slashDir: m.slashDir || 1,
-                    radius: 36, isMegaGengar: !!m.isMegaGengar,
+                    radius: 36, isMegaGengar: !!m.isMegaGengar, skillLevel: m.skillLevel || (m.isLv8 ? 8 : 1),
                     dmg: 0, type: "Ghost", kb: 0, hitSet: new Set(),
                     timer: 0.52, maxTime: 0.52
                   });

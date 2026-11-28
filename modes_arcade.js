@@ -1619,7 +1619,9 @@ window.ModeTower = {
     if (hintEl) {
       hintEl.textContent = toFloor % 5 === 0
         ? `踏入第 ${toFloor} 層 Mega 王座聖殿……（點擊跳過）`
-        : `沿塔內石階攀登至第 ${toFloor} 層……（點擊跳過）`;
+        : (fromFloor % 5 === 0 && toFloor % 5 === 1
+            ? `跨越王座踏入全新區段 ‧ 第 ${toFloor} 層……（點擊跳過）`
+            : `沿塔內石階攀登至第 ${toFloor} 層……（點擊跳過）`);
     }
 
     const tr = app.selectedTrainer || TRAINERS[0];
@@ -1632,11 +1634,12 @@ window.ModeTower = {
     SpriteCache.get(this.FLOOR_LOOP_URL);
     SpriteCache.get(this.THRONE_TOP_URL);
 
-    // 計算當前 5 層區段（例如 1..5F, 6..10F）
+    // 計算當前 5 層區段（例如 1..5F, 6..10F）並偵測跨區段晉級（5F➔6F, 10F➔11F...）
+    const isCrossTier = (fromFloor % 5 === 0 && toFloor % 5 === 1);
     const blockStart = Math.floor((toFloor - 1) / 5) * 5 + 1;
     const bossFloor = blockStart + 4;
     const localTo = toFloor - blockStart + 1;       // 1..5
-    const localFrom = Math.max(1, localTo - 1);     // 1..4
+    const localFrom = isCrossTier ? 0 : Math.max(1, localTo - 1);
 
     const nextMs = this.MEGA_MILESTONES.find(m => m.floor === bossFloor);
     const nextBossBaseId = nextMs ? nextMs.bossBaseIds[0] : 6;
@@ -1676,24 +1679,30 @@ window.ModeTower = {
 
     // 建構從 localFrom 爬到 localTo 的真實室內折返石階路徑（完全對齊 tower_floor_loop.png 階梯位置）
     // 單層未鏡像（奇數層）階梯：左下平台 (0.28, bottom) -> 右側中繼台 (0.74, mid) -> 頂部開口 (0.58, top)
-    const mirrorFrom = (localFrom % 2 === 0);
+    const mirrorFrom = (localFrom > 0 && localFrom % 2 === 0);
     const mapX = (nx, mir) => (mir ? (1 - nx) * w : nx * w);
-    const fTop = getFloorTopY(localFrom);
-    const fStand = getFloorStandY(localFrom);
+    const fTop = getFloorTopY(Math.max(1, localFrom));
+    const fStand = getFloorStandY(Math.max(1, localFrom));
     const nextStand = getFloorStandY(localTo);
 
-    const worldWaypoints = (localTo === 5)
+    const worldWaypoints = isCrossTier
       ? [
-          [mapX(0.28, mirrorFrom), fStand],
-          [mapX(0.74, mirrorFrom), fTop + floorH * 0.42],
-          [mapX(0.56, mirrorFrom), fTop + 10],
-          [w * 0.50, nextStand]
+          [w * 0.50, totalTowerH + 14],
+          [w * 0.36, nextStand + 10],
+          [w * 0.28, nextStand]
         ]
-      : [
-          [mapX(0.28, mirrorFrom), fStand],
-          [mapX(0.74, mirrorFrom), fTop + floorH * 0.40],
-          [mapX(0.60, mirrorFrom), nextStand]
-        ];
+      : ((localTo === 5)
+        ? [
+            [mapX(0.28, mirrorFrom), fStand],
+            [mapX(0.74, mirrorFrom), fTop + floorH * 0.42],
+            [mapX(0.56, mirrorFrom), fTop + 10],
+            [w * 0.50, nextStand]
+          ]
+        : [
+            [mapX(0.28, mirrorFrom), fStand],
+            [mapX(0.74, mirrorFrom), fTop + floorH * 0.40],
+            [mapX(0.60, mirrorFrom), nextStand]
+          ]);
 
     const segLens = [];
     let totalPathLen = 0;
@@ -1914,6 +1923,7 @@ window.ModeTower = {
       if (MapEngine.setStage) MapEngine.setStage(stageObj.id);
       if (MapEngine.setArenaMode) MapEngine.setArenaMode(false);
       if (MapEngine.setBoundedMap) MapEngine.setBoundedMap(true, 540, 380);
+      if (MapEngine.setTowerHallMode) MapEngine.setTowerHallMode(true, floor, st.portalType === "boss", 540, 380);
     }
 
     app.enemies = [];
@@ -1927,8 +1937,10 @@ window.ModeTower = {
       SkillsEngine.groundHazards = [];
       SkillsEngine.meleeEffects = [];
     }
-    p.x = 0; p.y = 140;
-    app.camera.x = 0; app.camera.y = 80;
+    p.x = 0; p.y = 160;
+    app.camera.x = 0; app.camera.y = 70;
+    st.sealBreakTimer = 0;
+    this.buildFloorPortals(app, true);
 
     if (this.hasRelic(app, "opening_charge")) p.trainerSkillCd = 0;
     if (this.hasRelic(app, "overheal_shield")) p.shieldTimer = Math.max(p.shieldTimer || 0, 4.0);
@@ -1976,9 +1988,9 @@ window.ModeTower = {
   setupCampfireRoom(app) {
     const st = app.towerState;
     st.roomProps = [
-      { kind: "campfire_center", x: 0, y: -20, radius: 34, done: false },
-      { kind: "campfire_heal", x: -160, y: 25, radius: 52, standTimer: 0, done: false, iconKey: "campfire", label: "暖火療癒陣", sub: "回復 50% HP ＋ 淨化", color: "#10B981" },
-      { kind: "campfire_forge", x: 160, y: 25, radius: 52, standTimer: 0, done: false, iconKey: "relic", label: "招式鍛造陣", sub: "隨機招式 +2 級", color: "#F59E0B" }
+      { kind: "campfire_center", x: 0, y: 0, radius: 34, done: false },
+      { kind: "campfire_heal", x: -150, y: 0, radius: 50, standTimer: 0, done: false, iconKey: "campfire", label: "暖火療癒陣", sub: "回復 50% HP ＋ 淨化", color: "#10B981" },
+      { kind: "campfire_forge", x: 150, y: 0, radius: 50, standTimer: 0, done: false, iconKey: "relic", label: "招式鍛造陣", sub: "隨機招式 +2 級", color: "#F59E0B" }
     ];
   },
 
@@ -1988,8 +2000,8 @@ window.ModeTower = {
       // 真假雙寶箱實體房
       const realIdx = Math.random() < 0.5 ? 0 : 1;
       st.roomProps = [
-        { kind: "mystery_chest", x: -150, y: -15, radius: 40, isReal: realIdx === 0, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 A", color: "#A855F7" },
-        { kind: "mystery_chest", x: 150, y: -15, radius: 40, isReal: realIdx === 1, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 B", color: "#A855F7" }
+        { kind: "mystery_chest", x: -150, y: 0, radius: 40, isReal: realIdx === 0, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 A", color: "#A855F7" },
+        { kind: "mystery_chest", x: 150, y: 0, radius: 40, isReal: realIdx === 1, stateFrame: 0, standTimer: 0, done: false, iconKey: "ditto_chests", label: "神秘紫寶箱 B", color: "#A855F7" }
       ];
     } else {
       // 狂戰血祭祭壇 ＋ 黃金補給箱
@@ -2099,11 +2111,12 @@ window.ModeTower = {
     });
   },
 
-  spawnPhysicalPortals(app) {
+  // v7.8.7 進房即於北側石牆預先嵌入石門（locked=true 封印待機 ➔ 清層後破封點亮）
+  buildFloorPortals(app, locked = true) {
     const st = app.towerState;
-    if (!st || st.portals.length > 0) return;
+    if (!st) return;
     const nextF = st.floor + 1;
-    const py = -255;
+    const py = -356;
 
     if (nextF % 5 === 0) {
       const ms = this.MEGA_MILESTONES.find(m => m.floor === nextF);
@@ -2111,26 +2124,39 @@ window.ModeTower = {
       const bData = (typeof MEGA_FORMS !== "undefined" && MEGA_FORMS[bossBaseId]) ? MEGA_FORMS[bossBaseId] : POKEMON_MAP.get(bossBaseId);
       if (bData && bData.forward_sprite) SpriteCache.get(bData.forward_sprite);
       st.portals = [{
-        type: "boss", propRow: 4, iconKey: "tower", x: 0, y: py, radius: 54, standTimer: 0, floorTag: `${nextF}F`,
+        type: "boss", propRow: 4, iconKey: "tower", x: 0, y: py, radius: 52, standTimer: 0, locked: !!locked, floorTag: `${nextF}F`,
         color: "#EF4444", label: `${nextF}F MEGA 首領`, sub: ms ? ms.title : "雙 Mega 決戰",
         bossSprite: bData ? bData.forward_sprite : null
       }];
     } else {
       const isPreBoss = ((nextF + 1) % 5 === 0);
       const rightPortal = isPreBoss
-        ? { type: "campfire", propRow: 3, iconKey: "campfire",     x: 140, y: py, radius: 42, standTimer: 0, color: "#10B981", floorTag: `${nextF}F`, label: `${nextF}F 營火房`, sub: "回血 / 鍛造" }
-        : { type: "mystery",  propRow: 2, iconKey: "ditto_chests", x: 140, y: py, radius: 42, standTimer: 0, color: "#A855F7", floorTag: `${nextF}F`, label: `${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
+        ? { type: "campfire", propRow: 3, iconKey: "campfire",     x: 140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#10B981", floorTag: `${nextF}F`, label: `${nextF}F 營火房`, sub: "回血 / 鍛造" }
+        : { type: "mystery",  propRow: 2, iconKey: "ditto_chests", x: 140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#A855F7", floorTag: `${nextF}F`, label: `${nextF}F 奇遇房`, sub: "雙寶箱 / 祭壇" };
       st.portals = [
-        { type: "battle", propRow: 0, iconKey: "arena",        x: -140, y: py, radius: 42, standTimer: 0, color: "#38BDF8", floorTag: `${nextF}F`, label: `${nextF}F 激戰門`, sub: "標準清剿" },
-        { type: "elite",  propRow: 1, iconKey: "rival_ambush", x: 0,    y: py, radius: 42, standTimer: 0, color: "#F59E0B", floorTag: `${nextF}F`, label: `${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
+        { type: "battle", propRow: 0, iconKey: "arena",        x: -140, y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#38BDF8", floorTag: `${nextF}F`, label: `${nextF}F 激戰門`, sub: "標準清剿" },
+        { type: "elite",  propRow: 1, iconKey: "rival_ambush", x: 0,    y: py, radius: 42, standTimer: 0, locked: !!locked, color: "#F59E0B", floorTag: `${nextF}F`, label: `${nextF}F 精英試煉`, sub: "必掉遺物水晶" },
         rightPortal
       ];
     }
+  },
 
+  spawnPhysicalPortals(app) {
+    const st = app.towerState;
+    if (!st) return;
+    if (!st.portals || st.portals.length === 0) {
+      this.buildFloorPortals(app, false);
+    } else {
+      const anyLocked = st.portals.some(pt => pt.locked);
+      if (!anyLocked) return;
+      st.portals.forEach(pt => { pt.locked = false; pt.standTimer = 0; });
+    }
+    st.sealBreakTimer = 0.78;
+    if (app.camera) app.camera.shakeMagnitude = Math.max(app.camera.shakeMagnitude || 0, 5.5);
     this.setQuickExitVisible(true);
     if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
     if (app.spawnFloatingText && app.player) {
-      app.spawnFloatingText(app.player.x, app.player.y - 44, "🌀 上方傳送門已開啟！走入選擇下一層！", "#FACC15", 14);
+      app.spawnFloatingText(app.player.x, app.player.y - 44, "✨ 北牆封印已解除！走入傳送門前往下一層！", "#FACC15", 14);
     }
   },
 
@@ -2190,11 +2216,14 @@ window.ModeTower = {
       }
     }
 
-    // 4. 實體三道傳送門走位進入（停留 0.45s 防誤觸）
+    if (st.sealBreakTimer > 0) st.sealBreakTimer = Math.max(0, st.sealBreakTimer - dt);
+
+    // 4. 實體三道傳送門走位進入（未解封封印門不可互動；解封後停留 0.45s 防誤觸）
     if (st.portals && st.portals.length > 0) {
       for (const pt of st.portals) {
+        if (pt.locked) continue;
         const dist = Math.hypot(p.x - pt.x, p.y - pt.y);
-        if (dist <= pt.radius + 12) {
+        if (dist <= pt.radius + 18) {
           pt.standTimer = (pt.standTimer || 0) + dt;
           if (pt.standTimer >= 0.45) {
             const fromF = st.floor;
@@ -2670,30 +2699,81 @@ window.ModeTower = {
       ctx.restore();
     }
 
-    // 3. 房間上方實體 HD-GBA 拱形石門（獨立落地石台 ＋ 門頂近距柔顯提示，門下零遮擋！）
+    // 3. 北牆嵌入式 HD-GBA 拱形石門（戰鬥中：灰暗關閉石門＋紫金能量封印鎖條；清層後：破封閃光＋點燃旋轉漩渦）
     if (st.portals && st.portals.length > 0) {
+      const nowSec = performance.now() * 0.001;
       st.portals.forEach(pt => {
         const sx = toSx(pt.x), sy = toSy(pt.y);
         const isBoss = pt.type === "boss";
-        const sz = isBoss ? 104 : 84;
+        const sz = isBoss ? 102 : 84;
         const propRow = (pt.propRow !== undefined) ? pt.propRow : (isBoss ? 4 : 0);
-        const prox = getProximityAlpha(pt.x, pt.y, 88, 148);
 
         ctx.save();
-        // 門腳獨立落地石磚台座
-        drawGroundedPlinth(sx, sy + sz * 0.42, isBoss ? 48 : 38, pt.color);
+        drawGroundedPlinth(sx, sy + sz * 0.40, isBoss ? 48 : 38, pt.locked ? "#64748B" : pt.color);
 
-        // 柔和門洞能量溢光
+        if (pt.locked) {
+          ctx.save();
+          ctx.filter = "grayscale(88%) brightness(0.46) contrast(1.08)";
+          drawPropFrame(propRow, 0, sx, sy, sz);
+          ctx.restore();
+
+          const rx = sz * 0.21, ry = sz * 0.27;
+          ctx.fillStyle = "#1E293B";
+          ctx.beginPath();
+          ctx.ellipse(sx, sy + sz * 0.04, rx, ry, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#0F172A";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(sx, sy + sz * 0.04 - ry);
+          ctx.lineTo(sx, sy + sz * 0.04 + ry);
+          ctx.stroke();
+
+          const sealPulse = 0.72 + Math.sin(nowSec * 3.8 + pt.x * 0.02) * 0.22;
+          const barCol = isBoss ? `rgba(250, 204, 21, ${sealPulse})` : `rgba(192, 132, 252, ${sealPulse})`;
+          const barCore = isBoss ? "#FEF08A" : "#F5D0FE";
+          const drawSealChain = (x1, y1, x2, y2) => {
+            ctx.strokeStyle = "#0F172A"; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.strokeStyle = barCol; ctx.lineWidth = 3.5;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+            ctx.strokeStyle = barCore; ctx.lineWidth = 1.2;
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+          };
+          drawSealChain(sx - sz * 0.28, sy - sz * 0.14, sx + sz * 0.28, sy + sz * 0.22);
+          drawSealChain(sx + sz * 0.28, sy - sz * 0.14, sx - sz * 0.28, sy + sz * 0.22);
+
+          ctx.fillStyle = "#0F172A";
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - 7); ctx.lineTo(sx + 8, sy + 4); ctx.lineTo(sx, sy + 15); ctx.lineTo(sx - 8, sy + 4);
+          ctx.closePath(); ctx.fill();
+          ctx.fillStyle = isBoss ? "#FACC15" : "#A855F7";
+          ctx.beginPath();
+          ctx.moveTo(sx, sy - 4); ctx.lineTo(sx + 5, sy + 4); ctx.lineTo(sx, sy + 12); ctx.lineTo(sx - 5, sy + 4);
+          ctx.closePath(); ctx.fill();
+          ctx.restore();
+          return;
+        }
+
+        const prox = getProximityAlpha(pt.x, pt.y, 92, 155);
         const aura = ctx.createRadialGradient(sx, sy, 8, sx, sy, sz * 0.68);
-        aura.addColorStop(0, `${pt.color}50`);
+        aura.addColorStop(0, `${pt.color}58`);
         aura.addColorStop(1, `${pt.color}00`);
         ctx.fillStyle = aura;
         ctx.beginPath(); ctx.arc(sx, sy, sz * 0.68, 0, Math.PI * 2); ctx.fill();
 
-        // 繪製 HD-GBA 拱形石門（Row 0~4）
         drawPropFrame(propRow, frame4, sx, sy, sz);
 
-        // Mega 首領門頂部懸浮 Mega 首領像素頭像
+        if (st.sealBreakTimer > 0) {
+          const bt = 1 - (st.sealBreakTimer / 0.78);
+          ctx.strokeStyle = `rgba(250, 204, 21, ${(1 - bt) * 0.95})`;
+          ctx.lineWidth = 4 * (1 - bt) + 1;
+          ctx.beginPath(); ctx.arc(sx, sy, 16 + bt * 54, 0, Math.PI * 2); ctx.stroke();
+          ctx.fillStyle = `rgba(255, 255, 255, ${(1 - bt) * 0.55})`;
+          ctx.beginPath(); ctx.arc(sx, sy, sz * 0.36 * (1 - bt), 0, Math.PI * 2); ctx.fill();
+        }
+
         const topAnchorY = sy - sz / 2 - (isBoss ? 48 : 6);
         if (isBoss && pt.bossSprite) {
           const bRec = SpriteCache.get(pt.bossSprite);
@@ -2703,12 +2783,10 @@ window.ModeTower = {
           }
         }
 
-        // 走入停留 0.45s 像素充能條
         if (pt.standTimer > 0) {
           drawPixelChargeBar(sx, topAnchorY - 4, pt.standTimer / 0.45, pt.color);
         }
 
-        // 遠距：門頂懸浮像素徽章＋樓層小標；走近（<=148px）：門頂平滑淡入完整詳情氣泡
         const plaqueY = pt.standTimer > 0 ? (topAnchorY - 12) : topAnchorY;
         drawFloatingBadge(sx, plaqueY + bob * 0.6, pt.iconKey, pt.floorTag || "", pt.color, 1 - prox);
         drawTopPlaque(sx, plaqueY, pt.label, pt.sub, pt.color, pt.iconKey, prox);
@@ -2727,8 +2805,9 @@ window.ModeTower = {
       const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect("relic") : null;
       drawEdgeIconIndicator(st.relicDrop.x, st.relicDrop.y, "#38BDF8", "遺物", uiImg, 24, sr);
     }
-    if (st.portals && st.portals.length > 0) {
-      const targetPt = st.portals[Math.floor(st.portals.length / 2)];
+    const unlockedPortals = (st.portals || []).filter(pt => !pt.locked);
+    if (unlockedPortals.length > 0) {
+      const targetPt = unlockedPortals[Math.floor(unlockedPortals.length / 2)];
       const sr = (typeof FieldEventsEngine !== "undefined") ? FieldEventsEngine.getIconSrcRect(targetPt.type === "boss" ? "tower" : "portal") : null;
       drawEdgeIconIndicator(targetPt.x, targetPt.y, targetPt.color, targetPt.type === "boss" ? "MEGA門" : "傳送門", uiImg, 24, sr);
     }

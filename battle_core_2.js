@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.8.6",
+  APP_VERSION: "v7.8.7",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1381,6 +1381,9 @@ window.GameApp = {
 
     if (typeof MapEngine !== "undefined" && MapEngine.setBoundedMap) {
       MapEngine.setBoundedMap(false);
+    }
+    if (typeof MapEngine !== "undefined" && MapEngine.setTowerHallMode) {
+      MapEngine.setTowerHallMode(false);
     }
     if (this.activeMode && typeof this.activeMode.onStart === "function") {
       this.activeMode.onStart(this);

@@ -1295,8 +1295,10 @@ Object.assign(window.SkillsEngine, {
         ctx.globalAlpha = Math.max(0, 1 - prog) * 0.30 * sAlpha;
         ctx.strokeStyle = m.isMegaGengar ? "#4C0519" : "#1E1B4B";
         ctx.lineCap = "round";
+        const scLv = m.skillLevel || (m.isLv8 ? 8 : 1);
+        const scThick = scLv <= 3 ? 1.0 : (scLv <= 7 ? (1.12 + (scLv - 3) * 0.08) : (1.56 + (scLv - 8) * 0.09));
         [-14, 0, 14].forEach((yOff, idx) => {
-          ctx.lineWidth = idx === 1 ? 8 : 5;
+          ctx.lineWidth = (idx === 1 ? 8 : 5) * scThick;
           ctx.beginPath();
           ctx.moveTo(r * 0.12, yOff - r * 0.34);
           ctx.quadraticCurveTo(r * 0.62, yOff - 4, r * 0.86, yOff + r * 0.34);
@@ -1317,15 +1319,17 @@ Object.assign(window.SkillsEngine, {
         ctx.scale(1, m.slashDir || 1);
         ctx.globalAlpha = fade * 0.82 * sAlpha;
         ctx.lineCap = "round";
+        const scarLv = m.skillLevel || 1;
+        const scarThick = scarLv <= 3 ? 1.0 : (scarLv <= 7 ? (1.12 + (scarLv - 3) * 0.08) : (1.52 + (scarLv - 8) * 0.08));
         [-10, 0, 10].forEach((yOff, idx) => {
           ctx.strokeStyle = m.isMegaGengar ? "#4C0519" : "#2E1065";
-          ctx.lineWidth = idx === 1 ? 6 : 4;
+          ctx.lineWidth = (idx === 1 ? 6 : 4) * scarThick;
           ctx.beginPath();
           ctx.moveTo(-r * 0.65, yOff - r * 0.45);
           ctx.lineTo(r * 0.65, yOff + r * 0.45);
           ctx.stroke();
           ctx.strokeStyle = m.isMegaGengar ? "#FB7185" : "#E879F9";
-          ctx.lineWidth = idx === 1 ? 2.4 : 1.5;
+          ctx.lineWidth = (idx === 1 ? 2.4 : 1.5) * scarThick;
           ctx.stroke();
         });
         ctx.restore();
@@ -3254,11 +3258,14 @@ Object.assign(window.SkillsEngine, {
         ctx.rotate(m.angle || 0);
         ctx.scale(1, sDir);
 
-        // 三根由左上往右下斜劈的收尖填充貝茲利爪（中爪最長最粗）
+        // v7.8.7 暗影爪隨升級分階加粗（Lv1-3: 1.0x ➔ Lv4-7: 1.20-1.44x ➔ Lv8-10: 1.56-1.74x 厚實冥界巨爪）
+        const clawLv = m.skillLevel || (m.isLv8 ? 8 : 1);
+        const thickMult = clawLv <= 3 ? 1.0 : (clawLv <= 7 ? (1.12 + (clawLv - 3) * 0.08) : (1.56 + (clawLv - 8) * 0.09));
+        const gapMult = 1 + (thickMult - 1) * 0.34;
         const claws = [
-          { yBase: -r * 0.24, len: r * 0.90, thick: 9.0,  tilt: -0.14 },
-          { yBase:  0,        len: r * 1.12, thick: 12.8, tilt:  0.00 },
-          { yBase:  r * 0.24, len: r * 0.88, thick: 8.8,  tilt:  0.14 }
+          { yBase: -r * 0.24 * gapMult, len: r * (0.90 + (thickMult - 1) * 0.14), thick: 9.0  * thickMult, tilt: -0.14 },
+          { yBase:  0,                  len: r * (1.12 + (thickMult - 1) * 0.16), thick: 12.8 * thickMult, tilt:  0.00 },
+          { yBase:  r * 0.24 * gapMult, len: r * (0.88 + (thickMult - 1) * 0.14), thick: 8.8  * thickMult, tilt:  0.14 }
         ];
         claws.forEach((cl, idx) => {
           ctx.save();

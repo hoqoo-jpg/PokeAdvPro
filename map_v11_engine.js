@@ -97,6 +97,18 @@ const MapEngine = {
   ],
 
   boundedMap: { enabled: false, halfW: 580, halfH: 440 },
+  towerHallMode: { enabled: false, tier: 1, isBoss: false, halfW: 540, halfH: 380 },
+
+  setTowerHallMode(enabled, floor = 1, isBoss = false, halfW = 540, halfH = 380) {
+    const tier = floor <= 5 ? 1 : (floor <= 10 ? 2 : (floor <= 15 ? 3 : (floor <= 20 ? 4 : 5)));
+    this.towerHallMode = {
+      enabled: !!enabled,
+      tier,
+      isBoss: !!isBoss,
+      halfW: halfW || 540,
+      halfH: halfH || 380
+    };
+  },
 
   setArenaMode(enabled) {
     this.isArenaMode = !!enabled;
@@ -367,6 +379,74 @@ const MapEngine = {
           else if (v === 3) { c.fillStyle = "rgba(56, 189, 248, 0.12)"; c.fillRect(28, 4, 4, 52); }
         }
         this.tileCache.set(`${stId}_v${v}`, can);
+      }
+    });
+    // v7.8.7 預烘焙 Mega 試煉塔五大海拔專屬室內 GBA 像素石磚（每段 4 款變體，精細度完全對齊五大野外地圖）
+    const towerTierSpecs = {
+      1: { bases: ["#48584B", "#445447", "#4C5C4F", "#425245"], grout: "#252F27", hi: "rgba(187, 247, 208, 0.14)", accent: "#22C55E", sub: "#364539" },
+      2: { bases: ["#2B4A5E", "#284558", "#2E5066", "#254052"], grout: "#152836", hi: "rgba(186, 230, 253, 0.16)", accent: "#38BDF8", sub: "#1E384A" },
+      3: { bases: ["#382B2B", "#332626", "#3D2F2E", "#2F2323"], grout: "#1B1212", hi: "rgba(253, 186, 116, 0.12)", accent: "#F97316", sub: "#261B1B" },
+      4: { bases: ["#C9C2B2", "#C2BBA9", "#CFC8B8", "#BDB6A4"], grout: "#7A7365", hi: "rgba(255, 251, 235, 0.36)", accent: "#EAB308", sub: "#A8A08E" },
+      5: { bases: ["#2B204A", "#261C42", "#302452", "#22183B"], grout: "#130C26", hi: "rgba(233, 213, 255, 0.18)", accent: "#C084FC", sub: "#1C1333" },
+    };
+    Object.keys(towerTierSpecs).forEach(tKey => {
+      const sp = towerTierSpecs[tKey];
+      const tNum = Number(tKey);
+      for (let v = 0; v < 4; v++) {
+        const can = document.createElement("canvas");
+        can.width = 60;
+        can.height = 60;
+        const c = can.getContext("2d");
+        c.fillStyle = sp.bases[v];
+        c.fillRect(0, 0, 60, 60);
+
+        // 錯縫切石磚紋（上下雙石板構圖）
+        c.fillStyle = sp.grout;
+        c.fillRect(0, 28, 60, 2);
+        c.fillRect(0, 58, 60, 2);
+        c.fillRect(28, 0, 2, 28);
+        c.fillRect(58, 28, 2, 30);
+
+        // GBA 像素左上受光立體倒角高光
+        c.fillStyle = sp.hi;
+        c.fillRect(2, 2, 24, 2); c.fillRect(32, 2, 26, 2);
+        c.fillRect(2, 32, 54, 2);
+        c.fillRect(2, 4, 2, 22); c.fillRect(2, 34, 2, 22);
+
+        // 石材風化點陣與鑿痕細節
+        c.fillStyle = sp.sub;
+        if (v === 0) {
+          c.fillRect(8, 12, 6, 2); c.fillRect(42, 42, 8, 2); c.fillRect(14, 46, 4, 2);
+        } else if (v === 1) {
+          c.fillRect(38, 10, 8, 2); c.fillRect(44, 12, 4, 2); c.fillRect(18, 38, 10, 2);
+        } else if (v === 2) {
+          c.fillRect(10, 20, 4, 4); c.fillRect(46, 36, 6, 4); c.fillRect(22, 10, 4, 2);
+        } else {
+          c.fillRect(34, 18, 6, 2); c.fillRect(10, 44, 8, 2); c.fillRect(48, 48, 4, 2);
+        }
+
+        // 各海拔專屬地磚像素點綴
+        if (tNum === 1 && (v === 1 || v === 3)) {
+          c.fillStyle = "#15803D"; c.fillRect(24, 26, 8, 4); c.fillRect(4, 54, 6, 4);
+          c.fillStyle = "#4ADE80"; c.fillRect(26, 26, 4, 2); c.fillRect(6, 54, 2, 2);
+        } else if (tNum === 2 && (v === 0 || v === 2)) {
+          c.fillStyle = "rgba(125, 211, 252, 0.28)";
+          c.fillRect(8, 14, 12, 2); c.fillRect(12, 16, 6, 2);
+          c.fillRect(36, 44, 12, 2);
+        } else if (tNum === 3 && (v === 1 || v === 3)) {
+          c.fillStyle = "#18181B"; c.fillRect(4, 4, 2, 2); c.fillRect(24, 4, 2, 2); c.fillRect(4, 34, 2, 2);
+          c.fillStyle = "rgba(249, 115, 22, 0.42)"; c.fillRect(18, 28, 10, 2);
+          c.fillStyle = "rgba(254, 240, 138, 0.50)"; c.fillRect(22, 28, 4, 2);
+        } else if (tNum === 4 && (v === 0 || v === 3)) {
+          c.fillStyle = "rgba(202, 138, 4, 0.36)";
+          c.fillRect(14, 12, 4, 4); c.fillRect(42, 42, 4, 4);
+          c.fillStyle = "rgba(254, 240, 138, 0.55)";
+          c.fillRect(15, 13, 2, 2);
+        } else if (tNum === 5 && (v === 1 || v === 2)) {
+          c.fillStyle = "rgba(192, 132, 252, 0.32)"; c.fillRect(12, 42, 14, 2);
+          c.fillStyle = "rgba(254, 240, 138, 0.58)"; c.fillRect(44, 14, 2, 2); c.fillRect(18, 42, 2, 2);
+        }
+        this.tileCache.set(`tower_t${tNum}_v${v}`, can);
       }
     });
   },
@@ -1303,6 +1383,10 @@ const MapEngine = {
     if (this.isArenaMode) {
       return { speedMult: 1.0, label: "⚔️ 石英大會競技場", inWater: false };
     }
+    if (this.towerHallMode && this.towerHallMode.enabled) {
+      const tNames = ["", "密林古殿", "潮汐水閣", "熔岩鐵殿", "石英聖殿", "星界迴廊"];
+      return { speedMult: 1.0, label: `🗼 ${this.towerHallMode.isBoss ? "Mega 王座聖殿" : (tNames[this.towerHallMode.tier] || "試煉殿堂")}`, inWater: false };
+    }
     const cx = Math.floor(x / 600);
     const cy = Math.floor(y / 600);
     const chunk = this.getBiomeChunk(cx, cy);
@@ -1357,6 +1441,16 @@ const MapEngine = {
   },
 
   resolveObstacleCollision(ent, radius, isPlayer = false) {
+    if (this.towerHallMode && this.towerHallMode.enabled) {
+      const r = radius || 18;
+      const hw = this.towerHallMode.halfW || 540;
+      const hh = this.towerHallMode.halfH || 380;
+      if (ent.x < -hw + r) ent.x = -hw + r;
+      if (ent.x >  hw - r) ent.x =  hw - r;
+      if (ent.y < -hh + r) ent.y = -hh + r;
+      if (ent.y >  hh - r) ent.y =  hh - r;
+      return;
+    }
     if (this.isArenaMode) {
       const r = radius || 18;
       const minX = -this.arenaHalfW + r;
@@ -1497,7 +1591,7 @@ const MapEngine = {
 
   // v7.6.0 戰術新地圖機關更新：紅蓮火山（淺層熔岩池燙傷 ＋ 12s 週期地熱蒸氣噴口）＆ 無人發電廠（觸碰即炸 180px 麻痺蓄電塔）
   updateAndCheckMapHazards(dt, app) {
-    if (this.isArenaMode || !app || !app.player) return;
+    if (this.isArenaMode || (this.towerHallMode && this.towerHallMode.enabled) || !app || !app.player) return;
     const stId = this.currentStage ? this.currentStage.id : "";
     if (stId !== "cinnabar_volcano" && stId !== "power_plant") return;
     const p = app.player;
@@ -1612,6 +1706,11 @@ const MapEngine = {
 
     if (this.isArenaMode) {
       this.renderIndigoArena(ctx, camX, camY, width, height);
+      ctx.restore();
+      return;
+    }
+    if (this.towerHallMode && this.towerHallMode.enabled) {
+      this.renderTowerHall(ctx, camX, camY, width, height);
       ctx.restore();
       return;
     }
@@ -2367,6 +2466,228 @@ const MapEngine = {
     }
   },
 
+  // v7.8.7 試煉塔專屬預烘焙 GBA 像素室內殿堂 ＋ 5F/10F/15F/20F 冠軍王座戰場（北側厚石牆預留三門槽位 ＋ 純視覺四角火盆）
+  renderTowerHall(ctx, camX, camY, width, height) {
+    const th = this.towerHallMode;
+    const tier = th.tier || 1;
+    const isBoss = !!th.isBoss;
+    const hw = th.halfW || 540;
+    const hh = th.halfH || 380;
+    const toSx = (wx) => Math.round(wx - camX + width / 2);
+    const toSy = (wy) => Math.round(wy - camY + height / 2);
+    const x0 = toSx(-hw), y0 = toSy(-hh);
+    const w = hw * 2, h = hh * 2;
+    const now = performance.now() * 0.001;
+
+    const palettes = {
+      1: { voidBg: "#0A1410", wallTop: "#5C6E60", wallFace: "#3A493E", wallDk: "#1F2922", trim: "#FACC15", carpet: "#166534", carpetEdge: "#4ADE80", torch: "#FB923C" },
+      2: { voidBg: "#07131E", wallTop: "#497591", wallFace: "#27465B", wallDk: "#122433", trim: "#7DD3FC", carpet: "#0369A1", carpetEdge: "#7DD3FC", torch: "#38BDF8" },
+      3: { voidBg: "#120909", wallTop: "#5C4340", wallFace: "#382625", wallDk: "#1C1111", trim: "#F97316", carpet: "#991B1B", carpetEdge: "#FB923C", torch: "#F97316" },
+      4: { voidBg: "#0E1024", wallTop: "#E7E2D5", wallFace: "#B8B09E", wallDk: "#6E6758", trim: "#EAB308", carpet: "#4338CA", carpetEdge: "#FDE047", torch: "#FACC15" },
+      5: { voidBg: "#080514", wallTop: "#4E3A7A", wallFace: "#2C1E4D", wallDk: "#140B29", trim: "#E879F9", carpet: "#6B21A8", carpetEdge: "#F0ABFC", torch: "#E879F9" },
+    };
+    const pal = palettes[tier] || palettes[1];
+
+    ctx.fillStyle = pal.voidBg;
+    ctx.fillRect(0, 0, width, height);
+
+    const tileSize = 60;
+    const startTx = Math.max(Math.floor(-hw / tileSize), Math.floor((camX - width / 2) / tileSize) - 1);
+    const endTx   = Math.min(Math.ceil(hw / tileSize),   Math.floor((camX + width / 2) / tileSize) + 1);
+    const startTy = Math.max(Math.floor(-hh / tileSize), Math.floor((camY - height / 2) / tileSize) - 1);
+    const endTy   = Math.min(Math.ceil(hh / tileSize),   Math.floor((camY + height / 2) / tileSize) + 1);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, y0, w, h);
+    ctx.clip();
+
+    for (let tx = startTx; tx <= endTx; tx++) {
+      for (let ty = startTy; ty <= endTy; ty++) {
+        const vIdx = (((Math.imul(tx, 73856093) ^ Math.imul(ty, 19349663)) >>> 0) & 3);
+        const tileCan = this.tileCache.get(`tower_t${tier}_v${vIdx}`);
+        const sx = toSx(tx * tileSize);
+        const sy = toSy(ty * tileSize);
+        if (tileCan) {
+          ctx.drawImage(tileCan, sx, sy);
+        } else {
+          ctx.fillStyle = pal.wallFace;
+          ctx.fillRect(sx, sy, tileSize, tileSize);
+        }
+      }
+    }
+
+    // 殿堂內圈鑲金像素邊框跑道
+    ctx.strokeStyle = "rgba(15, 23, 42, 0.45)";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(x0 + 22, y0 + 22, w - 44, h - 44);
+    ctx.strokeStyle = pal.trim;
+    ctx.globalAlpha = 0.34;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x0 + 22, y0 + 22, w - 44, h - 44);
+    ctx.globalAlpha = 1;
+
+    // 預規劃空間引導紅毯／石板參道
+    const cx = toSx(0), cy = toSy(0);
+    const runnerCol = isBoss ? "#991B1B" : pal.carpet;
+    const runnerEdge = isBoss ? "#FACC15" : pal.carpetEdge;
+
+    ctx.fillStyle = runnerCol;
+    ctx.globalAlpha = isBoss ? 0.52 : 0.32;
+    ctx.fillRect(cx - (isBoss ? 52 : 38), y0 + 8, isBoss ? 104 : 76, h - 16);
+    if (!isBoss) {
+      ctx.fillRect(toSx(-180), y0 + 8, 360, 56);
+    }
+    ctx.globalAlpha = isBoss ? 0.65 : 0.42;
+    ctx.fillStyle = runnerEdge;
+    ctx.fillRect(cx - (isBoss ? 52 : 38), y0 + 8, 3, h - 16);
+    ctx.fillRect(cx + (isBoss ? 49 : 35), y0 + 8, 3, h - 16);
+    ctx.globalAlpha = 1;
+
+    // 左右側翼台座地磚暗紋 (±150, 0)
+    if (!isBoss) {
+      [-150, 150].forEach(px => {
+        const psx = toSx(px), psy = toSy(0);
+        ctx.strokeStyle = "rgba(15, 23, 42, 0.42)";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(psx, psy, 44, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = pal.trim;
+        ctx.globalAlpha = 0.28;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(psx, psy, 38, 0, Math.PI * 2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      });
+    }
+
+    // 中央聖壇紋章 (0, 0) — 首領層為紅金精靈球＋Mega 鑰石冠軍地紋
+    if (isBoss) {
+      ctx.save();
+      ctx.globalAlpha = 0.34;
+      ctx.fillStyle = "#DC2626";
+      ctx.beginPath(); ctx.arc(cx, cy, 84, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#F8FAFC";
+      ctx.beginPath(); ctx.arc(cx, cy, 84, 0, Math.PI); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha = 0.62;
+      ctx.strokeStyle = "#FACC15";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, 84, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 84, cy); ctx.lineTo(cx + 84, cy); ctx.stroke();
+      ctx.fillStyle = "#0F172A";
+      ctx.beginPath(); ctx.arc(cx, cy, 22, 0, Math.PI * 2); ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#38BDF8";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 12); ctx.lineTo(cx + 10, cy); ctx.lineTo(cx, cy + 12); ctx.lineTo(cx - 10, cy);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    } else {
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.48)";
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(cx, cy, 56, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = pal.trim;
+      ctx.globalAlpha = 0.36;
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx, cy, 50, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    // 北牆底緣地面投射陰影
+    const wallShadow = ctx.createLinearGradient(0, y0, 0, y0 + 30);
+    wallShadow.addColorStop(0, "rgba(2, 6, 23, 0.58)");
+    wallShadow.addColorStop(1, "rgba(2, 6, 23, 0)");
+    ctx.fillStyle = wallShadow;
+    ctx.fillRect(x0, y0, w, 30);
+    ctx.restore();
+
+    // 厚實 2.5D GBA 剖面石造四面圍牆（北牆加高 92px 承載嵌牆三道石門）
+    const northH = 92;
+    const sideW = 34;
+    ctx.fillStyle = pal.wallDk;
+    ctx.fillRect(x0 - sideW, y0 - northH, w + sideW * 2, northH);
+    ctx.fillStyle = pal.wallFace;
+    ctx.fillRect(x0 - sideW + 4, y0 - northH + 16, w + sideW * 2 - 8, northH - 18);
+    ctx.fillStyle = pal.wallTop;
+    ctx.fillRect(x0 - sideW, y0 - northH, w + sideW * 2, 16);
+
+    ctx.fillStyle = pal.wallDk;
+    for (let row = 0; row < 4; row++) {
+      const by = y0 - northH + 16 + row * 18;
+      ctx.fillRect(x0 - sideW + 4, by, w + sideW * 2 - 8, 2);
+      const off = (row % 2) * 24;
+      for (let bx = x0 + off; bx < x0 + w; bx += 48) {
+        ctx.fillRect(bx, by, 2, 18);
+      }
+    }
+    ctx.fillStyle = pal.trim;
+    ctx.fillRect(x0 - sideW, y0 - northH + 14, w + sideW * 2, 3);
+    ctx.fillStyle = "#0F172A";
+    ctx.fillRect(x0, y0 - 3, w, 4);
+
+    const drawSideWall = (rx, ry, rw, rh) => {
+      ctx.fillStyle = pal.wallDk; ctx.fillRect(rx, ry, rw, rh);
+      ctx.fillStyle = pal.wallFace; ctx.fillRect(rx + 4, ry + 4, rw - 8, rh - 8);
+      ctx.fillStyle = pal.wallTop; ctx.fillRect(rx + 4, ry + 4, rw - 8, 6);
+    };
+    drawSideWall(x0 - sideW, y0, sideW, h + sideW);
+    drawSideWall(x0 + w, y0, sideW, h + sideW);
+    drawSideWall(x0 - sideW, y0 + h, w + sideW * 2, sideW);
+
+    // 南側進場玄關標記
+    ctx.fillStyle = "#0F172A";
+    ctx.fillRect(cx - 46, y0 + h, 92, 16);
+    ctx.fillStyle = pal.trim;
+    ctx.fillRect(cx - 42, y0 + h + 2, 84, 3);
+
+    // 北牆與兩側壁掛搖曳火把
+    const flk = 0.88 + Math.sin(now * 14) * 0.12;
+    const drawTorch = (tx, ty) => {
+      if (tx < -40 || tx > width + 40 || ty < -40 || ty > height + 40) return;
+      const g = ctx.createRadialGradient(tx, ty - 4, 2, tx, ty - 4, 34 * flk);
+      g.addColorStop(0, "rgba(251, 146, 60, 0.44)");
+      g.addColorStop(1, "rgba(251, 146, 60, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(tx, ty - 4, 34 * flk, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#451A03"; ctx.fillRect(tx - 2, ty, 4, 10);
+      ctx.fillStyle = pal.torch; ctx.fillRect(tx - 4, ty - 7, 8, 8);
+      ctx.fillStyle = "#FEF08A"; ctx.fillRect(tx - 2, ty - 6, 4, 4);
+    };
+    [-360, -220, 220, 360].forEach(wx => drawTorch(toSx(wx), y0 - 44));
+    [-190, 190].forEach(wy => {
+      drawTorch(x0 - 16, toSy(wy));
+      drawTorch(x0 + w + 16, toSy(wy));
+    });
+
+    // 首領王座層專屬：四角燃燒烈焰石砌火盆（純視覺景觀，無碰撞阻擋）
+    if (isBoss) {
+      [[-455, -295], [455, -295], [-455, 295], [455, 295]].forEach(([bx, by], bIdx) => {
+        const sx = toSx(bx), sy = toSy(by);
+        if (sx < -60 || sx > width + 60 || sy < -60 || sy > height + 60) return;
+        const bf = 0.88 + Math.sin(now * 13 + bIdx * 1.7) * 0.12;
+        const glow = ctx.createRadialGradient(sx, sy - 8, 6, sx, sy - 8, 56 * bf);
+        glow.addColorStop(0, "rgba(251, 146, 60, 0.50)");
+        glow.addColorStop(1, "rgba(251, 146, 60, 0)");
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(sx, sy - 8, 56 * bf, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#0F172A"; ctx.fillRect(sx - 18, sy - 4, 36, 16);
+        ctx.fillStyle = "#475569"; ctx.fillRect(sx - 15, sy - 2, 30, 12);
+        ctx.fillStyle = "#FACC15"; ctx.fillRect(sx - 16, sy - 4, 32, 3);
+        const sway = Math.round(Math.sin(now * 16 + bIdx * 2) * 3);
+        ctx.fillStyle = "#EA580C";
+        ctx.beginPath();
+        ctx.moveTo(sx - 12, sy - 4);
+        ctx.lineTo(sx + sway, sy - 28 * bf);
+        ctx.lineTo(sx + 12, sy - 4);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#FEF08A";
+        ctx.beginPath();
+        ctx.moveTo(sx - 6, sy - 4);
+        ctx.lineTo(sx + sway * 0.6, sy - 18 * bf);
+        ctx.lineTo(sx + 6, sy - 4);
+        ctx.closePath(); ctx.fill();
+      });
+    }
+  },
+
   renderBoundedPerimeter(ctx, camX, camY, width, height) {
     if (!this.boundedMap || !this.boundedMap.enabled || this.isArenaMode) return;
     const hw = this.boundedMap.halfW;
@@ -2441,7 +2762,7 @@ const MapEngine = {
   },
 
   renderForegroundCanopies(ctx, camX, camY, width, height, player, trainer) {
-    if (this.isArenaMode) return;
+    if (this.isArenaMode || (this.towerHallMode && this.towerHallMode.enabled)) return;
     this.renderBoundedPerimeter(ctx, camX, camY, width, height);
     const startCx = Math.floor((camX - width / 2) / 600) - 1;
     const endCx = Math.floor((camX + width / 2) / 600) + 1;
