@@ -2796,6 +2796,30 @@ Object.assign(window.GameApp, {
     if (this.isTowerMode && typeof ModeTower !== "undefined" && ModeTower.renderAerialCeremony) {
       ModeTower.renderAerialCeremony(this, ctx, toSx, toSy);
     }
+    if (this.eventCamFocus && this.eventCamFocus.active && !this.eventCamFocus.isSelfPulse) {
+      const f = this.eventCamFocus;
+      const fx = toSx(f.tx), fy = toSy(f.ty);
+      const b = f.blend || 0;
+      if (b > 0.05) {
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, b * 1.15);
+        const pulseR = 38 + Math.sin(f.elapsed * 12) * 5;
+        ctx.strokeStyle = f.color || "#FACC15";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(fx, fy, pulseR, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = "#FFFFFF";
+        ctx.lineWidth = 2;
+        const brk = 12, box = 48 - b * 6;
+        [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx, sy]) => {
+          ctx.beginPath();
+          ctx.moveTo(fx + sx * box, fy + sy * (box - brk));
+          ctx.lineTo(fx + sx * box, fy + sy * box);
+          ctx.lineTo(fx + sx * (box - brk), fy + sy * box);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+    }
     MapEngine.renderWeatherOverlays(ctx, this.width, this.height);
     if (this.state === "EVOLVING") {
       this.renderEvolutionOverlay(ctx, toSx, toSy, false);
@@ -2806,6 +2830,36 @@ Object.assign(window.GameApp, {
     }
     if (this.battleCountdownTimer > 0 && this.state === "PLAYING") {
       this.renderBattleCountdownOverlay(ctx);
+    }
+    if (this.eventCamFocus && this.eventCamFocus.active) {
+      const f = this.eventCamFocus;
+      const u = f.progress || 0;
+      const barAlpha = u < 0.16 ? (u / 0.16) : (u > 0.84 ? Math.max(0, (1 - u) / 0.16) : 1);
+      const barH = Math.round(22 * barAlpha);
+      ctx.save();
+      ctx.fillStyle = `rgba(2, 6, 23, ${0.86 * barAlpha})`;
+      ctx.fillRect(0, 0, this.width, barH);
+      ctx.fillRect(0, this.height - barH, this.width, barH);
+      ctx.fillStyle = f.color || "#FACC15";
+      ctx.globalAlpha = 0.78 * barAlpha;
+      ctx.fillRect(0, barH - 2, this.width, 2);
+      ctx.fillRect(0, this.height - barH, this.width, 2);
+      ctx.globalAlpha = barAlpha;
+      const cap = `${f.icon || "✨"} 突發事件聚焦 ‧ ${f.label}`;
+      ctx.font = "900 12px 'Noto Sans TC', sans-serif";
+      const tw = ctx.measureText(cap).width;
+      const pw = Math.ceil(tw + 28), ph = 26;
+      const px = Math.round((this.width - pw) / 2), py = this.height - barH - ph - 10;
+      ctx.fillStyle = "rgba(15, 23, 42, 0.90)";
+      ctx.strokeStyle = f.color || "#FACC15";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect ? ctx.roundRect(px, py, pw, ph, 13) : ctx.rect(px, py, pw, ph);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#FEF08A";
+      ctx.textAlign = "center";
+      ctx.fillText(cap, Math.round(this.width / 2), py + 17);
+      ctx.restore();
     }
 
     this.floatingTexts.forEach(ft => {

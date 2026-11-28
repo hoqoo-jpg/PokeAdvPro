@@ -608,7 +608,7 @@ const POKEMON_SIGNATURE_SKILLS = {
   92:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥界猩紅三連昇華" },
   93:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥界猩紅三連昇華" },
   94:  { skills: ["Shadow Ball", "Sludge Bomb", "Shadow Claw"], label: "Mega耿鬼冥火暗影球 ‧ 猩紅暗影爪" },
-  123: { skills: ["X-Scissor"], label: "青金雙鐮十字剪 ‧ 專屬雙色刀光" },
+  123: { skills: ["XScissor"], label: "青金雙鐮十字剪 ‧ 專屬雙色刀光" },
   129: { skills: ["Dragon Rush", "Hydro Pump"], label: "進化暴鯉龍 ‧ Mega深海赤紅狂龍" },
   130: { skills: ["Dragon Rush", "Hydro Pump"], label: "Mega暴鯉龍赤紅龍衝 ＋ 雙柱狂濤" },
   142: { skills: ["Rock Slide", "Air Slash", "Earthquake"], label: "太古巨岩 ‧ Mega金紫岩刃風暴" },

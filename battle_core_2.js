@@ -7,7 +7,7 @@
  */
 
 window.GameApp = {
-  APP_VERSION: "v7.8.10",
+  APP_VERSION: "v7.9.0",
   canvas: null,
   ctx: null,
   width: window.innerWidth,
@@ -1054,6 +1054,7 @@ window.GameApp = {
     this.camera.y = 0;
     this.camera.shakeTime = 0;
     this.camera.shakeMagnitude = 0;
+    this.eventCamFocus = null;
     this.touchJoy.active = false;
     this.touchJoy.dx = 0;
     this.touchJoy.dy = 0;
@@ -2687,8 +2688,38 @@ window.GameApp = {
       }
     });
 
-    this.camera.x = p.x;
-    this.camera.y = p.y;
+    // v7.9.0 十大突發事件 1.5s 空間運鏡聚焦演出（0.39s 平移聚焦 ➔ 0.72s 定格特寫 ➔ 0.39s 柔回主角）
+    if (this.eventCamFocus && this.eventCamFocus.active) {
+      const f = this.eventCamFocus;
+      f.elapsed += dt;
+      const dur = f.duration || 1.5;
+      const u = Math.min(1, f.elapsed / dur);
+      let blend = 0;
+      if (!f.isSelfPulse) {
+        if (u < 0.26) {
+          const k = u / 0.26;
+          blend = 1 - Math.pow(1 - k, 3);
+        } else if (u < 0.74) {
+          blend = 1.0;
+        } else {
+          const k = (u - 0.74) / 0.26;
+          blend = 1 - (k * k * (3 - 2 * k));
+        }
+      }
+      f.blend = blend;
+      f.progress = u;
+      this.camera.x = p.x + (f.tx - p.x) * blend;
+      this.camera.y = p.y + (f.ty - p.y) * blend;
+      if (f.elapsed >= dur) {
+        f.active = false;
+        this.eventCamFocus = null;
+        this.camera.x = p.x;
+        this.camera.y = p.y;
+      }
+    } else {
+      this.camera.x = p.x;
+      this.camera.y = p.y;
+    }
 
     if (isWarmupCountdown) {
       MapEngine.updateWeather(dt, this.width, this.height);
@@ -2775,6 +2806,14 @@ window.GameApp = {
                 ? SkillsEngine.getVineWhipReach(lv, meleeAreaScale, trait.overgrowAreaBonus || 0)
                 : (88 + lv * 11);
               triggerRange = (20 + whipReach) * 0.90;
+            } else if (meta.meleeStyle === "x_scissor") {
+              const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8 + (trait.overgrowAreaBonus || 0) * 0.6;
+              const reach = Math.min(178, Math.round(132 * meleeAreaScale * fistArea * (lv >= 8 ? 1.16 : 1.0)));
+              triggerRange = reach * 1.12;
+            } else if (meta.meleeStyle === "shadow_claw") {
+              const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8;
+              const reach = Math.min(172, Math.round(124 * meleeAreaScale * fistArea * (lv >= 8 ? 1.15 : 1.0)));
+              triggerRange = reach * 1.12;
             } else if (meta.type === "Dragon") {
               // 龍之俯衝 (Dragon Rush)：對齊中距離龍首破陣射程 (195px)
               triggerRange = 195 * meleeAreaScale;
@@ -5913,6 +5952,29 @@ window.GameApp = {
   toggleTimeScale() {
     this.timeScale = this.timeScale === 1 ? 2 : 1;
     document.getElementById("speedToggleText").textContent = `${this.timeScale}x`;
+  },
+
+  // v7.9.0 啟動突發事件 1.5 秒空間運鏡聚焦演出（附帶無傷保護，確保觀賞期間不吃暗虧）
+  startEventCameraFocus(tx, ty, opts = {}) {
+    if (!this.player) return;
+    const duration = (opts && opts.duration) ? opts.duration : 1.5;
+    const isSelfPulse = !!(opts && opts.isSelfPulse);
+    this.eventCamFocus = {
+      active: true,
+      elapsed: 0,
+      duration,
+      tx: Number.isFinite(tx) ? tx : this.player.x,
+      ty: Number.isFinite(ty) ? ty : this.player.y,
+      color: (opts && opts.color) || "#FACC15",
+      label: (opts && opts.label) || "突發事件",
+      icon: (opts && opts.icon) || "✨",
+      isSelfPulse,
+      blend: 0,
+      progress: 0
+    };
+    if (!isSelfPulse) {
+      this.player.invulnTimer = Math.max(this.player.invulnTimer || 0, duration + 0.15);
+    }
   },
 
   togglePause() {

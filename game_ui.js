@@ -321,7 +321,7 @@ Object.assign(window.GameApp, {
       }
       try {
         this.updateTitleUI();
-        const ver = this.APP_VERSION || "v7.8.10";
+        const ver = this.APP_VERSION || "v7.9.0";
         const isReturningPlayer = !!(this.saveData && this.saveData.stats && (this.saveData.stats.totalKills || 0) > 0);
         if (isReturningPlayer && this.saveData.lastSeenVersion !== ver && !this._autoChangelogShown) {
           this._autoChangelogShown = true;
@@ -470,6 +470,14 @@ Object.assign(window.GameApp, {
       const starLv = (this.saveData.pokemonStars && this.saveData.pokemonStars[p.id]) || 0;
       const starStr = starLv > 0 ? ` ${'★'.repeat(starLv)}` : '';
       if (pNameEl) pNameEl.textContent = `${useShiny ? '✨' : ''}${p.name_zh} (#${String(p.id).padStart(3,'0')})${starStr}`;
+      const lcCard = document.getElementById("lobbyLineupCard");
+      const lcBar = document.getElementById("lobbyLineupTypeBar");
+      const tCol = (typeof TYPE_COLORS !== "undefined" && TYPE_COLORS[p.type1]) ? TYPE_COLORS[p.type1] : "#F59E0B";
+      if (lcBar) lcBar.style.background = `linear-gradient(90deg, ${tCol}, #FACC15 55%, ${tCol})`;
+      if (lcCard) {
+        lcCard.style.boxShadow = `inset 0 0 0 1.5px ${tCol}55, 0 6px 18px rgba(15, 23, 42, 0.24)`;
+        lcCard.style.background = `linear-gradient(155deg, ${tCol}14 0%, rgba(255,255,255,0.97) 36%, rgba(248,250,252,0.98) 100%)`;
+      }
 
       const starUpBtn = document.getElementById("lobbyStarUpgradeBtn");
       if (starUpBtn) {
@@ -609,7 +617,7 @@ Object.assign(window.GameApp, {
 
     const clBadge = document.getElementById("changelogBadge");
     if (clBadge) {
-      const curVer = this.APP_VERSION || "v7.8.10";
+      const curVer = this.APP_VERSION || "v7.9.0";
       clBadge.classList.toggle("hidden", this.saveData.lastSeenVersion === curVer);
     }
     if (this.renderLobbySkillLoadout) this.renderLobbySkillLoadout();
@@ -961,7 +969,8 @@ Object.assign(window.GameApp, {
       const hasCostumes = unlocked && Array.isArray(t.costumes) && t.costumes.length > 1;
 
       return `
-        <div onclick="GameApp.handleTrainerCardClick('${t.id}')" class="poke-card cursor-pointer p-3 flex flex-col justify-between gap-2 ${selected ? 'selected' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''}">
+        <div onclick="GameApp.handleTrainerCardClick('${t.id}')" style="box-shadow: inset 0 0 0 1.5px ${selected ? '#F59E0B' : accentColor + '44'}; background: linear-gradient(160deg, ${accentColor}14 0%, #FFFFFF 42%, #F8FAFC 100%);" class="poke-card relative overflow-hidden cursor-pointer p-3 flex flex-col justify-between gap-2 border-2 ${selected ? 'selected border-amber-400 ring-2 ring-amber-300/70' : 'border-slate-800'} ${!unlocked ? 'opacity-85' : ''}">
+          <div class="absolute inset-x-0 top-0 h-1 pointer-events-none" style="background:${accentColor};"></div>
           <div class="space-y-2">
             <!-- 1. 高清動漫特寫橫幅 ＋ 右上角時裝切換 ＋ 右下角局內像素預覽 -->
             <div class="relative h-24 sm:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border-2 border-slate-800 shadow-inner">
@@ -1082,7 +1091,8 @@ Object.assign(window.GameApp, {
 
       const seen = !!this.saveData.pokedexSeen[p.id];
       return `
-        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" class="poke-card cursor-pointer p-3 flex flex-col justify-between ${selected ? 'selected' : ''} ${isBond ? 'border-amber-400 bg-amber-50/30' : ''} ${!unlocked ? 'opacity-85 bg-slate-100' : ''} ${!seen && !unlocked ? 'opacity-65' : ''}">
+        <div onclick="GameApp.handlePokemonCardClick(${p.id}, ${unlockCost})" style="box-shadow: inset 0 0 0 1.5px ${selected ? '#F59E0B' : ((TYPE_COLORS[p.type1] || '#64748B') + '44')}; background: linear-gradient(160deg, ${(TYPE_COLORS[p.type1] || '#64748B')}16 0%, ${isBond ? '#FFFBEB' : '#FFFFFF'} 45%, #F8FAFC 100%);" class="poke-card relative overflow-hidden cursor-pointer p-3 flex flex-col justify-between border-2 ${selected ? 'selected border-amber-400 ring-2 ring-amber-300/70' : (isBond ? 'border-amber-500' : 'border-slate-800')} ${!unlocked ? 'opacity-85' : ''} ${!seen && !unlocked ? 'opacity-65' : ''}">
+          <div class="absolute inset-x-0 top-0 h-1 pointer-events-none" style="background:${TYPE_COLORS[p.type1] || '#64748B'};"></div>
           <div>
             <div class="flex items-center justify-between gap-1 mb-1">
               <span class="font-pixel text-[10px] text-slate-500">#${String(p.id).padStart(3,'0')}</span>
@@ -1489,7 +1499,7 @@ Object.assign(window.GameApp, {
       unlockedCostumes: { ash: { classic: true, cutin_tactical: true }, lillie: { alola_powered: true, classic_hat: true }, serena: { kalos_short: true, kalos_long: true } },
       claimedAch: {},
       bestRatings: {},
-      lastSeenVersion: this.APP_VERSION || "v7.8.10",
+      lastSeenVersion: this.APP_VERSION || "v7.9.0",
       settings: {
         mobCapProfile: "auto",
         screenFilter: "none",
@@ -3325,7 +3335,7 @@ Object.assign(window.GameApp, {
     }
 
     return {
-      version: this.APP_VERSION || "v7.8.10",
+      version: this.APP_VERSION || "v7.9.0",
       mode: modeKey,
       difficulty: diffId,
       score: compositeScore,
@@ -4034,7 +4044,7 @@ Object.assign(window.GameApp, {
         <div class="bg-slate-950/90 border border-amber-400/80 rounded-2xl p-3.5 space-y-2.5 shadow-[0_0_16px_rgba(250,204,21,0.22)]">
           <div class="flex items-center justify-between gap-2">
             <span class="font-black text-sm text-amber-300">🎉 關都大冒險・最新版本玩家指南</span>
-            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.8.10</span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-pixel text-[8px] font-black shrink-0">v7.9.0</span>
           </div>
           <div class="space-y-2 text-[11px] font-bold text-slate-200 leading-relaxed">
             <div class="text-emerald-300 font-black pt-0.5">🗺️ 全新玩法與內容亮點</div>
@@ -4073,7 +4083,8 @@ Object.assign(window.GameApp, {
             <span class="font-pixel text-[8px] text-slate-400">HISTORY</span>
           </div>
           <div class="space-y-0.5 text-[10px] font-bold text-slate-400 leading-relaxed">
-            <div>• <strong class="text-amber-300">v7.8.10</strong>：大廳四大模式全面升級「四色四景」寶可夢 HD-2D 卡片原畫（NO.1 關都大遠征晨曦雪峰、NO.2 MEGA 試煉塔暮色巨塔、NO.3 生存割草紅蓮火山雷暴、NO.4 1vs1 石英冠軍鬥技場）並納入啟動優先預載；封面底部改採方案 A 置中整合「V-Cloud Studio · v7.8.10」膠囊，徹底解決手機直屏版本號壓到版權聲明的問題。</div>
+            <div>• <strong class="text-amber-300">v7.9.0</strong>：實裝十大突發事件「1.5 秒空間運鏡聚焦演出」（平滑運鏡鎖定事件目標＋目標準星與電影感上下黑邊字幕＋觀賞期間無傷保護）；徹底修復十字剪與暗影爪「外寬內窄空燒冷卻」異常（拉長十字剪基礎射程至 132、第 1 刀同步瞬發、修正飛天螳螂 XScissor 專屬技標籤）；修復大廳「關都大遠征」卡片舊白底吃字 Bug；全面升級大廳陣容主卡與訓練家／寶可夢選角卡片之屬性漸層頂欄與雙層立體描邊。</div>
+            <div>• <strong class="text-slate-300">v7.8.10</strong>：大廳四大模式全面升級「四色四景」寶可夢 HD-2D 卡片原畫（NO.1 關都大遠征晨曦雪峰、NO.2 MEGA 試煉塔暮色巨塔、NO.3 生存割草紅蓮火山雷暴、NO.4 1vs1 石英冠軍鬥技場）並納入啟動優先預載；封面底部改採方案 A 置中整合「V-Cloud Studio · v7.8.10」膠囊，徹底解決手機直屏版本號壓到版權聲明的問題。</div>
             <div>• <strong class="text-slate-300">v7.8.9</strong>：大廳全面升級為「雙王牌大卡 ＋ 雙對稱副模式」商業排版（#1 關都大遠征、#2 MEGA 試煉塔原畫特展寬卡支援一鍵續爬，並將 8 分鐘標準與無盡深淵整合為「生存割草」）；將 5 張試煉塔與 UI 精繪大圖納入啟動優先預載佇列，徹底消除首次入塔黑屏；校準試煉塔獨立經驗曲線（4F 尾聲剛好一段進化迎戰 5F 首領）並補齊清層全場自動吸取經驗水晶與掉落物。</div>
             <div>• <strong class="text-slate-300">v7.8.8</strong>：試煉塔全面儀式感與體驗打磨——屏蔽塔內野外突襲與室內下雨、修復回大廳黑底；入塔改為 2.1s 背影緩步同行（walkSheet 背影 3 幀）；北牆加厚完整嵌入三道石門＋迎賓石階＋圓角 GBA 銘牌；重整暖酒紅金邊地毯與左右台座柔光光暈；實裝遺物獲取 1.05s 聖光灌注柱演出、局內＋暫停遺物總覽與半透明毛玻璃背景；新增手機切 App 自動暫停、左下角戰術鍵 6 秒開局預熱與「⚡點擊發動」發光彈跳提示，並加入 V-Cloud Studio 署名與同人作品聲明。</div>
             <div>• <strong class="text-slate-300">v7.8.7</strong>：打造試煉塔五大海拔專屬預烘焙 GBA 像素室內殿堂（每段 4 款石磚變體對齊野外精度）與 5F/10F/15F/20F 冠軍王座戰場（紅金精靈球鑰石地紋＋四角純視覺烈焰火盆）；北牆預嵌封印石門（未清層為灰暗關閉石門＋紫金能量封印鎖條，清層瞬間震屏破封點亮）；暗影爪實裝隨升級分階加粗至 1.74x；修復 5F➔6F 等跨區段登塔過場倒退異常。</div>
@@ -4103,7 +4114,7 @@ Object.assign(window.GameApp, {
         </div>
       `;
     }
-    const curVer = this.APP_VERSION || "v7.8.10";
+    const curVer = this.APP_VERSION || "v7.9.0";
     if (this.saveData && this.saveData.lastSeenVersion !== curVer) {
       this.saveData.lastSeenVersion = curVer;
       this.saveToStorage();

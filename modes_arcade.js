@@ -1010,25 +1010,58 @@ window.FieldEventsEngine = {
           color: "#A855F7"
         });
       });
+    }
+    let focusX = app.player.x, focusY = app.player.y, focusColor = "#FACC15", isSelfPulse = false;
+    if (ev.nodes.length === 1) {
+      focusX = ev.nodes[0].x; focusY = ev.nodes[0].y; focusColor = ev.nodes[0].color || "#38BDF8";
+    } else if (ev.nodes.length >= 2) {
+      focusX = (ev.nodes[0].x + ev.nodes[1].x) * 0.5;
+      focusY = (ev.nodes[0].y + ev.nodes[1].y) * 0.5;
+      focusColor = "#A855F7";
     } else if (meta.id === "chansey_patrol") {
+      const prevLen = (app.enemies && app.enemies.length) || 0;
       if (typeof app.spawnTreasureMonster === "function") app.spawnTreasureMonster("chansey");
+      const spawned = app.enemies && app.enemies[prevLen];
+      if (spawned) { focusX = spawned.x; focusY = spawned.y; focusColor = "#F472B6"; }
     } else if (meta.id === "meowth_convoy") {
+      const prevLen = (app.enemies && app.enemies.length) || 0;
       if (typeof app.spawnTreasureMonster === "function") {
         app.spawnTreasureMonster("meowth");
         app.spawnTreasureMonster("meowth");
       }
+      const spawned = app.enemies && app.enemies[prevLen];
+      if (spawned) { focusX = spawned.x; focusY = spawned.y; focusColor = "#FACC15"; }
     } else if (meta.id === "shiny_swarm") {
+      const prevLen = (app.enemies && app.enemies.length) || 0;
       this.spawnShinyBurst(app, 7);
+      const spawned = app.enemies && app.enemies[prevLen];
+      if (spawned) { focusX = spawned.x; focusY = spawned.y; focusColor = "#C084FC"; }
     } else if (meta.id === "overdrive_storm") {
       app.fieldEventCdMult = 0.65;
       app.fieldEventEnemySpdMult = 1.20;
+      focusColor = "#38BDF8";
+      isSelfPulse = true;
     } else if (meta.id === "exp_mist") {
       app.fieldEventExpMult = 2.0;
+      focusColor = "#4ADE80";
+      isSelfPulse = true;
     } else if (meta.id === "rival_ambush") {
+      const prevLen = (app.enemies && app.enemies.length) || 0;
       this.spawnRivalElite(app);
+      const spawned = app.enemies && app.enemies[prevLen];
+      if (spawned) { focusX = spawned.x; focusY = spawned.y; focusColor = "#EF4444"; }
     }
 
     app.activeFieldEvent = ev;
+    if (typeof app.startEventCameraFocus === "function") {
+      app.startEventCameraFocus(focusX, focusY, {
+        duration: 1.5,
+        label: meta.name,
+        icon: meta.icon,
+        color: focusColor,
+        isSelfPulse
+      });
+    }
     if (typeof SoundFX !== "undefined") SoundFX.play("levelup");
     if (app.spawnFloatingText) {
       app.spawnFloatingText(app.player.x, app.player.y - 54, `${meta.icon} 突發事件：${meta.name}！`, "#FACC15", 14);

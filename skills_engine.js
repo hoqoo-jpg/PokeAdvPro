@@ -1206,110 +1206,113 @@ window.SkillsEngine = {
 
     // 0. 奇異種子：兩側肩部外推 24px 伸出 ＋ 根粗尾尖錐形流線藤鞭 ＋ 末端半月形音爆斬痕
     if (style === "x_scissor") {
+      // v7.9.0 修復十字剪外寬內窄空燒冷卻：提升基礎射程至 132（上限 178）、內層鎖敵寬容度 1.38x、第 1 刀當幀同步瞬發
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8 + (trait.overgrowAreaBonus || 0) * 0.6;
       const fistCrit = (trait.ironFistCritBonus || 0) + (level >= 8 ? 0.08 : 0);
-      const reach = Math.min(148, Math.round(106 * areaScale * fistArea * (level >= 8 ? 1.16 : 1.0)));
+      const reach = Math.min(178, Math.round(132 * areaScale * fistArea * (level >= 8 ? 1.16 : 1.0)));
       const useManual = (caster === GameApp.player && GameApp.manualAimMode);
-      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.18) : null;
-      // 自動瞄準下若射程內沒有任何敵人，直接略過揮砍不打空氣
+      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.38) : null;
       if (!useManual && !initLock) return;
 
-      const slashCnt = 1 + (level >= 4 ? 1 : 0);
-      for (let s = 0; s < slashCnt; s++) {
-        this.scheduleEvent(s * 0.12, () => {
-          if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          let cx, cy, ang = baseAngle + (s === 1 ? 0.14 : 0);
-          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.18) : null;
-          if (!useManual && !lockT) return;
-          if (lockT) {
-            const distT = Math.hypot(lockT.x - caster.x, lockT.y - caster.y);
-            ang = Math.atan2(lockT.y - caster.y, lockT.x - caster.x);
-            const clampDist = Math.min(reach * 0.85, Math.max(22, distT));
-            cx = caster.x + Math.cos(ang) * clampDist;
-            cy = caster.y + Math.sin(ang) * clampDist;
-          } else {
-            cx = caster.x + Math.cos(ang) * 44;
-            cy = caster.y + Math.sin(ang) * 44;
-          }
-          this.meleeEffects.push({
-            style: "x_scissor",
-            casterRef: caster,
-            ox: caster.x, oy: caster.y,
-            x: cx, y: cy,
-            angle: ang,
-            radius: Math.max(56, reach * 0.60),
-            dmg: rawDmg * (s === 0 ? 1.04 : 0.88),
-            type: "Bug",
-            kb: 10,
-            extraCrit: 0.15 + fistCrit,
-            isLv8: level >= 8,
-            isScyther: (caster === GameApp.player && caster.id === 123),
-            hitSet: new Set(),
-            timer: 0.28, maxTime: 0.28,
-            color: "#84CC16"
-          });
-          SoundFX.play("hit", "Bug");
+      const initAng = initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle;
+      const doXSlash = (s) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        let cx, cy, ang = initAng + (s === 1 ? 0.14 : 0);
+        const lockT = !useManual ? (s === 0 ? initLock : GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.42)) : null;
+        if (lockT && lockT.hp > 0) {
+          const distT = Math.hypot(lockT.x - caster.x, lockT.y - caster.y);
+          ang = Math.atan2(lockT.y - caster.y, lockT.x - caster.x);
+          const clampDist = Math.min(reach * 0.88, Math.max(24, distT));
+          cx = caster.x + Math.cos(ang) * clampDist;
+          cy = caster.y + Math.sin(ang) * clampDist;
+        } else {
+          cx = caster.x + Math.cos(ang) * Math.min(reach * 0.62, 74);
+          cy = caster.y + Math.sin(ang) * Math.min(reach * 0.62, 74);
+        }
+        this.meleeEffects.push({
+          style: "x_scissor",
+          casterRef: caster,
+          ox: caster.x, oy: caster.y,
+          x: cx, y: cy,
+          angle: ang,
+          radius: Math.max(62, reach * 0.62),
+          dmg: rawDmg * (s === 0 ? 1.04 : 0.88),
+          type: "Bug",
+          kb: 10,
+          extraCrit: 0.15 + fistCrit,
+          isLv8: level >= 8,
+          isScyther: (caster === GameApp.player && caster.id === 123),
+          hitSet: new Set(),
+          timer: 0.28, maxTime: 0.28,
+          color: "#84CC16"
         });
+        SoundFX.play("hit", "Bug");
+      };
+
+      doXSlash(0);
+      if (level >= 4) {
+        this.scheduleEvent(0.12, () => doXSlash(1));
       }
-      this.triggerSmartMeleeLunge(caster, initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle, 0, 0, 15);
+      this.triggerSmartMeleeLunge(caster, initAng, 0, 0, 15);
       return;
     }
 
     if (style === "shadow_claw") {
+      // v7.9.0 同步修復暗影爪射程與內外門檻（基礎 124、上限 172、內層寬容度 1.38x、第 1 爪同步瞬發）
       const isMegaGengar = (caster === GameApp.player && caster.id === 10038);
       const fistArea = 1 + (trait.ironFistAreaBonus || 0) * 0.8;
       const fistCrit = (trait.ironFistCritBonus || 0) + (level >= 8 ? 0.10 : 0);
-      const reach = Math.min(150, Math.round(108 * areaScale * fistArea * (level >= 8 ? 1.15 : 1.0)));
+      const reach = Math.min(172, Math.round(124 * areaScale * fistArea * (level >= 8 ? 1.15 : 1.0)));
       const useManual = (caster === GameApp.player && GameApp.manualAimMode);
-      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.2) : null;
+      const initLock = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.38) : null;
       if (!useManual && !initLock) return;
 
-      // Lv1-3: 單段乾淨三指斜劈（左上➔右下）；Lv4+: 錯開 0.17s 反手二連斜劈（右上➔左下），絕不重疊糊成 6 條爪！
-      const clawWaves = level >= 4 ? 2 : 1;
-      for (let w = 0; w < clawWaves; w++) {
-        this.scheduleEvent(w * 0.17, () => {
-          if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
-          const lockT = !useManual ? GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.2) : null;
-          if (!useManual && !lockT) return;
-          const ang = lockT ? Math.atan2(lockT.y - caster.y, lockT.x - caster.x) : baseAngle;
-          const sx = caster.x + Math.cos(ang) * (reach * 0.52);
-          const sy = caster.y + Math.sin(ang) * (reach * 0.52);
-          this.meleeEffects.push({
-            style: "shadow_claw",
-            casterRef: caster,
-            ox: caster.x, oy: caster.y,
-            x: sx, y: sy,
-            angle: ang,
-            slashDir: w === 0 ? 1 : -1, // 1: 左上➔右下斜劈, -1: 反手斜劈
-            radius: reach * 0.66,
-            dmg: rawDmg * (w === 0 ? 1.06 : 0.90),
-            type: "Ghost",
-            kb: 9,
-            extraCrit: (isMegaGengar ? 0.40 : 0.25) + fistCrit,
-            statusChance: isMegaGengar ? 0.35 : 0,
-            isMegaGengar,
-            skillLevel: level,
-            isLv8: level >= 8,
-            scarSpawned: false,
-            hitSet: new Set(),
-            timer: 0.26, maxTime: 0.26,
-            color: isMegaGengar ? "#E11D48" : "#A855F7"
-          });
-          // 爪尾幽冥火焰拖尾真粒子
-          for (let pIdx = 0; pIdx < 6; pIdx++) {
-            const pa = ang + (Math.random() - 0.5) * 0.9;
-            const pSpd = 65 + Math.random() * 110;
-            this.spawnSubParticle(
-              caster.x + Math.cos(ang) * 24, caster.y + Math.sin(ang) * 24,
-              Math.cos(pa) * pSpd, Math.sin(pa) * pSpd - 18,
-              isMegaGengar ? (pIdx % 2 === 0 ? "#FB7185" : "#E11D48") : (pIdx % 2 === 0 ? "#F0ABFC" : "#9333EA"),
-              3.8, 0.32, "diamond"
-            );
-          }
-          SoundFX.play("hit", "Ghost");
+      const initAng = initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle;
+      const doClawWave = (w) => {
+        if (!caster || (caster === GameApp.player && GameApp.state !== "PLAYING")) return;
+        const lockT = !useManual ? (w === 0 ? initLock : GameApp.findNearestEnemyInViewport(caster.x, caster.y, reach * 1.42)) : null;
+        const ang = (lockT && lockT.hp > 0) ? Math.atan2(lockT.y - caster.y, lockT.x - caster.x) : initAng;
+        const sx = caster.x + Math.cos(ang) * (reach * 0.52);
+        const sy = caster.y + Math.sin(ang) * (reach * 0.52);
+        this.meleeEffects.push({
+          style: "shadow_claw",
+          casterRef: caster,
+          ox: caster.x, oy: caster.y,
+          x: sx, y: sy,
+          angle: ang,
+          slashDir: w === 0 ? 1 : -1,
+          radius: reach * 0.66,
+          dmg: rawDmg * (w === 0 ? 1.06 : 0.90),
+          type: "Ghost",
+          kb: 9,
+          extraCrit: (isMegaGengar ? 0.40 : 0.25) + fistCrit,
+          statusChance: isMegaGengar ? 0.35 : 0,
+          isMegaGengar,
+          skillLevel: level,
+          isLv8: level >= 8,
+          scarSpawned: false,
+          hitSet: new Set(),
+          timer: 0.26, maxTime: 0.26,
+          color: isMegaGengar ? "#E11D48" : "#A855F7"
         });
+        for (let pIdx = 0; pIdx < 6; pIdx++) {
+          const pa = ang + (Math.random() - 0.5) * 0.9;
+          const pSpd = 65 + Math.random() * 110;
+          this.spawnSubParticle(
+            caster.x + Math.cos(ang) * 24, caster.y + Math.sin(ang) * 24,
+            Math.cos(pa) * pSpd, Math.sin(pa) * pSpd - 18,
+            isMegaGengar ? (pIdx % 2 === 0 ? "#FB7185" : "#E11D48") : (pIdx % 2 === 0 ? "#F0ABFC" : "#9333EA"),
+            3.8, 0.32, "diamond"
+          );
+        }
+        SoundFX.play("hit", "Ghost");
+      };
+
+      doClawWave(0);
+      if (level >= 4) {
+        this.scheduleEvent(0.17, () => doClawWave(1));
       }
-      this.triggerSmartMeleeLunge(caster, initLock ? Math.atan2(initLock.y - caster.y, initLock.x - caster.x) : baseAngle, 0, 0, 15);
+      this.triggerSmartMeleeLunge(caster, initAng, 0, 0, 15);
       return;
     }
 
